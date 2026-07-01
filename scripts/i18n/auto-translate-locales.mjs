@@ -57,6 +57,16 @@ function sleep(ms) {
     return new Promise((r) => setTimeout(r, ms));
 }
 
+const CHUNK_SIZE = Number(process.env.I18N_TRANSLATE_CHUNK_SIZE) || 20;
+const BATCH_DELAY_MS = Number(process.env.I18N_TRANSLATE_BATCH_DELAY_MS) || 700;
+const SINGLE_DELAY_MS = Number(process.env.I18N_TRANSLATE_SINGLE_DELAY_MS) || 300;
+const MAX_RETRIES = Number(process.env.I18N_TRANSLATE_MAX_RETRIES) || 4;
+
+const TRANSLATE_OPTS = {
+    from: 'ko',
+    rejectOnPartialFail: false,
+};
+
 function flattenStrings(obj, prefix = '', out = new Map()) {
     if (typeof obj === 'string') {
         out.set(prefix, obj);
@@ -104,20 +114,30 @@ function restorePlaceholders(text, tokens) {
     return out;
 }
 
-async function translateText(text, to) {
+async function translateText(text, to, { quiet = false } = {}) {
     if (!text || !text.trim()) return text;
     if (KEEP_LITERALS.has(text)) return text;
     if (/^[\d\s.,:+\-/%()[\]{}#]+$/.test(text)) return text;
 
     const { protectedText, tokens } = protectPlaceholders(text);
-    try {
-        const res = await translate(protectedText, { from: 'ko', to, forceBatch: false });
-        const translated = Array.isArray(res) ? res.map((r) => r.text).join('') : res.text;
-        return restorePlaceholders(translated, tokens);
-    } catch (err) {
-        console.warn(`[translate] failed (${to}): ${text.slice(0, 40)}…`, err?.message ?? err);
-        return text;
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+        try {
+            const res = await translate(protectedText, { ...TRANSLATE_OPTS, to, forceBatch: false });
+            const translated = Array.isArray(res) ? res.map((r) => r.text).join('') : res.text;
+            if (translated != null && String(translated).trim() !== '') {
+                return restorePlaceholders(translated, tokens);
+            }
+        } catch (err) {
+            const isLast = attempt === MAX_RETRIES - 1;
+            if (isLast && !quiet) {
+                console.warn(`[translate] failed (${to}): ${text.slice(0, 40)}…`, err?.message ?? err);
+            }
+            if (!isLast) {
+                await sleep(SINGLE_DELAY_MS * (attempt + 2));
+            }
+        }
     }
+    return text;
 }
 
 async function translateFlatMap(flatKo, locale) {
@@ -137,29 +157,52 @@ async function translateFlatMap(flatKo, locale) {
     const googleTo = LOCALE_TO_GOOGLE[locale];
     const out = new Map();
     const entries = [...flatKo.entries()];
-    const chunkSize = 35;
+    const retryQueue = [];
 
-    for (let i = 0; i < entries.length; i += chunkSize) {
-        const batch = entries.slice(i, i + chunkSize);
-        const texts = batch.map(([, v]) => v);
+    for (let i = 0; i < entries.length; i += CHUNK_SIZE) {
+        const batch = entries.slice(i, i + CHUNK_SIZE);
+        const prepared = batch.map(([, value]) => protectPlaceholders(value));
+        const texts = prepared.map((p) => p.protectedText);
 
         try {
-            const res = await translate(texts, { from: 'ko', to: googleTo });
+            const res = await translate(texts, { ...TRANSLATE_OPTS, to: googleTo });
             const results = Array.isArray(res) ? res : [res];
-            batch.forEach(([key], idx) => {
-                out.set(key, results[idx]?.text ?? flatKo.get(key));
+            batch.forEach(([key, value], idx) => {
+                const raw = results[idx]?.text;
+                if (raw != null && String(raw).trim() !== '') {
+                    out.set(key, restorePlaceholders(raw, prepared[idx].tokens));
+                } else {
+                    retryQueue.push([key, value]);
+                }
             });
         } catch (err) {
             console.warn(`[translate] batch failed (${locale}), falling back to single`, err?.message ?? err);
             for (const [key, value] of batch) {
                 out.set(key, await translateText(value, googleTo));
-                await sleep(150);
+                await sleep(SINGLE_DELAY_MS);
             }
         }
 
-        process.stdout.write(`  ${locale}: ${Math.min(i + chunkSize, entries.length)}/${entries.length}\r`);
-        await sleep(400);
+        process.stdout.write(`  ${locale}: ${Math.min(i + CHUNK_SIZE, entries.length)}/${entries.length}\r`);
+        await sleep(BATCH_DELAY_MS);
     }
+
+    if (retryQueue.length > 0) {
+        console.log(`\n  ${locale}: retrying ${retryQueue.length} partial/failed keys…`);
+        for (const [key, value] of retryQueue) {
+            out.set(key, await translateText(value, googleTo));
+            await sleep(SINGLE_DELAY_MS * 2);
+        }
+    }
+
+    const stillKo = [...flatKo.entries()].filter(([key, koText]) => {
+        const translated = out.get(key);
+        return translated === koText && koText.trim() && !KEEP_LITERALS.has(koText);
+    });
+    if (stillKo.length > 0) {
+        console.warn(`  ${locale}: ${stillKo.length} keys still untranslated (kept ko source)`);
+    }
+
     console.log(`  ${locale}: ${entries.length}/${entries.length} done`);
     return out;
 }

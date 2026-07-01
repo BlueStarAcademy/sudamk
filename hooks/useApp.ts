@@ -126,6 +126,27 @@ function isSessionSingleOrTower(g: Partial<LiveGameSession> | undefined): boolea
     return kind === 'singleplayer' || kind === 'tower';
 }
 
+type PveResignStateBucket = 'singleplayer' | 'tower' | 'live';
+
+function isLocalGameTerminalForPveResign(g: LiveGameSession | undefined): boolean {
+    if (!g) return false;
+    return (
+        g.gameStatus === 'ended' ||
+        g.gameStatus === 'no_contest' ||
+        g.gameStatus === 'scoring' ||
+        g.gameStatus === 'hidden_final_reveal'
+    );
+}
+
+/** 페어 휴먼 팀 기권 등을 제외한 솔로 PVE(탑·싱글·모험·길드전·AI 대국) */
+function isPveSoloResignEligibleSession(g: Partial<LiveGameSession> | undefined): boolean {
+    if (!g) return false;
+    const policy = resolveArenaSessionPolicy(g as any);
+    if (policy.matchAxis !== 'pve') return false;
+    if (g.settings?.pairGame) return false;
+    return true;
+}
+
 function isSessionStrategicAiLike(g: Partial<LiveGameSession> | undefined): boolean {
     if (!g) return false;
     return resolveArenaSessionPolicy(g as any).isStrategicAiLike;
@@ -2604,7 +2625,7 @@ export const useApp = () => {
     /** 싱글/탑 기권: 서버 정산(processSinglePlayerGameSummary 등) 지연 동안 즉시 ended 반영 후 실패 시 롤백 */
     const pveResignOptimisticRevertRef = useRef<{
         gameId: string;
-        bucket: 'singleplayer' | 'tower';
+        bucket: PveResignStateBucket;
         snapshot: LiveGameSession;
     } | null>(null);
     /** AI 주사위 바둑: 턴 내 착수 배치를 모아 마지막에 1회 전송 */
@@ -5888,7 +5909,7 @@ export const useApp = () => {
             return;
         }
 
-        // 싱글/탑 기권: 서버가 정산·saveGame 끝낼 때까지 HTTP가 지연되므로, 종료 상태만 먼저 반영해 결과 모달을 즉시 연다.
+        // PVE 솔로 기권: 서버가 정산·saveGame 끝낼 때까지 HTTP가 지연되므로, 종료 상태만 먼저 반영해 결과 모달을 즉시 연다.
         if (action.type === 'RESIGN_GAME') {
             const payload = (action as { payload?: { gameId?: string } }).payload;
             const gid = payload?.gameId;
@@ -5896,12 +5917,13 @@ export const useApp = () => {
             if (gid && uid) {
                 const fromSp = singlePlayerGamesRef.current[gid];
                 const fromTower = towerGamesRef.current[gid];
-                const g = fromSp || fromTower;
+                const fromLive = liveGamesRef.current[gid];
+                const g = fromSp || fromTower || fromLive;
                 if (
                     g &&
                     g.gameStatus !== 'ended' &&
                     g.gameStatus !== 'no_contest' &&
-                    isSessionSingleOrTower(g)
+                    isPveSoloResignEligibleSession(g)
                 ) {
                     const myEnum =
                         g.blackPlayerId === uid
@@ -5917,7 +5939,11 @@ export const useApp = () => {
                         } catch {
                             snapshot = { ...g } as LiveGameSession;
                         }
-                        const bucket: 'singleplayer' | 'tower' = fromSp ? 'singleplayer' : 'tower';
+                        const bucket: PveResignStateBucket = fromSp
+                            ? 'singleplayer'
+                            : fromTower
+                              ? 'tower'
+                              : 'live';
                         pveResignOptimisticRevertRef.current = { gameId: gid, bucket, snapshot };
                         const patch = (prev: LiveGameSession): LiveGameSession => ({
                             ...prev,
@@ -5928,18 +5954,17 @@ export const useApp = () => {
                             disconnectionCounts: {},
                             serverRevision: (prev.serverRevision ?? 0) + 1,
                         });
-                        if (fromSp) {
-                            setSinglePlayerGames((c) => {
-                                const cur = c[gid];
-                                if (!cur || cur.gameStatus === 'ended' || cur.gameStatus === 'no_contest') return c;
-                                return { ...c, [gid]: patch(cur) };
-                            });
-                        } else if (fromTower) {
-                            setTowerGames((c) => {
-                                const cur = c[gid];
-                                if (!cur || cur.gameStatus === 'ended' || cur.gameStatus === 'no_contest') return c;
-                                return { ...c, [gid]: patch(cur) };
-                            });
+                        const applyPatch = (c: Record<string, LiveGameSession>) => {
+                            const cur = c[gid];
+                            if (!cur || cur.gameStatus === 'ended' || cur.gameStatus === 'no_contest') return c;
+                            return { ...c, [gid]: patch(cur) };
+                        };
+                        if (bucket === 'singleplayer') {
+                            setSinglePlayerGames(applyPatch);
+                        } else if (bucket === 'tower') {
+                            setTowerGames(applyPatch);
+                        } else {
+                            setLiveGames(applyPatch);
                         }
                     }
                 }
@@ -6092,10 +6117,22 @@ export const useApp = () => {
                 if (!entry) return;
                 pveResignOptimisticRevertRef.current = null;
                 const { gameId, bucket, snapshot } = entry;
+                const current =
+                    bucket === 'singleplayer'
+                        ? singlePlayerGamesRef.current[gameId]
+                        : bucket === 'tower'
+                          ? towerGamesRef.current[gameId]
+                          : liveGamesRef.current[gameId];
+                // 기권 낙관(ended) 직후 benign 400·동시 AI 요청 등으로 롤백하면 결과 모달 뒤 playing 복귀 버그
+                if (isLocalGameTerminalForPveResign(current)) {
+                    return;
+                }
                 if (bucket === 'singleplayer') {
                     setSinglePlayerGames((c) => (c[gameId] ? { ...c, [gameId]: snapshot } : c));
-                } else {
+                } else if (bucket === 'tower') {
                     setTowerGames((c) => (c[gameId] ? { ...c, [gameId]: snapshot } : c));
+                } else {
+                    setLiveGames((c) => (c[gameId] ? { ...c, [gameId]: snapshot } : c));
                 }
             };
 
@@ -6539,7 +6576,15 @@ export const useApp = () => {
                         revertPvpPlaceStoneSnapshot();
                         rollbackTowerAddTurnOptimistic();
             rollbackPveScanOptimistic();
-                        revertPveResignOptimistic();
+                        if (
+                            action.type === 'RESIGN_GAME' &&
+                            localGame &&
+                            isLocalGameTerminalForPveResign(localGame)
+                        ) {
+                            pveResignOptimisticRevertRef.current = null;
+                        } else {
+                            revertPveResignOptimistic();
+                        }
                         revertAiLobbyStartOptimistic();
                         return {} as HandleActionResult;
                     }
@@ -7966,10 +8011,15 @@ export const useApp = () => {
                             return merged;
                         };
 
+                        const shouldApplyEndState =
+                            endGame.gameStatus === 'ended' ||
+                            endGame.gameStatus === 'no_contest' ||
+                            (endGame.winner !== null && endGame.winner !== undefined);
+
                         if (getSessionArenaKind(endGame) === 'tower') {
                             setTowerGames(currentGames => {
                                 const existingGame = currentGames[endGameId];
-                                if (endGame.winner !== null && endGame.winner !== undefined) {
+                                if (shouldApplyEndState) {
                                     return { ...currentGames, [endGameId]: preserveBoardFromExisting(existingGame ?? endGame, endGame) };
                                 }
                                 return currentGames;
@@ -7977,7 +8027,15 @@ export const useApp = () => {
                         } else if (getSessionArenaKind(endGame) === 'singleplayer') {
                             setSinglePlayerGames(currentGames => {
                                 const existingGame = currentGames[endGameId];
-                                if (endGame.winner !== null && endGame.winner !== undefined) {
+                                if (shouldApplyEndState) {
+                                    return { ...currentGames, [endGameId]: preserveBoardFromExisting(existingGame ?? endGame, endGame) };
+                                }
+                                return currentGames;
+                            });
+                        } else if (isPveSoloResignEligibleSession(endGame)) {
+                            setLiveGames(currentGames => {
+                                const existingGame = currentGames[endGameId];
+                                if (shouldApplyEndState) {
                                     return { ...currentGames, [endGameId]: preserveBoardFromExisting(existingGame ?? endGame, endGame) };
                                 }
                                 return currentGames;
@@ -8683,10 +8741,22 @@ export const useApp = () => {
                 const rev = pveResignOptimisticRevertRef.current;
                 if (rev) {
                     pveResignOptimisticRevertRef.current = null;
-                    if (rev.bucket === 'singleplayer') {
-                        setSinglePlayerGames((c) => (c[rev.gameId] ? { ...c, [rev.gameId]: rev.snapshot } : c));
-                    } else {
-                        setTowerGames((c) => (c[rev.gameId] ? { ...c, [rev.gameId]: rev.snapshot } : c));
+                    const current =
+                        rev.bucket === 'singleplayer'
+                            ? singlePlayerGamesRef.current[rev.gameId]
+                            : rev.bucket === 'tower'
+                              ? towerGamesRef.current[rev.gameId]
+                              : liveGamesRef.current[rev.gameId];
+                    if (!isLocalGameTerminalForPveResign(current)) {
+                        if (rev.bucket === 'singleplayer') {
+                            setSinglePlayerGames((c) =>
+                                c[rev.gameId] ? { ...c, [rev.gameId]: rev.snapshot } : c,
+                            );
+                        } else if (rev.bucket === 'tower') {
+                            setTowerGames((c) => (c[rev.gameId] ? { ...c, [rev.gameId]: rev.snapshot } : c));
+                        } else {
+                            setLiveGames((c) => (c[rev.gameId] ? { ...c, [rev.gameId]: rev.snapshot } : c));
+                        }
                     }
                 }
             }
@@ -11368,6 +11438,15 @@ export const useApp = () => {
                                                     console.warn(
                                                         '[WebSocket] Tower: ignoring stale playing GAME_UPDATE during local scoring',
                                                         { gameId }
+                                                    );
+                                                }
+                                                return currentGames;
+                                            }
+                                            if (shouldIgnoreStaleLiveTerminalGameUpdate(game, existingGame)) {
+                                                if (process.env.NODE_ENV === 'development') {
+                                                    console.warn(
+                                                        '[WebSocket] Tower: ignoring stale GAME_UPDATE during local scoring/terminal',
+                                                        { gameId, incoming: game.gameStatus, local: existingGame.gameStatus },
                                                     );
                                                 }
                                                 return currentGames;

@@ -903,8 +903,9 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
                 return { error: '페어 휴먼 대전에서는 팀원 동의 후 기권됩니다. 기권 요청을 사용해 주세요.' };
             }
             
-            // 싱글플레이 게임 또는 도전의 탑 게임인 경우 특별 처리
-            if (game.isSinglePlayer || game.gameCategory === 'tower') {
+            // 솔로 PVE(싱글·탑·모험·길드전·AI 대국): 기권 시 즉시 종료 상태를 클라이언트에 반환
+            const resignPolicy = resolveArenaSessionPolicy(game);
+            if (resignPolicy.matchAxis === 'pve' && !game.settings?.pairGame) {
                 if (myPlayerEnum === types.Player.None) {
                     return { error: 'Only participants can resign.' };
                 }
