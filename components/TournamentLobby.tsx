@@ -828,8 +828,11 @@ const TournamentCard: React.FC<{
                                 </div>
                             </button>
                             <div className="flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
-                                <div className="inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)] sm:text-[13px]">
-                                    {definition.name}
+                                <div className="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)] sm:text-[13px]">
+                                    <span className="min-w-0 truncate">{definition.name}</span>
+                                    <span className="shrink-0 tabular-nums text-amber-200/95">
+                                        ({remainingEntries}/{dailyEntryState.max})
+                                    </span>
                                 </div>
                                 <div className="flex min-h-0 flex-1 flex-col justify-center gap-2 py-0.5">
                                     <div className="grid w-full min-w-0 grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] items-center gap-x-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-1 text-[11px] leading-snug sm:gap-x-2 sm:px-2 sm:py-1.5 sm:text-xs">
@@ -870,8 +873,11 @@ const TournamentCard: React.FC<{
                         </div>
                     </button>
                     <div className="flex min-h-0 min-w-[248px] flex-[1.08] flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                        <div className="mb-1 inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2.5 py-1.5 text-[17px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]">
-                            {definition.name}
+                        <div className="mb-1 inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2.5 py-1.5 text-[17px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]">
+                            <span className="min-w-0 truncate">{definition.name}</span>
+                            <span className="shrink-0 tabular-nums text-amber-200/95">
+                                ({remainingEntries}/{dailyEntryState.max})
+                            </span>
                         </div>
                         <div className="flex min-h-0 flex-1 flex-col justify-center gap-2.5 py-1">
                             <div className="grid w-full min-w-0 grid-cols-[minmax(5.2rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">

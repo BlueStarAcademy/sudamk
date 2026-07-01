@@ -27,6 +27,31 @@ function countFinishedUserMatches(rounds: Round[]): number {
     return rounds.flatMap((r) => r.matches ?? []).filter((m) => m.isUserMatch && m.isFinished).length;
 }
 
+/** bracket_ready·round_complete·빈 bracket 등에서 '오늘 경기 종료'로 오판하지 않도록 */
+function isChampionshipSessionFinished(tournament: TournamentState): boolean {
+    if (tournament.status === 'complete' || tournament.status === 'eliminated') {
+        return true;
+    }
+    if (
+        tournament.status === 'bracket_ready' ||
+        tournament.status === 'round_in_progress' ||
+        tournament.status === 'round_complete'
+    ) {
+        return false;
+    }
+    const rounds = Array.isArray(tournament.rounds) ? tournament.rounds : [];
+    const hasUserMatches = rounds.some(
+        (r) => Array.isArray(r.matches) && r.matches.some((m) => m.isUserMatch),
+    );
+    if (!hasUserMatches) return false;
+    return rounds.every(
+        (r) =>
+            Array.isArray(r.matches) &&
+            r.matches.length > 0 &&
+            r.matches.every((m) => m.isFinished),
+    );
+}
+
 function findNextUnfinishedUserMatch(
     rounds: Round[],
     tournamentType: TournamentType,
@@ -468,15 +493,6 @@ export const ChampionshipRealGoBoard: React.FC<{
     }, [realGame?.status, match?.id]);
 
     if (!realGame) {
-        if (tournamentFinished) {
-            return (
-                <ChampionshipBoardCenterNotice>
-                    <span className={`${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-amber-100`}>
-                        {t('allMatchesEnded')}
-                    </span>
-                </ChampionshipBoardCenterNotice>
-            );
-        }
         if (dungeonBoardCenterMode === 'deep_breath') {
             return (
                 <ChampionshipBoardCenterNotice>
@@ -494,6 +510,15 @@ export const ChampionshipRealGoBoard: React.FC<{
                         label={dungeonPlayersEnteringHint ?? t('playersEntering')}
                         labelClassName={`max-w-none text-center whitespace-nowrap sm:whitespace-normal ${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-sky-100`}
                     />
+                </ChampionshipBoardCenterNotice>
+            );
+        }
+        if (tournamentFinished) {
+            return (
+                <ChampionshipBoardCenterNotice>
+                    <span className={`${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-amber-100`}>
+                        {t('allMatchesEnded')}
+                    </span>
                 </ChampionshipBoardCenterNotice>
             );
         }
@@ -7478,11 +7503,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const desktopSkipSlot = !isMobile ? renderChampionshipSkipOrClaimSlot('!text-sm !py-2 !px-4') : null;
 
-    const championshipAllMatchesFinished = displayTournament.rounds.every((r) => r.matches.every((m) => m.isFinished));
-    const championshipFinished =
-        displayTournament.status === 'complete' ||
-        displayTournament.status === 'eliminated' ||
-        (championshipAllMatchesFinished && displayTournament.status !== 'round_in_progress');
+    const championshipFinished = isChampionshipSessionFinished(displayTournament);
 
     useEffect(() => {
         if (!championshipFinished) return;

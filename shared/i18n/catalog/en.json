@@ -5408,6 +5408,7 @@
         "vsOpponent": "You vs opponent (reference)",
         "none": "None",
         "enter": "Enter",
+        "enterStageWithCount": "Enter stage {{stage}} ({{remaining}}/{{max}})",
         "oneGamePerMatch": "1/game (random)",
         "changeTicketShort": "Change ticket",
         "rankWorld9_16": "9–16th",

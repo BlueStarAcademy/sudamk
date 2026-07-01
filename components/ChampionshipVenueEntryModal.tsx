@@ -29,7 +29,6 @@ import {
     type EquipmentGradeKey,
 } from '../shared/constants/tournaments.js';
 import { normalizeDungeonProgress, isStageCleared } from '../utils/championshipDungeonProgress.js';
-import { isSameDayKST } from '../utils/timeUtils.js';
 import { getChampionshipDungeonDailyEntryState } from '../shared/utils/championshipDungeonDailyEntry.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useAdContext } from './ads/AdProvider.js';
@@ -693,43 +692,30 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     }, [isOpen, maxUnlockedStage]);
 
     const now = Date.now();
-    let playedDateKey: keyof UserWithStatus;
+    let rewardClaimedKey: keyof UserWithStatus;
     switch (type) {
         case 'neighborhood':
-            playedDateKey = 'lastNeighborhoodPlayedDate';
+            rewardClaimedKey = 'neighborhoodRewardClaimed';
             break;
         case 'national':
-            playedDateKey = 'lastNationalPlayedDate';
+            rewardClaimedKey = 'nationalRewardClaimed';
             break;
         case 'world':
-            playedDateKey = 'lastWorldPlayedDate';
+            rewardClaimedKey = 'worldRewardClaimed';
             break;
     }
-    const lastPlayedDate = currentUser[playedDateKey as keyof UserWithStatus] as number | null | undefined;
-    const hasPlayedToday = lastPlayedDate && isSameDayKST(lastPlayedDate, now);
+    const rewardClaimed = Boolean(currentUser[rewardClaimedKey as keyof UserWithStatus]);
 
     const hasResultToView = inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated');
-    const isCompletedToday = !!(hasPlayedToday && hasResultToView);
-    const hasStartedMatch =
-        inProgress &&
-        (inProgress.status === 'round_in_progress' || inProgress.status === 'complete' || inProgress.status === 'eliminated');
-    const isDungeonMode = !!(
-        hasStartedMatch &&
-        inProgress &&
-        inProgress.currentStageAttempt !== undefined &&
-        inProgress.currentStageAttempt !== null
-    );
-    const showContinueFlow = isCompletedToday || !!(isDungeonMode && inProgress);
+    const isPausedInProgress = inProgress?.status === 'round_in_progress';
+    const hasUnclaimedCompleteResult = Boolean(hasResultToView && !rewardClaimed);
+    const showContinueFlow = isPausedInProgress || hasUnclaimedCompleteResult;
 
     let continueLabel = t('championship.venue.continueView');
-    if (isCompletedToday) {
+    if (hasUnclaimedCompleteResult) {
         continueLabel = t('championship.venue.viewResult');
-    } else if (isDungeonMode && inProgress) {
-        if (inProgress.status === 'complete' || inProgress.status === 'eliminated') {
-            continueLabel = t('championship.venue.viewResult');
-        } else {
-            continueLabel = t('championship.venue.continueViewAlt');
-        }
+    } else if (isPausedInProgress) {
+        continueLabel = t('championship.venue.continueViewAlt');
     }
 
     const basePieces = useMemo(() => getBaseRewardPieces(type, selectedStage), [type, selectedStage, t]);
@@ -843,14 +829,6 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                             </span>
                         </div>
                         <div className="relative z-[1] flex items-center gap-1 pr-1.5 sm:gap-1.5 sm:pr-3 md:pr-4">
-                            <div className="rounded-md bg-black/55 px-1.5 py-0.5 ring-1 ring-cyan-400/30 backdrop-blur-sm sm:rounded-lg sm:px-2.5 sm:py-1">
-                                <span className="block text-center text-[8px] font-semibold uppercase tracking-wide text-cyan-200/85 sm:text-[10px]">
-                                    {t('championship.venue.dailyEntryLabel')}
-                                </span>
-                                <span className="block text-center text-sm font-black tabular-nums leading-none text-white sm:text-xl md:text-2xl">
-                                    ({dailyEntryState.remaining}/{dailyEntryState.max})
-                                </span>
-                            </div>
                             <div className="rounded-md bg-black/55 px-1.5 py-0.5 ring-1 ring-amber-400/30 backdrop-blur-sm sm:rounded-lg sm:px-2.5 sm:py-1">
                                 <span className="block text-center text-[8px] font-semibold uppercase tracking-wide text-amber-200/85 sm:text-[10px]">
                                     {t('championship.venue.stageLabel')}
@@ -865,8 +843,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                     {showContinueFlow && (
                         <div className="shrink-0 rounded-lg border border-amber-400/35 bg-gradient-to-r from-amber-950/50 via-yellow-950/25 to-amber-950/40 p-1.5 ring-1 ring-inset ring-amber-500/15 sm:rounded-xl sm:p-2.5 md:p-3">
                             <p className="mb-1.5 text-center text-[11px] leading-snug text-amber-50/90 sm:mb-2 sm:text-sm md:text-base">
-                                {isCompletedToday ||
-                                (isDungeonMode && inProgress && (inProgress.status === 'complete' || inProgress.status === 'eliminated'))
+                                {hasUnclaimedCompleteResult
                                     ? t('championship.venue.inProgressToday')
                                     : t('championship.venue.inProgress')}
                             </p>
@@ -1074,16 +1051,19 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                                     }
                                 }}
                                 disabled={!canEnterFresh}
-                                className="group relative mx-auto w-auto min-w-[10.5rem] max-w-[min(17rem,92vw)] overflow-hidden rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 px-5 py-2 text-xs font-bold text-white shadow-[0_10px_36px_-10px_rgba(109,40,217,0.65),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-violet-200/50 hover:shadow-[0_14px_40px_-8px_rgba(139,92,246,0.55)] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none sm:min-w-[13rem] sm:px-9 sm:py-3 sm:text-base md:min-w-[14.5rem] md:px-11 md:py-3.5 md:text-lg"
+                                className="group relative mx-auto w-auto min-w-[11.5rem] max-w-[min(19rem,92vw)] overflow-hidden rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 px-4 py-2 text-xs font-bold text-white shadow-[0_10px_36px_-10px_rgba(109,40,217,0.65),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-violet-200/50 hover:shadow-[0_14px_40px_-8px_rgba(139,92,246,0.55)] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none sm:min-w-[14rem] sm:px-8 sm:py-3 sm:text-base md:min-w-[15.5rem] md:px-10 md:py-3.5 md:text-lg"
                             >
                                 <span
                                     className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/12 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
                                     aria-hidden
                                 />
-                                <span className="relative flex items-center justify-center gap-2">
-                                    <span className="tracking-wide">{t('championship.venue.enter')}</span>
-                                    <span className="rounded-full bg-black/25 px-1.5 py-px text-[10px] font-extrabold tabular-nums text-violet-100 ring-1 ring-white/15 sm:px-2 sm:py-0.5 sm:text-sm md:text-base">
+                                <span className="relative flex items-center justify-center gap-1.5 whitespace-nowrap sm:gap-2">
+                                    <span className="shrink-0 tracking-wide">{t('championship.venue.enter')}</span>
+                                    <span className="shrink-0 rounded-full bg-black/25 px-1.5 py-px text-[10px] font-extrabold tabular-nums leading-none text-violet-100 ring-1 ring-white/15 sm:px-2 sm:py-0.5 sm:text-sm md:text-base">
                                         {t('championship.venue.stageUnit', { stage: selectedStage })}
+                                    </span>
+                                    <span className="shrink-0 tabular-nums text-violet-100/95">
+                                        ({dailyEntryState.remaining}/{dailyEntryState.max})
                                     </span>
                                 </span>
                             </button>

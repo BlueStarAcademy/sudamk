@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TournamentType, UserWithStatus, PlayerForTournament } from '../../types';
+import { TournamentType, UserWithStatus, PlayerForTournament, TournamentState } from '../../types';
 import type { ChampionshipVersusVenueKind } from '../../shared/types/entities.js';
 import ChampionshipVersusVenueArena from './ChampionshipVersusVenueArena.js';
 import { useAppContext } from '../../hooks/useAppContext';
@@ -46,14 +46,14 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     /** 챔피언십(동네/전국/월드)은 던전 전용. 입장은 로비에서 START_DUNGEON_STAGE로만 가능. */
     const isChampionshipDungeon = type === 'neighborhood' || type === 'national' || type === 'world';
 
-    const tournamentStateFromContext = currentUserWithStatus?.[stateKey] as any;
+    const tournamentStateFromContext = currentUserWithStatus?.[stateKey] as TournamentState | null | undefined;
     /** 챔피언십 입장 직후 컨텍스트 반영 전에도 표시: sessionStorage에 저장된 dungeonState 사용 */
     const pendingDungeonState = React.useMemo(() => {
-        if (tournamentStateFromContext || !isChampionshipDungeon) return null;
+        if (!isChampionshipDungeon) return null;
         try {
             const raw = sessionStorage.getItem(`pendingDungeon_${type}`);
             if (!raw) return null;
-            const parsed = JSON.parse(raw) as any;
+            const parsed = JSON.parse(raw) as TournamentState;
             const snapDay = currentUserWithStatus?.dungeonConditionSnapshot?.[type]?.dateStartOfDayKST;
             if (!isChampionshipDungeonTournamentFromToday(parsed, snapDay)) {
                 sessionStorage.removeItem(`pendingDungeon_${type}`);
@@ -63,8 +63,47 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         } catch {
             return null;
         }
-    }, [type, tournamentStateFromContext, isChampionshipDungeon, currentUserWithStatus?.dungeonConditionSnapshot]);
-    const tournamentState = tournamentStateFromContext ?? pendingDungeonState ?? null;
+    }, [type, isChampionshipDungeon, currentUserWithStatus?.dungeonConditionSnapshot]);
+    const tournamentState = React.useMemo((): TournamentState | null => {
+        const snapDay = currentUserWithStatus?.dungeonConditionSnapshot?.[type]?.dateStartOfDayKST;
+        const fromContext = tournamentStateFromContext;
+        const pending = pendingDungeonState;
+
+        const contextFromToday =
+            fromContext && isChampionshipDungeonTournamentFromToday(fromContext, snapDay);
+        const pendingFromToday =
+            pending && isChampionshipDungeonTournamentFromToday(pending, snapDay);
+
+        if (pendingFromToday && contextFromToday) {
+            const contextTerminal =
+                fromContext.status === 'complete' || fromContext.status === 'eliminated';
+            const pendingPlayable =
+                pending.status === 'bracket_ready' ||
+                pending.status === 'round_in_progress' ||
+                pending.status === 'round_complete';
+            if (contextTerminal && pendingPlayable) {
+                return pending;
+            }
+        }
+
+        if (contextFromToday) return fromContext;
+        if (pendingFromToday) return pending;
+
+        if (
+            fromContext &&
+            (fromContext.status === 'complete' || fromContext.status === 'eliminated') &&
+            !isChampionshipDungeonTournamentFromToday(fromContext, snapDay)
+        ) {
+            return null;
+        }
+
+        return fromContext ?? pending ?? null;
+    }, [
+        tournamentStateFromContext,
+        pendingDungeonState,
+        currentUserWithStatus?.dungeonConditionSnapshot,
+        type,
+    ]);
     const latestTournamentStateRef = React.useRef<typeof tournamentState | null>(tournamentState ?? null);
 
     /** 상태가 아직 안 왔을 때 HTTP 응답 반영을 위해 잠시 대기 (최대 1.2초) */
