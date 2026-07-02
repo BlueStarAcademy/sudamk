@@ -66,6 +66,39 @@ const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
                     }`}
                 >
                     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 sm:gap-x-4">
+                        <a
+                            href="#/help"
+                            className={`whitespace-nowrap text-[11px] underline-offset-4 transition-colors hover:underline sm:text-xs ${
+                                isAuth
+                                    ? 'text-stone-200 hover:text-amber-100'
+                                    : 'text-secondary hover:text-on-panel'
+                            }`}
+                        >
+                            {t('gameGuide', { defaultValue: '게임 가이드' })}
+                        </a>
+                        <Divider auth={isAuth} />
+                        <a
+                            href="#/help/modes"
+                            className={`whitespace-nowrap text-[11px] underline-offset-4 transition-colors hover:underline sm:text-xs ${
+                                isAuth
+                                    ? 'text-stone-200 hover:text-amber-100'
+                                    : 'text-secondary hover:text-on-panel'
+                            }`}
+                        >
+                            {t('gameModes', { defaultValue: '게임 모드' })}
+                        </a>
+                        <Divider auth={isAuth} />
+                        <a
+                            href="#/help/pve-academy"
+                            className={`whitespace-nowrap text-[11px] underline-offset-4 transition-colors hover:underline sm:text-xs ${
+                                isAuth
+                                    ? 'text-stone-200 hover:text-amber-100'
+                                    : 'text-secondary hover:text-on-panel'
+                            }`}
+                        >
+                            {t('badukAcademy', { defaultValue: '바둑학원' })}
+                        </a>
+                        <Divider auth={isAuth} />
                         <FooterLinkButton
                             label={t('terms')}
                             auth={isAuth}

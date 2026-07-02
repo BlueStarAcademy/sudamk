@@ -289,10 +289,6 @@ const AppContent: React.FC = () => {
     const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout === true;
     /** 8인치+ 태블릿(PC 셸)은 세로 스크롤 여유를 PC 화면 보기와 동일하게 둔다 */
     const pcShellUsesScrollLayout = pcLikeMobileLayout || isLargeTouchTablet;
-    /** 스케일 셸 전용: 네이티브 모드에서는 좌우 레일·하단 배너로 대체 */
-    const showLobbySideAds = Boolean(
-        currentUser && !isGameView && !isNativeMobile && !currentUserWithStatus?.removeAdsPurchased,
-    );
     /** 닉네임 설정: PC main 세로 스크롤로 빈 영역·이중 스크롤 방지 */
     const lockPcMainScroll = currentUser && currentRoute.view === 'set-nickname';
     /** 챔피언십 인게임 경기장: 퀵스트립 없이 본문만 풀 높이 (로비 #/tournament 는 유지) */
@@ -300,6 +296,26 @@ const AppContent: React.FC = () => {
         currentRoute.view === 'tournament' && currentRoute.params?.type
             ? String(currentRoute.params.type)
             : null;
+    /**
+     * AdSense 정책: 콘텐츠 있는 화면에서만 광고 노출 (화이트리스트).
+     * 로비·매칭·대기실·인증 화면은 "행동 목적" 화면이라 광고 금지.
+     * 콘텐츠 화면: profile 홈, singleplayer(바둑학원), adventure(모험 스테이지 맵),
+     *              guild(길드 정보), tournament venue(챔피언십 경기 정보).
+     */
+    const profileTab = ((currentRoute.params?.tab as string | undefined) ?? 'home');
+    const isContentView = Boolean(
+        (currentRoute.view === 'profile' && profileTab === 'home' && currentUser) ||
+        currentRoute.view === 'help' ||
+        (currentUser && (
+            currentRoute.view === 'singleplayer' ||
+            currentRoute.view === 'adventure' ||
+            currentRoute.view === 'guild' ||
+            (currentRoute.view === 'tournament' && championshipVenueType !== null)
+        ))
+    );
+    const showLobbySideAds = Boolean(
+        isContentView && !isGameView && !isNativeMobile && !currentUserWithStatus?.removeAdsPurchased,
+    );
     const isChampionshipDungeonVenueType =
         championshipVenueType === 'neighborhood' ||
         championshipVenueType === 'national' ||
@@ -481,9 +497,11 @@ const AppContent: React.FC = () => {
                                     {!isGameView && !hideAppHeader && (
                                         <>
                                             <NativeMobileDock />
-                                            <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
-                                                <AdBanner position="bottom" className="py-1" />
-                                            </div>
+                                            {isContentView && !currentUserWithStatus?.removeAdsPurchased && (
+                                                <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
+                                                    <AdBanner position="bottom" className="py-1" />
+                                                </div>
+                                            )}
                                         </>
                                     )}
                                 </NativeMobileScaledContent>

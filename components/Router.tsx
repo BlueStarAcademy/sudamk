@@ -18,6 +18,7 @@ import IntentWaitingArena from './arenas/waiting/IntentWaitingArena.js';
 import { arenaLobbyHash } from '../shared/utils/arenaLobbyDestination.js';
 import SinglePlayerLobby from './SinglePlayerLobby.js';
 import TowerLobby from './TowerLobby.js';
+import HelpPage from './HelpPage.js';
 import GuildHome from './guild/GuildHome.js';
 import GuildBoss from './guild/GuildBoss.js';
 import GuildWar from './guild/GuildWar.js';
@@ -179,6 +180,16 @@ const Router: React.FC = () => {
         if (currentRoute.view === 'google-callback') {
             return <GoogleCallback />;
         }
+        if (currentRoute.view === 'help') {
+            return (
+                <div className={routeShellClass}>
+                    <HelpPage
+                        initialCategoryId={currentRoute.params?.categoryId ?? null}
+                        initialSubId={currentRoute.params?.subId ?? null}
+                    />
+                </div>
+            );
+        }
         return <Login />;
     }
 
@@ -314,6 +325,15 @@ const Router: React.FC = () => {
             return <GuildBoss />;
         case 'guildwar':
             return <GuildWar />;
+        case 'help':
+            return (
+                <div className={routeShellClass}>
+                    <HelpPage
+                        initialCategoryId={currentRoute.params?.categoryId ?? null}
+                        initialSubId={currentRoute.params?.subId ?? null}
+                    />
+                </div>
+            );
         default:
             window.location.hash = APP_HOME_HASH;
             return null;
