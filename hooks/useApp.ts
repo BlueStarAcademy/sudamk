@@ -2261,7 +2261,8 @@ export const useApp = () => {
                 JSON.stringify(prevUser.dailyShopPurchases) !== JSON.stringify(mergedUser.dailyShopPurchases) ||
                 JSON.stringify(prevUser.equipment) !== JSON.stringify(mergedUser.equipment) ||
                 JSON.stringify(prevUser.singlePlayerMissions) !== JSON.stringify(mergedUser.singlePlayerMissions) ||
-                JSON.stringify(prevUser.actionPoints) !== JSON.stringify(mergedUser.actionPoints);
+                JSON.stringify(prevUser.actionPoints) !== JSON.stringify(mergedUser.actionPoints) ||
+                JSON.stringify(prevUser.quests) !== JSON.stringify(mergedUser.quests);
             
             // stableStringify로 전체 비교 (백업) — 펫 수련은 슬롯·골드 등 키 필드만으로 충분(대형 인벤에서 전체 직렬화 지연 방지)
             const fullComparison =
@@ -2269,7 +2270,7 @@ export const useApp = () => {
             
             hasActualChanges = keyFieldsChanged || fullComparison;
             
-            // 보상 수령 관련 액션의 경우 inventory 변경을 강제로 감지
+            // 보상 수령 관련 액션의 경우 inventory·퀘스트 변경을 강제로 감지
             if (source.includes('CLAIM') || source.includes('REWARD')) {
                 if (inventoryChanged) {
                     hasActualChanges = true;
@@ -2277,6 +2278,9 @@ export const useApp = () => {
                         prevLength: prevUser.inventory?.length,
                         newLength: mergedUser.inventory?.length
                     });
+                }
+                if (JSON.stringify(prevUser.quests) !== JSON.stringify(mergedUser.quests)) {
+                    hasActualChanges = true;
                 }
             }
             // 챔피언십 던전 입장 시 토너먼트 상태 변경 강제 감지 (경기장 입장 실패 방지)
@@ -3868,6 +3872,9 @@ export const useApp = () => {
             action.type !== 'COMPLETE_DUNGEON_STAGE' &&
             action.type !== 'CLAIM_TOURNAMENT_REWARD' &&
             action.type !== 'CLAIM_GUILD_WAR_REWARD' &&
+            action.type !== 'CLAIM_QUEST_REWARD' &&
+            action.type !== 'CLAIM_ACTIVITY_MILESTONE' &&
+            action.type !== 'CLAIM_ACHIEVEMENT_REWARD' &&
             action.type !== 'BUY_CONDITION_POTION' &&
             action.type !== 'USE_CONDITION_POTION' &&
             action.type !== 'PAIR_PET_CLAIM_TRAINING' &&
@@ -7599,6 +7606,19 @@ export const useApp = () => {
                             );
                         } catch (error) {
                             console.warn(`[handleAction] ${action.type} - Failed to deep copy singlePlayerClassBarClaims`, error);
+                        }
+                    }
+
+                    if (
+                        (action.type === 'CLAIM_QUEST_REWARD' ||
+                            action.type === 'CLAIM_ACTIVITY_MILESTONE' ||
+                            action.type === 'CLAIM_ACHIEVEMENT_REWARD') &&
+                        updatedUserFromResponse.quests
+                    ) {
+                        try {
+                            updatedUserFromResponse.quests = JSON.parse(JSON.stringify(updatedUserFromResponse.quests));
+                        } catch (error) {
+                            console.warn(`[handleAction] ${action.type} - Failed to deep copy quests`, error);
                         }
                     }
                     

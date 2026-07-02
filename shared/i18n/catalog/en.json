@@ -3352,6 +3352,8 @@
     "statAllocation": {
       "resetFailAlert": "Reset conditions not met. Not enough gold or daily resets exceeded.",
       "resetConfirm": "Use {{cost}} gold to reset all bonus points? ({{remaining}} left today)",
+      "resetConfirmTitle": "Reset stat points",
+      "resetConfirmBody": "Reset all bonus stat points? ({{remaining}} left today)",
       "combatPower": "Combat power",
       "remaining": "Left",
       "allocateHint": "Allocate remaining points",
@@ -3359,11 +3361,18 @@
       "increaseOne": "+1",
       "bonus": "Bonus",
       "resetBtn": "Reset",
+      "resetBtnWithGold": "Reset (<gold/>{{cost}})",
+      "dailyResetLimit": "Daily {{remaining}}/{{max}}",
       "allocateTitle": "Allocate stat points",
       "allocateAria": "Allocate {{stat}}",
       "statLabel": "Stats",
       "remainingShort": "Left",
-      "allocateToStat": "Allocate to this stat"
+      "allocateToStat": "Allocate to this stat",
+      "championshipGoAbility": "Championship Go ability",
+      "guildBossGoAbility": "Guild boss war Go ability",
+      "abilityTabDefault": "Go",
+      "abilityTabChampionship": "Championship",
+      "abilityTabGuildBoss": "Guild boss"
     },
     "detailedStatsReset": {
       "title": "Reset record",

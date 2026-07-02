@@ -82,6 +82,11 @@
       "label": "광고",
       "bannerPlaceholder": "광고 영역 ({{width}}×{{height}})",
       "interstitialPlaceholder": "전면 광고 영역 (336×280)",
+      "rewardedPlaceholder": "보상형 광고 영역 (336×280)",
+      "loadingAd": "광고 불러오는 중…",
+      "playingAd": "광고 재생 중",
+      "watchToEarnHint": "광고 시청을 완료하면 보상을 받을 수 있습니다.",
+      "dismissedNoReward": "광고 시청을 완료하지 않아 보상이 지급되지 않았습니다.",
       "cancel": "취소",
       "claimReward": "보상 받기",
       "claimRewardIn": "{{seconds}}초 후 보상 받기",
@@ -3425,6 +3430,8 @@
     "statAllocation": {
       "resetFailAlert": "능력치 초기화 조건을 충족하지 못했습니다. 골드가 부족하거나 일일 초기화 횟수를 초과했습니다.",
       "resetConfirm": "골드 {{cost}}개를 사용하여 모든 보너스 포인트를 초기화하겠습니까? (오늘 {{remaining}}회 남음)",
+      "resetConfirmTitle": "능력치 초기화",
+      "resetConfirmBody": "모든 보너스 포인트를 초기화하겠습니까? (오늘 {{remaining}}회 남음)",
       "combatPower": "전투력",
       "remaining": "잔여",
       "allocateHint": "남은 능력치에 배분",
@@ -3432,11 +3439,18 @@
       "increaseOne": "1 증가",
       "bonus": "보너스",
       "resetBtn": "초기화",
+      "resetBtnWithGold": "초기화 (<gold/>{{cost}})",
+      "dailyResetLimit": "일일 {{remaining}}/{{max}}",
       "allocateTitle": "능력치 포인트 배분",
       "allocateAria": "{{stat}} 배분",
       "statLabel": "능력치",
       "remainingShort": "남은",
-      "allocateToStat": "이 능력치에 분배"
+      "allocateToStat": "이 능력치에 분배",
+      "championshipGoAbility": "챔피언십 바둑능력",
+      "guildBossGoAbility": "길드보스전 바둑능력",
+      "abilityTabDefault": "바둑능력",
+      "abilityTabChampionship": "챔피언십",
+      "abilityTabGuildBoss": "길드보스"
     },
     "detailedStatsReset": {
       "title": "전적 초기화",
@@ -3886,8 +3900,9 @@
       "claiming": "수령 중...",
       "exhausted": "오늘 수령 완료",
       "freeReward": "무료 보상",
+      "dailyFreeReward": "무료 수령",
       "watchAd": "광고 보기",
-      "tabExhausted": "오늘 이 탭 광고 보상 수령이 모두 완료되었습니다."
+      "tabExhausted": "오늘 이 탭 보상 수령이 모두 완료되었습니다."
     },
     "limit": {
       "daily": "일일",

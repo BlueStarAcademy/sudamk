@@ -6,6 +6,7 @@ import DraggableWindow from './DraggableWindow.js';
 type ButtonColorScheme = 'blue' | 'red' | 'gray' | 'green' | 'yellow' | 'purple' | 'orange' | 'accent' | 'none';
 
 const DIAMOND_ICON = '/images/icon/Zem.webp';
+const GOLD_ICON = '/images/icon/Gold.webp';
 
 interface ConfirmModalProps {
     title?: string;
@@ -20,6 +21,8 @@ interface ConfirmModalProps {
     variant?: 'default' | 'premium-danger' | 'premium-ledger';
     /** `premium-ledger`: 상단에 강조 표시할 다이아 비용 */
     ledgerCost?: number;
+    /** `premium-ledger`: 상단에 강조 표시할 골드 비용 (`ledgerCost`와 동시 사용하지 않음) */
+    goldCost?: number;
 }
 
 const ConfirmModal: React.FC<ConfirmModalProps> = ({
@@ -34,6 +37,7 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     windowId,
     variant = 'default',
     ledgerCost,
+    goldCost,
 }) => {
     const { t } = useTranslation('common');
     const resolvedTitle = title ?? t('actions.confirm');
@@ -50,6 +54,9 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
     const initialWidth = variant === 'premium-danger' ? 440 : variant === 'premium-ledger' ? 640 : 400;
     /** `premium-ledger`: 높이는 본문에 맞춤(`shrinkHeightToContent`). 고정 높이를 주면 여백·잘림이 생길 수 있음 */
     const initialHeight = variant === 'premium-danger' ? 340 : undefined;
+
+    const highlightCost = typeof goldCost === 'number' ? goldCost : ledgerCost;
+    const highlightIcon = typeof goldCost === 'number' ? GOLD_ICON : DIAMOND_ICON;
 
     return (
         <DraggableWindow
@@ -98,13 +105,13 @@ const ConfirmModal: React.FC<ConfirmModalProps> = ({
                                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(90%_120%_at_50%_-20%,rgba(251,191,36,0.12),transparent_55%)]"
                                 aria-hidden
                             />
-                            {typeof ledgerCost === 'number' && (
+                            {typeof highlightCost === 'number' && (
                                 <div className="relative mb-4 flex flex-col items-center gap-1.5">
                                     <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-amber-200/50">{t('modal.consume')}</span>
                                     <div className="flex items-center gap-2 rounded-full border border-amber-400/35 bg-black/50 px-5 py-2 shadow-inner ring-1 ring-amber-500/15">
-                                        <img src={DIAMOND_ICON} alt="" className="h-6 w-6 object-contain" aria-hidden />
+                                        <img src={highlightIcon} alt="" className="h-6 w-6 object-contain" aria-hidden />
                                         <span className="text-2xl font-black tabular-nums tracking-tight text-amber-50 drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
-                                            {ledgerCost.toLocaleString()}
+                                            {highlightCost.toLocaleString()}
                                         </span>
                                     </div>
                                 </div>

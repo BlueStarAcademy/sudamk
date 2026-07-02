@@ -2082,6 +2082,20 @@ export async function processDailyQuestReset(): Promise<void> {
         
         if (questsChanged || tournamentStatesChanged) {
             await db.updateUser(updatedUser);
+            const { updateUserCache } = await import('./gameCache.js');
+            updateUserCache(updatedUser);
+            const { broadcastUserUpdate } = await import('./socket.js');
+            broadcastUserUpdate(updatedUser, [
+                'quests',
+                'lastNeighborhoodTournament',
+                'lastNationalTournament',
+                'lastWorldTournament',
+                'lastNeighborhoodPlayedDate',
+                'lastNationalPlayedDate',
+                'lastWorldPlayedDate',
+            ]).catch((err) => {
+                console.warn(`[DailyQuestReset] Failed to broadcast quest reset for user ${user.id}:`, err?.message);
+            });
             resetCount++;
             if (tournamentStatesChanged) {
                 tournamentResetCount++;

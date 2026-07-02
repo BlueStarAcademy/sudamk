@@ -308,6 +308,11 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
         case 'CLAIM_QUEST_REWARD': {
             const { questId } = payload;
             const questCategories = ['daily', 'weekly', 'monthly'] as const;
+            const defaultGoldByPeriod: Record<(typeof questCategories)[number], number> = {
+                daily: 100,
+                weekly: 500,
+                monthly: 1500,
+            };
             let foundQuest: Quest | undefined;
             let questType: 'daily' | 'weekly' | 'monthly' | undefined;
 
@@ -322,10 +327,14 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 }
             }
 
-            if (!foundQuest) return { error: '퀘스트를 찾을 수 없습니다.' };
+            if (!foundQuest || !questType) return { error: '퀘스트를 찾을 수 없습니다.' };
             if (foundQuest.isClaimed) return { error: '이미 보상을 수령했습니다.' };
             if (foundQuest.progress < foundQuest.target) return { error: '퀘스트를 아직 완료하지 않았습니다.' };
-            
+
+            if (!foundQuest.reward) {
+                foundQuest.reward = { gold: defaultGoldByPeriod[questType] };
+            }
+
             const { reward, activityPoints } = foundQuest;
             const rewardConfig = await getRewardConfig();
             const rewardVipMult = isRewardVipActive(user) ? 2 : 1;
@@ -365,8 +374,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             if (adjustedReward.actionPoints) user.actionPoints.current += adjustedReward.actionPoints;
             user.inventory = updatedInventory;
             
-            if (activityPoints > 0 && user.quests[questType!]) {
-                const qd = user.quests[questType!]!;
+            if (activityPoints > 0 && user.quests[questType]) {
+                const qd = user.quests[questType]!;
                 qd.activityProgress += activityPoints;
                 const maxAp =
                     questType === 'daily'
@@ -377,18 +386,18 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 qd.activityProgress = clampQuestProgressToTarget(qd.activityProgress, maxAp);
             }
 
-            // 깊은 복사로 updatedUser 생성하여 React가 변경을 확실히 감지하도록 함
-            const updatedUser = JSON.parse(JSON.stringify(user));
-            
-            // DB 업데이트와 WebSocket 브로드캐스트를 병렬로 처리하여 응답 속도 개선
-            const updatePromise = db.updateUser(user);
+            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_QUEST_REWARD');
+
+            const { updateUserCache } = await import('../gameCache.js');
+            updateUserCache(user);
+
+            db.updateUser(user).catch((error) => {
+                console.error(`[CLAIM_QUEST_REWARD] Failed to save user ${user.id}:`, error);
+            });
+
             const { broadcastUserUpdate } = await import('../socket.js');
-            const broadcastPromise = broadcastUserUpdate(updatedUser, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints']);
-            
-            // rewardSummary를 즉시 반환하여 모달이 빠르게 표시되도록 함
-            // DB 업데이트는 백그라운드에서 완료되도록 함
-            Promise.all([updatePromise, broadcastPromise]).catch((error) => {
-                console.error(`[CLAIM_QUEST_REWARD] Error updating user or broadcasting:`, error);
+            broadcastUserUpdate(user, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints']).catch((error) => {
+                console.error(`[CLAIM_QUEST_REWARD] Error broadcasting user update:`, error);
             });
             
             return { 

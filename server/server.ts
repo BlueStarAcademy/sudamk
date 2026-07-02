@@ -5023,6 +5023,19 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 console.log(`[/api/action] Calling handleAction for type: ${req.body.type}`);
             }
             
+            // 퀘스트 수령: 일일 리셋·캐시 TTL과 맞지 않는 questId/진행도로 400이 나지 않도록 수령 직전 동기화
+            const questClaimActionTypes = new Set([
+                'CLAIM_QUEST_REWARD',
+                'CLAIM_ACTIVITY_MILESTONE',
+                'CLAIM_ACHIEVEMENT_REWARD',
+            ]);
+            if (questClaimActionTypes.has(type)) {
+                const syncedQuestUser = await resetAndGenerateQuests(user);
+                Object.assign(user, syncedQuestUser);
+                const { updateUserCache } = await import('./gameCache.js');
+                updateUserCache(user);
+            }
+
             const handleActionStartTime = Date.now();
             // 이미 가져온 user를 전달하여 중복 DB 쿼리 방지
             const result = await handleAction(volatileState, req.body, user);
