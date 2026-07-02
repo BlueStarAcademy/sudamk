@@ -226,7 +226,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                     </Button>
                     </div>
                 </div>
-                <IngameMobileFooterAd isMobile={!!isMobile} />
+                <IngameMobileFooterAd isMobile={!!isMobile} gameStatus={gameStatus} />
             </footer>
         );
     }
@@ -306,7 +306,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                         </div>
                     </div>
                     </div>
-                    <IngameMobileFooterAd isMobile={!!isMobile} />
+                    <IngameMobileFooterAd isMobile={!!isMobile} gameStatus={gameStatus} />
                 </>
             ) : (
                 <>

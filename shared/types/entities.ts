@@ -521,6 +521,31 @@ export type SinglePlayerMissionState = {
     accumulatedCollection: number; // 누적 수령액 (레벨업용)
 };
 
+export type CurrencyExchangeOrder = {
+  id: string;
+  posterId: string;
+  posterNickname: string;
+  fromCurrency: 'gold' | 'diamonds';
+  fromAmount: number;
+  toCurrency: 'gold' | 'diamonds';
+  toAmount: number;
+  status: 'open' | 'filled' | 'cancelled';
+  createdAt: number;
+  filledAt?: number;
+  filledByUserId?: string;
+  filledByNickname?: string;
+};
+
+export type CurrencyExchangeReceipt = {
+  orderId: string;
+  amount: number;
+  currency: 'gold' | 'diamonds';
+  fromCurrency: 'gold' | 'diamonds';
+  fromAmount: number;
+  filledAt: number;
+  claimed: boolean;
+};
+
 export type ExchangeState = {
   listings: Array<{
     id: string;
@@ -554,6 +579,10 @@ export type ExchangeState = {
     claimed: boolean;
   }>;
   history: string[];
+  /** P2P 골드↔다이아 환전 요청 (본인 등록분) */
+  currencyOrders?: CurrencyExchangeOrder[];
+  /** P2P 환전 완료 후 수령 대기 */
+  currencyReceipts?: CurrencyExchangeReceipt[];
 };
 
 /** PVP / 펫 / 펫 페어 챔피언십 경기장(인게임) — 전략바둑 랭킹전과 동일한 분기(KST) 시즌·1200점대 ELO */

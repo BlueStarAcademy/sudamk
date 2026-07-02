@@ -196,6 +196,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 listings: nextListings,
                 settlements: nextSettlements,
                 history: Array.isArray(history) ? history.filter((row): row is string => typeof row === 'string').slice(0, 200) : [],
+                currencyOrders: Array.isArray(currentExchange.currencyOrders) ? currentExchange.currencyOrders : [],
+                currencyReceipts: Array.isArray(currentExchange.currencyReceipts) ? currentExchange.currencyReceipts : [],
             };
             const { reconcileExchangeListedInventoryFlags } = await import(
                 '../../shared/utils/exchangeInventorySync.js'

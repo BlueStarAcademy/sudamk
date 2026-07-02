@@ -33,6 +33,13 @@ import {
     StandardEquipmentBoxShopDescription,
 } from './shopImageDescriptionPopover.js';
 import { useTranslation } from 'react-i18next';
+import {
+    SHOP_AD_TAB_DAILY_LIMIT,
+    getShopAdTabClaimsTodayFromRecord,
+    getShopAdRemainingForTabFromClaims,
+    shopAdNextClaimNeedsAd,
+    type ShopAdRewardTab,
+} from '../shared/constants/shopAdReward.js';
 import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 import i18n from '../shared/i18n/config.js';
 import { useLocalizedShopItem } from '../shared/i18n/shopItemText.js';
@@ -110,11 +117,14 @@ const SHOP_EQUIPMENT_PACKAGE_BONUS_GRADE: Record<'epic' | 'legendary' | 'mythic'
 
 /** 원화(현금) 결제 미연동 — 일반 유저 차단, 관리자만 `BUY_CASH_PACKAGE`·`BUY_VIP_PACKAGE`·`CANCEL_VIP_SHOP_AUTO_RENEW` 허용 */
 
+function getShopAdTabClaimsToday(user: UserWithStatus, tab: ShopAdRewardTab, nowMs: number): number {
+    return getShopAdTabClaimsTodayFromRecord(user.dailyShopPurchases, tab, nowMs);
+}
 
-type ShopAdRewardTab = 'equipment' | 'materials' | 'consumables' | 'diamonds';
-
-/** 서버 `CLAIM_SHOP_AD_REWARD`와 동일 — 탭별 일 3회 */
-const SHOP_AD_TAB_DAILY_LIMIT = 3;
+/** 이 탭에서 오늘 남은 보상 횟수(서버 `isSameDayKST`와 동일 판정). */
+function getShopAdRemainingForTab(user: UserWithStatus, tab: ShopAdRewardTab, nowMs: number): number {
+    return getShopAdRemainingForTabFromClaims(getShopAdTabClaimsToday(user, tab, nowMs));
+}
 
 /** 장비·다이아 탭 — 일반 상품과 패키지 상품 구분 */
 const ShopPackageSectionDivider: React.FC<{ label: string; mobile?: boolean }> = ({ label, mobile = false }) => (
@@ -134,19 +144,6 @@ const ShopPackageSectionDivider: React.FC<{ label: string; mobile?: boolean }> =
         <div className="h-px min-w-0 flex-1 bg-gradient-to-l from-transparent via-violet-400/35 to-violet-400/10" />
     </div>
 );
-
-function getShopAdTabClaimsToday(user: UserWithStatus, tab: ShopAdRewardTab, nowMs: number): number {
-    const rec = user.dailyShopPurchases?.[`ad_reward_${tab}`];
-    if (!rec) return 0;
-    const d = shopPurchaseRecordDateMs(rec.date);
-    if (!(d > 0)) return 0;
-    return isSameDayKST(d, nowMs) ? rec.quantity : 0;
-}
-
-/** 이 탭에서 오늘 남은 광고 보상 횟수(서버 `isSameDayKST`와 동일 판정). */
-function getShopAdRemainingForTab(user: UserWithStatus, tab: ShopAdRewardTab, nowMs: number): number {
-    return Math.max(0, SHOP_AD_TAB_DAILY_LIMIT - getShopAdTabClaimsToday(user, tab, nowMs));
-}
 
 const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void; isPurchasePending?: boolean }> = ({ currentUser, onBuy, isPurchasePending = false }) => {
     const { t } = useTranslation(['shop', 'common']);
@@ -216,16 +213,27 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
 const ShopAdRewardCard: React.FC<{
     tab: ShopAdRewardTab;
     rewardDescription: string;
-    /** 이 탭에서 오늘 남은 광고 보상 횟수(0이면 소진) */
+    /** 이 탭에서 오늘 남은 보상 횟수(0이면 소진) */
     claimableRemaining: number;
+    /** 다음 수령에 광고 시청 필요 여부 */
+    nextClaimNeedsAd: boolean;
     onClaim: (tab: ShopAdRewardTab) => void;
     mobile?: boolean;
     isClaimPending?: boolean;
-}> = ({ tab, rewardDescription, claimableRemaining, onClaim, mobile = false, isClaimPending = false }) => {
+}> = ({ tab, rewardDescription, claimableRemaining, nextClaimNeedsAd, onClaim, mobile = false, isClaimPending = false }) => {
     const { t } = useTranslation('shop');
     const { isAdFree } = useAdContext();
     const exhausted = claimableRemaining <= 0;
     const refinedDescription = formatDescription(rewardDescription);
+    const claimButtonLabel = isClaimPending
+        ? t('adReward.claiming')
+        : exhausted
+          ? t('adReward.exhausted')
+          : isAdFree
+            ? t('adReward.freeReward')
+            : nextClaimNeedsAd
+              ? t('adReward.watchAd')
+              : t('adReward.dailyFreeReward');
 
     return (
         <div
@@ -242,9 +250,13 @@ const ShopAdRewardCard: React.FC<{
                         alt=""
                         className="h-14 w-14 object-contain drop-shadow-[0_6px_12px_rgba(220,38,38,0.35)]"
                     />
-                ) : (
+                ) : nextClaimNeedsAd ? (
                     <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" role="img" aria-label={t('adReward.aria')}>
                         🎬
+                    </span>
+                ) : (
+                    <span className="text-3xl drop-shadow-[0_6px_12px_rgba(34,197,94,0.35)]" role="img" aria-label={t('adReward.dailyFreeReward')}>
+                        🎁
                     </span>
                 )}
             </div>
@@ -277,7 +289,7 @@ const ShopAdRewardCard: React.FC<{
                 >
                     <span className="flex flex-wrap items-center justify-center gap-x-1">
                         <span className="font-bold">
-                            {isClaimPending ? t('adReward.claiming') : exhausted ? t('adReward.exhausted') : isAdFree ? t('adReward.freeReward') : t('adReward.watchAd')}
+                            {claimButtonLabel}
                         </span>
                         <span className="tabular-nums font-extrabold opacity-90">
                             ({claimableRemaining}/{SHOP_AD_TAB_DAILY_LIMIT})
@@ -1062,7 +1074,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
     embedded = false,
 }) => {
     const { currentUserWithStatus } = useAppContext();
-    const { t } = useTranslation('shop');
+    const { t } = useTranslation(['shop', 'common']);
     const localizedShopItem = useLocalizedShopItem();
     const withShopItemText = <T extends Record<string, unknown>>(itemId: string, rest: T) => ({
         itemId,
@@ -1295,17 +1307,37 @@ const ShopModal: React.FC<ShopModalProps> = ({
     ] as const;
 
     const handleClaimShopAdReward = (tab: ShopAdRewardTab) => {
-        const remaining = getShopAdRemainingForTab(currentUser, tab, Date.now());
+        const nowMs = Date.now();
+        const remaining = getShopAdRemainingForTab(currentUser, tab, nowMs);
         if (remaining <= 0) {
             setToastMessage(t('adReward.tabExhausted'));
             return;
         }
-        showShopAdRewardInterstitial(() => {
+        const claimsToday = getShopAdTabClaimsToday(currentUser, tab, nowMs);
+        const needsAd = shopAdNextClaimNeedsAd(claimsToday, Boolean(currentUserWithStatus?.removeAdsPurchased));
+
+        const runClaim = () => {
             void shopAction.run(`ad-reward-${tab}`, async () => {
                 await onAction({ type: 'CLAIM_SHOP_AD_REWARD', payload: { tab } });
             });
-        });
+        };
+
+        if (needsAd) {
+            showShopAdRewardInterstitial(runClaim, {
+                placementName: `shop-ad-reward-${tab}`,
+                onDismissed: () => setToastMessage(t('common:ads.dismissedNoReward')),
+            });
+        } else {
+            runClaim();
+        }
     };
+
+    const shopAdRewardNowMs = Date.now();
+    const shopAdNextNeedsAdForTab = (tab: ShopAdRewardTab) =>
+        shopAdNextClaimNeedsAd(
+            getShopAdTabClaimsToday(currentUser, tab, shopAdRewardNowMs),
+            Boolean(currentUserWithStatus?.removeAdsPurchased),
+        );
 
     const handleInitiatePurchase = (item: PurchasableItem) => {
         setPurchasingItem(item);
@@ -1445,6 +1477,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                                 tab="equipment"
                                 rewardDescription={t('adRewardDescriptions.equipment')}
                                 claimableRemaining={getShopAdRemainingForTab(currentUser, 'equipment', Date.now())}
+                                nextClaimNeedsAd={shopAdNextNeedsAdForTab('equipment')}
                                 onClaim={handleClaimShopAdReward}
                                 mobile={mobileShop}
                                 isClaimPending={shopAction.isAnyPending}
@@ -1484,6 +1517,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                             tab="materials"
                             rewardDescription={t('adRewardDescriptions.materials')}
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'materials', Date.now())}
+                            nextClaimNeedsAd={shopAdNextNeedsAdForTab('materials')}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                             isClaimPending={shopAction.isAnyPending}
@@ -1508,6 +1542,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                                 tab="diamonds"
                                 rewardDescription={t('adRewardDescriptions.diamonds')}
                                 claimableRemaining={getShopAdRemainingForTab(currentUser, 'diamonds', Date.now())}
+                                nextClaimNeedsAd={shopAdNextNeedsAdForTab('diamonds')}
                                 onClaim={handleClaimShopAdReward}
                                 mobile={mobileShop}
                                 isClaimPending={shopAction.isAnyPending}
@@ -1607,6 +1642,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                             tab="consumables"
                             rewardDescription={t('adRewardDescriptions.actionPoint')}
                             claimableRemaining={getShopAdRemainingForTab(currentUser, 'consumables', Date.now())}
+                            nextClaimNeedsAd={shopAdNextNeedsAdForTab('consumables')}
                             onClaim={handleClaimShopAdReward}
                             mobile={mobileShop}
                             isClaimPending={shopAction.isAnyPending}

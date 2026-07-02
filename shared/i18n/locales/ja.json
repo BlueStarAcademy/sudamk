@@ -264,7 +264,7 @@
     "readyCountdown": "準備({{countdown}})",
     "waitingOpponentRoll": "相手を待っています..",
     "rollingDice": "サイコロを振る...",
-    "tieReroll": "同点！ しばらくしてから転がします。",
+    "tieReroll": "同点！ しばらくしてから転がります。",
     "rollToDecide": "準備ボタンを押してサイコロを振ります。 高い数字が出た人が先攻/後空を選択します。",
     "diceWin": "{{name}}さんが勝利し、先攻/後空が決定しました。",
     "diceAutoStart": "下のスタートボタンを押すか、30秒後に対局が自動的に開始されます。",
@@ -520,7 +520,7 @@
   },
   "gameModes": {
     "standard": "クラシック囲碁",
-    "capture": "取る囲碁",
+    "capture": "取り出す囲碁",
     "speed": "スピード囲碁",
     "base": "ベース囲碁",
     "hidden": "隠し囲碁",
@@ -1170,7 +1170,7 @@
       "timeFischer": "{{minutes}}分・フィッシャー{{increment}}秒",
       "timeByoyomi": "{{minutes}}分・秒読み{{byoyomi}}秒×{{count}}回",
       "boardSizeValue": "{{size}}x{{size}}",
-      "komiValue": "{{komi}}ホーム",
+      "komiValue": "{{komi}}ハウス",
       "countUnit": "{{count}}個",
       "roundValue": "{{round}}R",
       "scoringTurnValue": "{{turns}}ターン",
@@ -1612,7 +1612,7 @@
       "pickPoint": "市松模様をクリックして着点を選択してください",
       "modeAria": "着手ボタンモード",
       "dragAria": "着手パネルドラッグで位置調整",
-      "dragTitle": "ドラッグして位置を調整"
+      "dragTitle": "ドラッグして位置を調整する"
     },
     "baseCaptureMix": {
       "round1": "一次提示",
@@ -1903,7 +1903,7 @@
       "lose": "敗北！",
       "tie": "同点！",
       "intro": "準備ボタンを押してサイコロを振ります。 高い数字が出た人が先攻/後空を選択します。",
-      "tieReroll": "同点！ しばらくしてから転がします。",
+      "tieReroll": "同点！ しばらくしてから転がります。",
       "pickTurn": "先攻または後空を選択してください。 ({{countdown}})",
       "firstBlackBtn": "先攻（黒）",
       "secondWhiteBtn": "後空（バック）",
@@ -2474,7 +2474,7 @@
       "startShort": "スタート",
       "selectModesMin": "少なくとも1つ以上のゲームモードを選択してください。",
       "selectTitle": "ランキング前のゲームを選択",
-      "priorityUp": "優先度を上げる",
+      "priorityUp": "優先順位を上げる",
       "priorityDown": "優先順位を下げる",
       "deselect": "選択解除",
       "selected": "✓選択",
@@ -2627,7 +2627,7 @@
       "modeRejectedInline": "相手が <bold>{{mode}}</bold> を拒否した状態です。",
       "selectForDescription": "ゲームを選択して説明を確認してください。",
       "selectedGame": "選択したゲーム：{{name}}",
-      "apply": "申請"
+      "apply": "応募"
     },
     "pairSettingDiff": {
       "noChanges": "変更された対局設定はありません。",
@@ -2811,7 +2811,7 @@
       "regionalEffectShort": "地域効果",
       "chapterRewardAria": "チャプター報酬案内",
       "regionalKeyAria": "ローカルキー",
-      "mapEmptyAria": "マップ空の場所",
+      "mapEmptyAria": "マップの空の場所",
       "monsterAria": "{{name}} レベル {{level}} {{mode}}",
       "treasureChestInfo": "宝箱情報",
       "monsterInfo": "モンスター情報",
@@ -2990,7 +2990,7 @@
     "tapToEnter": "タップして入場",
     "comingSoon": "オープン予定",
     "entryBlocked": "入場不可",
-    "viewStats": "完全な詳細を見る",
+    "viewStats": "詳細な全ビュー",
     "detailedStatsBtn": "詳細",
     "viewAll": "全て見る",
     "totalRecord": "総戦績",
@@ -3380,7 +3380,7 @@
     "detailedStatsReset": {
       "title": "完全な初期化",
       "willReset": "以下の戦績を初期化します。",
-      "noPvp": "記録されたPVPの転記なし",
+      "noPvp": "記録されたPVPの転積なし",
       "noAi": "記録されたAI戦績なし",
       "scope": "初期化範囲",
       "scopeLabel": "{{scope}} 初期化されます。",
@@ -3390,7 +3390,7 @@
       "title": "MBTI傾向ガイド",
       "whatIsMbti": "MBTIとは何ですか？",
       "completeReward": "完了時に100ダイヤモンドを差し上げます！",
-      "next": "Next",
+      "next": "次",
       "complete": "完了",
       "yourMbti": "あなたのMBTIは{{mbti}}です。",
       "rewardObtained": "100ダイヤモンド獲得！",
@@ -4005,7 +4005,7 @@
     "expandBagWithCost": "バッグ拡張({{cost}}ダイヤ)",
     "itemInfo": "アイテム情報",
     "compareGear": "機器比較",
-    "currentlyEquipped": "現在の取り付け",
+    "currentlyEquipped": "現在のマウント",
     "selectedGear": "選択機器",
     "grade": "評価",
     "equipLevel": "着用レベル",
@@ -4090,7 +4090,7 @@
       "inventoryUse": "バッグで使えます。",
       "characterGrowth": "キャラクター・強化・製錬などの成長に使われます。",
       "selectQuantity": "数量の選択",
-      "productDetailAria": "購入商品詳細",
+      "productDetailAria": "購入商品の詳細",
       "decreaseAria": "1つの値を減らす",
       "increaseAria": "1つの値を増やす",
       "maxOwned": "保有数が最大なので購入できません。",
@@ -4348,7 +4348,7 @@
       "titleRanking": "ランキング前リーグ案内",
       "intro": "戦略囲碁ランキング戦PVPで得られるスコアによって、階層が決定されます。 週間終了時の順位によって昇級・残留・降灯が適用され、ティア別報酬を受けることができます。",
       "stay": "残り",
-      "rankPlace": "{{ランク}}",
+      "rankPlace": "{{rank}}上記",
       "rankRange": "{{start}} - {{end}}上記",
       "outcomeLine": "{{label}}: {{ranges}}",
       "diamondsAlt": "ダイア",
@@ -4458,7 +4458,7 @@
         "description": "嵐の中でもバランスを失わないようにする、神龍の意志が込められた超越の刀服下衣です。"
       },
       "eq_fan1": {
-        "name": "青い風債務",
+        "name": "青い風の借金",
         "description": "軽くて実用的な竹の借金です。"
       },
       "eq_fan2": {
@@ -4502,7 +4502,7 @@
         "description": "太陽と月、星のオーラを盛り込んだ伝説的な囲碁石です。"
       },
       "eq_stone7": {
-        "name": "神龍の囲碁石",
+        "name": "神竜の囲碁石",
         "description": "夜明け別の破片を炊いて作って、ただ一つの水路も判世を支配する超越の囲碁石です。"
       },
       "eq_stonebox1": {
@@ -4567,7 +4567,7 @@
       },
       "mat_materials4": {
         "name": "最上級強化石",
-        "description": "機器の強化に使用される希少材料。"
+        "description": "装置の強化に使用される希少材料。"
       },
       "mat_materials5": {
         "name": "謎の強化石",
@@ -4631,7 +4631,7 @@
       },
       "shop_equipment_box_3": {
         "name": "機器ボックスIII",
-        "description": "高級～伝説等級装備獲得"
+        "description": "高度～伝説等級装備獲得"
       },
       "shop_equipment_box_4": {
         "name": "機器ボックスIV",
@@ -4678,7 +4678,7 @@
         "description": "神話または超越装備のスペシャルオプションを他のスペシャルオプションに変更できるアイテムです。"
       },
       "shop_option_type_change_ticket": {
-        "name": "オプションタイプ変更権",
+        "name": "オプションの種類を変更する権利",
         "description": "装備の主オプション、ブオプション、特殊オプションのいずれかを他の種類のオプションに変更できるアイテムです。"
       },
       "shop_option_value_change_ticket": {
@@ -4698,7 +4698,7 @@
       "mythic": {
         "GuildBossRewardGradeUp": {
           "name": "ギルドボス戦報酬業",
-          "abbrev": "ボス報酬等級",
+          "abbrev": "ボス報酬グレード",
           "short": "ギルドボス報酬等級+1",
           "description": "ギルドボス戦の結果で報酬等級が一段階上がります。 （最大SSS）神話スペシャルオプション1番で、超月1番「ボス報酬追加」とは同時に適用できます。"
         },
@@ -4710,24 +4710,24 @@
         },
         "TowerApMinus1Floors1to35": {
           "name": "挑戦の塔（1～35階）必要行動力-1",
-          "abbrev": "トップAP（1～35）",
+          "abbrev": "上位AP(1~35)",
           "short": "塔1～35階 AP-1",
           "description": "挑戦の塔1～35階入場に必要な行動力が1減少します。 （超越スペシャルオプションと重複不可）"
         },
         "ApRegenMinus30s": {
           "name": "行動力回復時間-30秒",
           "abbrev": "AP回復-30s",
-          "short": "行動力回復 -30秒",
+          "short": "行動回復 -30秒",
           "description": "行動力が1回復するまでにかかる時間が30秒短くなります。 （超越スペシャルオプションと重複不可）"
         },
         "AdventureScanPlus1": {
-          "name": "冒険スキャン+1",
+          "name": "アドベンチャースキャン+1",
           "abbrev": "冒険スキャン+1",
           "short": "冒険スキャン+1",
           "description": "冒険（モンスター大戦）開始時にスキャンアイテムが1個追加で支給されます。 （超越スペシャルオプションと重複不可）"
         },
         "AdventureMissilePlus1": {
-          "name": "冒険ミサイル+1",
+          "name": "アドベンチャーミサイル+1",
           "abbrev": "冒険ミサイル+1",
           "short": "冒険ミサイル+1",
           "description": "冒険開始時にミサイルアイテムが1個追加で支給されます。 （超越スペシャルオプションと重複不可）"
@@ -5025,7 +5025,7 @@
       "opening": "序盤",
       "midgame": "中盤",
       "endgame": "終盤",
-      "waiting": "待機"
+      "waiting": "大気"
     },
     "scoring": "計価中...",
     "allMatchesEnded": "今日の試合はすべて終了しました。",
@@ -5037,6 +5037,7 @@
     "loadingTournament": "トーナメント情報を読み込んでいます...",
     "loadingUserInfo": "ユーザー情報を読み込んでいます...",
     "nextMatchPreparing": "次の試合の準備中... {{countdown}}",
+    "movingToNextMatch": "次の試合のために席を移動しています。",
     "defaultPlayer": "選手",
     "me": "私",
     "opponent": "相手",
@@ -5067,8 +5068,8 @@
     "roundRobin": "フルリーグ対戦票",
     "noMatches": "試合はありません。",
     "winShort": "勝つ",
-    "lossShort": "手",
-    "winMargin": "{{margin}}家に勝つ",
+    "lossShort": "グループ",
+    "winMargin": "{{margin}}ハウス勝利",
     "difference": "違い",
     "noRecord": "転載なし",
     "winRateWithRecord": "{{rate}}％（{{wins}}勝{{losses}}敗）",
@@ -5078,7 +5079,7 @@
     "conditionPotionUnavailable": "今は体調回復剤は使えません",
     "useConditionPotion": "体調回復剤の使用",
     "earlyAbility": "超能力",
-    "midAbility": "中盤能力",
+    "midAbility": "中程度の能力",
     "endAbility": "終盤能力",
     "overallAbility": "総合能力",
     "openingMatch": "序盤",
@@ -5096,7 +5097,7 @@
       "defaultPlayer2": "選手2",
       "matchStartFirst": "試合が始まりました。",
       "matchStartNext": "次の試合が始まりました。",
-      "matchStartBanner": "[試合開始] {{headline}} {{roundName}} - {{p1}}対{{p2}}、{{boardSize}}行{{maxPly}}の対局です。",
+      "matchStartBanner": "[試合開始] {{headline}} {{roundName}} - {{p1}} 対 {{p2}}、{{boardSize}} ライン {{maxPly}} 番号の一致。",
       "moveEvent": "[{{ply}}数] {{body}}",
       "scoringInProgress": "{{maxPly}}の進捗状況が完了しました。",
       "finalScore": "[最終係] {{winner}}、{{points}}自宅勝利",
@@ -5240,6 +5241,7 @@
         "vsOpponent": "私対相手（参考）",
         "none": "なし",
         "enter": "入場する",
+        "enterStageWithCount": "入場する{{ステージ}}ステップ（{{remaining}} / {{max}}）",
         "oneGamePerMatch": "1個/ゲーム（ランダム）",
         "changeTicketShort": "変更権",
         "rankWorld9_16": "9～16位",
@@ -5247,6 +5249,11 @@
         "stageLabel": "ステップ",
         "stageUnit": "{{stage}}ステップ",
         "stageLocked": "選択したステップはまだロックされています。",
+        "dailyEntryLabel": "入場",
+        "watchAdForEntry": "広告を見る",
+        "extraEntry": "追加の立場",
+        "adEntryClaiming": "処理中…",
+        "dailyEntryExhausted": "今日の入場回数をすべて使ってきました。",
         "itemColumn": "アイテム",
         "meColumn": "私",
         "opponentColumn": "相手",
@@ -5443,18 +5450,18 @@
     "rankRewardTitle": "{{rank}}上位報酬 · {{item}} ×{{qty}}",
     "matchRoundResult": "{{round}}チャレンジ{{outcome}}！ （{{wins}}勝{{losses}}敗）",
     "statusRecordRank": "{{wins}}勝{{loses}}敗！ {{rank}}上記",
-    "championTitle": "🏆優勝！",
+    "championTitle": "🏆勝ちます！",
     "runnerUp": "準優勝！",
     "thirdPlace": "3位",
     "fourthPlace": "4位",
     "eliminatedInRound": "{{round}}から脱落",
-    "tournamentEliminated": "トーナメント脱落",
+    "tournamentEliminated": "トーナメント敗退",
     "roundAdvanceExclaim": "{{round}}進出！",
-    "roundInProgress": "{{round}}進行中",
+    "roundInProgress": "{{ラウンド}}が進行中",
     "tournamentPreparing": "大会準備中",
     "skipAll": "フルスキップ",
     "skipAllRoundsHint": "残りのすべてのラウンド（ユーザーマッチ）を一度にスキップして大会を最後まで進めます。",
-    "matchPreparing": "試合準備中..",
+    "matchPreparing": "試合の準備中…",
     "forfeitConfirm": "トーナメントをあきらめていきますか？ 今日の参加機会は消えます。",
     "roundRobinRound": "{{round}}回差",
     "dungeonRunRecordTitle": "今回のチャンピオンシップステージでの戦績",
@@ -5463,19 +5470,19 @@
     "tournamentNotFound": "トーナメント情報が見つかりません。",
     "playbackSpeed": {
       "0": {
-        "5": "3秒に1回"
+        "5": "3秒で一手"
       },
-      "1": "1.5秒に1回",
-      "2": "1秒に1回",
+      "1": "1.5秒で一手",
+      "2": "1秒間に1回の移動",
       "3": "0.5秒に1回"
     }
   },
   "tower": {
     "title": "挑戦の塔",
-    "floorUnit": "フロア",
+    "floorUnit": "床",
     "locked": "ロック",
     "clearLowerFirst": "下の階を最初にクリアしてください",
-    "rewardClaimed": "報酬受領完了",
+    "rewardClaimed": "受け取った補償",
     "board": "チェッカーボード",
     "boardSize": "チェッカーボード{{size}}×{{size}}",
     "goal": "目標",
@@ -5486,19 +5493,19 @@
     "blackCaptureGoal": "黒{{count}}個",
     "captureGoalTurnLimit": "黒{{count}}個を取り出す（{{turns}}ターン制限）",
     "autoScoringHint": "[{{turns}}数計] その数まで置くと、自動計価",
-    "autoScoringShort": "[{{turns}}数計]",
+    "autoScoringShort": "[{{ターン}}カウント数]",
     "victory": "勝利",
-    "challenge": "挑戦",
-    "resetDone": "初期化済み",
+    "challenge": "チャレンジ",
+    "resetDone": "初期化されました",
     "timeDaysHoursMinutes": "{{days}}日{{hours}}時間{{minutes}}分",
     "timeHoursMinutesSeconds": "{{hours}}時間{{minutes}}分{{seconds}}秒",
     "timeMinutesSeconds": "{{minutes}}分{{seconds}}秒",
     "monthlyRewards": "毎月の報酬",
-    "rewardInfo": "報酬情報",
+    "rewardInfo": "特典情報",
     "ranking": "ランキング",
     "myRank": "私のランキング",
-    "monthlyBestFloor": "月間トップフロア",
-    "allTimeBestFloor": "歴代トップフロア",
+    "monthlyBestFloor": "月間最上階",
+    "allTimeBestFloor": "史上最高層",
     "progressFloor": "進行層",
     "resetIn": "初期化まで",
     "shop": "トップショップ",
@@ -5608,7 +5615,7 @@
       "noRules": "表示するルールはありません。",
       "selectGameMode": "ゲームモードの選択",
       "mobilePickHint": "カテゴリをタップして選択し、次にランキング情報とルールを確認します。",
-      "queueWithAp": "マッチング待機 (⚡{{cost}})",
+      "queueWithAp": "マッチング待機(⚡{{cost}})",
       "titleStrategic": "戦略囲碁ランキング戦マッチング",
       "titleDuo": "2人ペアランキング戦マッチング",
       "titlePet": "ペアペットランキング戦マッチング"
@@ -5617,7 +5624,7 @@
       "titlePet": "ペアペットランクマッチング",
       "titleDuo": "2人ペアランクマッチング",
       "matched": "マッチングになりました",
-      "timeRemaining": "残り時間{{seconds}}秒",
+      "timeRemaining": "残り時間 {{seconds}} 秒",
       "timeExpired": "受け入れ時間が過ぎました",
       "opponent": "相手",
       "myScore": "私のスコア",
@@ -5627,9 +5634,9 @@
       "partner": "パートナー",
       "theirOwner": "相手チームの防衛",
       "accepted": "受け入れる",
-      "waiting": "大気",
+      "waiting": "待機",
       "waitingPeerAccept": "相手の受け入れを待っている…",
-      "peerAcceptedPrompt": "相手が受け入れました。 受け入れてください。",
+      "peerAcceptedPrompt": "相手が受け入れました。受け入れてください。",
       "waitingOurOwner": "私たちのチームの方長の受け入れを待っています…",
       "waitingOurPartner": "私たちのチームパートナーの受け入れを待っています...",
       "waitingTheirPartner": "相手チームパートナーの受け入れを待っている…",
@@ -5638,7 +5645,7 @@
       "decline": "拒否"
     },
     "training": {
-      "rewardTitle": "修練報酬",
+      "rewardTitle": "睡蓮報酬",
       "completeTitle": "修練完了",
       "rewardLoadFailed": "報酬情報を読み込めませんでした。",
       "preparingReturn": "ペットが修練を完了して戻ってくる準備をしています。",
@@ -5776,7 +5783,7 @@
       "cannotSoulConvertRep": "代表ペットで装着中のペットは魂変換できません。 代表ペット解除後にご利用ください。",
       "untilLevel": "格付け強化までLv。{{level}}",
       "current": "現在",
-      "next": "Next",
+      "next": "次",
       "before": "以前",
       "after": "以来",
       "baseStatIncrease": "基本能力値増加",
@@ -5784,7 +5791,7 @@
       "nextGradeLevelUpBudget": "次等級区間ペットレベルアップ時の自動分配能力値",
       "dispositionBoost": "傾向の強化",
       "requiredMaterials": "必要材料",
-      "ownedCount": "保持<owned>{{owned}}</owned><sep>/必要</sep><need>{{need}}</need>",
+      "ownedCount": "保持 <owned>{{owned}}</owned><sep>/必要</sep><need>{{need}}</need>",
       "soulInsufficientInline": "魂石が足りません。",
       "levelUpRandomBudget": "レベルアップ追加能力値（ランダム）",
       "statChanges": "能力値の変化"
@@ -5851,7 +5858,7 @@
       "hostAria": "主催",
       "readyAria": "準備完了",
       "readyBadge": "準備完了",
-      "waiting": "待機",
+      "waiting": "大気",
       "viewInfo": "情報を見る",
       "viewInfoAria": "情報を見る",
       "kick": "撤退",
@@ -5960,7 +5967,7 @@
       "currentSeason": "現在のシーズン",
       "firstSeasonSuffix": "(初シーズン)",
       "currentScore": "現在のスコア",
-      "recordWinRate": "{{wins}}勝{{losses}}敗・勝率",
+      "recordWinRate": "{{wins}}勝利{{ロス}}L・勝率",
       "seasonBest": "シーズン最高",
       "sameScoreSuffix": "(同じ)",
       "bestSeason": "トップシーズン",
@@ -6050,7 +6057,7 @@
     "modals": {
       "delegateConfirm": "{{name}}さんに部屋を委任しますか？",
       "kickConfirm": "{{name}}さんを部屋から送りますか？",
-      "joinRoom": "部屋の入場",
+      "joinRoom": "部屋入場",
       "privateRoomEnter": "プライベートルームです。 パスワードを入力してください。",
       "password": "パスワード",
       "changeProposalReceived": "対局設定変更提案が来ました。",
@@ -6521,7 +6528,7 @@
     "mistakeChanceSuffix": "出る可能性が高くなります。",
     "brilliantMove": "神の漢",
     "brilliantMoveSuffix": "が出る確率は低くなります。 それでも",
-    "startAnyway": "それでもスタート",
+    "startAnyway": "それでも始まり",
     "waitingPlayersWithPets": "選手たちはペットと一緒に入場しています。 しばらくお待ちください。",
     "waitingPets": "ペットが入場しています。 しばらくお待ちください。",
     "phases": {
@@ -6950,7 +6957,7 @@
       "names": {
         "boss_1": "清海",
         "boss_2": "紅炎",
-        "boss_3": "緑水",
+        "boss_3": "緑",
         "boss_4": "賢明",
         "boss_5": "白光"
       },
@@ -7104,7 +7111,7 @@
       "processing": "処理中...",
       "full": "人数満載",
       "join": "参加",
-      "apply": "申請",
+      "apply": "応募",
       "loadFailed": "ギルドリストの読み込みに失敗しました。",
       "joinFailed": "ギルドへの参加に失敗しました。"
     },
@@ -7133,7 +7140,7 @@
     },
     "warCancelConfirm": {
       "title": "戦争キャンセル確認",
-      "body": "戦争をキャンセルすると1時間再参加できません。<br />それでもキャンセルしますか？",
+      "body": "戦争をキャンセルすると、1時間は再参加できません。<br />それでもキャンセルしますか？",
       "canceling": "キャンセル中...",
       "confirmCancel": "戦争のキャンセル",
       "stayJoined": "戦争参加"

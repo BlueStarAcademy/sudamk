@@ -2,8 +2,12 @@
 
 import type { AdBannerSize, InterstitialTrigger } from '../types/ads.js';
 
-/** 상점 「광고보기」 보상: 전면 모달 최소 시청 시간(초) — 이후 닫기 시 서버 수령 */
+/** @deprecated 보상형 광고는 H5 adBreak API 사용 — 폴백·시뮬레이션 시청 시간 */
 export const SHOP_AD_REWARD_INTERSTITIAL_SECONDS = 30;
+/** 개발 환경 보상형 광고 시뮬레이션 시청 시간(초) */
+export const SHOP_AD_REWARD_DEV_SIMULATION_SECONDS = 5;
+/** H5 reward adBreak 로딩 대기 후 폴백 전환(밀리초) */
+export const REWARDED_AD_H5_LOAD_TIMEOUT_MS = 5000;
 
 /** AdSense 광고 슬롯 ID — AdSense 콘솔에서 생성 후 여기에 입력 */
 export const AD_SLOTS = {
@@ -14,6 +18,8 @@ export const AD_SLOTS = {
   sidebar: '2060641067',
   skyscraperLeft: '2060641067',   // TODO: AdSense 콘솔에서 새 슬롯 생성 후 교체
   skyscraperRight: '2060641067',  // TODO: AdSense 콘솔에서 새 슬롯 생성 후 교체
+  /** 보상형 광고 폴백(전면 디스플레이) — H5 reward adBreak 미제공 시 */
+  rewardedFallback: '2060641067',
 } as const;
 
 /** 네이티브 모바일 셸 최대 가로 — 하단 리더보드(728×90)·화면 설계와 맞춤 */
@@ -96,6 +102,12 @@ export const BANNER_HIDDEN_GAME_STATUSES = [
   'hidden_placing',
   'scanning',
 ] as const;
+
+/** 인게임·사이드바 배너를 숨겨야 하는 대국 상태인지 */
+export function isBannerHiddenForGameStatus(gameStatus: string | undefined | null): boolean {
+  if (!gameStatus) return false;
+  return (BANNER_HIDDEN_GAME_STATUSES as readonly string[]).includes(gameStatus);
+}
 
 /** 전면 광고 금지 게임 상태 */
 export const INTERSTITIAL_BLOCKED_GAME_STATUSES = [

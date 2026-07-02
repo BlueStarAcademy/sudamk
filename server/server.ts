@@ -76,6 +76,8 @@ import {
     isAiControlledTurnForWatchdog,
     needsPveAiWatchdogTick,
 } from './utils/pveAiTurnWatchdog.js';
+import { needsPveMainLoopProcessing } from './utils/serverMainLoopGameTick.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 
 const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
 
@@ -1836,11 +1838,23 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // AI 대국도 인간 플레이어가 접속 중일 때만 처리 (고아 AI 대국으로 인한 불필요한 업데이트/타임아웃 방지)
             const gamesWithOnlinePlayers = activeGames.filter((g) => {
                 if (!g?.player1?.id && !g?.player2?.id) return false;
+                const arenaPolicy = resolveArenaSessionPolicy(g);
                 const pveServerAiTurnNeedsTick = needsPveAiWatchdogTick(g) && isAiControlledTurnForWatchdog(g);
                 if (pveServerAiTurnNeedsTick) return true;
                 if (g.isAiGame) {
                     const humanId = g.player1?.id === aiPlayer.aiUserId ? g.player2?.id : g.player1?.id;
-                    if (humanId && onlineUserIdsSet.has(humanId)) return true;
+                    // 싱글/탑: 유저 턴 본대국은 클라이언트 주도 — 서버 틱 필요 시에만 메인 루프 포함 (24s 타임아웃 스팸 방지)
+                    if (
+                        arenaPolicy.usesServerKataAi &&
+                        (arenaPolicy.kind === 'singleplayer' || arenaPolicy.kind === 'tower')
+                    ) {
+                        if (humanId && onlineUserIdsSet.has(humanId)) {
+                            return needsPveMainLoopProcessing(g, now);
+                        }
+                        // 오프라인: 주사위/도둑 애니·AI 굴림만 아래 playful 분기로 처리
+                    } else if (humanId && onlineUserIdsSet.has(humanId)) {
+                        return true;
+                    }
                     // 주사위/도둑: 굴림 애니 종료 시 update*State에서 턴 전환(오버샷 포함)이 일어난다.
                     // 인간 WS가 잠깐 끊겨 userConnections에서 빠지면 이 틱이 스킵되어 AI 오버샷 후 유저 턴으로 영구 고착될 수 있다.
                     const playfulRollAnimNeedsTick =
@@ -2356,7 +2370,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 try {
                     let timeoutOccurred = false;
                     const updateGamesTimeoutMs = gamesWithOnlinePlayers.length === 1
-                        ? Math.max(MAINLOOP_UPDATE_GAMES_TIMEOUT_MS, 24000)
+                        ? Math.max(MAINLOOP_UPDATE_GAMES_TIMEOUT_MS, 20000)
                         : MAINLOOP_UPDATE_GAMES_TIMEOUT_MS;
                     const updateGamesTimeout = new Promise<types.LiveGameSession[]>((resolve) => {
                         setTimeout(() => {
@@ -4391,6 +4405,29 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         } catch (error: any) {
             console.error('[/api/exchange/listings] Error:', error);
             res.status(500).json({ error: 'Failed to fetch exchange listings' });
+        }
+    });
+
+    app.get('/api/exchange/currency-orders', async (_req, res) => {
+        try {
+            const users = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
+            const merged = new Map<string, types.CurrencyExchangeOrder>();
+            users.forEach((user) => {
+                const orders = (user.exchangeState as types.ExchangeState | undefined)?.currencyOrders ?? [];
+                orders.forEach((entry) => {
+                    if (!entry || typeof entry.id !== 'string' || entry.status !== 'open') return;
+                    const existing = merged.get(entry.id);
+                    const createdAt = Number(entry.createdAt ?? 0);
+                    const existingCreatedAt = Number(existing?.createdAt ?? 0);
+                    if (!existing || createdAt >= existingCreatedAt) {
+                        merged.set(entry.id, entry);
+                    }
+                });
+            });
+            res.json({ orders: Array.from(merged.values()) });
+        } catch (error: any) {
+            console.error('[/api/exchange/currency-orders] Error:', error);
+            res.status(500).json({ error: 'Failed to fetch currency exchange orders' });
         }
     });
 

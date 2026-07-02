@@ -2742,7 +2742,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                     </div>
                 </div>
             )}
-            <IngameMobileFooterAd isMobile={!!isMobile} />
+            <IngameMobileFooterAd isMobile={!!isMobile} gameStatus={gameStatus} />
         </footer>
     );
 };

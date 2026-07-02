@@ -34,6 +34,7 @@ import {
     GUILD_WAR_STAR_CAPTURE_TIER3_MIN,
 } from '../../shared/constants/guildConstants.js';
 import AdBanner from '../ads/AdBanner.js';
+import { isBannerHiddenForGameStatus } from '../../constants/ads.js';
 import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
@@ -840,8 +841,10 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                 />
                 <UserListPanel {...props} />
                 <GuildWarStarConditionsPanel session={session} currentUser={props.currentUser} sidebarLayout={sidebarLayout} />
-                {/* PC 사이드바 광고(300×250). 모바일 인게임 서랍에서는 제외 → 푸터 320×50 */}
-                {sidebarLayout !== 'mobileDrawer' ? <AdBanner position="sidebar" /> : null}
+                {/* PC 사이드바 광고(300×250). 대국 중·모바일 서랍에서는 비노출 */}
+                {sidebarLayout !== 'mobileDrawer' && !isBannerHiddenForGameStatus(gameStatus) ? (
+                    <AdBanner position="sidebar" />
+                ) : null}
             </div>
             <div className="flex-1 mt-2 min-h-0">
                 <ChatPanel {...props} />

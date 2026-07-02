@@ -114,6 +114,11 @@
       "label": "Ad",
       "bannerPlaceholder": "Ad area ({{width}}×{{height}})",
       "interstitialPlaceholder": "Interstitial ad (336×280)",
+      "rewardedPlaceholder": "Rewarded ad area (336×280)",
+      "loadingAd": "Loading ad…",
+      "playingAd": "Ad playing",
+      "watchToEarnHint": "Complete the ad to receive your reward.",
+      "dismissedNoReward": "Reward was not granted because the ad was not completed.",
       "cancel": "Cancel",
       "claimReward": "Claim reward",
       "claimRewardIn": "Claim reward in {{seconds}}s",
@@ -3808,8 +3813,9 @@
       "claiming": "Claiming…",
       "exhausted": "Claimed today",
       "freeReward": "Free reward",
+      "dailyFreeReward": "Free claim",
       "watchAd": "Watch ad",
-      "tabExhausted": "All ad rewards for this tab have been claimed today."
+      "tabExhausted": "All rewards for this tab have been claimed today."
     },
     "limit": {
       "daily": "Daily",
@@ -5052,6 +5058,7 @@
     "title": "Exchange",
     "tabs": {
       "buy": "Buy",
+      "currency": "Convert",
       "sell": "Sell",
       "settlement": "Settlement",
       "history": "History"
@@ -5161,6 +5168,44 @@
     "loading": {
       "items": "Loading trade items…",
       "wait": "Please wait while we fetch the latest list."
+    },
+    "currency": {
+      "instantTitle": "Instant convert",
+      "marketRateHint": "Market rate: 1 diamond = {{rate}} gold",
+      "goldToDiamonds": "Gold → Diamonds",
+      "diamondsToGold": "Diamonds → Gold",
+      "inputGoldAmount": "Gold to convert",
+      "inputDiamondAmount": "Diamonds to convert",
+      "instantRate": "Instant rate",
+      "goldPerDiamondRate": "{{rate}} gold per diamond",
+      "goldPerDiamondReceiveRate": "Receive {{rate}} gold per diamond",
+      "pay": "Pay",
+      "receive": "Receive",
+      "instantExchange": "Convert now",
+      "postOrderTitle": "Post convert request",
+      "offerGold": "Offer gold",
+      "offerDiamonds": "Offer diamonds",
+      "offerAmount": "Offer amount",
+      "requestAmount": "Request amount",
+      "postOrderHint": "Offered currency is deducted immediately. When another player fills your request, proceeds appear in the claim list.",
+      "postOrder": "Post request",
+      "myOpenOrders": "My open requests",
+      "cancelOrder": "Cancel",
+      "marketOrders": "Convert requests",
+      "noMarketOrders": "No convert requests listed.",
+      "offerLabel": "Offer",
+      "requestLabel": "Request",
+      "fulfillOrder": "Fill request",
+      "claimTitle": "Claim convert proceeds",
+      "noClaimPending": "No convert proceeds to claim.",
+      "claim": "Claim",
+      "claimFeeHint": "A 10% fee is deducted when claiming completed converts.",
+      "alerts": {
+        "invalidAmount": "Enter an amount to convert.",
+        "instantTooSmall": "Amount is below the minimum for instant convert.",
+        "maxOpenOrders": "You can have at most {{count}} open convert requests.",
+        "cannotFulfillOwn": "You cannot fill your own convert request."
+      }
     }
   },
   "tournament": {

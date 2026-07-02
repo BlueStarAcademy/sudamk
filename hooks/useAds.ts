@@ -1,10 +1,11 @@
 import { useState, useCallback, useRef } from 'react';
-import type { InterstitialTrigger, InterstitialState } from '../types/ads.js';
+import type { InterstitialTrigger, InterstitialState, RewardedAdGateState, ShowShopAdRewardOptions } from '../types/ads.js';
 import {
   INTERSTITIAL_CONFIG,
   INTERSTITIAL_LIMITS,
-  SHOP_AD_REWARD_INTERSTITIAL_SECONDS,
+  REWARDED_AD_H5_LOAD_TIMEOUT_MS,
 } from '../constants/ads.js';
+import { requestRewardedAdBreak } from '../utils/h5GamesAdPlacement.js';
 
 /** 전면 광고 빈도/쿨다운 관리 훅 */
 export function useAds(isProduction: boolean, isAdFree: boolean) {
@@ -14,6 +15,13 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
     skipCountdown: 0,
     trigger: null,
   });
+  const [rewardedGate, setRewardedGate] = useState<RewardedAdGateState | null>(null);
+  const rewardedGateRef = useRef<RewardedAdGateState | null>(null);
+
+  const syncRewardedGateRef = (next: RewardedAdGateState | null) => {
+    rewardedGateRef.current = next;
+    setRewardedGate(next);
+  };
 
   // 트리거별 카운터
   const triggerCountsRef = useRef<Record<InterstitialTrigger, number>>({
@@ -24,13 +32,19 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
     shop_ad_reward: 0,
   });
 
-  /** 상점 광고 보상: 모달을 닫을 때 한 번만 실행 */
-  const shopAdRewardOnCloseRef = useRef<(() => void) | null>(null);
-
   // 글로벌 제한 추적
   const lastShownAtRef = useRef<number>(0);
   const sessionCountRef = useRef<number>(0);
   const skipTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const rewardedLoadTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const h5RewardStartedRef = useRef(false);
+
+  const clearRewardedLoadTimeout = useCallback(() => {
+    if (rewardedLoadTimeoutRef.current) {
+      clearTimeout(rewardedLoadTimeoutRef.current);
+      rewardedLoadTimeoutRef.current = null;
+    }
+  }, []);
 
   const showInterstitial = useCallback((trigger: InterstitialTrigger): boolean => {
     if (isAdFree) return false;
@@ -47,8 +61,6 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
     triggerCountsRef.current[trigger] += 1;
     if (triggerCountsRef.current[trigger] % config.frequency !== 0) return false;
 
-    // 전면 광고 표시
-    shopAdRewardOnCloseRef.current = null;
     lastShownAtRef.current = now;
     sessionCountRef.current += 1;
 
@@ -78,74 +90,112 @@ export function useAds(isProduction: boolean, isAdFree: boolean) {
     return true;
   }, [isAdFree]);
 
-  const closeInterstitial = useCallback((options?: { grantShopAdReward?: boolean }) => {
+  const closeInterstitial = useCallback((_options?: { grantShopAdReward?: boolean }) => {
     if (skipTimerRef.current) {
       clearInterval(skipTimerRef.current);
       skipTimerRef.current = null;
     }
-    const rewardCb = shopAdRewardOnCloseRef.current;
-    shopAdRewardOnCloseRef.current = null;
-    const grantReward = options?.grantShopAdReward !== false;
     setInterstitial({
       isVisible: false,
       canSkip: false,
       skipCountdown: 0,
       trigger: null,
     });
-    if (grantReward && rewardCb) {
-      try {
-        rewardCb();
-      } catch (e) {
-        console.error('[useAds] shop ad reward onClosed callback failed:', e);
-      }
-    }
   }, []);
 
+  const completeRewardedGate = useCallback(() => {
+    const gate = rewardedGateRef.current;
+    syncRewardedGateRef(null);
+    clearRewardedLoadTimeout();
+    h5RewardStartedRef.current = false;
+    gate?.onRewarded();
+  }, [clearRewardedLoadTimeout]);
+
+  const dismissRewardedGate = useCallback(() => {
+    const gate = rewardedGateRef.current;
+    syncRewardedGateRef(null);
+    clearRewardedLoadTimeout();
+    h5RewardStartedRef.current = false;
+    gate?.onDismissed?.();
+  }, [clearRewardedLoadTimeout]);
+
+  /**
+   * 보상형 광고: 프로덕션은 H5 adBreak(reward) → 실패·로딩 타임아웃 시 전면 폴백 UI.
+   * 개발 환경은 시뮬레이션 모달(타이머 후 보상).
+   */
   const showShopAdRewardInterstitial = useCallback(
-    (onClosed: () => void) => {
+    (onRewarded: () => void, options?: ShowShopAdRewardOptions) => {
       if (isAdFree) {
-        queueMicrotask(() => onClosed());
+        queueMicrotask(() => onRewarded());
         return;
       }
-      if (skipTimerRef.current) {
-        clearInterval(skipTimerRef.current);
-        skipTimerRef.current = null;
+
+      clearRewardedLoadTimeout();
+      h5RewardStartedRef.current = false;
+
+      const gate: RewardedAdGateState = {
+        placementName: options?.placementName ?? 'shop-ad-reward',
+        phase: 'loading',
+        onRewarded,
+        onDismissed: options?.onDismissed,
+      };
+      syncRewardedGateRef(gate);
+
+      if (!isProduction) {
+        syncRewardedGateRef({ ...gate, phase: 'simulated' });
+        return;
       }
-      shopAdRewardOnCloseRef.current = onClosed;
-      const skipDelay: number = SHOP_AD_REWARD_INTERSTITIAL_SECONDS;
-      setInterstitial({
-        isVisible: true,
-        canSkip: skipDelay <= 0,
-        skipCountdown: skipDelay,
-        trigger: 'shop_ad_reward',
-      });
-      if (skipDelay > 0) {
-        let remaining = skipDelay;
-        skipTimerRef.current = setInterval(() => {
-          remaining -= 1;
-          if (remaining <= 0) {
-            if (skipTimerRef.current) clearInterval(skipTimerRef.current);
-            skipTimerRef.current = null;
-            setInterstitial((prev) =>
-              prev.trigger === 'shop_ad_reward'
-                ? { ...prev, canSkip: true, skipCountdown: 0 }
-                : prev
-            );
-          } else {
-            setInterstitial((prev) =>
-              prev.trigger === 'shop_ad_reward' ? { ...prev, skipCountdown: remaining } : prev
-            );
+
+      rewardedLoadTimeoutRef.current = setTimeout(() => {
+        rewardedLoadTimeoutRef.current = null;
+        const current = rewardedGateRef.current;
+        if (!current || current.phase !== 'loading') return;
+        syncRewardedGateRef({ ...current, phase: 'fallback' });
+      }, REWARDED_AD_H5_LOAD_TIMEOUT_MS);
+
+      const started = requestRewardedAdBreak({
+        name: gate.placementName,
+        onBeforeShow: () => {
+          h5RewardStartedRef.current = true;
+          clearRewardedLoadTimeout();
+          const current = rewardedGateRef.current;
+          if (current) syncRewardedGateRef({ ...current, phase: 'playing_h5' });
+        },
+        onRewarded: () => {
+          clearRewardedLoadTimeout();
+          h5RewardStartedRef.current = false;
+          syncRewardedGateRef(null);
+          onRewarded();
+        },
+        onDismissed: () => {
+          clearRewardedLoadTimeout();
+          const hadStarted = h5RewardStartedRef.current;
+          h5RewardStartedRef.current = false;
+          if (hadStarted) {
+            syncRewardedGateRef(null);
+            options?.onDismissed?.();
+            return;
           }
-        }, 1000);
+          const current = rewardedGateRef.current;
+          if (current) syncRewardedGateRef({ ...current, phase: 'fallback' });
+        },
+      });
+
+      if (!started) {
+        clearRewardedLoadTimeout();
+        syncRewardedGateRef({ ...gate, phase: 'fallback' });
       }
     },
-    [isAdFree]
+    [isAdFree, isProduction, clearRewardedLoadTimeout],
   );
 
   return {
     interstitial,
+    rewardedGate,
     showInterstitial,
     showShopAdRewardInterstitial,
     closeInterstitial,
+    completeRewardedGate,
+    dismissRewardedGate,
   };
 }

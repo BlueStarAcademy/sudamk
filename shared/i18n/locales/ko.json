@@ -5130,6 +5130,7 @@
     "title": "거래소",
     "tabs": {
       "buy": "구매",
+      "currency": "환전",
       "sell": "판매",
       "settlement": "정산",
       "history": "거래 이력"
@@ -5239,6 +5240,44 @@
     "loading": {
       "items": "거래 물품 정보를 불러오는 중입니다…",
       "wait": "서버에서 최신 목록을 받아오는 동안 잠시만 기다려 주세요."
+    },
+    "currency": {
+      "instantTitle": "바로환전",
+      "marketRateHint": "평균 시세: 1다이아 = {{rate}}골드",
+      "goldToDiamonds": "골드 → 다이아",
+      "diamondsToGold": "다이아 → 골드",
+      "inputGoldAmount": "환전할 골드",
+      "inputDiamondAmount": "환전할 다이아",
+      "instantRate": "바로환전 시세",
+      "goldPerDiamondRate": "1다이아당 {{rate}}골드",
+      "goldPerDiamondReceiveRate": "1다이아당 {{rate}}골드 수령",
+      "pay": "지불",
+      "receive": "수령",
+      "instantExchange": "바로환전",
+      "postOrderTitle": "환전 요청 등록",
+      "offerGold": "골드 제공",
+      "offerDiamonds": "다이아 제공",
+      "offerAmount": "제공 수량",
+      "requestAmount": "요청 수량",
+      "postOrderHint": "등록 시 제공 재화가 즉시 차감됩니다. 다른 유저가 요청을 체결하면 수령 대기 목록에 표시됩니다.",
+      "postOrder": "환전 요청 등록",
+      "myOpenOrders": "내 환전 요청",
+      "cancelOrder": "취소",
+      "marketOrders": "환전 요청 목록",
+      "noMarketOrders": "등록된 환전 요청이 없습니다.",
+      "offerLabel": "제공",
+      "requestLabel": "요청",
+      "fulfillOrder": "체결하기",
+      "claimTitle": "환전 수령",
+      "noClaimPending": "수령 대기 중인 환전 내역이 없습니다.",
+      "claim": "수령",
+      "claimFeeHint": "환전 완료 수령 시 10% 수수료가 차감됩니다.",
+      "alerts": {
+        "invalidAmount": "환전 수량을 입력해 주세요.",
+        "instantTooSmall": "환전 가능한 최소 수량에 미달합니다.",
+        "maxOpenOrders": "동시에 등록할 수 있는 환전 요청은 {{count}}건까지입니다.",
+        "cannotFulfillOwn": "본인이 등록한 환전 요청은 체결할 수 없습니다."
+      }
     }
   },
   "tournament": {

@@ -17,6 +17,7 @@ import {
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT, SHOP_BORDER_ITEMS } from '../../constants';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
+import { SHOP_AD_TAB_DAILY_LIMIT } from '../../shared/constants/shopAdReward.js';
 import { recordAchievementBoxOpens } from '../achievementBoxOpenProgress.js';
 import { generateNewItem } from './inventoryActions.js';
 import {
@@ -779,8 +780,8 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
             const now = Date.now();
             const rewardConfig = await getRewardConfig();
-            /** 장비·재료·소모품·다이아 탭 각각 일 3회(상점 광고 보상 합계 최대 12회) */
-            const PER_TAB_DAILY_LIMIT = 3;
+            /** 장비·재료·소모품·다이아 탭 각각 일 3회(무료 1 + 광고 2) */
+            const PER_TAB_DAILY_LIMIT = SHOP_AD_TAB_DAILY_LIMIT;
             const purchaseKey = `ad_reward_${tab}`;
             if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
             const rec = user.dailyShopPurchases[purchaseKey];
@@ -848,7 +849,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 }
             }
 
-            /** 일일 한도는 비관리자만 적용하되, 수령 횟수는 UI·감사용으로 항상 기록(관리자도 3/3→2/3 표시) */
+            /** 일일 한도는 비관리자만 적용하되, 수령 횟수는 UI·감사용으로 항상 기록 */
             user.dailyShopPurchases[purchaseKey] = { quantity: claimsToday + 1, date: now };
 
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_SHOP_AD_REWARD', { includeAll: true });

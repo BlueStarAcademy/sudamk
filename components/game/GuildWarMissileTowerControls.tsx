@@ -152,7 +152,7 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                     </Button>
                     </div>
                 </div>
-                <IngameMobileFooterAd isMobile={!!isMobile} />
+                <IngameMobileFooterAd isMobile={!!isMobile} gameStatus={gameStatus} />
             </footer>
         );
     }
@@ -220,7 +220,7 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                         </div>
                     </div>
                     </div>
-                    <IngameMobileFooterAd isMobile={!!isMobile} />
+                    <IngameMobileFooterAd isMobile={!!isMobile} gameStatus={gameStatus} />
                 </>
             ) : (
                 <>

@@ -3668,12 +3668,18 @@ export const useApp = () => {
                checkMilestones(monthly, MONTHLY_MILESTONE_THRESHOLDS);
     }, [currentUser?.quests]);
 
-    /** 거래소: 미수령 정산(claimed 아님) 1건 이상 */
+    /** 거래소: 미수령 정산(claimed 아님) 또는 환전 수령 대기 1건 이상 */
     const hasClaimableExchangeSettlement = useMemo(() => {
-        const list = currentUser?.exchangeState?.settlements;
-        if (!Array.isArray(list)) return false;
-        return list.some((entry) => entry && typeof entry === 'object' && (entry as { claimed?: boolean }).claimed !== true);
-    }, [currentUser?.exchangeState?.settlements]);
+        const settlements = currentUser?.exchangeState?.settlements;
+        if (Array.isArray(settlements) && settlements.some((entry) => entry && typeof entry === 'object' && (entry as { claimed?: boolean }).claimed !== true)) {
+            return true;
+        }
+        const receipts = currentUser?.exchangeState?.currencyReceipts;
+        if (Array.isArray(receipts) && receipts.some((entry) => entry && typeof entry === 'object' && (entry as { claimed?: boolean }).claimed !== true)) {
+            return true;
+        }
+        return false;
+    }, [currentUser?.exchangeState?.settlements, currentUser?.exchangeState?.currencyReceipts]);
 
     /** 펫 퀵메뉴: 수련·부화 완료(수령/획득 가능) 시 붉은점 — 진행 타이머가 있을 때만 1초 틱, 완료 후 interval 자동 종료 */
     const [pairPetQuickMenuTick, setPairPetQuickMenuTick] = useState(0);
@@ -3833,6 +3839,11 @@ export const useApp = () => {
         'GUILD_BUY_SHOP_ITEM',
         'CLAIM_SHOP_AD_REWARD',
         'PURCHASE_EXCHANGE_LISTING',
+        'INSTANT_CURRENCY_EXCHANGE',
+        'POST_CURRENCY_EXCHANGE_ORDER',
+        'FULFILL_CURRENCY_EXCHANGE_ORDER',
+        'CANCEL_CURRENCY_EXCHANGE_ORDER',
+        'CLAIM_CURRENCY_EXCHANGE_RECEIPT',
     ]);
     
     const handleAction = useCallback(async (action: ServerAction): Promise<{ gameId?: string; claimAllTrainingQuestRewards?: any; clientResponse?: any } | void> => {
@@ -7479,6 +7490,11 @@ export const useApp = () => {
                         'SAVE_EXCHANGE_STATE',
                         'CLAIM_EXCHANGE_SETTLEMENT',
                         'PURCHASE_EXCHANGE_LISTING',
+                        'INSTANT_CURRENCY_EXCHANGE',
+                        'POST_CURRENCY_EXCHANGE_ORDER',
+                        'FULFILL_CURRENCY_EXCHANGE_ORDER',
+                        'CANCEL_CURRENCY_EXCHANGE_ORDER',
+                        'CLAIM_CURRENCY_EXCHANGE_RECEIPT',
                         'ENHANCE_ITEM',
                         'DISASSEMBLE_ITEM',
                         'COMBINE_ITEMS',
@@ -7665,6 +7681,11 @@ export const useApp = () => {
                         'SAVE_EXCHANGE_STATE',
                         'CLAIM_EXCHANGE_SETTLEMENT',
                         'PURCHASE_EXCHANGE_LISTING',
+                        'INSTANT_CURRENCY_EXCHANGE',
+                        'POST_CURRENCY_EXCHANGE_ORDER',
+                        'FULFILL_CURRENCY_EXCHANGE_ORDER',
+                        'CANCEL_CURRENCY_EXCHANGE_ORDER',
+                        'CLAIM_CURRENCY_EXCHANGE_RECEIPT',
                     ];
                     if (actionsThatShouldHaveUpdatedUser.includes(action.type)) {
                         console.warn(`[handleAction] ${action.type} - No updatedUser in response! Waiting for WebSocket update...`, {

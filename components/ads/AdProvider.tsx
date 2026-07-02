@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useEffect, useState, useMemo } from 'react';
 import type { AdContextValue } from '../../types/ads.js';
 import { useAds } from '../../hooks/useAds.js';
+import { bootstrapH5GamesAdPlacement, syncH5AdConfig } from '../../utils/h5GamesAdPlacement.js';
+import RewardedAdModal from './RewardedAdModal.js';
 
 const AdContext = createContext<AdContextValue | null>(null);
 
@@ -28,12 +30,15 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
   const isProduction = useMemo(checkIsProduction, []);
   const clientId = import.meta.env.VITE_ADSENSE_CLIENT_ID as string | undefined ?? null;
 
-  // AdSense 스크립트 동적 삽입 (프로덕션에서만)
+  // AdSense + H5 Games Ad Placement API (프로덕션에서만)
   useEffect(() => {
     if (!isProduction || !clientId || isAdFree) return;
 
+    bootstrapH5GamesAdPlacement();
+
     // 이미 로드된 경우
     if (document.querySelector(`script[src*="adsbygoogle"]`)) {
+      syncH5AdConfig(true);
       setIsAdReady(true);
       return;
     }
@@ -42,7 +47,10 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
     script.src = `https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${clientId}`;
     script.async = true;
     script.crossOrigin = 'anonymous';
-    script.onload = () => setIsAdReady(true);
+    script.onload = () => {
+      syncH5AdConfig(true);
+      setIsAdReady(true);
+    };
     script.onerror = () => {
       // 광고 차단기 등으로 실패 → 무시
       console.warn('[AdProvider] AdSense script failed to load');
@@ -50,7 +58,15 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
     document.head.appendChild(script);
   }, [isProduction, clientId, isAdFree]);
 
-  const { interstitial, showInterstitial, showShopAdRewardInterstitial, closeInterstitial } = useAds(
+  const {
+    interstitial,
+    rewardedGate,
+    showInterstitial,
+    showShopAdRewardInterstitial,
+    closeInterstitial,
+    completeRewardedGate,
+    dismissRewardedGate,
+  } = useAds(
     isProduction,
     isAdFree
   );
@@ -63,6 +79,9 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
     showShopAdRewardInterstitial,
     closeInterstitial,
     interstitial,
+    rewardedGate,
+    completeRewardedGate,
+    dismissRewardedGate,
     isAdFree,
   }), [
     isAdReady,
@@ -72,12 +91,16 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
     showShopAdRewardInterstitial,
     closeInterstitial,
     interstitial,
+    rewardedGate,
+    completeRewardedGate,
+    dismissRewardedGate,
     isAdFree,
   ]);
 
   return (
     <AdContext.Provider value={value}>
       {children}
+      <RewardedAdModal />
     </AdContext.Provider>
   );
 };

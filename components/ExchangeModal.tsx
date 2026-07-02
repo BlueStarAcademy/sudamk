@@ -46,8 +46,9 @@ import {
     TRADE_LISTING_TICKET_NAME,
 } from '../shared/utils/tradeListingTicket.js';
 import ExchangeTradeTicketBadge from './exchange/ExchangeTradeTicketBadge.js';
+import ExchangeCurrencyTab from './exchange/ExchangeCurrencyTab.js';
 
-type ExchangeTab = 'buy' | 'sell' | 'settlement' | 'history';
+type ExchangeTab = 'buy' | 'currency' | 'sell' | 'settlement' | 'history';
 type SaleCurrency = 'gold' | 'diamonds';
 type InventorySortKey = 'createdAt' | 'grade' | 'name';
 type BuySortColumn = 'latest' | 'name' | 'currentPrice' | 'lowestPrice';
@@ -1142,6 +1143,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         setSalePrice(String(Math.min(maxExchangeListPrice(saleCurrency), currentLowestForSelected.price)));
     }, [selectedItemId, saleCurrency, currentLowestForSelected?.price]);
     const unclaimedSettlements = settlements.filter((entry) => !entry.claimed);
+    const unclaimedCurrencyReceipts = useMemo(
+        () => (currentUser.exchangeState?.currencyReceipts ?? []).filter((entry) => entry && entry.claimed !== true),
+        [currentUser.exchangeState?.currencyReceipts],
+    );
     const settlementDisplayItems = useMemo(
         () =>
             unclaimedSettlements.map((entry) => {
@@ -1960,12 +1965,25 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             {(() => {
                 const exchangePanel = (
                     <>
-                    <div className={`grid grid-cols-4 gap-1 rounded-lg border border-slate-700/60 bg-slate-900/70 p-1 ${mobileExchange ? 'mb-2' : 'mb-3'}`}>
+                    <div className={`grid grid-cols-5 gap-1 rounded-lg border border-slate-700/60 bg-slate-900/70 p-1 ${mobileExchange ? 'mb-2' : 'mb-3'}`}>
                         <button
                             onClick={() => setActiveTab('buy')}
                             className={`${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'buy' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
                         >
 {t('modals.purchase')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => setActiveTab('currency')}
+                            className={`relative overflow-visible ${mobileExchange ? exchangeTabButtonMobile : exchangeTabButtonBase} ${activeTab === 'currency' ? 'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]' : 'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100'}`}
+                        >
+                            {t('tabs.currency')}
+                            {unclaimedCurrencyReceipts.length > 0 ? (
+                                <span
+                                    className="pointer-events-none absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-slate-900 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5"
+                                    aria-hidden
+                                />
+                            ) : null}
                         </button>
                         <button
                             onClick={() => setActiveTab('sell')}
@@ -2002,9 +2020,20 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
 
                     <div
                         className={`min-h-0 flex-1 overflow-hidden rounded-lg border border-slate-700/60 bg-slate-950/55 ${mobileExchange ? 'p-2' : 'p-3'} ${
-                            activeTab === 'settlement' || activeTab === 'history' ? 'flex min-h-0 flex-col' : ''
+                            activeTab === 'settlement' || activeTab === 'history' || activeTab === 'currency' ? 'flex min-h-0 flex-col' : ''
                         }`}
                     >
+                        {activeTab === 'currency' && (
+                            <ExchangeCurrencyTab
+                                currentUser={currentUser}
+                                mobileExchange={mobileExchange}
+                                walletGold={walletGold}
+                                walletDiamonds={walletDiamonds}
+                                primaryButtonClass={exchangePrimaryButtonClass}
+                                onAction={onAction}
+                            />
+                        )}
+
                         {activeTab === 'buy' && (
                             <div
                                 className={

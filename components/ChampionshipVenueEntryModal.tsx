@@ -656,7 +656,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     onContinue,
     isTopmost,
 }) => {
-    const { t } = useTranslation('tournament');
+    const { t } = useTranslation(['tournament', 'common']);
     const { handlers } = useAppContext();
     const { showShopAdRewardInterstitial, isAdFree } = useAdContext();
     const [adClaimPending, setAdClaimPending] = useState(false);
@@ -785,7 +785,10 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
                 })
                 .finally(() => setAdClaimPending(false));
         };
-        showShopAdRewardInterstitial(runClaim);
+        showShopAdRewardInterstitial(runClaim, {
+            placementName: `championship-dungeon-ad-entry-${type}`,
+            onDismissed: () => window.alert(t('common:ads.dismissedNoReward')),
+        });
     };
 
     if (!isOpen) return null;

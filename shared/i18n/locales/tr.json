@@ -134,7 +134,7 @@
     "timesUnit": "{{count}} kez",
     "quickMenuAria": "hızlı menü",
     "helpCenter": "Yardım Merkezi",
-    "helpCenterHint": "Bunu istediğiniz zaman Yardım Merkezimizde tekrar ziyaret edebilirsiniz.",
+    "helpCenterHint": "İstediğiniz zaman Yardım Merkezimizden tekrar ziyaret edebilirsiniz.",
     "disconnectNotice": {
       "title": "Oyun Sonu Bildirimi",
       "logoutTitle": "Oturum kapatma talimatları",
@@ -175,7 +175,7 @@
     "bound": "ait",
     "tradable": "Ticarete açık",
     "maxEnhance": "maksimum takviye",
-    "notEnhanced": "(Güçlendirilmemiş)",
+    "notEnhanced": "(Güçlendirilmiş değil)",
     "owned": "mülk",
     "required": "gerekli",
     "ownedSlashRequired": "Var / İhtiyaç Var",
@@ -250,7 +250,7 @@
     "rpsLose": "yenmek!",
     "rpsTie": "çizmek!",
     "rpsTieRetry": "çizmek! yine!",
-    "rpsTieRandom": "çizmek! Rastgele karar veriliyor...",
+    "rpsTieRandom": "çizmek! Rastgele karar verilir.",
     "rpsChoiceDone": "Seçim tamamlandı!",
     "rpsWaitingOpponent": "{{name}}'nin seçimi bekleniyor...",
     "rpsTieWarning": "Bu sefer eşitlik olursa rastgele karar verilecek.",
@@ -259,17 +259,17 @@
     "firstBlack": "Önce saldırı (siyah)",
     "secondWhite": "Hugong (beyaz)",
     "chooseTurn": "Birinci veya ikinci olmayı seçin.",
-    "chooseTurnCountdown": "İlk veya sonuncu olmayı seçin. ({{geri sayım}})",
+    "chooseTurnCountdown": "Birinci veya ikinci gitmeyi seçin. ({{geri sayım}})",
     "opponentChoosingSecond": "Rakip ikinci oynamayı seçiyor...",
     "readyCountdown": "Hazır ({{geri sayım}})",
-    "waitingOpponentRoll": "Karşı tarafı bekliyorum...",
+    "waitingOpponentRoll": "Rakip bekleniyor...",
     "rollingDice": "Zarları at...",
     "tieReroll": "bağlamak! Bir süre sonra tekrar yuvarlanın.",
-    "rollToDecide": "Zar atmak için hazır düğmesine basın. En yüksek sayıya sahip olan kişi ilk/sonuncu olmayı seçer.",
-    "diceWin": "{{name}} kazandı ve birinci/sonuncu olmaya karar verildi.",
+    "rollToDecide": "Zarları atmak için hazır düğmesine basın. En yüksek sayıya sahip olan kişi ilk/sonuncu olmayı seçer.",
+    "diceWin": "{{name}} kazandı ve kimin ilk/sonuncu olacağına karar verildi.",
     "diceAutoStart": "Aşağıdaki başlat butonuna tıklayın, aksi takdirde maç 30 saniye sonra otomatik olarak başlayacaktır.",
     "colorRouletteTitle": "renk baduk",
-    "uniformColorRoulette": "tekdüze renk ruleti",
+    "uniformColorRoulette": "tek renk rulet",
     "thisGameColor": "Bu eşleşmenin taş rengi: {{color}}",
     "colorRouletteHint": "Siyah ve beyaz taşlar dönüşümlü olarak hızla yanıp sönüyor ve rastgele duruyor.",
     "colorRouletteEnd": "Kura çekimi bittikten sonra maç otomatik olarak başlayacaktır.",
@@ -290,7 +290,7 @@
     "rotateToWhite": "White'ın bakış açısından görünüm",
     "rotateToBlack": "Siyah'ın bakış açısından görünüm",
     "closeViewer": "kapalı",
-    "replayFirst": "ilk kez",
+    "replayFirst": "ilk defa",
     "replayBack5": "5 hamle geri",
     "replayBack1": "bir adım geri",
     "replayForward1": "bir adım ileri",
@@ -310,7 +310,7 @@
       "ariaLabel": "ana menü",
       "entranceClosedTitle": "Giriş kapalı",
       "home": "Ev",
-      "singleplayer": "Baduk akademisi",
+      "singleplayer": "Baduk Akademisi",
       "tower": "Mücadele Kulesi",
       "arena": "stadyum",
       "tournament": "şampiyonluk",
@@ -324,7 +324,7 @@
       "logoutConfirm": "Oturumu kapatmak istiyor musunuz?",
       "actionPointRechargeShop": "Aksiyon Şarjı (Mağaza)",
       "actionPointRecharge": "Eylem şarjı",
-      "participationTickets": "Lonca/Şampiyonaya Katılım Hakları",
+      "participationTickets": "Lonca/Şampiyonaya katılım hakları",
       "guildChampCoins": "Lonca Parası/Şampiyon Parası",
       "admin": "müdür"
     },
@@ -345,7 +345,7 @@
         "strategicLobby": "Stratejik Go bekleme odasına Kullanıcı Lv.{{level}} seviyesinden girebilirsiniz.",
         "playfulLobby": "Go bekleme odasına Kullanıcı Lv'de girebilirsiniz. {{seviye}}.",
         "championship": "Şampiyonaya {{ability}} veya daha yüksek bir Go yetenek puanıyla girebilirsiniz.",
-        "adventure": "Baduk Akademisine Giriş dersinin 20. aşamasını geçerek maceraya girebilirsiniz."
+        "adventure": "Baduk Akademi başlangıç ​​sınıfının 20. aşamasını geçerek maceraya girebilirsiniz."
       }
     },
     "quickMenu": {
@@ -440,7 +440,7 @@
       "unexpectedResponse": "Sunucu yanıt hatası: Beklenmeyen bir yanıt biçimi alındı. (durum: {{durum}})",
       "server502": "Sunucu geçici olarak yanıt vermiyor (502). Lütfen daha sonra tekrar deneyin veya Demiryolu kontrol panelinizdeki arka uç günlüklerini kontrol edin.",
       "loginFailed": "Giriş başarısız oldu ({{statusText}})",
-      "jsonParseFailed": "Sunucu yanıt hatası: JSON ayrıştırma işlemi başarısız oldu (durum: {{status}})",
+      "jsonParseFailed": "Sunucu yanıt hatası: JSON ayrıştırması başarısız oldu (durum: {{status}})",
       "noUserInResponse": "Sunucu yanıt hatası: Kullanıcı bilgileri alınamıyor.",
       "timeout": "30 saniye içinde sunucudan yanıt gelmedi. Lütfen daha sonra tekrar deneyin.",
       "networkError": "Sunucuya bağlanılamıyor. Lütfen daha sonra tekrar deneyin veya SUDAM-API hizmet durumunu kontrol edin.",
@@ -481,7 +481,7 @@
       "profanity": "Takma adınız uygunsuz kelimeler içeriyor.",
       "taken": "Bu takma ad zaten kullanılıyor.",
       "checkError": "Takma adınız çözümlenirken bir hata oluştu. Lütfen daha sonra tekrar deneyin.",
-      "hint": "Bir takma ad girdiğinizde, kopya ve küfür olup olmadığı kontrol edilecektir.",
+      "hint": "Bir takma ad girdiğinizde, kopya ve küfür açısından kontrol edilecektir.",
       "checking": "Kopyalar kontrol ediliyor...",
       "available": "Bu kullanabileceğiniz bir takma addır.",
       "required": "Lütfen takma adınızı giriniz.",
@@ -538,9 +538,9 @@
     "comingSoon": "Daha fazla güncelleme hazırlanıyor",
     "descriptions": {
       "standard": "Bu tipik bir klasik Baduk'tur.",
-      "capture": "Baduk oyunu, belirlenen sayıda taşı ilk toplayan kişi tarafından kazanılır.",
-      "speed": "Eğer onu {{seconds}} saniye içinde yerleştirirseniz, {{seconds}} saniye içinde yenileneceksiniz. Her {{second}} saniye boyunca rakibinize 1 puan eklenir.",
-      "base": "Temel taşların dizilişine baktığınız, rakibinize bir bonus belirlediğiniz ve seçtiğiniz taşları kullanarak, durumu analiz etme yeteneğinizle yarıştığınız bir baduk oyunudur.",
+      "capture": "Baduk oyunu, belirlenen sayıda taşı ilk elde eden kişi tarafından kazanılır.",
+      "speed": "Eğer onu tur başına {{second}} saniye içinde yerleştirirseniz, {{seconds}} saniyeyi geri kazanırsınız. Her {{second}} saniye boyunca rakibinize 1 puan eklenir.",
+      "base": "Temel taşların dizilişine bakıp, rakibinize bir bonus belirleyip, seçtiğiniz taşları kullanarak, durumu analiz etme yeteneğinizle yarıştığınız bir baduk oyunudur.",
       "hidden": "Rakibin göremediği bir hamleyle geri dönüş! Gizli ve taranmış öğeler aracılığıyla psikolojik savaş ve okuma becerileri gereklidir.",
       "missile": "Füze eşyası olarak yerleştirilen taşı hareket ettirerek bir değişken oluşturun.",
       "uniform": "Go, tüm taşları tek renkte görmek için hafıza gerektiren bir oyundur.",
@@ -574,7 +574,7 @@
       "passTitle": "mola ver",
       "resignTitle": "Çekimser",
       "cannotResignDuringScoring": "Sayım işlemi sırasında çekimserliğe izin verilmez.",
-      "gameFeatures": "Eşleştirme işlevi",
+      "gameFeatures": "eşleştirme işlevi",
       "playfulFeatures": "oynatma fonksiyonu",
       "mannerAction": "görgü eylemi",
       "mannerActionPvpOnly": "Şekil eylem düğmesi yalnızca PVP modunda oluşturulur.",
@@ -632,7 +632,7 @@
       "adminFeatures": "Yönetici işlevi",
       "pauseMyTurnOnly": "Yalnızca sıranız geldiğinde duraklatabilirsiniz",
       "resumeGame": "Maçın yeniden başlaması",
-      "resumeGameCountdown": "Eşleşmeyi sürdür ({{count}})",
+      "resumeGameCountdown": "Maçın yeniden başlaması ({{count}})",
       "pauseGame": "yarıda kesmek",
       "pauseGameCountdown": "duraklat ({{count}})",
       "pauseGameAiTurn": "Duraklatma (AI dönüşü)",
@@ -666,7 +666,7 @@
       "stoneRefreshTitle": "taş yer değiştirme",
       "rematch": "rövanş maçı",
       "rematchApplying": "Başvuruyor",
-      "thiefHigh36Aria": "Yüksek sayıda (3-6) zar öğesi, kalan sayı {{count}}",
+      "thiefHigh36Aria": "Çok sayıda (3-6) zar öğesi, kalan sayı {{count}}",
       "thiefHigh36Title": "Yalnızca yüksek sayıları (3, 4, 5, 6) gösteren bir zar. Kalan Sayı {{count}}",
       "thiefNoOneAria": "1 (2~5) zar öğesini önleyin, kalan sayı {{count}}",
       "thiefNoOneTitle": "1 (2, 3, 4, 5) rakamı vermeyen zarlar. Kalan Sayı {{count}}",
@@ -686,7 +686,7 @@
     "turn": {
       "aiHiddenItem": "AI bot gizli bir öğe kullandı!",
       "monsterHiddenItem": "Canavar gizli bir eşya kullandı!",
-      "diceOvershotWithMax": "Aşırı atış! Son desteyi kazanmak için {{maxDice}} veya daha az zarınız olmalıdır.",
+      "diceOvershotWithMax": "Aşırı atış! Son desteyi ancak zarlarınızın {{maxDice}} veya daha az olması durumunda kazanabilirsiniz.",
       "diceOvershotNoLiberties": "Aşırı atış! Şu anda çanta için geçerli bir yer yok, dolayısıyla son desteyi kazanamazsınız. Lütfen bir sonraki yuvarlamayı bekleyin.",
       "lastCaptureBonus": "(Son kukla bonus +{{bonus}} puan)",
       "lastShowdown": "Son maç! {{count}} geçerli rakam",
@@ -707,7 +707,7 @@
       "baseGameStartConfirm": "Start butonuna bastığınızda maç başlıyor.",
       "captureBidTie": "Önerilen beraberlik aynıdır. Bu sefer de aynı olursa rastgele karar verilecek.",
       "captureBidBase": "Yayınlanan panoya bakın ve alttaki Siyah (İyi) için önerilen puanı onaylayın.",
-      "captureBid": "Siyah (çizgi) puanların sunulduğu aşamadır.",
+      "captureBid": "Bu, siyah (çizgi) puanların sunulma aşamasıdır.",
       "gameEnded": "Maç biter",
       "noContest": "geçersiz eşleşme",
       "rematchPending": "Rövanş maçı bekleniyor...",
@@ -733,7 +733,7 @@
       "timeoutFoulPassTurn": "Sıra rakibe geçer.",
       "timeoutFoulLoseStone": "1 taş kaybedersiniz ve sıranız biter.",
       "timeoutFoulDefault": "Süre sınırını aştığınız için ceza alacaksınız.",
-      "baseKomiGuide": "Hangi taşları ve bonusları saklamak istediğinize karar verin. Aynı taşı seçerseniz size en çok bonus veren, elinizde tutmak istediğiniz taştır.",
+      "baseKomiGuide": "Yerleştirmek istediğiniz taşlara ve bonuslara karar verin. Aynı taşı seçerseniz size en çok bonus veren, elinizde tutmak istediğiniz taştır.",
       "alkkagiPlaceHidden": "Taşları rakibinizin göremeyeceği şekilde yerleştirin. ({{round}} / {{total}} tur)",
       "alkkagiPlaceMissing": "Eksik taşları yerleştirin. ({{round}} / {{total}} tur)",
       "placementProgress": "{{placed}}/{{target}} yerleştirildi",
@@ -752,7 +752,7 @@
       "scanUseTime": "Tarama kullanım süresi",
       "missileSelectPrompt": "Başlatmak istediğiniz Git taşını seçin. Seçtikten sonra yönü seçin ve uçacaktır.",
       "itemTimeSec": "{{label}} {{sn}} saniye",
-      "basePlacementSpectator": "Temel taşlarının yerleştirilmesi · Siyah {{siyah}}/{{count}} · Beyaz {{white}}/{{count}}",
+      "basePlacementSpectator": "Temel taşlarının yerleştirilmesi · Siyah {{black}}/{{count}} · Beyaz {{white}}/{{count}}",
       "baseStonesRemaining": "Kalan temel oyuncak bebekler ({{remaining}}/{{total}})",
       "timeRemainingShort": "· {{sn}} saniye kaldı",
       "confirmPlacement": "· Dağıtımı Tamamla'ya tıklayın",
@@ -805,7 +805,7 @@
       "captureScore": "Yakalama Puanı:",
       "lastPileBonus": "Son kukla bonus:",
       "finalScoreLabel": "son puan",
-      "houseScoreGain": "Kazanılan puanlar",
+      "houseScoreGain": "Kazanılan puan",
       "houseUnit": "ev",
       "playerWins": "{{name}} kazandı!",
       "cumulativeScore": "kümülatif puan",
@@ -856,7 +856,7 @@
       "omokWin": "İçbükey tamamlama",
       "omokLoss": "Rakip içbükey tamamlama",
       "captureGoalWin": "Kazanılan gol tamamlandı",
-      "captureGoalLoss": "Rakibin golünü alma işlemi tamamlandı",
+      "captureGoalLoss": "Rakibin golünü kazanmanın tamamlanması",
       "rankingScore": "sıralama puanı",
       "mannerScore": "tarz puanı",
       "noChange": "değişiklik yok",
@@ -876,7 +876,7 @@
       "starConditions": "Yıldız kazanmanın koşulları",
       "captureTier2": "Tek seferde {{min}} puan kazanın",
       "captureTier3": "Tek seferde {{min}} puan kazanın",
-      "scoreDiffTier": "Ev Farkı {{diff}}Bir evden daha fazlası",
+      "scoreDiffTier": "Ev farkı {{diff}}Bir evden daha fazlası",
       "goldBundleSpaced": "altın paketi",
       "goldBundleCompact": "Altın paketi",
       "noRewardInfo": "Tazminat bilgisi mevcut değil.",
@@ -900,7 +900,7 @@
       "system": "sistem",
       "securityBot": "AI Şerif Botu",
       "pairPetSuffix": "(Adil Evcil Hayvan)",
-      "profileSanction": "{{name}} profilini / Yaptırımları görüntüle",
+      "profileSanction": "{{name}} Profili Görüntüle / Yaptırımlar",
       "viewProfile": "{{name}} profilini görüntüle",
       "itemDetail": "Ayrıntıları görmek için {{name}}'ye tıklayın",
       "honorific": "Sayın",
@@ -927,14 +927,14 @@
         "byoyomiCount": "{{count}} çarpı {{second}} saniye",
         "mixRules": "kombinasyon kuralları",
         "forbid33": "İkiz yok",
-        "forbidOverline": "kütük yok",
+        "forbidOverline": "günlüklere izin verilmiyor",
         "forbidden": "yasak",
         "allowed": "olası",
         "captureTarget": "hedef puan",
         "captureTargetCount": "{{saymak}}",
         "captureTargetBoth": "Siyah: {{siyah}} / Beyaz: {{beyaz}}",
         "captureTargetPending": "{{count}} (siyah/beyaza karar veriliyor)",
-        "castle": "kale",
+        "castle": "Kale",
         "castleCount": "{{saymak}}",
         "baseStones": "baz bebek",
         "hiddenStones": "Gizli Taş",
@@ -984,7 +984,7 @@
       "police": "polis",
       "roundShort": "Tur {{current}}/{{total}}",
       "stonesShort": "Taş {{sol}}/{{toplam}}",
-      "thiefRoundAria": "Tur {{round}} / {{toplam}}. {{ipucu}}",
+      "thiefRoundAria": "Tur {{round}} / {{total}}. {{ipucu}}",
       "thiefRoundPlacements": "Tur {{round}} / {{total}}, {{count}} tur kaldı",
       "remainingPlacementsCount": "{{count}} fırlatma kaldı"
     },
@@ -1063,7 +1063,7 @@
       "winSurvival": "Beyaz belirlenen tüm dönüşleri sürdürdü.",
       "winCaptureTarget": "Hedef puanınıza ulaştınız.",
       "winScoring": "Takım galibiyetle sonuçlandı.",
-      "winTime": "Bu bir zaman aşımı kartıdır.",
+      "winTime": "Bu bir mola kartı.",
       "winResign": "Karşı taraf ise çekimser kaldı.",
       "winDisconnect": "Karşı tarafın bağlantısı kesilir.",
       "winTotalScore": "Toplam puanla kazanıldı.",
@@ -1104,7 +1104,7 @@
       "winSurvival": "Sınırlı dönüşlerle puanımızı iyi koruduk.",
       "winCaptureTarget": "Hedef puanınıza ulaştınız.",
       "winScoring": "Takım galibiyetle sonuçlandı.",
-      "winTime": "Bu bir zaman aşımı kartıdır.",
+      "winTime": "Bu bir mola kartı.",
       "winResign": "Karşı taraf ise çekimser kaldı.",
       "winDisconnect": "Karşı tarafın bağlantısı kesilir.",
       "winTotalScore": "Toplam puanla kazanıldı.",
@@ -1139,7 +1139,7 @@
       "lockedTop3Full": "Kilitli (3. veya üzeri sıralandığında açılır)",
       "nextStageAlreadyOpen": "Bir sonraki adım zaten açık.",
       "open": "açık",
-      "resultAria": "Sonuçların Özeti",
+      "resultAria": "Sonuçların özeti",
       "rewardsAria": "ödül simgesi",
       "stageResultTitle": "{{turnuva}} {{stage}} aşama sonuçları",
       "equipmentSuffix": "{{label}} Ekipman",
@@ -1204,7 +1204,7 @@
       "baseGo": "baz baduk",
       "baseStones": "taban taşı",
       "castleGo": "Baduk Kalesi",
-      "castleShort": "kale",
+      "castleShort": "Kale",
       "timeLimit": "zaman sınırı",
       "byoyomi": "geri sayım",
       "byoyomiSeconds": "{{sn}} saniye",
@@ -1272,12 +1272,12 @@
         "shopConsumables": "Mağaza · Sarf Malzemeleri",
         "buyPotion": "Davranışsal iyileştirme iksiri satın alın",
         "buyPotionLimit": "· Tür başına günde 1",
-        "diamondInstant": "Diamond anında şarj olur",
+        "diamondInstant": "Diamond anında şarj oluyor",
         "diamondInstantHint": "Aksiyon gücünüzü istediğiniz zaman doldurabilirsiniz.",
         "goShopConsumables": "Mağazadan şifa iksirleri satın alın (sarf malzemeleri)",
         "goDiamondRecharge": "Elmaslarla anında şarj edin",
         "selfHeading": "Eyleme geçme yeteneğim yok.",
-        "selfDetail": "Bir maçı uygulamak ve kabul etmek veya bir AI maçı başlatmak için eylem gücü (⚡) gereklidir. Lütfen şarj edin ve tekrar deneyin.",
+        "selfDetail": "Bir maça başvurmak/kabul etmek, AI maçı başlatmak vb. için eylem gücü (⚡) gereklidir. Lütfen şarj edin ve tekrar deneyin.",
         "opponentTitle": "Maç için başvur",
         "opponentMessage": "Karşı tarafın fiil ehliyeti bulunmadığından başvuru yapılamaz.",
         "opponentDetail": "Rakibin de maça devam edebilmesi için yeterli hareket gücüne (⚡) sahip olması gerekir. Lütfen diğer kişi şarj olduktan sonra tekrar deneyin."
@@ -1396,7 +1396,7 @@
         "loseTerritory": "Toplam puan (toplam puan) düşükse veya beraberlik veya beraberlik kuralları nedeniyle kasa dezavantajlı durumdaysa kaybedersiniz.",
         "loseTerritoryAuto": "{{base}} · {{auto}}'ya karşı kazanamazsanız kaybedersiniz.",
         "loseCaptureRace": "Eğer rakip önce {{t}} puan alırsa kaybedersiniz. Aksi takdirde ailede az sayıda ev varsa kaybedersiniz.",
-        "loseMix": "Oyun sonunda rakip galibiyet şartlarını ilk önce karşılıyorsa veya dezavantajlı durumdaysa, rakip kaybeder.",
+        "loseMix": "Oyunun sonunda rakip galibiyet şartlarını ilk önce karşılıyorsa veya dezavantajlı durumdaysa, rakip kaybeder.",
         "basePlacementAnalysis": "Temel bebek yerleştirmenin yayınlanmasından sonraki durum analizi",
         "baseKomiSelect": "Rakibinize vereceğiniz bonusu belirleyin · İstediğiniz taşı seçin",
         "autoScoringCaptureTurn": "{{n}} tura ulaşıldığında otomatik sayım devam eder",
@@ -1426,7 +1426,7 @@
         "factorDice": "Tur başına 100 taş kazanma puanı · Son kazanma bonusu",
         "factorThief": "Tur başına kazanılan toplam puan",
         "factorAlkkagi": "Rakibin tahta dışındaki hamle sayısı",
-        "factorCurling": "Stone eve çok yakın bir mesafeden gol attı (gol)",
+        "factorCurling": "Stone kaleye çok yakın bir mesafeden gol attı (gol)",
         "factorFallback": "Mod kılavuzuna bakın",
         "factorStageDefault": "Sahneye/moda bağlı olarak",
         "factorStageCapture": "kazanma puanı",
@@ -1505,10 +1505,10 @@
         "advTerritoryWinAuto": "Galibiyetleri say · {{n}} otomatik olarak hareket eder",
         "advTerritoryLose": "Sistem yenilir ve süre dolar.",
         "advTimeLimit": "{{mins}} dakika sınırı",
-        "gwCaptureWinAuto": "Önce {{cap}} puan veya {{limit}} tur sayısı kazanır",
+        "gwCaptureWinAuto": "Önce {{cap}} puan veya {{limit}} tur sayısı galibiyeti",
         "gwCaptureWin": "Önce {{cap}} puan alırsanız kazanırsınız.",
         "gwCaptureLose": "Rakip {{cap}} birinci puan",
-        "gwTerritoryWinAuto": "{{limit}} sayıda galibiyetin otomatik hesaplanması",
+        "gwTerritoryWinAuto": "{{limit}} adet kazancın otomatik hesaplanması",
         "gwTerritoryWin": "Ailenizin daha fazla evi varsa siz kazanırsınız.",
         "gwTerritoryLose": "Sayıca fazla, süre aşıldı",
         "captureWin": "Önce rakibin taşından {{t}} puan alın",
@@ -1518,7 +1518,7 @@
         "speedTerritoryLoseDefault": "Sayım sonrasında genel puanınız düşükse kaybedersiniz.",
         "castleWin": "Rakibin 1 veya daha fazla taşını kazanırsanız anında kazanırsınız. Etkin sayı yoksa bölge hesaplanır.",
         "castleLose": "Rakibiniz 1 taşı bile yakalarsa kaybedersiniz. Ailenizde az sayıda ev varsa kaybedersiniz.",
-        "castleHighlightCount": "{{castles}} kale · Tamamlanmış bölgeye girilemiyor",
+        "castleHighlightCount": "{{castles}} kale · Tamamlanan bölgeye girilemiyor",
         "castleHighlightCapture": "1 taş ele geçirildiğinde anında zafer",
         "chessWin": "Belirlenen prosedürden sonra hesaplama",
         "chessLose": "Gyejia'da yenilgi · Kralı ele geçirir geçirmez kaybedersiniz.",
@@ -1648,7 +1648,7 @@
       "queen": "kraliçe",
       "pieceTitle": "{{label}} · {{moves}} kez · {{cost}} puan",
       "hostPlacing": "Ev sahibi parçaları yerleştirir",
-      "hostPlacingHint": "Konuşlandırıldıktan sonra bir saldırı turuna katılır.",
+      "hostPlacingHint": "Konuşlandırıldıktan sonra bir saldırı turuna katılırsınız.",
       "completeStarting": "Yerleştirme tamamlandı · Oyunu başlat…",
       "completeWaiting": "Dağıtım tamamlandı · Rakip bekleniyor...",
       "secondsLeft": "{{sn}} saniye",
@@ -1696,7 +1696,7 @@
     },
     "towerSidebar": {
       "title": "Mücadele Kulesi",
-      "floor": "{{kat}}kat"
+      "floor": "{{kat}} kat"
     },
     "guildWarSidebar": {
       "title": "lonca savaşları"
@@ -1724,7 +1724,7 @@
       "result": "sonuç"
     },
     "gameApplication": {
-      "title": "Oyun uygulaması",
+      "title": "Oyun için başvur",
       "modeHeading": "oyun modu",
       "applyTitle": "{{mode}} uygulaması",
       "selectMode": "Lütfen bir oyun seçin."
@@ -1746,7 +1746,7 @@
       "secondsShort": "mum",
       "timeRemainingBidShort": "Bahisler kalan süre içinde onaylandı",
       "aiUnlimitedTitle": "AI oyunlarının sınırsız sunumu",
-      "opponentPoints": "rakibe verilen puan",
+      "opponentPoints": "Rakibe verilen puan",
       "pointsSuffix": "nokta",
       "piecesSuffix": "köpek",
       "whiteTargetIfWin": "Siyah, beyaz hedef seçerken: {{target}} puan",
@@ -1757,7 +1757,7 @@
       "setupComplete": "Kurulum tamamlandı",
       "baseTargetIntro": "Varsayılan hedefler {{target}}'tır.",
       "bidInstructionRich2": "Siyahı (oyuncuya) getirmesi için rakibinize vereceği puanları teklif edin.",
-      "aiAutoBidHint": "AI otomatik olarak 1 ile 5 arasında bir puan önerir. Puanınızı zaman sınırı olmadan seçebilirsiniz.",
+      "aiAutoBidHint": "Yapay zeka otomatik olarak 1 ile 5 arasında puan önerir. Puanınızı süre sınırlaması olmadan seçebilirsiniz.",
       "baseTargetLabel": "birincil hedef",
       "waitingCaptain": "Takım liderinin teklifini bekliyoruz.",
       "titleRerollSuffix": "· Yeniden bahis turu"
@@ -1783,17 +1783,17 @@
       "stonesUnit": "ev",
       "prepComplete": "Oyuna başlamaya hazırız",
       "checkingRoulette": "Rulet sonuçları kontrol ediliyor...",
-      "startCountdown": "Maçı başlat ({{count}})",
+      "startCountdown": "Oyun başlıyor ({{count}})",
       "startGame": "Maç başlıyor",
       "basePrepTitle": "Temel oyun hazırlığı",
-      "colorRouletteTitle": "Siyah Beyaz Karar (Beraberlik Ruleti)",
+      "colorRouletteTitle": "Siyah Beyaz Kararı (Beraberlik Ruleti)",
       "colorRouletteDesc": "Rulette siyah ve beyaz belirlenir.",
       "baseCaptureTitle": "temel + toplama",
       "baseCaptureDesc": "Aşağıdaki karttaki koşulları kontrol edin.",
       "basePrepTitle2": "Temel oyun hazırlığı",
       "basePrepDesc2": "Aşağıdaki siyah, beyaz ve bonuslara göz atın.",
       "colorDecideTitle": "siyah ve beyaz kristaller",
-      "colorDecideDesc": "{{name}} · Siyah (çizgi) · Sunum {{bid}} noktası",
+      "colorDecideDesc": "{{name}} · Siyah (çizgi) · Sunulan {{bid}} nokta",
       "blackFirstSuffix": "· İlk önce git",
       "whiteSecondSuffix": "· Hugong",
       "myWinCondition": "kazanma koşullarım",
@@ -1819,7 +1819,7 @@
       "pressStartPrompt": "Hazır olduğunuzda oynamaya başlamak için Başlat'a tıklayın."
     },
     "baseStoneChoice": {
-      "hostPick": "Toplantı sahibi soldaki renk panosunu seçer.",
+      "hostPick": "Toplantı sahibi soldaki renk plakasını seçer.",
       "wait": "lütfen biraz bekleyin.",
       "pairHost": "Sunucu: Bunun yerine bir takım arkadaşınızın renk panosunu seçin.",
       "pickPanel": "Beğendiğiniz sürümü seçin.",
@@ -1846,7 +1846,7 @@
       "blackRole": "İlk vuruş, siyah",
       "whiteRole": "Hugong · Geri",
       "finalCardAlt": "Son birinci ve ikinci hamleler sol ve sağ kartlarda görüntülenir.",
-      "fastFlashAlt": "İki alandaki siyah beyaz ekran değişiyor ancak bir süre sonra son düzende sabitleniyor.",
+      "fastFlashAlt": "İki mekandaki siyah beyaz ekran değişiyor ancak bir süre sonra son düzenlemeye sabitleniyor.",
       "smoothEndAlt": "Siyah beyaz hızla değişiyor ve rastgele duruyor.",
       "assignmentComplete": "Ödev tamamlandı",
       "blackCandidate": "İlk (siyah) adaya git"
@@ -1856,7 +1856,7 @@
       "whiteStone": "beyaz taş",
       "title": "Ilsaek Baduk",
       "uniformRoulette": "tekdüze renk ruleti",
-      "thisColor": "Bu eşleşmenin taş rengi: {{color}}",
+      "thisColor": "Bu oyun için taş rengi: {{color}}",
       "flashHint": "Siyah ve beyaz taşlar dönüşümlü olarak hızla yanıp sönüyor ve rastgele duruyor.",
       "autoStart": "Kura çekimi bittikten sonra maç otomatik olarak başlayacaktır.",
       "stoneColorRoulette": "taş rengi rulet",
@@ -1869,7 +1869,7 @@
       "expectedRecovery": "Beklenen iyileşme sonrası durum",
       "applying": "Kurtarma uygulanıyor...",
       "goShop": "Mağazaya git",
-      "usePotion": "Onarıcı ilaç kullanın",
+      "usePotion": "onarıcı ilaç kullan",
       "recoveryTitle": "durumun iyileşmesi",
       "potionTitle": "{{name}} · Kurtarma {{min}}~{{max}} · Elde Tutma {{count}}",
       "currentLabel": "mevcut durum",
@@ -1902,9 +1902,9 @@
       "win": "zafer!",
       "lose": "yenmek!",
       "tie": "bağlamak!",
-      "intro": "Zar atmak için hazır düğmesine basın. En yüksek sayıya sahip olan kişi ilk/sonuncu olmayı seçer.",
+      "intro": "Zarları atmak için hazır düğmesine basın. En yüksek sayıya sahip olan kişi ilk/sonuncu olmayı seçer.",
       "tieReroll": "bağlamak! Bir süre sonra tekrar yuvarlanın.",
-      "pickTurn": "İlk veya sonuncu olmayı seçin. ({{geri sayım}})",
+      "pickTurn": "Birinci veya ikinci olmayı seçin. ({{geri sayım}})",
       "firstBlackBtn": "Önce saldırı (siyah)",
       "secondWhiteBtn": "Hugong (beyaz)",
       "waitingOpponentPick": "Rakip birinci/ikinci gitmeyi seçiyor...",
@@ -2004,7 +2004,7 @@
       "advanced": "İleri sınıf",
       "master": "Yüksek Danban",
       "tower": "Mücadele Kulesi",
-      "academy": "Baduk akademisi",
+      "academy": "Baduk Akademisi",
       "stage": "Aşama {{num}}",
       "returnLobby": "Geri gitmek",
       "currentStage": "mevcut aşama",
@@ -2022,7 +2022,7 @@
       "cancel": "iptal",
       "exit": "Çıkış",
       "start": "Başlarken",
-      "singleStage": "tek kademeli",
+      "singleStage": "tek aşamalı",
       "masterClass": "yeterliliğe sahip bir kişi",
       "goalSection": "hedef",
       "goalTurnCaption": "Sınırlı dönüş",
@@ -2072,7 +2072,7 @@
           "step1Title": "zaman kuralları",
           "step1Body": "Belirlenen süre içinde bunu yapmazsanız rakibiniz daha fazla puan alacaktır.",
           "step2Title": "Hesaplama fiyatı",
-          "step2Body": "Sonuçta kazanan, ev ve zaman bonuslarının toplanmasıyla belirlenir."
+          "step2Body": "Sonuçta kazanan veya kaybeden, kasa ve zaman bonuslarının toplanmasıyla belirlenir."
         },
         "base": {
           "step1Title": "baz bebek",
@@ -2149,7 +2149,7 @@
       "previousKnockShort": "önceki vuruş",
       "detailScores": "ayrıntılı puan",
       "resultBoardTab": "sonuç panosu",
-      "finalRoundTieBody": "Son tur berabere kaldı. Onaylandıktan sonra oyun aynı tahtadan aynı anda daha fazla taş atılarak devam eder.",
+      "finalRoundTieBody": "Son tur berabere kaldı. Onaylandıktan sonra aynı tahtadan daha fazla taş atılarak oyun devam eder.",
       "stonesLeft": "kalan taşlar",
       "scoredFor": "Gol",
       "scoredAgainst": "kabul edildi",
@@ -2159,7 +2159,7 @@
       "lastDummyBonus": "Son yığın +{{bonus}}",
       "alkkagiKnockout": "Nakavt",
       "playerFallback": "oyuncu",
-      "waitingOpponentConfirm": "Rakibin onayı bekleniyor",
+      "waitingOpponentConfirm": "İş ortağından onay bekleniyor",
       "house": "ev",
       "knockout": "Nakavt",
       "roundResultBoard": "yuvarlak sonuç panosu"
@@ -2212,7 +2212,7 @@
       "categories": "Ses efektlerinin ayrıntılı kontrolü",
       "categoriesList": {
         "stone": "İniş/çarpışma/düşme sesi",
-        "notification": "Edinme/seviye yükseltme bildirimi",
+        "notification": "Edinim/seviye yükseltme bildirimi",
         "item": "Öğe kullanım sesleri",
         "countdown": "Geri sayım/geri sayım sesi",
         "turn": "Sıra bildirim sesim"
@@ -2251,7 +2251,7 @@
       "cancel": "iptal",
       "withdrawTitle": "Üyeliğin geri çekilmesi",
       "withdrawLine1": "Veriler geri çekildikten sonra silinir ve kurtarılamaz.",
-      "withdrawLine2": "1 hafta boyunca aynı e-posta adresiyle tekrar kayıt yapamazsınız.",
+      "withdrawLine2": "1 hafta boyunca aynı e-posta adresiyle tekrar kayıt olamazsınız.",
       "withdrawPasswordConfirm": "şifreyi doğrula",
       "withdrawTextConfirm": "Onay metnini girin: \"Üyeliği iptal et\"",
       "withdrawPlaceholder": "Üyeliğin geri çekilmesi",
@@ -2305,7 +2305,7 @@
   "lobby": {
     "modePicker": {
       "strategicTitle": "strateji oyunu",
-      "playfulTitle": "oyun oynamak",
+      "playfulTitle": "oyun oyna",
       "lobbySuffix": "lobi",
       "selectGame": "Oynamak istediğiniz oyunu seçin."
     },
@@ -2342,7 +2342,7 @@
     },
     "playfulNotice": {
       "title": "Baduk oynama rehberi",
-      "body": "Play Baduk arenasında sıralama maçı ve sezon sıralaması puanları kullanılmaz. Sıralama maçları yalnızca Stratejik Baduk bekleme odasında yapılabilir."
+      "body": "Play Baduk stadyumunda sıralama maçı ve sezon sıralaması puanları kullanılmaz. Sıralama maçları yalnızca Stratejik Baduk bekleme odasında yapılabilir."
     },
     "rankedUnavailable": {
       "title": "Sıralamalı maç yok",
@@ -2378,8 +2378,8 @@
       "scorePoints": "{{score}} puan",
       "noStats": "istatistik yok",
       "noOtherPlayers": "Başka oyuncu yok.",
-      "forceLogout": "ayrılmaya zorlandım",
-      "forceLogoutConfirm": "[{{takma ad}}] adlı kişinin bağlantısını kesmeye zorlamak istiyor musunuz?",
+      "forceLogout": "ayrılmak zorunda kaldı",
+      "forceLogoutConfirm": "[{{nickname}}] adlı kişinin bağlantısını kesmeye zorlamak istiyor musunuz?",
       "invite": "Davet etmek",
       "challenge": "Maç için başvur",
       "challengeUnavailable": "Karşı taraf eşleşme isteklerini alabilecek durumda değildir.",
@@ -2425,7 +2425,7 @@
         "playful": "oynamak"
       },
       "intentToggle": {
-        "aiArena": "Yapay Zeka Stadyumu",
+        "aiArena": "AI Stadyumu",
         "pvpArena": "PVP Arenası"
       },
       "cardLabel": {
@@ -2552,7 +2552,7 @@
       "multiSelectTitle": "Oyun modunu seçin (birden fazla seçim mümkündür)",
       "selectedCount": "Seçilen oyunlar: {{count}}",
       "priorityTitle": "Seçilen oyun önceliği (1. öncelik en yüksek olandır)",
-      "priorityAdjustTip": "💡 Öncelik, yukarı ve aşağı tuşları kullanılarak ayarlanabilir veya (×) seçimi kaldırılarak kaldırılabilir.",
+      "priorityAdjustTip": "💡 Öncelik yukarı ve aşağı tuşlarıyla ayarlanabilir veya (×) işareti kaldırılarak kaldırılabilir.",
       "gameDescription": "Oyun Açıklaması",
       "selectModeLeftPrompt": "Lütfen sol taraftan bir oyun modu seçin.",
       "startMatching": "Eşleştirmeye başlayın ({{count}} seçeneğini seçin)",
@@ -2581,7 +2581,7 @@
       "selectModeLeft": "Soldan bir oyun modu seçin",
       "selectModeTopStrategic": "Yukarıda oyun modunu seçin, ardından tahta boyutunu, süreyi, yapay zeka zorluğunu vb. aşağıda ayarlayın.",
       "selectModeTopPlayful": "Yukarıdan bir oyun modu seçin, ardından eşleştirme seçeneklerinizi aşağıda ayarlayın.",
-      "selectModeLeftStrategic": "Soldan bir oyun modu seçin ve ardından aşağıdan tahta boyutunu, süreyi, yapay zeka zorluğunu vb. ayarlayın.",
+      "selectModeLeftStrategic": "Soldan bir oyun modu seçin ve ardından tahta boyutunu, süreyi, yapay zeka zorluğunu vb. aşağıdan ayarlayın.",
       "selectModeLeftPlayful": "Soldan bir oyun modu seçin ve ardından eşleştirme seçeneklerinizi aşağıda ayarlayın.",
       "selectModePlease": "Bir mod seçin",
       "aiLevel": "Yapay zeka aşaması",
@@ -2607,7 +2607,7 @@
       "startAiGame": "Yapay zekaya karşı oynamaya başlayın",
       "pairAiFormAria": "Çift AI Maç Formu",
       "pairAiPetRequired": "Çift AI'ya karşı oynamak için bir Çift evcil hayvanını donatmanız gerekir.",
-      "pairAiTitle": "Pair Baduk AI'ye karşı oynayın",
+      "pairAiTitle": "Pair Baduk AI'ya karşı oynayın",
       "aiRecord": "AI kaydı {{wins}}, {{loses}} kayıp ({{winRate}}%) kazanır",
       "botSuffix": "{{name}}bot",
       "gameSettingsTitle": "Eşleşme ayarları",
@@ -2645,7 +2645,7 @@
       "pairLobby": "fuar lobisi",
       "gameAdventureHow": "Macera haritasında bir canavarı her öldürdüğünüzde, canavarın seviyesine eşit avlanma puanı birikir. Puanlar aynıysa, bunu ilk başaran kullanıcı en üstte görüntülenecektir.",
       "gameAdventureWhere": "Macera → Yerel haritadaki canavarlara karşı kazanın.",
-      "badukStrategicHow": "1200'e dayalı kümülatif puan, stratejik bir baduk sıralama maçında (PVP) kazanmanıza veya kaybetmenize bağlı olarak değişir. Aynı modu 10 defadan fazla oynarsanız bu sıralamanıza yansır, güçlü bir rakibi yenerseniz daha da yükselir.",
+      "badukStrategicHow": "1200'e dayanan kümülatif puan, stratejik bir baduk sıralama maçında (PVP) kazanmanıza veya kaybetmenize bağlı olarak değişir. Aynı modu 10 defadan fazla oynarsanız bu sıralamanıza yansır, güçlü bir rakibi yenerseniz daha da yükselir.",
       "badukStrategicWhere": "Stadyum → Stratejik Baduk → Bekleme Odası'ndaki sıralama eşleşmesini kullanın.",
       "badukPairHow": "1200'e dayanan kümülatif puan, PVP sıralama maçının (PVP) galibiyet veya mağlubiyetine bağlı olarak değişir. Minimum maç sayısını karşılarsanız sıralamanız yansıtılacak, güçlü bir rakibi yenerseniz sıralamanız daha da yükselecektir.",
       "badukPairWhere": "Stadyum → Pair Baduk'ta sıralama eşleşmesini kullanın."
@@ -2703,7 +2703,7 @@
       "comprehensionEffects": "Canavar anlama etkisi",
       "comprehensionGoldBonus": "Macera Altını +%{{percent}}",
       "comprehensionEquipBonus": "Ekipman edinimi +%{{percent}}",
-      "comprehensionHighEquipBonus": "Gelişmiş Ekipman +%{{percent}}",
+      "comprehensionHighEquipBonus": "Gelişmiş Donanım +%{{percent}}",
       "comprehensionMaterialBonus": "Malzeme Edinimi +%{{percent}}",
       "comprehensionHighMaterialBonus": "Gelişmiş Malzemeler +%{{percent}}",
       "codexChapterTabsAria": "Ansiklopedi Bölümü",
@@ -2714,7 +2714,7 @@
       "comprehension": "anlayış",
       "inactive": "aktif değil",
       "victoryCount": "{{wins}} galibiyet",
-      "chapterBossBonus": "Bölüm Patronu: Anlama seviyesi başına %{{label}} — +{{perLevel}} (en fazla {{max}}%)",
+      "chapterBossBonus": "Bölüm Patronu: Anlama seviyesi başına %{{label}} — +{{perLevel}} (en fazla %{{max}})",
       "currentBossBonusSum": "Mevcut boss bonus toplamı: +{{percent}}% ({{label}})",
       "comprehensionStatsCurrent": "Anlama yeteneği (mevcut toplam)",
       "adventureExclusive": "Yalnızca Macera: %{{label}} +{{percent}}",
@@ -2729,7 +2729,7 @@
       "regionalExploration": "Yerel keşif",
       "effectInfo": "Efekt bilgisi",
       "effectInfoOpenAria": "Açık alan keşif etkisi bilgisi",
-      "effectInfoTitle": "Efekt Bilgisi",
+      "effectInfoTitle": "Efekt bilgisi",
       "regionalExplorationTabsAria": "Yerel Keşif Sekmesi",
       "enhancePoints": "takviye noktaları",
       "enhancePointsCount": "Takviye Puanı {{remaining}} / {{grant}}",
@@ -2798,7 +2798,7 @@
       "keyFragmentProgressAria": "Anahtar Parça İlerlemesi {{prog}} / {{cap}}",
       "openWithKeyTitle": "1 anahtarla hazine sandığını aç",
       "open": "açılış",
-      "noStageInfo": "Aşama bilgisi yok.",
+      "noStageInfo": "Sahne bilgisi yok.",
       "levelAria": "seviye {{seviye}}",
       "returningToLobby": "Lobiye gidin…",
       "appearing": "görünen",
@@ -2905,7 +2905,7 @@
       "classBarRewardClaimed": "Makbuz tamamlandı",
       "classBarRewardClaim": "Ödül al",
       "classBarRewardNeedClear": "{{milestone}} aşama temizliği gerektirir",
-      "classBarRewardAria": "{{kilometre taşı}}puan ödülleri",
+      "classBarRewardAria": "{{milestone}} puan ödülü",
       "cleared": "Tamamlananları temizle",
       "enterStage": "Mücadele ⚡{{cost}}",
       "enterStageTitle": "Mücadele Eylemi {{cost}}",
@@ -2928,7 +2928,7 @@
       "production": "üretme",
       "productionRate": "Üretim {{dakika}} dakika / {{amount}}",
       "productionRateTitle": "Üretim {{dakika}} dakika / {{amount}}",
-      "productionRateCompact": "{{dakika}}dakika/{{miktar}}",
+      "productionRateCompact": "{{dakika}}dakika/{{amount}}",
       "productionRateMinutes": "{{dakika}} dakika",
       "productionAmount": "teslim olmak",
       "storage": "kaydetmek",
@@ -2941,7 +2941,7 @@
       "enhanceAfterClearFull": "{{stageId}} aşamasını temizlemelisiniz.",
       "enhanceTitle": "{{missionName}} · Geliştirme",
       "enhanceTitlePc": "{{missionName}}'ı geliştirin",
-      "startMissionTitle": "{{missionName}} uygulamasını başlatın",
+      "startMissionTitle": "{{missionName}}'u başlat",
       "claimAllModalTitle": "Eğitim görevlerini toplu olarak alın",
       "claimAllSuccess": "Tüm eğitim görevi ödülleri alındı!",
       "totalSum": "genel toplam",
@@ -3017,10 +3017,10 @@
     "none": "Uygulanamaz",
     "maintenance": "Bakımda",
     "combinedLevelRequired": "Entegre Seviye{{current}}/{{required}}",
-    "abilityRequired": "Yeteneklerin toplamı {{toplam}}+",
+    "abilityRequired": "Yeteneklerin toplamı {{total}}+",
     "intro10Required": "Giriş seviyesi 10'un temizlenmesini gerektirir",
     "intro20Required": "Giriş seviyesi 20'nin tamamlanmasını gerektirir",
-    "goSchool": "Baduk akademisi",
+    "goSchool": "Baduk Akademisi",
     "challengeTower": "Mücadele Kulesi",
     "pvpArena": "PVP Arenası",
     "aiArena": "Yapay zeka eşleşmesi",
@@ -3034,7 +3034,7 @@
       "seasonResetNote": "PVP kayıtlarınızı sıfırlarken sezon sıralama puanınız da sıfırlanacaktır.",
       "noPairRanking": "Baduk oynamak için herhangi bir sıralama sistemi yoktur.",
       "integrated": "entegrasyon",
-      "winLoss": "{{wins}} galibiyet {{loses}} kayıp ({{winRate}}%)",
+      "winLoss": "{{wins}}Galibiyet {{losses}}Mağlubiyet ({{winRate}}%)",
       "diamondInsufficient": "Elmas kıtlığı ({{cost}} gerektirir)",
       "resetSingle": "Elmas {{cost}} Yalnızca modu sıfırla",
       "resetCategory": "Elmas {{cost}} Strateji Tümü",
@@ -3049,8 +3049,8 @@
       "pointsUnit": "nokta",
       "winSuffix": "kazanç",
       "lossSuffix": "grup",
-      "pvpWinLoss": "{{wins}} galibiyet {{loses}} kayıp ({{winRate}}%)",
-      "aiWinLoss": "AI {{wins}}, {{loses}} kayıp kazanır ({{winRate}}%)"
+      "pvpWinLoss": "{{wins}}Galibiyet {{losses}}Mağlubiyet ({{winRate}}%)",
+      "aiWinLoss": "AI {{wins}}, {{losses}} kayıpla kazandı (%{{winRate}})"
     },
     "trainingQuest": "Eğitim görevi",
     "trainingQuestRewardHint": "Alabileceğiniz eğitim görevleri ve ödüller var.",
@@ -3061,8 +3061,8 @@
     "currentFloor": "mevcut kat",
     "timeRemaining": "kalan süre",
     "currentRank": "mevcut sıralama",
-    "floorUnit": "{{kat}} kat",
-    "rankUnit": "{{rütbe}}",
+    "floorUnit": "{{floor}}kat",
+    "rankUnit": "{{rank}}yukarıda",
     "strategicAiRecord": "Strateji yapay zeka kaydı",
     "playfulAiRecord": "AI kaydını oynat",
     "pairAiRecord": "AI kaydını eşleştir",
@@ -3074,18 +3074,18 @@
     "effects": "etki",
     "editProfile": "Profili düzenle",
     "mbtiUnset": "Ayarlanmadı",
-    "mbtiTitle": "MBTI: {{değer}}",
+    "mbtiTitle": "MBTI: {{value}}",
     "mbtiUnsetTitle": "MBTI: Ayarlanmadı",
     "guildEnter": "Lonca girişi",
     "guildHome": "Lonca evini görüntüle",
     "guildLeave": "Loncadan ayrıl",
-    "guildLeaveConfirm": "Loncadan ayrılmak ister misiniz?",
+    "guildLeaveConfirm": "Loncadan ayrılmak ister misin?",
     "guildCreate": "Lonca Oluşturma",
     "guildJoin": "Loncaya katıl",
     "guildLocked": "lonca",
-    "guildLockedLevel": "[Lonca] 🔒 {{seviye}}seviye",
-    "guildLevelHint": "Lonca evini {{level}}'dan daha yüksek bir seviyede kullanabilirsiniz.",
-    "guildLevelNotice": "Loncalar, kullanıcı seviyesi {{level}} veya daha yüksek olan kişiler tarafından kullanılabilir. (Mevcut Lv.{{current}})",
+    "guildLockedLevel": "[Lonca] 🔒 {{level}}seviye",
+    "guildLevelHint": "Lonca evini {{level}} veya daha yüksek seviyede kullanabilirsiniz.",
+    "guildLevelNotice": "Lonca, kullanıcı seviyesi {{level}} veya daha yüksek olan kişiler tarafından kullanılabilir. (Mevcut Lv.{{current}})",
     "stageLabels": {
       "intro": "giriş sınıfı",
       "beginner": "Başlangıç ​​sınıfı",
@@ -3098,7 +3098,7 @@
       "pet": "evcil hayvan",
       "pair": "çift"
     },
-    "timeDaysHours": "{{days}} gün {{hours}} saat",
+    "timeDaysHours": "{{days}}gün {{hours}}saat",
     "championship": "şampiyonluk",
     "integratedScore": "entegre puan",
     "seasonRecord": "sezon rekoru",
@@ -3184,12 +3184,12 @@
       "applyChatBan": "Sohbet yasağı uygulandı",
       "releaseChatBan": "Sohbet yasağını kaldır",
       "applyConnectionBan": "Erişim yasağını uygula",
-      "releaseConnectionBan": "Erişim yasağını kaldır",
+      "releaseConnectionBan": "Bağlantı yasağını kaldır",
       "chatBanMinutes": "Sohbet yok (dakika)",
       "connectionBanMinutes": "Erişim yasaklandı (dakika)",
       "sanctionReason": "Yaptırım Sebepleri",
       "sanctionReasonRequired": "Lütfen yaptırımın nedenini giriniz.",
-      "sanctionHistory": "Yaptırım Ayrıntıları:",
+      "sanctionHistory": "Yaptırım ayrıntıları:",
       "noSanctionHistory": "kayıt yok",
       "sanctionReleased": "/ temizlendi",
       "chatBanType": "Sohbet yok",
@@ -3225,13 +3225,13 @@
       "diamondPackageNamed": "Elmas Paketi {{roman}}",
       "profanityAlert": "Takma adınız uygunsuz kelimeler içeriyor.",
       "nicknameChangeConfirm": "{{cost}} elmas karşılığında takma adınızı '{{name}}' olarak değiştirmek ister misiniz?",
-      "avatarListAria": "Avatar listesi",
+      "avatarListAria": "Avatar Listesi",
       "avatarAria": "Avatar: {{isim}}",
       "avatarDefaultAria": "avatar",
       "avatarSelect": "Avatarınızı seçin",
       "tierRequired": "Önceki sezon {{tier}} kademesi gerekli",
       "levelSumRequired": "Seviye toplamı {{level}} gerektirir",
-      "goldPrice": "{{amount}} altın",
+      "goldPrice": "{{amount}} Altın",
       "diamondPrice": "{{amount}} elmas",
       "borderPurchaseConfirm": "'{{name}}' çerçevesini {{price}} karşılığında satın almak ister misiniz?",
       "borderPurchaseHint": "Satın Almak İçin Tıklayın: {{description}}",
@@ -3244,7 +3244,7 @@
       "changeCost": "değişim maliyeti",
       "ownedDiamonds": "elmas tutmak",
       "mbtiWhatTitle": "MBTI nedir?",
-      "mbtiWhatDesc": "MBTI (Myers-Briggs Tip Göstergesi), bireyin tercihlerine göre kişilik tipini anlamaya yönelik bir araçtır. Kendinizi daha iyi anlamanıza ve başkalarıyla ilişkilerinizi geliştirmenize yardımcı olabilir.",
+      "mbtiWhatDesc": "Myers-Briggs Tip Göstergesi (MBTI), bireyin tercihlerine dayalı olarak kişilik tipini anlamaya yönelik bir araçtır. Kendinizi daha iyi anlamanıza ve başkalarıyla ilişkilerinizi geliştirmenize yardımcı olabilir.",
       "goMbtiTitle": "Baduk MBTI",
       "goMbtiDesc": "Baduk MBTI, Baduk tarzınızın MBTI kavramlarını kullanan bir analizidir. Her türün kendine özgü bir oyun stili vardır, böylece kendinize uygun bir stil bulabilirsiniz.",
       "mbtiFirstReward": "İlk kurulumda 100 elmas alacaksınız.",
@@ -3304,7 +3304,7 @@
         },
         "F": {
           "name": "Duygu (K)",
-          "general": "İnsanlarla büyük empati ve değer ilişkileri vardır. Uyum ve işbirliğine dayalı kararlar alın ve başkalarının duygularını dikkate alın.",
+          "general": "İnsanlarla büyük empati ve değer ilişkileri var. Uyum ve işbirliğine dayalı kararlar alın ve başkalarının duygularını dikkate alın.",
           "goStyle": "Bu, diğer kişinin momentumundan veya psikolojisinden etkilenen duygusal bir ahlaktır. Bazen mantıksız görünen cesur hamleler yaparız."
         },
         "J": {
@@ -3325,7 +3325,7 @@
       "upTitle": "Davranış seviyesi arttı",
       "downTitle": "Davranış puanı düşürüldü",
       "upHint": "Eğer görgünüzü korursanız, faydanız artacaktır. Lütfen iyi oynamaya devam edin.",
-      "downHint": "Davranış puanınız düşükse ödül ve sıralama açısından dezavantajlı durumda olabilirsiniz. Sağlıklı oyun tavsiye edilir.",
+      "downHint": "Eğer görgü puanınız düşükse, ödüller ve sıralamalar açısından dezavantajlı durumda olabilirsiniz. Sağlıklı oyun tavsiye edilir.",
       "pointsSuffix": "nokta"
     },
     "mannerRank": {
@@ -3343,7 +3343,7 @@
       "apRegenBoost": "Artan aksiyon ödeme süresi",
       "winGoldPenalty": "Zafer Altın Ödülü -%50",
       "winItemPenalty": "Eşya Kazanma Şansı -%50",
-      "noEffect": "Temel etki (etki yok)",
+      "noEffect": "Temel etki (efekt yok)",
       "scoreAbove": "{{min}} puan veya daha fazla",
       "scoreRange": "{{min}}~{{max}} puan",
       "zeroScore": "0 puan",
@@ -3367,12 +3367,12 @@
       "combatPower": "savaş gücü",
       "remaining": "artık",
       "allocateHint": "Kalan yeteneklere dağıt",
-      "decreaseOne": "1 azalma",
+      "decreaseOne": "1 oranında azalt",
       "increaseOne": "1 artış",
       "bonus": "bonus",
       "resetBtn": "sıfırlama",
       "allocateTitle": "Yetenek puanı dağılımı",
-      "allocateAria": "{{stat}} Dağıtım",
+      "allocateAria": "{{stat}} dağıtım",
       "statLabel": "yetenek",
       "remainingShort": "kalan",
       "allocateToStat": "Bu yeteneğe göre dağılım"
@@ -3445,7 +3445,7 @@
       "veryPoor": "çok kötü uyumluluk",
       "types": {
         "ISTJ": {
-          "style": "katı silipa",
+          "style": "katı silifa",
           "playStyle": "İlkelere ve temellere sadıkız ve açık pratik faydaların peşindeyiz. Bitiricilikte güçlü bir yön gösterir."
         },
         "ISFJ": {
@@ -3531,7 +3531,7 @@
       "simE": "Her ikisinin de proaktif bir ahlakı var",
       "simI": "İkisinin de temkinli bir ahlakı var",
       "diffSReal": "Siz pratik bir insansınız, rakibiniz ise sezgisel bir insan.",
-      "diffNReal": "Siz bir sezgicisiniz, rakibiniz ise pratik bir kişidir.",
+      "diffNReal": "Sen sezgiselsin, rakibin ise pratik.",
       "simS": "İkisi de faydacı",
       "simN": "ikisi de sezgiye dayalıdır",
       "diffTLogic": "Siz mantıklı bir insansınız, partneriniz ise duygusal bir insan.",
@@ -3548,7 +3548,7 @@
       "warnJ": "Rakipler planlama ve bitirme konusunda güçlü. Uzun bir oyunun içine sürüklenmekten kaçının.",
       "stratI": "Rakibin ahlakı temkinli. Agresif bir şekilde saldırarak oyunu karmaşıklaştırın.",
       "stratS": "Rakip fayda odaklıdır. Alışılmışın dışında hareketlerle trendi yakalayın.",
-      "stratF": "Karşıdaki kişi duygusaldır. Mantıksal sayılarda basınç.",
+      "stratF": "Karşıdaki kişi duygusaldır. Mantıksal sayılarla basınç.",
       "stratP": "Rakip esnek bir ahlaka sahip. Planlayın ve bitene kadar takip edin."
     },
     "contentUnlock": {
@@ -3560,7 +3560,7 @@
       "adventureHint": "Maceraya doğrudan ana ekrandan girebilirsiniz."
     },
     "levelUp": {
-      "gained": "{{gain}} seviye tek seferde arttı.",
+      "gained": "{{gain}} seviyesi tek seferde arttı.",
       "title": "kullanıcı seviyesi"
     },
     "homeBoard": {
@@ -3572,13 +3572,13 @@
       "noticeBoardShort": "duyuru panosu",
       "closeNotice": "Duyuru panosunu kapat",
       "noNotices": "Hiçbir duyuru yok.",
-      "noPatches": "Yama/güncelleme geçmişi yok.",
+      "noPatches": "Herhangi bir yama/güncelleme yok.",
       "homeBoardTitle": "Ana Sayfa Bülten Tahtası",
       "newPostBadge": "yeni gönderi",
       "editedAt": "(Düzenlendi: {{tarih}})"
     },
     "equipmentDetail": {
-      "inventoryUse": "Çantanızda kullanabilirsiniz.",
+      "inventoryUse": "Çantada kullanılabilir.",
       "noMaterialUse": "Bu malzeme şu anda herhangi bir ekipmanı geliştirmek için kullanılmamaktadır.",
       "obtainedQty": "Alınan Miktar",
       "ownedQty": "Tutulan miktar",
@@ -3666,7 +3666,7 @@
       "exhausted": "Bugün alındı",
       "freeReward": "ücretsiz ödüller",
       "watchAd": "Reklamı görüntüle",
-      "tabExhausted": "Bu sekmeye ilişkin tüm reklam ödülleri bugün talep edildi."
+      "tabExhausted": "Bu sekmeye ilişkin tüm reklam ödülleri bugün alındı."
     },
     "limit": {
       "daily": "günlük",
@@ -3832,7 +3832,7 @@
       },
       "material_box_4": {
         "name": "Malzeme Kutusu IV",
-        "description": "5 orta ila en yüksek seviye geliştirme taşı elde edin"
+        "description": "5 orta ila en yüksek seviye takviye taşı elde edin"
       },
       "material_box_5": {
         "name": "Malzeme Kutusu V",
@@ -3860,7 +3860,7 @@
       },
       "mythic_option_change_ticket": {
         "name": "Özel seçenek değişiklik bileti",
-        "description": "Bu öğe, efsanevi veya aşkın ekipmanın özel seçeneklerini diğer özel seçeneklerle değiştirmenize olanak tanır."
+        "description": "Bu öğe, efsanevi veya aşkın ekipmanın özel seçeneklerini diğer özel seçeneklerle değiştirmenize olanak sağlar."
       },
       "condition_potion_small": {
         "name": "Durum iyileştirme maddesi (küçük)",
@@ -4043,7 +4043,7 @@
     },
     "bindModal": {
       "line1": "Ekipman bağlıdır ve borsada satılamaz.",
-      "line2": "Borsada satış yapabilmek için borç kapatma hakkını kullanmanız gerekmektedir.",
+      "line2": "Borsada satış yapabilmek için atıftan vazgeçme hakkını kullanmanız gerekmektedir.",
       "unbindDesc": "Ekipmanın kilidini açarsanız, onu borsada satmak mümkün hale gelir."
     },
     "presetSavedTitle": "Ön ayarı kaydet",
@@ -4087,7 +4087,7 @@
       "consumable": "sarf malzemeleri",
       "material": "bileşen",
       "noMaterialUse": "Bu malzeme şu anda herhangi bir ekipmanı geliştirmek için kullanılmamaktadır.",
-      "inventoryUse": "Çantanızda kullanabilirsiniz.",
+      "inventoryUse": "Çantada kullanılabilir.",
       "characterGrowth": "Karakter gelişimi, güçlenmesi, iyileştirilmesi vb. amaçlarla kullanılır.",
       "selectQuantity": "Miktarı seçin",
       "productDetailAria": "Ürün ayrıntılarını satın alın",
@@ -4167,7 +4167,7 @@
       "rewardClaim": "Ödül al",
       "itemsObtained": "Öğe satın alındı",
       "rankScoreDelta": "Sıralama puanı değişikliği",
-      "noItems": "Hiçbir ürün alınmadı.",
+      "noItems": "Hiçbir öğe alınmadı.",
       "percentIncrease": "%{{percent}} artış",
       "confirm": "kontrol etmek"
     },
@@ -4200,12 +4200,12 @@
     },
     "enhancementModal": {
       "title": "zorlamak",
-      "placeholder": "Geliştirilmiş mod: {{name}}"
+      "placeholder": "Geliştirilmiş Modal: {{name}}"
     },
     "equipmentEffects": {
       "summary": "toplam",
       "main": "Ana seçenek",
-      "combat": "Savaş alt seçeneği",
+      "combat": "Alt seçeneklerle savaşın",
       "special": "özel",
       "mythic": "efsane",
       "unknownMythic": "Bilinmeyen efsane seçeneği",
@@ -4219,7 +4219,7 @@
       "title": "Ekipman seti efekti",
       "summaryAtGlance": "Bir bakışta",
       "mythicTab": "özel",
-      "equippedTotal": "Monte edilmiş toplam",
+      "equippedTotal": "Monte edilmiş toplama",
       "equippedTitle": "Ekipman Donanım Etkisi"
     },
     "enhancementResult": {
@@ -4289,7 +4289,7 @@
       "noMaterialUse": "Bu malzeme şu anda herhangi bir ekipmanı geliştirmek için kullanılmamaktadır.",
       "materialTab": "bileşen",
       "consumableTab": "sarf malzemeleri",
-      "inventoryHint": "Çantanızda kullanabilirsiniz.",
+      "inventoryHint": "Çantada kullanılabilir.",
       "noGuide": "Talimat yok.",
       "tier1": "çanta",
       "tier2": "kayalar",
@@ -4434,7 +4434,7 @@
         "description": "Üzerinde takımyıldızların yörüngelerinin kazındığı, her hareketle zafere giden yolu açan bir aşkınlık dama tahtasıdır."
       },
       "eq_bottom1": {
-        "name": "Bahar rengi üniforma altları",
+        "name": "Bahar renginde üniforma altları",
         "description": "Bu antrenman pantolonu hareket için rahattır."
       },
       "eq_bottom2": {
@@ -4443,7 +4443,7 @@
       },
       "eq_bottom3": {
         "name": "Sonbahar renkli üniforma altları",
-        "description": "Bunlar dopo ile eşleştirilmiş yüksek kaliteli ipek pantolonlardır."
+        "description": "Bunlar bir armayla eşleştirilen yüksek kaliteli ipek pantolonlardır."
       },
       "eq_bottom4": {
         "name": "Kış renginde tek tip eşofman altı",
@@ -4455,11 +4455,11 @@
       },
       "eq_bottom7": {
         "name": "Shinryong üniforma dipleri",
-        "description": "Bunlar, fırtınada bile dengenizi kaybetmenizi önleyen, ilahi bir ejderhanın iradesiyle dolu transandantal pantolonlardır."
+        "description": "Bunlar, fırtınada bile dengenizi kaybetmenizi önleyen ilahi bir ejderhanın iradesiyle dolu transandantal pantolonlardır."
       },
       "eq_fan1": {
         "name": "mavi rüzgar fanı",
-        "description": "Bu hafif ve pratik bir bambu fanıdır."
+        "description": "Bu hafif ve pratik bir bambu fandır."
       },
       "eq_fan2": {
         "name": "eungyeol rüzgar fanı",
@@ -4487,7 +4487,7 @@
       },
       "eq_stone2": {
         "name": "gümüş taş",
-        "description": "Nehir kenarından toplanan düzgün çakıl taşlarından yapılmış bir Go taşıdır."
+        "description": "Bu nehir kenarından toplanan düzgün çakıl taşlarından yapılmış bir baduk taşıdır."
       },
       "eq_stone3": {
         "name": "yakut taşı",
@@ -4503,7 +4503,7 @@
       },
       "eq_stone7": {
         "name": "Shinryong Baduk Taşı",
-        "description": "Sabah Yıldızı'nın parçalarının dövülmesiyle yapılan bu taş, tek bir hamleyle oyuna hakim olan aşkın bir Go taşıdır."
+        "description": "Sabah Yıldızı'nın parçaları dövülerek yapılan bu taş, tek bir hamleyle oyuna hakim olan aşkın bir Go taşıdır."
       },
       "eq_stonebox1": {
         "name": "hafif ahşap varil",
@@ -4579,7 +4579,7 @@
       },
       "pet_soulstone1": {
         "name": "Filiz Ruh Taşı",
-        "description": "Bu, normal derecedeki bir evcil hayvanı ileri seviyeye yükseltmek için gereken bir malzemedir. Pet Lv.10 veya üzeri kullanılabilir."
+        "description": "Bu malzeme normal dereceli bir evcil hayvanı ileri seviyeye yükseltmek için gereklidir. Pet Lv.10 ve üzeri kullanılabilir."
       },
       "pet_soulstone2": {
         "name": "Dalga Ruh Taşı",
@@ -4591,7 +4591,7 @@
       },
       "pet_soulstone4": {
         "name": "Alev Ruh Taşı",
-        "description": "Bu, Destansı derecedeki bir evcil hayvanı Efsanevi dereceye yükseltmek için gereken bir malzemedir. Pet Lv.40 veya üzeri kullanılabilir."
+        "description": "Bu, Destansı derecedeki bir evcil hayvanı Efsanevi dereceye yükseltmek için gereken bir malzemedir. Pet Lv.40 ve üzeri kullanılabilir."
       },
       "pet_soulstone5": {
         "name": "Cennetsel Işık Ruh Taşı",
@@ -4663,7 +4663,7 @@
       },
       "shop_material_box_4": {
         "name": "Malzeme Kutusu IV",
-        "description": "5 orta ila en yüksek seviye geliştirme taşı elde edin"
+        "description": "5 orta ila en yüksek seviye takviye taşı elde edin"
       },
       "shop_material_box_5": {
         "name": "Malzeme Kutusu V",
@@ -4675,7 +4675,7 @@
       },
       "shop_mythic_option_change_ticket": {
         "name": "Özel seçenek değişiklik bileti",
-        "description": "Bu öğe, efsanevi veya aşkın ekipmanın özel seçeneklerini diğer özel seçeneklerle değiştirmenize olanak tanır."
+        "description": "Bu öğe, efsanevi veya aşkın ekipmanın özel seçeneklerini diğer özel seçeneklerle değiştirmenize olanak sağlar."
       },
       "shop_option_type_change_ticket": {
         "name": "Seçenek türünü değiştirme hakkı",
@@ -4706,7 +4706,7 @@
           "name": "Lonca boss savaşları sırasında ek hasar: %5",
           "abbrev": "Patron hasarı%5",
           "short": "Lonca Baş Düşmanı Hasarı +%5",
-          "description": "Bir lonca bossuna saldırırken ilave %5 nihai hasar uygulanır. (Aşkınlık özel seçeneğiyle çakıştırılamaz)"
+          "description": "Bir lonca bossuna saldırırken ilave %5 nihai hasar uygulanır. (Aşkınlık özel seçeneğiyle örtüşemez)"
         },
         "TowerApMinus1Floors1to35": {
           "name": "Tower of Challenge (1. ila 35. katlar) Gerekli eylem -1",
@@ -4718,22 +4718,22 @@
           "name": "Eylem kurtarma süresi -30 saniye",
           "abbrev": "AP kurtarma -30s",
           "short": "Eylem kurtarma -30 saniye",
-          "description": "1 eylem puanını geri kazanmak için gereken süre 30 saniye azalır. (Aşkınlık özel seçeneğiyle çakıştırılamaz)"
+          "description": "1 eylem puanını geri kazanmak için gereken süre 30 saniye azalır. (Aşkınlık özel seçeneğiyle örtüşemez)"
         },
         "AdventureScanPlus1": {
           "name": "Macera Taraması +1",
           "abbrev": "Macera Taraması+1",
           "short": "Macera Taraması +1",
-          "description": "Maceranın başlangıcında (canavar savaşı), ek bir tarama öğesi alacaksınız. (Aşkınlık özel seçeneğiyle çakıştırılamaz)"
+          "description": "Maceranın başlangıcında (canavar savaşı), ek bir tarama öğesi alacaksınız. (Aşkınlık özel seçeneğiyle örtüşemez)"
         },
         "AdventureMissilePlus1": {
           "name": "Macera Füzesi +1",
           "abbrev": "Macera Füzesi+1",
           "short": "Macera Füzesi +1",
-          "description": "Maceranın başlangıcında ek bir füze öğesi sağlanır. (Aşkınlık özel seçeneğiyle çakıştırılamaz)"
+          "description": "Maceranın başlangıcında ek bir füze öğesi sağlanır. (Aşkınlık özel seçeneğiyle örtüşemez)"
         },
         "AdventureGoldBonus15": {
-          "name": "Macera Altın Ödülü +%15",
+          "name": "Macera Altın Ödülleri +%15",
           "abbrev": "Macera Altını %15",
           "short": "Macera Altını +%15",
           "description": "Bir macera kazanıldığında kazanılan altın %15 artar. (Ansiklopedi ve anlayış bonusu ile ayrı ayrı birleştirilir) (Aşkınlık özel seçeneğiyle örtüşemez)"
@@ -4745,7 +4745,7 @@
           "description": "Lonca boss savaşı sonucunda ödüllerden birini bir kez daha alacaksınız. Bu seçeneğin transandantal ekipman üzerinde birden fazla satırı (birden fazla ekipman parçası) varsa, tekrar tekrar uygulanacaktır. Diğer özel seçeneklerle birlikte uygulanabilir. Bu, Aşkınlık Özel Seçeneği No. 1'dir ve Efsane No. 1 \"Patron Ödül Derecesi\" ile aynı anda uygulanabilir."
         },
         "GuildBossExtraDamage10": {
-          "name": "Lonca boss savaşlarında ek hasar: %10",
+          "name": "Lonca boss savaşlarında ek %10 hasar",
           "abbrev": "Boss hasarı %10",
           "short": "Lonca Baş Düşmanı Hasarı +%10",
           "description": "Bir lonca bossuna saldırırken ilave %10 nihai hasar uygulanır. (Efsane Özel Seçeneği ile örtüşemez)"
@@ -4799,10 +4799,10 @@
           "optionType": "[Demirci - Ekipman İyileştirme] Seçenek türü değişikliği",
           "optionValue": "[Demirci - Ekipman İyileştirme] Seçenek değeri değişikliği",
           "specialOption": "[Demirci - Ekipman İyileştirme] Özel seçenek değişikliği",
-          "mythicOption": "[Demirci - Ekipman İyileştirme] Efsanevi seçenek değişikliği",
+          "mythicOption": "[Demirci - Ekipman Arıtma] Efsane seçeneği değişikliği",
           "generic": "[Demirci - Ekipman İyileştirme] Seçenek Değişikliği"
         },
-        "conditionPotion": "[Şampiyonluk] Oyun başlamadan önce Durum {{lo}}~{{hi}} iyileşme",
+        "conditionPotion": "[Şampiyonluk] Oyun başlamadan önce {{lo}}~{{hi}} durumunu iyileştir",
         "actionPointInstant": "[Acil kullanım] İşlem kurtarma +{{amount}}",
         "actionPointInstantGeneric": "[Hemen kullanım] Eylem yeteneğinin kurtarılması",
         "openBoxInBag": "Çantanızdan kullanırsanız ödül alacaksınız.",
@@ -4891,7 +4891,7 @@
         "consumableGeneric": "[Mağaza, Görev, Posta] Genel mağaza, etkinlik, operasyon ödülleri",
         "pet": {
           "soulTraining": "[Evcil Hayvan/Eğitim Ödülü] Slotlar {{slots}}",
-          "soulConvert": "[Evcil Hayvan/Ruh Dönüşümü] {{dereceler}} Bir evcil hayvanı parçalarına ayırırken elde edilebilir",
+          "soulConvert": "[Evcil Hayvan/Ruh Dönüşümü] {{dereceler}} Bir evcil hayvanı parçalara ayırırken elde edilebilir",
           "soulShopDiamond": "[Evcil Hayvan · Evcil Hayvan Mağazası] Elmas {{amount}}",
           "soulShopGold": "[Pet · Pet Shop] Altın {{amount}}",
           "soulShopDiamondDaily": "[Evcil Hayvan · Evcil Hayvan Mağazası] Elmas {{amount}}, günde {{limit}} kez",
@@ -4924,7 +4924,7 @@
       "currencyAll": "Mallar (hepsi)",
       "goldProducts": "altın ürün",
       "diamondProducts": "Elmas ürünleri",
-      "gradeAll": "Değerlendirme (hepsi)",
+      "gradeAll": "Değerlendirme (tümü)",
       "gradeNormal": "yaygın",
       "gradeUncommon": "gelişmiş",
       "gradeRare": "nadir",
@@ -5017,7 +5017,7 @@
     "fallbackGear": "teçhizat",
     "loading": {
       "items": "Ticari ürün bilgileri yükleniyor…",
-      "wait": "Sunucudan en son listeyi alırken lütfen bekleyin."
+      "wait": "Sunucudan en son liste alınırken lütfen bekleyin."
     }
   },
   "tournament": {
@@ -5037,6 +5037,7 @@
     "loadingTournament": "Turnuva bilgileri yükleniyor...",
     "loadingUserInfo": "Kullanıcı bilgileri yükleniyor...",
     "nextMatchPreparing": "Bir sonraki maça hazırlanıyoruz... {{geri sayım}}",
+    "movingToNextMatch": "Bir sonraki maç için yerlerimize geçiyoruz.",
     "defaultPlayer": "oyuncu",
     "me": "Ben",
     "opponent": "rakip",
@@ -5044,7 +5045,7 @@
     "white": "yüz",
     "rankSuffix": "{{rütbe}}",
     "recordWinsLosses": "{{wins}} galibiyet {{loses}} kayıp",
-    "tournamentRecord": "Rekabet {{wins}} kazanır {{loses}} kayıp",
+    "tournamentRecord": "Yarışmada {{wins}} galibiyet {{loses}} kayıp",
     "finalResult": "nihai sonuç",
     "matchResult": "maç sonucu",
     "victory": "zafer",
@@ -5089,14 +5090,14 @@
       "phaseMidLabel": "oyun ortası",
       "phaseEndLabel": "oyun sonu",
       "phaseEarlyStart": "Mücadelenin ilk yarısı başladı. İlk savaşın taş döşemelerine ve akışına bir göz atalım.",
-      "phaseMidStart": "Oyunun ortası başladı. Merkezdeki mücadele ve mevki mücadelesi daha da kızışıyor.",
+      "phaseMidStart": "Oyunun ortası başladı. Merkezde mücadele ve mevki mücadelesi daha da kızışıyor.",
       "phaseEndStart": "Oyunun sonu başladı. Ev hesaplamaları ve detaylı kar ve zarar önem kazanıyor.",
       "defaultRound": "mevcut tur",
       "defaultPlayer1": "oyuncu 1",
       "defaultPlayer2": "oyuncu 2",
       "matchStartFirst": "Maç başladı.",
       "matchStartNext": "Bir sonraki maç başladı.",
-      "matchStartBanner": "[Maç başlıyor] {{headline}} {{roundName}} - {{p1}} vs {{p2}}, {{boardSize}} satır {{maxPly}} sayı eşleşiyor.",
+      "matchStartBanner": "[Match Start] {{headline}} {{roundName}} - {{p1}} vs {{p2}}, {{boardSize}} satır {{maxPly}} sayı eşleşiyor.",
       "moveEvent": "[{{ply}}sayı] {{gövde}}",
       "scoringInProgress": "{{maxPly}} tamamlandı ve sayılıyor...",
       "finalScore": "[Final skoru] {{winner}}, {{points}} evi kazanır",
@@ -5226,7 +5227,7 @@
         "gold": "altın",
         "diamonds": "elmas",
         "winGold": "Zaferden sonra {{min}}~{{max}} altın",
-        "lossGold": "Yenildiğinde {{min}}~{{max}} altın",
+        "lossGold": "Yenilgi üzerine {{min}}~{{max}} altın",
         "equipment": "teçhizat",
         "changeTicket": "Ekipman Değişim Bileti",
         "rewardRandom": "Ödemenin kullanılabilirliği ve miktarı maç sonucuna göre (rastgele) değişebilir.",
@@ -5240,6 +5241,7 @@
         "vsOpponent": "Ben vs rakip (referans)",
         "none": "mevcut değil",
         "enter": "Girmek",
+        "enterStageWithCount": "Giriş {{aşama}} aşaması ({{kalan}}/{{max}})",
         "oneGamePerMatch": "1/oyun (rastgele)",
         "changeTicketShort": "değişiklik hakkı",
         "rankWorld9_16": "9~16. sıra",
@@ -5247,6 +5249,11 @@
         "stageLabel": "adım",
         "stageUnit": "{{aşama}}aşama",
         "stageLocked": "Seçilen adım hala kilitli.",
+        "dailyEntryLabel": "konum",
+        "watchAdForEntry": "Reklamı görüntüle",
+        "extraEntry": "Ek kabul",
+        "adEntryClaiming": "İşleme…",
+        "dailyEntryExhausted": "Bugün tüm girdilerinizi kullandınız.",
         "itemColumn": "öğe",
         "meColumn": "Ben",
         "opponentColumn": "rakip",
@@ -5262,7 +5269,7 @@
         "neighborhood": "Mahalle Baduk Ligi",
         "national": "Ulusal Baduk Turnuvası",
         "world": "Dünya Şampiyonası",
-        "unlock3": "Eğer 3. veya daha üst sırayı elde ederseniz bir sonraki aşamaya geçeceksiniz.",
+        "unlock3": "3. veya daha üst sırayı elde ederseniz bir sonraki aşamaya ilerleyin",
         "commonFeatures": "Stadyumun ortak özellikleri",
         "simulation": "simülasyon oyunu",
         "condition": "durum",
@@ -5308,7 +5315,7 @@
         "randomEvent": "rastgele olay",
         "critical": "Kritik",
         "conditionTitle": "durum",
-        "overviewBody": "Bu, oyuncunun yeteneklerine ve durumuna dayalı otomatik bir maçtır. Maç 50 saniye sürer ve erken/orta/son olarak ikiye ayrılır.",
+        "overviewBody": "Bu, oyuncunun yeteneklerine ve durumuna göre otomatik olarak oynanan bir maçtır. Maç 50 saniye sürer ve erken/orta/son olarak ikiye ayrılır.",
         "altSimulation": "simülasyon oyunu",
         "altGold": "altın",
         "altMaterial": "bileşen",
@@ -5440,7 +5447,7 @@
     "matchRewardIndex": "{{index}} Ödülünü Eşleştir",
     "champCoinTimes": "Şampiyon Parası ×{{amount}}",
     "champCoinPending": "Şampiyon Parası {{label}} (alındığında onaylanır)",
-    "rankRewardTitle": "{{rank}}en yüksek sıralama ödülü · {{item}} ×{{qty}}",
+    "rankRewardTitle": "{{rank}}en yüksek rütbe ödülü · {{item}} ×{{qty}}",
     "matchRoundResult": "{{round}} turda {{sonuç}}! ({{wins}} galibiyet {{loses}} kayıp)",
     "statusRecordRank": "{{wins}}, {{loses}} kayıp kazandı! {{rütbe}}",
     "championTitle": "🏆 Kazanın!",
@@ -5455,7 +5462,7 @@
     "skipAll": "Tümünü atla",
     "skipAllRoundsHint": "Kalan tüm turları (kullanıcı maçlarını) bir kerede atlayın ve yarışmanın sonuna ilerleyin.",
     "matchPreparing": "Maça hazırlanıyoruz...",
-    "forfeitConfirm": "Vazgeçip turnuvadan ayrılmak mı istiyorsunuz? Bugün katılma fırsatınız kaybolacak.",
+    "forfeitConfirm": "Pes edip turnuvadan ayrılmaya hazır mısın? Bugün katılma fırsatınız kaybolacak.",
     "roundRobinRound": "{{round}} tur",
     "dungeonRunRecordTitle": "Şampiyonanın bu aşamasındaki rekorlar",
     "sidebarExtraPanel": "Ek bilgi paneli",
@@ -5484,7 +5491,7 @@
     "base": "temel",
     "turnUnit": "{{count}}dönüş",
     "blackCaptureGoal": "Siyah {{count}} köpek",
-    "captureGoalTurnLimit": "{{count}} siyah taş kazanın (sınırlı {{dönüş}} dönüş)",
+    "captureGoalTurnLimit": "{{count}} siyah parça topla (sınırlı {{dönüş}} dönüş)",
     "autoScoringHint": "[{{döner}}sayma numarası] Bu sayıya kadar bırakırsanız otomatik sayma gerçekleşir.",
     "autoScoringShort": "[{{döner}}sayım numarası]",
     "victory": "zafer",
@@ -5543,18 +5550,18 @@
       "diamondBundle4": "Elmas Paketi IV"
     },
     "viewRewardItem": "Ödül Öğesi: {{name}}",
-    "rewardInfoTitle": "Tazminat bilgisi",
+    "rewardInfoTitle": "Tazminat bilgileri",
     "closePanelAria": "Paneli kapat",
     "close": "kapalı",
     "allTimeBest": "Şimdiye kadarki en yüksek kat sayısı",
     "currentFloorLabel": "Mevcut kat numarası",
     "monthlyBest": "Bu ayın en yüksek katı",
     "expectedReward": "beklenen ödül",
-    "rewardFromFloor10": "Tazminat, mevcut kat sayısı 10 ve üzeri olanlardan ödenir.",
+    "rewardFromFloor10": "Tazminat, mevcut kat sayısı 10 ve üzeri olanlardan itibaren ödenir.",
     "rewardFromFloor10Short": "10 veya daha fazla katı tamamladığınızda aylık bir ödül alabilirsiniz.",
     "stages": "sahne",
-    "rankingTop100": "Sıralama İlk 100",
-    "rewardTierLine": "{{floor}} kat bölümü için tazminat · Ay sonu uzlaşmada ödenir",
+    "rankingTop100": "İlk 100 Sıralaması",
+    "rewardTierLine": "{{floor}} kat bölümü için tazminat · Ay sonu ödemede ödenir",
     "unranked": "sıralama dışında",
     "noOtherRanked": "İlk 100'de listelenen başka bir sıralama yok.",
     "rewardModalTitle": "Tower of Challenge Ödül Bilgileri",
@@ -5706,7 +5713,7 @@
       "ownedEggs": "yumurta tutmak",
       "onePerHatch": "1 yumurtadan çıktıktan sonra",
       "totalEggs": "Toplam {{count}}",
-      "consumeOnePerHatch": "Yumurtadan çıktıktan sonra 1 tüketir",
+      "consumeOnePerHatch": "Kuluçkadan çıktıktan sonra 1 tüketir",
       "petLevelOnHatch": "Kuluçkadan çıkan evcil hayvan seviyesi: 5",
       "hatchDuration": "Kuluçka Süresi: {{duration}}",
       "startAction": "başlangıç",
@@ -5744,7 +5751,7 @@
       "expandInvQuestion": "{{category}} envanterinizi genişletmek ister misiniz?",
       "expandSlotsHint": "+{{step}} alan eklendi (maksimum {{max}} alan)",
       "dailyLimit": "Günlük limit {{remaining}}/{{limit}}",
-      "specBadge": "Özel",
+      "specBadge": "özel",
       "tierActive": "Başvuruyor",
       "tierUnlocked": "Kilitli değil",
       "tierUpgrade": "Geliştir ({{gold}} G)",
@@ -5764,7 +5771,7 @@
       "soulInsufficient": "Yetersiz {{name}}. {{need}} gerekiyor ({{owner}}'ya sahip)",
       "soulInsufficientShort": "Yetersiz {{name}}. ({{need}} gerekiyor, {{owner}} sahibi olun)",
       "soulStoneFallback": "ruh taşı",
-      "soulCostTitle": "{{name}} {{count}} birim tüket · Seviye artışı",
+      "soulCostTitle": "{{name}} {{count}} tüketin ve seviyeyi artırın",
       "soulCostTitleMinLevel": "Seviyenizi Lv.{{level}} veya daha yüksek seviyede güçlendirebilirsiniz.",
       "cannotWhileTraining": "Eğitimdeki evcil hayvanlar yükseltilemez. Lütfen eğitiminizi tamamladıktan sonra kullanın.",
       "cannotWhileTrainingShort": "Eğitimdeki evcil hayvanlar yükseltilemez.",
@@ -5779,7 +5786,7 @@
       "next": "Sonraki",
       "before": "önce",
       "after": "o zamandan beri",
-      "baseStatIncrease": "Temel yetenek arttı",
+      "baseStatIncrease": "Temel yetenek artışı",
       "percentTen": "+%10",
       "nextGradeLevelUpBudget": "Bir sonraki sınıf bölümünde evcil hayvanın seviyesini yükseltirken otomatik olarak dağıtılan yetenekler",
       "dispositionBoost": "eğilimleri güçlendirme",
@@ -5808,7 +5815,7 @@
       "gradeUpgradeTag": "[Seviye Yükseltme]",
       "trainingRewardTag": "[Eğitim Ödülü]",
       "soulConvertTag": "[Ruh Dönüşümü]",
-      "petShopTag": "[Evcil Hayvan Dükkanı]",
+      "petShopTag": "[Evcil Hayvan Mağazası]",
       "noMatchingSlot": "Böyle bir yuva yok",
       "usedForGradeUpgrade": "Notu yükseltmek için kullanılır",
       "petLevelMin": "· Evcil Hayvan Lv.{{level}} veya daha yüksek",
@@ -5845,7 +5852,7 @@
       "detailConditions": "Ayrıntılı koşullar",
       "noDetailConditions": "Ayrıntılı koşul yok",
       "inviteExpired": "Davet süresi doldu.",
-      "responseWaiting": "Yanıtı bekle {{seconds}} saniye sonra otomatik olarak iptal et"
+      "responseWaiting": "Yanıt bekleyin {{seconds}} saniye sonra otomatik olarak iptal et"
     },
     "room": {
       "hostAria": "tarafından barındırılan",
@@ -5855,7 +5862,7 @@
       "viewInfo": "Bilgileri görüntüle",
       "viewInfoAria": "Bilgileri görüntüle",
       "kick": "istifa etmek",
-      "delegate": "yetki",
+      "delegate": "vekalet",
       "me": "Ben",
       "emptySlot": "boş yuva",
       "tapToInvite": "Davet etmek için dokunun",
@@ -5941,7 +5948,7 @@
       "leaveOtherRoomForRanked": "Çift sıralama maçına başlamak için lütfen başka bir çift odasından ayrılın.",
       "ownerOnlyRanked": "Yalnızca ev sahibi eşleştirmeyi sıralamaya başlayabilir.",
       "ownerOnlyAi": "Bir AI eşleşmesini yalnızca toplantı sahibi başlatabilir.",
-      "equipPetForRanked": "Çift Sıralaması Maçını kullanmak için bir Çift Pet donatmalısınız.",
+      "equipPetForRanked": "Çift Sıralaması Eşleşmesini kullanmak için bir Çift Pet donatmalısınız.",
       "equipPetForRoomKind": "Bu oda tipini oluşturmak için Fair Pet'in donanımlı olması gerekir.",
       "strategicRoomTitle": "{{name}}'nin Stratejik Baduk Odası",
       "playfulRoomTitle": "{{name}}'nin oyun baduk odası",
@@ -5984,7 +5991,7 @@
       "enter": "konum",
       "spectate": "izliyorum",
       "spectateMatch": "Oyunu izle",
-      "spectateUnavailable": "İzlenecek maç bilgisi bulamıyorum.",
+      "spectateUnavailable": "İzlenecek herhangi bir eşleşme bilgisi bulamıyorum.",
       "orphanRooms": "Sayı 1~100 Dış oda",
       "roomKindFilter": "Oda tipi filtresi",
       "gameModeFilter": "Oyun Modu Filtresi",
@@ -6173,7 +6180,7 @@
     "effects": "Dövme Etkisi",
     "effectsAria": "Dövmenin etkilerini görüntüle",
     "functionsAria": "demirci işlevi",
-    "selectGear": "Ekipman Seçimi",
+    "selectGear": "Ekipman seçimi",
     "reselectGear": "← Ekipmanı yeniden seçin",
     "inProgressHint": "Görev bölmesinde ilerleme. Pencereyi kapattıysanız aşağıdaki butonla tekrar açabilirsiniz.",
     "openWorkHint": "Çalışma ekranını açmak için aşağıdaki butona tıklayın.",
@@ -6202,7 +6209,7 @@
       "refine": "Modalda ergitilecek ekipmanı seçip Seçimi Tamamla seçeneğine tıkladıktan sonra ergitme ekranına yönlendirileceksiniz."
     },
     "picker": {
-      "selectGear": "Ekipman Seçimi",
+      "selectGear": "Ekipman seçimi",
       "autoSelect": "otomatik seçim",
       "selectComplete": "Seçim tamamlandı",
       "emptyMaterial": "bileşen",
@@ -6210,7 +6217,7 @@
       "removeMaterial": "Malzemeleri çıkarın",
       "removeMaterialAria": "{{name}} malzemeyi çıkarın",
       "combineHint": "Aynı seviyedeki 3 ekipmanı yuvaya yerleştirin ve Seçimi Tamamla'ya tıklayın.",
-      "disassembleHint": "Sökmek istediğiniz ekipmanı üzerine dokunarak seçebilir veya seçimini kaldırabilirsiniz.",
+      "disassembleHint": "Sökmek istediğiniz ekipmanı üzerine dokunarak seçebilir/seçimini kaldırabilirsiniz.",
       "enhanceTapHint": "Çalışma ekranına gitmek için güçlendirmek veya iyileştirmek istediğiniz ekipmana dokunun.",
       "enhanceConfirmHint": "Güçlendirmek veya iyileştirmek istediğiniz ekipmanın bir parçasına dokunun ve ardından Seçimi Tamamla'ya basın.",
       "slots": {
@@ -6255,7 +6262,7 @@
       "deselectAria": "{{name}} seçimini kaldır",
       "selectedGear": "seçilen ekipman",
       "jackpotHint": "Büyük ikramiyeyi kazanma şansı %{{rate}} (malzemeleri iki katına çıkarın)",
-      "reopenHint": "Modalı açmak için tekrar demirciyi seçin ve sökmek istediğiniz ekipmanı seçin.",
+      "reopenHint": "Modeli açmak için tekrar demirciyi seçin ve sökmek istediğiniz ekipmanı seçin.",
       "pickHint": "Aşağıdaki ekipman envanterinden sökmek istediğiniz ekipmanı seçin (işaretleyin).",
       "previewHint": "Bir ekipman seçtiğinizde beklenen malzemeler görüntülenecektir.",
       "noReward": "Sökerken elde edilecek hiçbir malzeme yoktur.",
@@ -6323,7 +6330,7 @@
       "transcendentSpecial": "Aşkın Özel Seçenek",
       "refinementCountLabel": "İncelenebilir: {{value}}",
       "requiredMaterials": "Gerekli malzemeler",
-      "selectMethodHint": "Bir eritme yöntemini seçtiğinizde malzemeler görüntülenecektir.",
+      "selectMethodHint": "Bir eritme yöntemi seçtiğinizde malzemeler görüntülenecektir.",
       "inProgress": "Eritme işlemi sürüyor",
       "countDepleted": "Mümkün olan tüm iyileştirmeler tükendi.",
       "ownedCharms": "Basılı tutun: {{count}}",
@@ -6385,7 +6392,7 @@
     "casualTag": "dostluk maçı",
     "casualTitle": "dostluk maçı",
     "casualDesc": "Bu maç bir hazırlık maçıdır. Sıralama puanında herhangi bir değişiklik yok.",
-    "actionPointNotice": "Bir maç onaylandığında, her iki tarafta da eylem gücü ⚡{{maliyet}} tüketilir. Kabul etme/AI başladığında yetersizse davranışsal bir güç yönetimi penceresi açılacaktır.",
+    "actionPointNotice": "Bir maç onaylandığında, her iki tarafta da eylem gücü ⚡{{maliyet}} tüketilir. Başlatma sırasında kabul/AI yetersizse Eylem Gücü Yönetimi penceresi açılacaktır.",
     "titleAi": "{{prefix}}{{mode}} AI eşleşme ayarları",
     "titleRematch": "{{prefix}}Yeniden eşleştirme ayarları ({{mode}})",
     "titleDefault": "{{prefix}}eşleşme ayarları ({{mode}})",
@@ -6467,14 +6474,14 @@
     "me": "Ben",
     "condition": "durum",
     "record": "kayıt",
-    "recordWinsLosses": "{{wins}} galibiyet {{loses}} kayıp",
-    "recordCompact": "{{wins}}Galibiyet{{loses}}Mağlubiyet({{winRate}}%)",
+    "recordWinsLosses": "{{wins}}Kazanma {{losses}}Kaybetme",
+    "recordCompact": "{{wins}}Kazanç{{losses}}Zarar ({{winRate}}%)",
     "conditionMax": "Durumu zaten zirvede",
     "conditionPotionUnavailable": "Durum iyileştirme iksirleri şu anda kullanılamaz.",
     "useConditionPotion": "Durum iyileştirme ajanının kullanımı",
     "recoverCondition": "durumun iyileşmesi",
-    "seasonEnd": "Sezonun bitmesine {{hour}} gün kaldı",
-    "seasonEndShort": "{{days}} gün {{hours}} saat biter",
+    "seasonEnd": "Sezon Bitiyor {{days}} Gün {{hours}} Saat Kalan",
+    "seasonEndShort": "{{days}} gün {{hours}} saatte biter",
     "expectedReward": "beklenen ödül",
     "onWin": "Zafer üzerine",
     "onLoss": "Yenilgiye uğradığında",
@@ -6497,7 +6504,7 @@
     "season": "mevsim",
     "matchInfo": "Daejeon Bilgileri",
     "rank": "sıralama",
-    "rankUnit": "{{rütbe}}",
+    "rankUnit": "{{rank}}yukarıda",
     "pairStats": "çift ​​yetenekleri",
     "championshipStats": "Şampiyona İstatistikleri",
     "user": "ölümünden sonra yapılan çalışma",
@@ -6516,7 +6523,7 @@
     "matchResult": "maç sonucu",
     "lowConditionTitle": "durum düşük",
     "currentCondition": "mevcut durum",
-    "lowConditionBody": "hayır, görmüyorum. Kondisyonunuz düşükse",
+    "lowConditionBody": "hayır, gör. Kondisyonunuz düşükse",
     "mistakeChance": "hata",
     "mistakeChanceSuffix": "Çıkma ihtimali artıyor",
     "brilliantMove": "Tanrı'nın hareketi",
@@ -6532,7 +6539,7 @@
     "arena": {
       "score": "Gol",
       "timeBonus": "zaman bonusu",
-      "colorScore": "{{renk}} puan"
+      "colorScore": "{{renk}} puanı"
     }
   },
   "guild": {
@@ -6552,7 +6559,7 @@
       "searchPlaceholder": "Lonca adı arama...",
       "pending": "Başvuruyor",
       "joinInstant": "Şimdi kaydolun",
-      "applyJoin": "Üyelik başvurusunda bulunun"
+      "applyJoin": "Üyelik için başvur"
     },
     "roles": {
       "leader": "lonca lideri",
@@ -6580,7 +6587,7 @@
       "failed": "Bağış başarısız oldu.",
       "ownedGold": "Tutulan altın: {{amount}}",
       "noHistory": "Bağış geçmişi yok.",
-      "goldUnit": "{{amount}} altın",
+      "goldUnit": "{{amount}} Altın",
       "error": "Bağış yaparken bir hata oluştu.",
       "goldDonation": "altın bağışı",
       "diamondDonation": "elmas bağışı",
@@ -6658,12 +6665,12 @@
       "joinMethod": "Nasıl kayıt olunur?",
       "applicationJoin": "Uygula Kayıt Ol",
       "freeJoin": "Ücretsiz kayıt",
-      "applicationJoinHint": "Katılmak için lonca lideri veya lonca lideri yardımcısı tarafından onaylanmanız gerekir.",
+      "applicationJoinHint": "Katılmak için lonca lideri veya lonca lider yardımcısı tarafından onaylanmanız gerekir.",
       "freeJoinHint": "Boş kontenjan olması durumunda otomatik olarak kaydınız yapılacaktır.",
       "announcement": "Lonca Bildirimi",
       "edit": "düzenlemek",
       "noAnnouncement": "Kayıtlı ilan bulunmamaktadır.",
-      "applications": "Üyelik için başvur",
+      "applications": "Üyelik başvurusunda bulunun",
       "approve": "onay",
       "reject": "ret",
       "noApplications": "Üyelik başvurusu bulunmamaktadır."
@@ -6695,7 +6702,7 @@
         "bossAttempts": "Lonca üyelerinin toplam 30 lonca bossu savaşına katılmasını sağlayın.",
         "strategicWins": "Lonca üyeleri stratejik badukta toplam 30 galibiyet elde ediyor (bekleme odası yapay zekası ve genel maçlar dahil)",
         "playfulWins": "Lonca üyeleri Baduk'ta toplam 30 galibiyet elde ediyor (bekleme odası yapay zekası ve genel maçlar dahil)",
-        "equipmentEnhancements": "Lonca üyelerinin toplam 50 ekipman geliştirme denemesi yapmasını sağlayın",
+        "equipmentEnhancements": "Lonca üyelerinin ekipmanı güçlendirmek için toplam 50 deneme yapmalarını sağlayın.",
         "epicGearAcquisitions": "Lonca üyelerinin 20 kez epik dereceli veya daha yüksek ekipman kazanmasını sağlayın",
         "diamondsSpent": "Lonca üyeleri mağazalarda vs. toplam 3000 elmas harcıyor."
       }
@@ -6812,7 +6819,7 @@
       "guildXp": "Lonca Deneyimi",
       "researchPoints": "araştırma noktaları",
       "houseLabel": "ev {{score}}",
-      "dominanceTooltip": "Sol taraf hakimiyeti: yaklaşık %{{percent}} (yıldız/nokta)",
+      "dominanceTooltip": "Sol taraf hakimiyeti yaklaşık %{{percent}} (yıldız/nokta)",
       "loadingWarInfo": "Lonca savaşı bilgileri yükleniyor...",
       "noActiveWar": "Devam eden lonca savaşı yok.",
       "notStartedYet": "Lonca savaşı henüz başlamadı. \n{{date}}(KST) tarihinden itibaren girebilirsiniz.",
@@ -6857,7 +6864,7 @@
       "rewardAlreadyClaimed": "Önceki lonca savaşının ödülünü zaten aldınız.",
       "rewardClaimHint": "Önceki lonca savaşından ödüller alın. Bir sonraki lonca savaşı sona erdiğinde önceki ödüller kaybolacaktır.",
       "rewardUnavailable": "Mevcut bir ödül yok veya o anda mevcut değil. (Savaşın bitiminden 1 saat sonra bir sonraki lonca savaşının sonuna kadar)",
-      "rewardClaimedBtn": "Tamamlanma alındı",
+      "rewardClaimedBtn": "Ödül alındı",
       "claimRewardBtn": "Ödül al",
       "noRecord": "kayıt yok",
       "enter": "konum",
@@ -6875,7 +6882,7 @@
       "currentOccupier": "şu anki kullanıcı",
       "none": "mevcut değil",
       "capturesCount": "{{count}} kazanan taş",
-      "scoreDiff": "Ev Farkı {{count}}Ev",
+      "scoreDiff": "ev farkı {{count}}ev",
       "scoreDiffShort": "fark {{count}}ev",
       "targetScore": "hedef puan",
       "pointsUnit": "{{count}}puan",
@@ -7046,7 +7053,7 @@
       "guildXp": "Lonca Deneyimi",
       "researchPoints": "Laboratuvar Noktaları",
       "enhancementStoneLow": "Küçük Büyü Taşı",
-      "enhancementStoneMid": "Orta Seviye Yükseltme Taşı",
+      "enhancementStoneMid": "Ara takviye taşı",
       "enhancementStoneHigh": "Gelişmiş Büyü Taşı",
       "enhancementStoneTop": "Üst sınıf takviye taşı",
       "enhancementStoneMystic": "Gizemli Güçlendirme Taşı",
@@ -7162,12 +7169,12 @@
     "privacyPolicy": {
       "title": "gizlilik politikası",
       "eyebrow": "Gizlilik Politikası",
-      "intro": "{{companyName}}, bu politikayı, Üyelerin kişisel bilgilerini Kişisel Bilgilerin Korunması Kanunu gibi ilgili yasa ve düzenlemelere uygun olarak korumak ve buna ilişkin şikayetleri hızlı ve sorunsuz bir şekilde ele almak amacıyla oluşturur ve açıklar."
+      "intro": "{{companyName}}, bu politikayı, Üyelerin kişisel bilgilerini Kişisel Bilgilerin Korunması Kanunu gibi ilgili yasa ve düzenlemelere uygun olarak korumak ve bununla ilgili şikayetleri hızlı ve sorunsuz bir şekilde ele almak amacıyla oluşturur ve açıklar."
     },
     "refundPolicy": {
       "title": "İptal/geri ödeme politikası",
       "eyebrow": "Geri Ödeme Politikası",
-      "intro": "Ücretli içeriklerin iptali ve iadesi konusunda sizleri bilgilendirmek isteriz. Bu düzenlemeler Elektronik Ticaret Kanunu gibi ilgili yasa ve yönetmeliklere uygun olarak hazırlanmıştır."
+      "intro": "Ücretli içeriklerin iptali ve iadesi konusunda sizleri bilgilendirmek isteriz. Bu düzenlemeler Elektronik Ticaret Kanunu gibi ilgili yasa ve düzenlemelere uygun olarak yazılmıştır."
     },
     "purchaseConsent": {
       "title": "Ödeme ilerlemesini kontrol edin",

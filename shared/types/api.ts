@@ -536,6 +536,14 @@ export type ServerAction =
       }
     | { type: 'CLAIM_EXCHANGE_SETTLEMENT'; payload: { listingId?: string; claimAll?: boolean } }
     | { type: 'PURCHASE_EXCHANGE_LISTING'; payload: { listingId: string; sellerId: string } }
+    | { type: 'INSTANT_CURRENCY_EXCHANGE'; payload: { direction: 'gold_to_diamonds' | 'diamonds_to_gold'; amount: number } }
+    | {
+          type: 'POST_CURRENCY_EXCHANGE_ORDER';
+          payload: { fromCurrency: 'gold' | 'diamonds'; fromAmount: number; toAmount: number };
+      }
+    | { type: 'FULFILL_CURRENCY_EXCHANGE_ORDER'; payload: { orderId: string; posterId: string } }
+    | { type: 'CANCEL_CURRENCY_EXCHANGE_ORDER'; payload: { orderId: string } }
+    | { type: 'CLAIM_CURRENCY_EXCHANGE_RECEIPT'; payload: { orderId?: string; claimAll?: boolean } }
     | { type: 'CHANGE_NICKNAME', payload: { newNickname: string } }
     | { type: 'CHANGE_USERNAME', payload: { newUsername: string; password: string } }
     | { type: 'CHANGE_PASSWORD', payload: { currentPassword: string; newPassword: string } }

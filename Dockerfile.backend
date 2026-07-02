@@ -1,11 +1,13 @@
 # syntax=docker/dockerfile:1.6
 
-FROM node:20-alpine AS base
+FROM node:20-bookworm-slim AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
+# Native deps (bcrypt/sqlite3 build, etc.) — Debian avoids Alpine apk CDN I/O failures on Railway
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 # Install dependencies first (supports npm ci cache)
@@ -18,7 +20,9 @@ FROM base AS build-deps
 # Install all dependencies including dev for Prisma generation and Vite build
 # Also install wget and unzip for KataGo download
 # Install build tools for mozjpeg (imagemin-mozjpeg dependency)
-RUN apk add --no-cache wget unzip autoconf automake libtool pkgconfig nasm
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends wget unzip autoconf automake libtool pkg-config nasm && \
+    rm -rf /var/lib/apt/lists/*
 # Set NODE_ENV to development to ensure devDependencies are installed
 ENV NODE_ENV=development
 COPY package.json package-lock.json ./
@@ -160,8 +164,8 @@ COPY --from=build /app/dist ./dist
 COPY --from=build /app/public ./public
 
 # Create non-root user
-RUN addgroup -g 1001 -S nodejs && \
-    adduser -S nodejs -u 1001
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --create-home nodejs
 
 # Change ownership
 RUN chown -R nodejs:nodejs /app

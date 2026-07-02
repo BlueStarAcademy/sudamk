@@ -38,12 +38,16 @@ import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPol
 import { aiProcessingQueue } from './aiProcessingQueue.js';
 import {
     getSpeedTimeBonusPointsDesired,
-    isSessionSpeedTimePressureMode,
     SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT,
 } from './utils/speedTimePressureLiveCaptures.js';
 import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { isAiLobbyManualClockPause } from './modes/shared.js';
 import { maybeRecoverStalledPveAiTurn, needsPveAiWatchdogTick } from './utils/pveAiTurnWatchdog.js';
+import {
+    isClientAuthPveWatchdogOnlyTick,
+    isPveSessionForMainLoop,
+    needsPveMainLoopProcessing,
+} from './utils/serverMainLoopGameTick.js';
 
 // 정확한 계가 결과는 1회만 표시한다는 전제 하에,
 // KataGo 분석을 `scoring` 브로드캐스트·클라이언트 계가 UI보다 앞서 백그라운드로 시작한다.
@@ -1432,96 +1436,7 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
         const multiPlayerGames: LiveGameSession[] = [];
         for (const game of games) {
             if (!game || !game.id) continue;
-            const isPVEGame =
-                game.isSinglePlayer ||
-                game.gameCategory === 'tower' ||
-                game.gameCategory === 'singleplayer' ||
-                game.gameCategory === 'guildwar' ||
-                game.gameCategory === 'adventure';
-            const needsRevealTransition = isPVEGame && (game.gameStatus === 'hidden_final_reveal' || game.gameStatus === 'hidden_reveal_animating');
-            const needsItemModeTransition =
-                isPVEGame &&
-                (game.gameStatus === 'missile_animating' ||
-                    game.gameStatus === 'scanning_animating' ||
-                    // 히든/스캔 아이템 선택 중에도 updateHiddenState가 돌아야 30초 타임아웃 복귀가 처리됨
-                    game.gameStatus === 'hidden_placing' ||
-                    game.gameStatus === 'scanning' ||
-                    // 도전의 탑: 미사일 선택 중에도 updateMissileState(아이템 데드라인 등)가 돌아야 함
-                    game.gameStatus === 'missile_selecting');
-            const arenaPolicy = resolveArenaSessionPolicy(game);
-            const needsPveServerGoAiTick =
-                arenaPolicy.usesServerKataAi &&
-                (arenaPolicy.kind === 'adventure' || arenaPolicy.kind === 'guildwar') &&
-                (game.gameStatus === 'playing' ||
-                    game.gameStatus === 'hidden_placing' ||
-                    game.gameStatus === 'scanning' ||
-                    game.gameStatus === 'missile_selecting' ||
-                    // 베이스/니기리/따내기 등 사전 단계: 모험·길드전은 isPVEGame 때문에 루프에서 빠지면
-                    // updateStrategicGameState가 호출되지 않아 배치 완료 후 다음 단계 진입이 멈춘다.
-                    game.gameStatus === 'base_placement' ||
-                    game.gameStatus === 'base_stone_color_choice' ||
-                    game.gameStatus === 'base_same_color_points_bid' ||
-                    game.gameStatus === 'base_game_start_confirmation' ||
-                    game.gameStatus === 'nigiri_choosing' ||
-                    game.gameStatus === 'nigiri_guessing' ||
-                    game.gameStatus === 'nigiri_reveal' ||
-                    game.gameStatus === 'uniform_color_roulette' ||
-                    game.gameStatus === 'capture_bidding' ||
-                    game.gameStatus === 'capture_reveal' ||
-                    game.gameStatus === 'capture_tiebreaker');
-            /** PVE 베이스(또는 믹스에 베이스): 메인 루프에서 제외되면 사전 단계 전환·AI 입찰이 멈춤 */
-            const needsSinglePlayerBasePrePlayTick =
-                isPVEGame &&
-                (game.mode === types.GameMode.Base ||
-                    (game.mode === types.GameMode.Mix &&
-                        Boolean((game.settings as { mixedModes?: types.GameMode[] } | undefined)?.mixedModes?.includes(types.GameMode.Base)))) &&
-                [
-                    'base_placement',
-                    'base_stone_color_choice',
-                    'base_same_color_points_bid',
-                    'base_game_start_confirmation',
-                    'capture_bidding',
-                    'capture_reveal',
-                    'capture_tiebreaker',
-                ].includes(game.gameStatus);
-            // 싱글 베이스 사전 단계는 `needsSinglePlayerBasePrePlayTick`으로 처리(도전의 탑 등에는 베이스 모드 없음).
-            // 싱글/타워 등 PVE는 기본적으로 메인 루프에서 제외되나, 주사위·도둑은 update*State / AI 턴이
-            // 여기서 돌지 않으면 새로고침·WS 공백 시 굴림 애니·연속 착수가 영구 정지한다.
-            const pveDiceThiefCurrentPid =
-                game.currentPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
-            const pveDiceThiefIsAiTurn =
-                pveDiceThiefCurrentPid === aiUserId ||
-                (!!pveDiceThiefCurrentPid && String(pveDiceThiefCurrentPid).startsWith('dungeon-bot-'));
-            /** 스피드 시간 압박을 `captures`에 실시간 반영하려면 playing 중에도 updateStrategicGameState가 돌아야 함 */
-            const needsPveSpeedPlayingTick =
-                isPVEGame &&
-                game.gameStatus === 'playing' &&
-                isSessionSpeedTimePressureMode(game);
-            const needsPveDiceThiefPlayfulTick =
-                isPVEGame &&
-                ((game.mode === types.GameMode.Dice &&
-                    (game.gameStatus === 'dice_rolling_animating' ||
-                        game.gameStatus === 'dice_turn_rolling_animating' ||
-                        game.gameStatus === 'dice_turn_rolling' ||
-                        game.gameStatus === 'dice_turn_choice' ||
-                        game.gameStatus === 'dice_start_confirmation' ||
-                        (pveDiceThiefIsAiTurn &&
-                            (game.gameStatus === 'dice_rolling' || game.gameStatus === 'dice_placing')))) ||
-                    (game.mode === types.GameMode.Thief &&
-                        (game.gameStatus === 'thief_rolling_animating' ||
-                            (pveDiceThiefIsAiTurn &&
-                                (game.gameStatus === 'thief_rolling' || game.gameStatus === 'thief_placing')))));
-            const needsPveAiWatchdogLoopTick = needsPveAiWatchdogTick(game);
-            if (
-                !isPVEGame ||
-                needsRevealTransition ||
-                needsItemModeTransition ||
-                needsPveServerGoAiTick ||
-                needsSinglePlayerBasePrePlayTick ||
-                needsPveSpeedPlayingTick ||
-                needsPveDiceThiefPlayfulTick ||
-                needsPveAiWatchdogLoopTick
-            ) {
+            if (!isPveSessionForMainLoop(game) || needsPveMainLoopProcessing(game, now)) {
                 multiPlayerGames.push(game);
             }
         }
@@ -1544,8 +1459,38 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             })();
 
         // 게임 수가 적을 때는 바둑 AI 등 느린 처리 완료 허용 (MainLoop 타임아웃과 조화)
-        // 단일 게임: getCachedGame/DB 지연 + 지연된 setImmediate(makeAiMove)까지 고려해 여유 확보 (이전 12s는 Kata·DB 복합 시 outer가 먼저 승리하는 경우가 있었음)
-        const OUTER_DEADLINE_MS = toProcess.length === 1 ? 22000 : toProcess.length <= 2 ? 9000 : toProcess.length <= 3 ? 6000 : 2500;
+        // 싱글/탑 AI 워치독만 필요한 경우 경량 틱 (22s outer·MainLoop 24s 타임아웃 연쇄 방지)
+        if (toProcess.every(isClientAuthPveWatchdogOnlyTick)) {
+            const { getCachedGame } = await import('./gameCache.js');
+            const watchdogResults: LiveGameSession[] = [];
+            for (const snap of toProcess) {
+                let game = snap;
+                const cached = await Promise.race([
+                    getCachedGame(snap.id),
+                    new Promise<null>((r) => setTimeout(() => r(null), 400)),
+                ]);
+                if (cached) game = cached;
+                if (
+                    !aiProcessingQueue.isProcessingGame(game.id) &&
+                    !(game as any)._getGameResultInFlight
+                ) {
+                    maybeRecoverStalledPveAiTurn(game, now);
+                }
+                watchdogResults.push(game);
+            }
+            const processedMap = new Map<string, LiveGameSession>();
+            for (const g of watchdogResults) processedMap.set(g.id, g);
+            const mergedMultiPlayer = multiPlayerGames.map((g) => processedMap.get(g.id) ?? g);
+            const mergedIds = new Set(mergedMultiPlayer.map((g) => g.id));
+            const pveGames = games.filter((game) => {
+                if (!game?.id || mergedIds.has(game.id)) return false;
+                return isPveSessionForMainLoop(game);
+            });
+            return [...mergedMultiPlayer, ...pveGames];
+        }
+
+        // 단일 게임: getCachedGame/DB 지연 + 지연된 setImmediate(makeAiMove)까지 고려해 여유 확보
+        const OUTER_DEADLINE_MS = toProcess.length === 1 ? 16000 : toProcess.length <= 2 ? 9000 : toProcess.length <= 3 ? 6000 : 2500;
         const outerTimeout = new Promise<LiveGameSession[]>((resolve) => {
             setTimeout(() => {
                 void (async () => {
@@ -1672,16 +1617,9 @@ export const updateGameStates = async (games: LiveGameSession[], now: number): P
             const mergedMultiPlayer = multiPlayerGames.map(g => processedMap.get(g.id) ?? g);
             const mergedIds = new Set(mergedMultiPlayer.map(g => g.id));
             // 동일 PVE 게임을 merged 뒤에 다시 넣으면 Map 병합 시 스냅샷이 덮어써져 hidden_final_reveal→scoring 등이 되돌아가는 버그가 난다.
-            const pveGames = games.filter(game => {
-                if (!game || !game.id) return false;
-                if (mergedIds.has(game.id)) return false;
-                return (
-                    game.isSinglePlayer ||
-                    game.gameCategory === 'tower' ||
-                    game.gameCategory === 'singleplayer' ||
-                    game.gameCategory === 'adventure' ||
-                    game.gameCategory === 'guildwar'
-                );
+            const pveGames = games.filter((game) => {
+                if (!game?.id || mergedIds.has(game.id)) return false;
+                return isPveSessionForMainLoop(game);
             });
             return [...mergedMultiPlayer, ...pveGames];
         })();

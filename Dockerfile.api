@@ -4,12 +4,15 @@
 
 # syntax=docker/dockerfile:1.6
 
-FROM node:20-alpine AS base
+FROM node:20-bookworm-slim AS base
 WORKDIR /app
 ENV NODE_ENV=production
 
 # Native deps (bcrypt/sqlite3 build, etc.)
-RUN apk add --no-cache python3 py3-setuptools make g++
+# Debian slim: Alpine apk CDN I/O errors on Railway are common; apt mirrors are more reliable.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends python3 make g++ && \
+    rm -rf /var/lib/apt/lists/*
 
 FROM base AS deps
 RUN npm config set update-notifier false
@@ -59,7 +62,8 @@ COPY tsconfig.base.json ./tsconfig.base.json
 COPY public/sounds ./public/sounds
 
 # Non-root user
-RUN addgroup -g 1001 -S nodejs && adduser -S nodejs -u 1001
+RUN groupadd --gid 1001 nodejs && \
+    useradd --uid 1001 --gid nodejs --create-home nodejs
 RUN chown -R nodejs:nodejs /app
 USER nodejs
 

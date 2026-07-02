@@ -298,9 +298,8 @@ const AppContent: React.FC = () => {
             : null;
     /**
      * AdSense 정책: 콘텐츠 있는 화면에서만 광고 노출 (화이트리스트).
-     * 로비·매칭·대기실·인증 화면은 "행동 목적" 화면이라 광고 금지.
-     * 콘텐츠 화면: profile 홈, singleplayer(바둑학원), adventure(모험 스테이지 맵),
-     *              guild(길드 정보), tournament venue(챔피언십 경기 정보).
+     * PC: 홈·로비 좌우 스카이스크래퍼(160×600). 네이티브 모바일: 동일 화면 하단 배너.
+     * 인증·대국·행동-only 화면은 제외.
      */
     const profileTab = ((currentRoute.params?.tab as string | undefined) ?? 'home');
     const isContentView = Boolean(
@@ -308,9 +307,12 @@ const AppContent: React.FC = () => {
         currentRoute.view === 'help' ||
         (currentUser && (
             currentRoute.view === 'singleplayer' ||
+            currentRoute.view === 'tower' ||
+            currentRoute.view === 'pvp' ||
+            currentRoute.view === 'ai' ||
             currentRoute.view === 'adventure' ||
             currentRoute.view === 'guild' ||
-            (currentRoute.view === 'tournament' && championshipVenueType !== null)
+            currentRoute.view === 'tournament'
         ))
     );
     const showLobbySideAds = Boolean(
