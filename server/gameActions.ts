@@ -21,6 +21,7 @@ import {
     TOWER_LOBBY_HIDDEN_NAMES,
 } from './modes/towerPlayerHidden.js';
 import { handlePlayfulGameAction } from './modes/playful.js';
+import { deepClone } from './utils/cloneHelper.js';
 import { createDefaultUser, createDefaultQuests } from './initialData.ts';
 import { containsProfanity } from '../profanity.js';
 import * as mannerService from './mannerService.js';
@@ -239,7 +240,7 @@ const normalizeLegacyQuestTexts = (user: User): boolean => {
 
 export const resetAndGenerateQuests = async (user: User): Promise<User> => {
     const now = Date.now();
-    const updatedUser = JSON.parse(JSON.stringify(user));
+    const updatedUser = deepClone(user);
     let modified = false;
 
     // Ensure the quests object and its properties exist for older users.

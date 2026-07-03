@@ -2275,14 +2275,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const tryPveOpponentHiddenRevealOnClick = useCallback(
         (boardStateToUse: Player[][], x: number, y: number): boolean => {
-            if (!(isSinglePlayer || isTower) || !isMyTurn || myPlayerEnum === Player.None) return false;
+            if (!(isSinglePlayer || isTower || isAdventureGame) || !isMyTurn || myPlayerEnum === Player.None) return false;
             if (!isUnrevealedOpponentHiddenStoneAt(boardStateToUse, session, x, y, myPlayerEnum)) return false;
             const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
             handlers.handleAction({
                 type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
                 payload: {
                     gameId: session.id,
-                    gameType: isTower ? 'tower' : 'singleplayer',
+                    gameType: isTower ? 'tower' : isAdventureGame ? 'adventure' : 'singleplayer',
                     point: { x, y },
                     player: opponentPlayerEnum,
                     keepTurn: true,
@@ -2290,7 +2290,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             } as ServerAction);
             return true;
         },
-        [handlers.handleAction, isMyTurn, isSinglePlayer, isTower, myPlayerEnum, session],
+        [handlers.handleAction, isMyTurn, isSinglePlayer, isTower, isAdventureGame, myPlayerEnum, session],
     );
 
     const tryPvpOpponentHiddenRevealOnClick = useCallback(
@@ -2544,11 +2544,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isGuildWarHiddenClientEffects =
         isGuildWarGame && mode === GameMode.Hidden;
 
+    const isAdventureHiddenClientEffects =
+        isAdventureGame && isOnlineHiddenStrategic;
+
     const useScanAnimationFallback =
         isSinglePlayer || isTower || isGuildWarHiddenClientEffects || isOnlineHiddenStrategic;
 
     const needsLocalHiddenRevealFinalize =
-        isSinglePlayer || isTower || isGuildWarHiddenClientEffects;
+        isSinglePlayer || isTower || isGuildWarHiddenClientEffects || isAdventureHiddenClientEffects;
     const needsServerHiddenRevealNudge =
         isOnlineHiddenStrategic &&
         !needsLocalHiddenRevealFinalize &&
@@ -2578,17 +2581,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     type: 'LOCAL_HIDDEN_REVEAL_COMPLETE',
                     payload: {
                         gameId: session.id,
-                        gameType: isTower ? 'tower' : isGuildWarHiddenClientEffects ? 'guildwar' : 'singleplayer',
+                        gameType: isTower
+                            ? 'tower'
+                            : isGuildWarHiddenClientEffects
+                              ? 'guildwar'
+                              : isAdventureHiddenClientEffects
+                                ? 'adventure'
+                                : 'singleplayer',
                     },
                 } as any);
-            } else if (isAdventureGame && session.isAiGame) {
-                const clientSync = buildPveItemActionClientSync(session);
-                void handlers.handleAction({
-                    type: 'REQUEST_SERVER_AI_MOVE',
-                    payload: clientSync
-                        ? { gameId: session.id, clientSync }
-                        : { gameId: session.id },
-                } as ServerAction);
             } else {
                 void handlers.handleAction({
                     type: 'REQUEST_GAME_STATE_SYNC',
@@ -2611,6 +2612,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         needsServerHiddenRevealNudge,
         isTower,
         isGuildWarHiddenClientEffects,
+        isAdventureHiddenClientEffects,
         isAdventureGame,
         handlers.handleAction,
         session,
@@ -3682,6 +3684,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 usesChessGo && chessGoSession.boardState?.length
                     ? chessGoSession.boardState
                     : restoredBoardState || session.boardState;
+            if (
+                boardStateForOnline &&
+                (gameStatus === 'playing' || gameStatus === 'hidden_placing') &&
+                !usesChessGo &&
+                tryPveOpponentHiddenRevealOnClick(boardStateForOnline, x, y)
+            ) {
+                return;
+            }
             if (
                 boardStateForOnline &&
                 (gameStatus === 'playing' || gameStatus === 'hidden_placing') &&

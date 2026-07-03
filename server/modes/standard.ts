@@ -438,6 +438,42 @@ function expandHiddenRevealStonesForGame(
     });
 }
 
+type HiddenStonePointEntry = types.Point & { player?: types.Player };
+
+/** 클라 collectCapturingGroupHiddenStones와 동일: hiddenMoves 외 human/aiHiddenStonePoints도 추적 */
+function isUnrevealedHiddenStoneForPlayer(
+    game: types.LiveGameSession,
+    x: number,
+    y: number,
+    playerEnum: types.Player,
+    options?: { includeAiInitialHidden?: boolean },
+): boolean {
+    if (game.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y)) return false;
+    const moveIndex = findLatestMoveIndexAt(game, x, y, playerEnum);
+    if (moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex]) return true;
+    const humanPoints = ((game as any).humanHiddenStonePoints ?? []) as HiddenStonePointEntry[];
+    if (
+        humanPoints.some(
+            (p) => p.x === x && p.y === y && (p.player === undefined || p.player === playerEnum),
+        )
+    ) {
+        return true;
+    }
+    const aiPoints = ((game as any).aiHiddenStonePoints ?? []) as HiddenStonePointEntry[];
+    if (aiPoints.some((p) => p.x === x && p.y === y && (p.player === undefined || p.player === playerEnum))) {
+        return true;
+    }
+    if (
+        options?.includeAiInitialHidden !== false &&
+        useAiInitialHiddenCellTracking(game) &&
+        (game as any).aiInitialHiddenStone
+    ) {
+        const aiHidden = (game as any).aiInitialHiddenStone;
+        if (x === aiHidden.x && y === aiHidden.y) return true;
+    }
+    return false;
+}
+
 function resolveHiddenRevealDurationMs(
     game: types.LiveGameSession,
     stones: { point: types.Point; player: types.Player }[]
@@ -1470,7 +1506,6 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             
             // 따낸 돌에 기여한 "우리 돌 전체 연결 그룹"에서 히든 돌 수집 (인접한 돌만이 아니라 연결된 모든 돌 포함)
             const contributingHiddenStones: { point: types.Point, player: types.Player }[] = [];
-            const aiInitialHiddenCellTracking = useAiInitialHiddenCellTracking(game);
             if (result.capturedStones.length > 0) {
                 const logic = getGoLogic({ ...game, boardState: result.newBoardState });
                 const capturingGroupPoints = new Set<string>();
@@ -1489,16 +1524,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 for (const key of capturingGroupPoints) {
                     const [nx, ny] = key.split(',').map(Number);
                     const isCurrentMove = nx === x && ny === y;
-                    let isHiddenStone = isCurrentMove ? effectiveIsHidden : false;
-                    if (!isCurrentMove) {
-                        const moveIndex = findLatestMoveIndexAt(game, nx, ny, myPlayerEnum);
-                        isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
-                        if (!isHiddenStone && aiInitialHiddenCellTracking && (game as any).aiInitialHiddenStone) {
-                            const aiHidden = (game as any).aiInitialHiddenStone;
-                            isHiddenStone = nx === aiHidden.x && ny === aiHidden.y &&
-                                !game.permanentlyRevealedStones?.some(p => p.x === nx && p.y === ny);
-                        }
-                    }
+                    const isHiddenStone = isCurrentMove
+                        ? effectiveIsHidden
+                        : isUnrevealedHiddenStoneForPlayer(game, nx, ny, myPlayerEnum);
                     if (isHiddenStone) {
                         if (!game.permanentlyRevealedStones || !game.permanentlyRevealedStones.some(p => p.x === nx && p.y === ny)) {
                             contributingHiddenStones.push({ point: { x: nx, y: ny }, player: myPlayerEnum });
@@ -1510,12 +1538,16 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             const capturedHiddenStones: { point: types.Point; player: types.Player }[] = [];
             if (result.capturedStones.length > 0) {
                 for (const capturedStone of result.capturedStones) {
-                    const moveIndex = findLatestMoveIndexAt(game, capturedStone.x, capturedStone.y, opponentPlayerEnum);
-                    if (moveIndex !== -1 && game.hiddenMoves?.[moveIndex]) {
-                        const isPermanentlyRevealed = game.permanentlyRevealedStones?.some(p => p.x === capturedStone.x && p.y === capturedStone.y);
-                        if (!isPermanentlyRevealed) {
-                            capturedHiddenStones.push({ point: capturedStone, player: opponentPlayerEnum });
-                        }
+                    if (
+                        isUnrevealedHiddenStoneForPlayer(
+                            game,
+                            capturedStone.x,
+                            capturedStone.y,
+                            opponentPlayerEnum,
+                            { includeAiInitialHidden: false },
+                        )
+                    ) {
+                        capturedHiddenStones.push({ point: capturedStone, player: opponentPlayerEnum });
                     }
                 }
             }

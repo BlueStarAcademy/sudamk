@@ -81,4 +81,32 @@ describe('normalizeQuestLogMetadata', () => {
         expect(quests.daily.claimedMilestones).toEqual(DEFAULT_CLAIMED_MILESTONES);
         expect(quests.daily.lastReset).toBe(now);
     });
+
+    it('anchors lastReset when quest list exists without progress (legacy lastReset=0)', () => {
+        const now = 1_700_000_000_000;
+        const quests = {
+            daily: {
+                quests: [{ id: 'q-d-0-1', title: '출석하기', description: '', target: 1, progress: 0, isClaimed: false, reward: { gold: 100 } }],
+                activityProgress: 0,
+                claimedMilestones: [false, false, false, false, false],
+                lastReset: 0,
+            },
+            weekly: {
+                quests: [],
+                activityProgress: 0,
+                claimedMilestones: [false, false, false, false, false],
+                lastReset: now - 1,
+            },
+            monthly: {
+                quests: [],
+                activityProgress: 0,
+                claimedMilestones: [false, false, false, false, false],
+                lastReset: now - 1,
+            },
+            achievements: { tracks: {} },
+        };
+
+        expect(normalizeQuestLogMetadata(quests, now)).toBe(true);
+        expect(quests.daily.lastReset).toBe(now);
+    });
 });

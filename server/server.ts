@@ -5030,10 +5030,21 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 'CLAIM_ACHIEVEMENT_REWARD',
             ]);
             if (questClaimActionTypes.has(type)) {
-                const syncedQuestUser = await resetAndGenerateQuests(user);
-                Object.assign(user, syncedQuestUser);
-                const { updateUserCache } = await import('./gameCache.js');
-                updateUserCache(user);
+                try {
+                    const freshUser = await db.getUser(userId, { includeInventory: true, includeEquipment: true });
+                    if (freshUser) {
+                        Object.assign(user, freshUser);
+                    }
+                    const syncedQuestUser = await resetAndGenerateQuests(user);
+                    Object.assign(user, syncedQuestUser);
+                    const { updateUserCache } = await import('./gameCache.js');
+                    updateUserCache(user);
+                } catch (questSyncErr: any) {
+                    console.error(
+                        `[/api/action] Quest sync before ${type} failed for ${userId}:`,
+                        questSyncErr?.message ?? questSyncErr,
+                    );
+                }
             }
 
             const handleActionStartTime = Date.now();
@@ -5045,7 +5056,10 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 if (VERBOSE_ACTION_LOGS) {
                     console.log(`[/api/action] Returning 400 error for ${req.body.type}: ${result.error}`);
                 }
-                respondAction(400, { message: result.error });
+                respondAction(400, {
+                    message: result.error,
+                    ...(result.clientResponse || {}),
+                });
                 return;
             }
             

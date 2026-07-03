@@ -47,6 +47,14 @@ export function normalizeQuestPeriodMetadata(
     if ((!data.lastReset || data.lastReset <= 0) && questPeriodHasAnchorableProgress(data)) {
         data.lastReset = now;
         modified = true;
+    } else if (
+        (!data.lastReset || data.lastReset <= 0) &&
+        Array.isArray(data.quests) &&
+        data.quests.length > 0
+    ) {
+        // lastReset=0 레거시: 진행도 0이어도 기존 퀘스트 목록이 있으면 당일 리셋으로 오인하지 않음
+        data.lastReset = now;
+        modified = true;
     }
 
     return { modified, data };

@@ -1006,6 +1006,27 @@ export function mergeGameUpdateByArena(
             pendingCapture: existing.pendingCapture ?? merged.pendingCapture,
         };
     }
+    // 모험: 클라 LOCAL_HIDDEN_REVEAL_COMPLETE로 정산된 뒤 늦게 도착한 hidden_reveal_animating 패킷이 되돌리지 않게
+    if (
+        existing &&
+        existing.gameStatus === 'playing' &&
+        !existing.pendingCapture &&
+        incomingWithLock.gameStatus === 'hidden_reveal_animating' &&
+        resolveArenaSessionPolicy(existing as any).kind === 'adventure'
+    ) {
+        merged = {
+            ...merged,
+            gameStatus: 'playing',
+            animation: null,
+            revealAnimationEndTime: undefined,
+            pendingCapture: null,
+            boardState: existing.boardState ?? merged.boardState,
+            captures: existing.captures ?? merged.captures,
+            justCaptured: existing.justCaptured ?? merged.justCaptured,
+            permanentlyRevealedStones:
+                existing.permanentlyRevealedStones ?? merged.permanentlyRevealedStones,
+        };
+    }
     merged = stripStaleJustCapturedOnMerge(merged, existing);
     merged = mergeStrategicItemInventoryMonotonic(merged, existing);
     if (shouldClearItemPhaseAnimationOnPlayingMerge(existing, incoming)) {

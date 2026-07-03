@@ -38,6 +38,7 @@ import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js'
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import { collectEquipmentCashPackageLoot, grantDiamondCashShopPackageFromMail } from './shopActions.js';
 import * as guildService from '../guildService.js';
+import { createDefaultQuests } from '../initialData.ts';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -85,6 +86,46 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
     const add = Number(bonus) || 0;
     return Math.max(0, Math.floor(base + add));
 };
+
+const QUEST_ID_INDEX_PATTERN = /^q-([dwm])-(\d+)-/;
+
+function ensureQuestClaimUserFields(user: User): void {
+    if (!user.quests) {
+        user.quests = createDefaultQuests();
+    }
+    if (!user.actionPoints) {
+        user.actionPoints = { current: 0, max: 0 };
+    }
+    if (!Array.isArray(user.inventory)) {
+        user.inventory = [];
+    }
+    if (!user.inventorySlots || typeof user.inventorySlots !== 'object') {
+        user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
+    }
+}
+
+function findQuestForClaim(
+    user: User,
+    questId: string,
+): { quest: Quest; questType: 'daily' | 'weekly' | 'monthly' } | null {
+    const categories = ['daily', 'weekly', 'monthly'] as const;
+    for (const category of categories) {
+        const questList = user.quests?.[category]?.quests;
+        if (!questList) continue;
+        const byId = questList.find((q) => q.id === questId);
+        if (byId) return { quest: byId, questType: category };
+    }
+    const match = QUEST_ID_INDEX_PATTERN.exec(questId);
+    if (!match) return null;
+    const typeMap = { d: 'daily', w: 'weekly', m: 'monthly' } as const;
+    const questType = typeMap[match[1] as 'd' | 'w' | 'm'];
+    const index = Number(match[2]);
+    const questList = user.quests?.[questType]?.quests;
+    if (!questList || !Number.isInteger(index) || index < 0 || index >= questList.length) {
+        return null;
+    }
+    return { quest: questList[index], questType };
+}
 
 export const handleRewardAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
     const { type, payload } = action as any;
@@ -307,29 +348,26 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
         }
         case 'CLAIM_QUEST_REWARD': {
             const { questId } = payload;
-            const questCategories = ['daily', 'weekly', 'monthly'] as const;
-            const defaultGoldByPeriod: Record<(typeof questCategories)[number], number> = {
+            ensureQuestClaimUserFields(user);
+            const defaultGoldByPeriod: Record<'daily' | 'weekly' | 'monthly', number> = {
                 daily: 100,
                 weekly: 500,
                 monthly: 1500,
             };
-            let foundQuest: Quest | undefined;
-            let questType: 'daily' | 'weekly' | 'monthly' | undefined;
+            const located = findQuestForClaim(user, questId);
+            const foundQuest = located?.quest;
+            const questType = located?.questType;
 
-            for (const category of questCategories) {
-                const questList = user.quests[category]?.quests;
-                if (questList) {
-                    foundQuest = questList.find(q => q.id === questId);
-                    if (foundQuest) {
-                        questType = category;
-                        break;
-                    }
-                }
+            if (!foundQuest || !questType) {
+                return {
+                    error: '퀘스트를 찾을 수 없습니다.',
+                    clientResponse: { updatedUser: getSelectiveUserUpdate(user, 'CLAIM_QUEST_REWARD') },
+                };
             }
-
-            if (!foundQuest || !questType) return { error: '퀘스트를 찾을 수 없습니다.' };
             if (foundQuest.isClaimed) return { error: '이미 보상을 수령했습니다.' };
-            if (foundQuest.progress < foundQuest.target) return { error: '퀘스트를 아직 완료하지 않았습니다.' };
+            if ((foundQuest.progress ?? 0) < (foundQuest.target ?? 1)) {
+                return { error: '퀘스트를 아직 완료하지 않았습니다.' };
+            }
 
             if (!foundQuest.reward) {
                 foundQuest.reward = { gold: defaultGoldByPeriod[questType] };
@@ -351,7 +389,11 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
                 itemsToCreate.push(...createdItems);
             }
 
-            const { success, finalItemsToAdd, updatedInventory } = addItemsToInventory([...user.inventory], user.inventorySlots, itemsToCreate);
+            const { success, finalItemsToAdd, updatedInventory } = addItemsToInventory(
+                [...(user.inventory || [])],
+                user.inventorySlots,
+                itemsToCreate,
+            );
             if (!success) {
                 return { error: '보상을 받기에 인벤토리 공간이 부족합니다.' };
             }
@@ -371,7 +413,9 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             }
             if (adjustedReward.gold) user.gold += adjustedReward.gold;
             if (adjustedReward.diamonds) user.diamonds += adjustedReward.diamonds;
-            if (adjustedReward.actionPoints) user.actionPoints.current += adjustedReward.actionPoints;
+            if (adjustedReward.actionPoints) {
+                user.actionPoints.current = (user.actionPoints.current ?? 0) + adjustedReward.actionPoints;
+            }
             user.inventory = updatedInventory;
             
             if (activityPoints > 0 && user.quests[questType]) {

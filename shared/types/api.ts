@@ -722,8 +722,8 @@ export type ServerAction =
     | { type: 'END_SINGLE_PLAYER_GAME', payload: { gameId: string; winner: Player; winReason: WinReason } }
     | { type: 'TOWER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; movePlayer?: Player; } }
     | { type: 'SINGLE_PLAYER_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; movePlayer?: Player; isHidden?: boolean; } }
-    | { type: 'LOCAL_HIDDEN_REVEAL_TRIGGER', payload: { gameId: string; gameType: 'tower' | 'singleplayer'; point: Point; player: Player; keepTurn?: boolean } }
-    | { type: 'LOCAL_HIDDEN_REVEAL_COMPLETE', payload: { gameId: string; gameType: 'tower' | 'singleplayer' } }
+    | { type: 'LOCAL_HIDDEN_REVEAL_TRIGGER', payload: { gameId: string; gameType: 'tower' | 'singleplayer' | 'adventure'; point: Point; player: Player; keepTurn?: boolean } }
+    | { type: 'LOCAL_HIDDEN_REVEAL_COMPLETE', payload: { gameId: string; gameType: 'tower' | 'singleplayer' | 'adventure' } }
     | { type: 'AI_GAME_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; movePlayer?: Player } }
     /** 페어 바둑: 서버 응답 전 보드·페어 턴 인덱스를 클라이언트에 즉시 반영 */
     | { type: 'PAIR_GAME_CLIENT_MOVE', payload: { gameId: string; x: number; y: number; newBoardState: BoardState; capturedStones: Point[]; newKoInfo: LiveGameSession['koInfo']; movePlayer?: Player } }

@@ -4805,13 +4805,13 @@ export const useApp = () => {
         if ((action as any).type === 'LOCAL_HIDDEN_REVEAL_TRIGGER') {
             const { gameId, gameType, point, player, keepTurn } = (action as any).payload as {
                 gameId: string;
-                gameType: 'tower' | 'singleplayer' | 'guildwar';
+                gameType: 'tower' | 'singleplayer' | 'guildwar' | 'adventure';
                 point: Point;
                 player: Player;
                 keepTurn?: boolean;
             };
             const updateGameState =
-                gameType === 'guildwar'
+                gameType === 'guildwar' || gameType === 'adventure'
                     ? setLiveGames
                     : gameType === 'tower'
                       ? setTowerGames
@@ -4948,7 +4948,7 @@ export const useApp = () => {
         if ((action as any).type === 'LOCAL_HIDDEN_REVEAL_COMPLETE') {
             const { gameId, gameType } = (action as any).payload as {
                 gameId: string;
-                gameType: 'tower' | 'singleplayer' | 'guildwar';
+                gameType: 'tower' | 'singleplayer' | 'guildwar' | 'adventure';
             };
             // 길드전은 서버 권위 상태를 그대로 사용한다.
             // 로컬에서 pendingCapture 정산/자동계가를 추가로 수행하면
@@ -4994,7 +4994,9 @@ export const useApp = () => {
             const updateGameState =
                 gameType === 'tower'
                     ? setTowerGames
-                    : setSinglePlayerGames;
+                    : gameType === 'adventure'
+                      ? setLiveGames
+                      : setSinglePlayerGames;
             const now = Date.now();
             const postRevealAutoScoringRef: {
                 current: {
@@ -6494,6 +6496,15 @@ export const useApp = () => {
                 try {
                     const errorData = await res.json();
                     errorMessage = errorData.message || errorData.error || errorMessage;
+                    if (
+                        res.status === 400 &&
+                        (action.type === 'CLAIM_QUEST_REWARD' ||
+                            action.type === 'CLAIM_ACTIVITY_MILESTONE' ||
+                            action.type === 'CLAIM_ACHIEVEMENT_REWARD') &&
+                        errorData?.updatedUser
+                    ) {
+                        applyUserUpdate(errorData.updatedUser, `${action.type}-error-sync`);
+                    }
                     baseStoneColorSubmitBenign400 =
                         action.type === 'SUBMIT_BASE_STONE_COLOR_CHOICE' &&
                         res.status === 400 &&
