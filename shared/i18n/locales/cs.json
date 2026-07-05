@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Vylepšení stupně pro domácí mazlíčky] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}} nebo vyšší)",
           "soulGradeUpgradeGeneric": "[Pet Grade Enhancement] Používá se ke zvýšení hodnosti ostatních AI mazlíčků ve Fair Areně.",
           "eggHatchRandom": "[Pet · Líheň] Umístěte do otvoru a vylíhněte náhodný typ AI mazlíčka.",
-          "welcomeEggHatch": "[Pet · Líheň] Umístěno do slotu – doba líhnutí 1 minuta, AI zvířátko úrovně 5 při vylíhnutí"
+          "welcomeEggHatch": "[Pet · Líheň] Umístěno do slotu – doba líhnutí 1 minuta, AI zvířátko úrovně 10 při vylíhnutí"
         }
       },
       "enhanceRange": {

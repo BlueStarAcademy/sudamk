@@ -5,11 +5,19 @@ import type { HandleActionResult } from '../../types/api.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
 import { CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER } from '../../shared/constants/currencyExchange.js';
 import {
+    applyInstantDailyUsage,
     computeInstantDiamondsToGold,
     computeInstantGoldToDiamonds,
     validateCurrencyExchangeOrderAmounts,
+    validateInstantExchangeDailyLimit,
 } from '../../shared/utils/currencyExchange.js';
 import { clampGameInt, exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
+import {
+    appendExchangeHistoryLine,
+    buildCurrencyExchangeClaimAllHistoryLine,
+    buildCurrencyExchangeClaimHistoryLine,
+    buildCurrencyExchangeDoneHistoryLine,
+} from '../../shared/utils/exchangeHistory.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 
 type CurrencyKind = 'gold' | 'diamonds';
@@ -20,6 +28,10 @@ function ensureExchangeState(user: types.User): NonNullable<types.User['exchange
     }
     if (!Array.isArray(user.exchangeState.currencyOrders)) user.exchangeState.currencyOrders = [];
     if (!Array.isArray(user.exchangeState.currencyReceipts)) user.exchangeState.currencyReceipts = [];
+    if (!user.exchangeState.instantDaily) {
+        user.exchangeState.instantDaily = { lastResetDayKST: 0, goldSpent: 0, diamondsSpent: 0 };
+    }
+    if (!Array.isArray(user.exchangeState.history)) user.exchangeState.history = [];
     return user.exchangeState;
 }
 
@@ -65,24 +77,71 @@ export async function handleCurrencyExchangeAction(
             const inputAmount = clampGameInt(amount, { min: 0 });
             if (inputAmount <= 0) return { error: '환전 수량을 입력해 주세요.' };
 
+            const exchange = ensureExchangeState(user);
+            const now = Date.now();
+
             if (direction === 'gold_to_diamonds') {
                 const { diamonds, goldSpent } = computeInstantGoldToDiamonds(inputAmount);
                 if (diamonds <= 0) return { error: '환전 가능한 다이아 수량이 없습니다.' };
+                const dailyError = validateInstantExchangeDailyLimit(
+                    direction,
+                    exchange.instantDaily,
+                    goldSpent,
+                    0,
+                    diamonds,
+                    0,
+                    now,
+                );
+                if (dailyError) return { error: dailyError };
                 if ((user.gold ?? 0) < goldSpent) return { error: '골드가 부족합니다.' };
                 if (diamonds > maxExchangeListPrice('diamonds')) {
                     return { error: '한 번에 환전할 수 있는 다이아 한도를 초과했습니다.' };
                 }
                 user.gold = Math.max(0, (user.gold ?? 0) - goldSpent);
                 user.diamonds = Math.max(0, (user.diamonds ?? 0) + diamonds);
+                exchange.instantDaily = applyInstantDailyUsage(exchange.instantDaily, direction, goldSpent, 0, now);
+                appendExchangeHistoryLine(
+                    exchange,
+                    buildCurrencyExchangeDoneHistoryLine({
+                        kind: 'instant',
+                        payAmount: goldSpent,
+                        payCurrency: 'gold',
+                        receiveAmount: diamonds,
+                        receiveCurrency: 'diamonds',
+                    }),
+                    now,
+                );
             } else {
                 const { gold, diamondsSpent } = computeInstantDiamondsToGold(inputAmount);
                 if (gold <= 0) return { error: '환전 가능한 골드 수량이 없습니다.' };
+                const dailyError = validateInstantExchangeDailyLimit(
+                    direction,
+                    exchange.instantDaily,
+                    0,
+                    diamondsSpent,
+                    0,
+                    gold,
+                    now,
+                );
+                if (dailyError) return { error: dailyError };
                 if ((user.diamonds ?? 0) < diamondsSpent) return { error: '다이아가 부족합니다.' };
                 if (gold > maxExchangeListPrice('gold')) {
                     return { error: '한 번에 환전할 수 있는 골드 한도를 초과했습니다.' };
                 }
                 user.diamonds = Math.max(0, (user.diamonds ?? 0) - diamondsSpent);
                 user.gold = Math.max(0, (user.gold ?? 0) + gold);
+                exchange.instantDaily = applyInstantDailyUsage(exchange.instantDaily, direction, 0, diamondsSpent, now);
+                appendExchangeHistoryLine(
+                    exchange,
+                    buildCurrencyExchangeDoneHistoryLine({
+                        kind: 'instant',
+                        payAmount: diamondsSpent,
+                        payCurrency: 'diamonds',
+                        receiveAmount: gold,
+                        receiveCurrency: 'gold',
+                    }),
+                    now,
+                );
             }
 
             try {
@@ -93,7 +152,7 @@ export async function handleCurrencyExchangeAction(
             }
             db.invalidateUserCache(user.id);
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['gold', 'diamonds']);
+            broadcastUserUpdate(user, ['gold', 'diamonds', 'exchangeState']);
             return { clientResponse: { updatedUser: getSelectiveUserUpdate(user, 'INSTANT_CURRENCY_EXCHANGE') } };
         }
 
@@ -196,6 +255,18 @@ export async function handleCurrencyExchangeAction(
             addCurrency(user, order.fromCurrency, order.fromAmount);
 
             const now = Date.now();
+            const fulfillerExchange = ensureExchangeState(user);
+            appendExchangeHistoryLine(
+                fulfillerExchange,
+                buildCurrencyExchangeDoneHistoryLine({
+                    kind: 'market',
+                    payAmount: order.toAmount,
+                    payCurrency: order.toCurrency,
+                    receiveAmount: order.fromAmount,
+                    receiveCurrency: order.fromCurrency,
+                }),
+                now,
+            );
             posterExchange.currencyOrders![orderIdx] = {
                 ...order,
                 status: 'filled',
@@ -227,7 +298,7 @@ export async function handleCurrencyExchangeAction(
             db.invalidateUserCache(user.id);
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(poster, ['exchangeState']);
-            broadcastUserUpdate(user, ['gold', 'diamonds']);
+            broadcastUserUpdate(user, ['gold', 'diamonds', 'exchangeState']);
 
             const updatedUser = getSelectiveUserUpdate(user, 'FULFILL_CURRENCY_EXCHANGE_ORDER');
             return { clientResponse: { updatedUser } };
@@ -256,14 +327,36 @@ export async function handleCurrencyExchangeAction(
 
             let goldNet = 0;
             let diamondsNet = 0;
+            const now = Date.now();
             for (const idx of indicesToClaim) {
                 const row = receipts[idx];
                 const gross = clampGameInt(row.amount, { min: 0 });
                 const fee = exchangeListingFeeFromPrice(gross);
                 const net = Math.max(0, gross - fee);
-                if (row.currency === 'gold') goldNet += net;
-                else diamondsNet += net;
+                if (row.currency === 'gold') {
+                    goldNet += net;
+                } else {
+                    diamondsNet += net;
+                }
                 receipts[idx] = { ...row, claimed: true };
+                if (claimAll !== true) {
+                    appendExchangeHistoryLine(
+                        exchange,
+                        buildCurrencyExchangeClaimHistoryLine({
+                            netAmount: net,
+                            currency: row.currency,
+                            feeAmount: fee,
+                        }),
+                        now,
+                    );
+                }
+            }
+            if (claimAll === true) {
+                appendExchangeHistoryLine(
+                    exchange,
+                    buildCurrencyExchangeClaimAllHistoryLine({ goldNet, diamondsNet }),
+                    now,
+                );
             }
 
             user.gold = Math.max(0, (user.gold ?? 0) + goldNet);

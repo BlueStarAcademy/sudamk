@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Melhoria de classificação do animal de estimação] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}} ou superior)",
           "soulGradeUpgradeGeneric": "[Aprimoramento de classificação de animal de estimação] Usado para aumentar a classificação de outros animais de estimação de IA na Fair Arena.",
           "eggHatchRandom": "[Animal de estimação · Incubatório] Coloque em um slot e crie um tipo aleatório de animal de estimação AI.",
-          "welcomeEggHatch": "[Animal de estimação · Incubatório] Colocado no slot - tempo de eclosão de 1 minuto, animal de estimação de IA de nível 5 quando chocado"
+          "welcomeEggHatch": "[Animal de estimação · Incubatório] Colocado no slot - tempo de eclosão de 1 minuto, animal de estimação de IA de nível 10 quando chocado"
         }
       },
       "enhanceRange": {

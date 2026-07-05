@@ -20,7 +20,6 @@ import BlacksmithLevelEffectsSummary from './blacksmith/BlacksmithLevelEffectsSu
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { isPairArenaExclusiveBagItem } from '../shared/constants/petLobby.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
-import { MIN_ACTION_FEEDBACK_MS } from '../shared/constants/uiFeedback.js';
 import { BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../shared/constants/blacksmithViewerTypography.js';
 
 const GRADE_ORDER: ItemGrade[] = [
@@ -425,14 +424,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         if (isBlacksmithBusyRef.current) return;
         isBlacksmithBusyRef.current = true;
         setIsBlacksmithBusy(true);
-        const startedAt = Date.now();
         try {
             await handlers.handleAction(action);
         } finally {
-            const elapsed = Date.now() - startedAt;
-            if (elapsed < MIN_ACTION_FEEDBACK_MS) {
-                await new Promise((resolve) => setTimeout(resolve, MIN_ACTION_FEEDBACK_MS - elapsed));
-            }
             isBlacksmithBusyRef.current = false;
             setIsBlacksmithBusy(false);
         }
@@ -900,10 +894,15 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                 </div>
     );
 
+    const equipmentPickerMode =
+        activeTab === 'enhance' || activeTab === 'combine' || activeTab === 'disassemble' || activeTab === 'refine'
+            ? activeTab
+            : 'enhance';
+
     const equipmentPickerModal = (
         <BlacksmithEquipmentPickerModal
             embedded={embedded && !useStackedBlacksmithLayout}
-            mode={activeTab}
+            mode={equipmentPickerMode}
             onClose={() => setEquipmentPickerOpen(false)}
             onConfirm={handlePickerConfirm}
             onPickSingleComplete={

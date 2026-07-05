@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[寵物等級提升] {{fromGrade}}→{{toGrade}}（寵物Lv.{{minLevel}}或更高）",
           "soulGradeUpgradeGeneric": "【寵物等級提升】用於提升公平競技場中其他AI寵物的等級。",
           "eggHatchRandom": "【寵物·孵化場】放入槽位，孵化成隨機類型的AI寵物。",
-          "welcomeEggHatch": "【寵物·孵化場】放置槽位－孵化時間1分鐘，孵化後AI寵物等級5級"
+          "welcomeEggHatch": "【寵物·孵化場】放置槽位－孵化時間1分鐘，孵化後AI寵物等級10級"
         }
       },
       "enhanceRange": {

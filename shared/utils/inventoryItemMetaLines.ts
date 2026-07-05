@@ -143,7 +143,7 @@ function resolveEggUsageMetaLines(name: string): InventoryMetaLine[] {
         return [line('usage.pet.eggHatchRandom', '[펫 · 부화장] 슬롯에 배치해 무작위 종류의 AI 펫으로 부화')];
     }
     if (name === PAIR_WELCOME_EGG_MATERIAL_NAME) {
-        return [line('usage.pet.welcomeEggHatch', '[펫 · 부화장] 슬롯에 배치 — 부화 시간 1분, 부화 시 레벨 5 AI 펫')];
+        return [line('usage.pet.welcomeEggHatch', '[펫 · 부화장] 슬롯에 배치 — 부화 시간 1분, 부화 시 레벨 10 AI 펫')];
     }
     return [];
 }

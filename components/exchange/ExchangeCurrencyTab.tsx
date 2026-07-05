@@ -1,49 +1,130 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import type { CurrencyExchangeOrder, CurrencyExchangeReceipt, InventoryItem, ServerAction, UserWithStatus } from '../../types.js';
+import type { CurrencyExchangeOrder, ServerAction, UserWithStatus } from '../../types.js';
 import type { HandleActionResult } from '../../types/api.js';
-import { ItemGrade } from '../../types/enums.js';
 import Button from '../Button.js';
+import DraggableWindow from '../DraggableWindow.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
-import ItemObtainedModal from '../ItemObtainedModal.js';
-import BulkItemObtainedModal from '../BulkItemObtainedModal.js';
 import { getApiUrl } from '../../utils/apiConfig.js';
-import { clampDigitsOnlyInputString, exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
+import { clampDigitsOnlyInputString, clampGameInt, exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
 import {
-    averageGoldPerDiamond,
     computeInstantDiamondsToGold,
     computeInstantGoldToDiamonds,
+    computeDesiredExchangeAmountFromMarketRate,
+    computeOrderUnitGoldPerDiamond,
+    getInstantDailyRemaining,
     instantGoldPerDiamondWhenBuyingDiamonds,
     instantGoldPerDiamondWhenSellingDiamonds,
+    resolveMarketDisplayGoldPerDiamond,
+    validateInstantExchangeDailyLimit,
 } from '../../shared/utils/currencyExchange.js';
+import {
+    CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_FROM_GOLD,
+    CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_SPENT,
+    CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_FROM_DIAMONDS,
+    CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_SPENT,
+    CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY,
+    CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL,
+    CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER,
+} from '../../shared/constants/currencyExchange.js';
 import { formatWalletCurrencyAmount, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
-import { CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER } from '../../shared/constants/currencyExchange.js';
 
 type SaleCurrency = 'gold' | 'diamonds';
 type InstantDirection = 'gold_to_diamonds' | 'diamonds_to_gold';
+type MarketListTab = InstantDirection;
+
+const GOLD_ICON = '/images/icon/Gold.webp';
+const DIAMOND_ICON = '/images/icon/Zem.webp';
 
 const BAG_SCROLLBAR_Y_CLASS =
     '[scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.3)_transparent] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/38 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/48';
 
-function createCurrencyObtainItem(currency: SaleCurrency, quantity: number, label: string): InventoryItem {
-    const now = Date.now();
-    const isGold = currency === 'gold';
-    return {
-        id: `currency-exchange-reward-${isGold ? 'gold' : 'diamonds'}-${now}-${Math.random().toString(36).slice(2, 9)}`,
-        name: label,
-        description: '',
-        type: 'consumable',
-        slot: null,
-        quantity: Math.max(0, quantity),
-        level: 1,
-        isEquipped: false,
-        createdAt: now,
-        image: isGold ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp',
-        grade: ItemGrade.Normal,
-        stars: 0,
-    };
+function formatCurrencyAmount(value: number, currency: SaleCurrency): string {
+    return currency === 'gold' ? formatWalletCurrencyAmount(value, 'gold') : formatWalletDiamonds(value);
 }
+
+const CurrencyIcon: React.FC<{ currency: SaleCurrency; className?: string }> = ({ currency, className }) => (
+    <img
+        src={currency === 'gold' ? GOLD_ICON : DIAMOND_ICON}
+        alt=""
+        className={className ?? 'h-4 w-4 shrink-0 object-contain'}
+    />
+);
+
+const CurrencyAmountDisplay: React.FC<{
+    amount: number;
+    currency: SaleCurrency;
+    className?: string;
+    amountClassName?: string;
+    iconClassName?: string;
+}> = ({ amount, currency, className, amountClassName, iconClassName }) => (
+    <span className={`inline-flex items-center gap-0.5 ${className ?? ''}`}>
+        <CurrencyIcon currency={currency} className={iconClassName} />
+        <span className={amountClassName ?? 'tabular-nums font-semibold'}>{formatCurrencyAmount(amount, currency)}</span>
+    </span>
+);
+
+const CurrencyArrowPair: React.FC<{
+    fromAmount: number;
+    fromCurrency: SaleCurrency;
+    toAmount: number;
+    toCurrency: SaleCurrency;
+    className?: string;
+    iconClassName?: string;
+    amountClassName?: string;
+}> = ({ fromAmount, fromCurrency, toAmount, toCurrency, className, iconClassName, amountClassName }) => (
+    <span className={`inline-flex flex-wrap items-center gap-1 ${className ?? ''}`}>
+        <CurrencyAmountDisplay
+            amount={fromAmount}
+            currency={fromCurrency}
+            iconClassName={iconClassName}
+            amountClassName={amountClassName}
+        />
+        <span className="text-slate-500">→</span>
+        <CurrencyAmountDisplay
+            amount={toAmount}
+            currency={toCurrency}
+            iconClassName={iconClassName}
+            amountClassName={amountClassName}
+        />
+    </span>
+);
+
+const SectionHeader: React.FC<{
+    title: string;
+    subtitle?: React.ReactNode;
+    action?: React.ReactNode;
+    accent?: 'cyan' | 'amber' | 'slate';
+    titleClassName?: string;
+    subtitleClassName?: string;
+}> = ({
+    title,
+    subtitle,
+    action,
+    accent = 'slate',
+    titleClassName = 'text-sm font-bold tracking-wide text-slate-50',
+    subtitleClassName = 'text-[11px] text-slate-400',
+}) => {
+    const accentBar =
+        accent === 'cyan'
+            ? 'from-cyan-400/80 to-blue-500/40'
+            : accent === 'amber'
+              ? 'from-amber-400/80 to-orange-500/40'
+              : 'from-slate-400/60 to-slate-600/30';
+    return (
+        <div className="mb-3 flex items-start justify-between gap-2">
+            <div className="min-w-0">
+                <div className="flex items-center gap-2">
+                    <span className={`h-4 w-0.5 shrink-0 rounded-full bg-gradient-to-b ${accentBar}`} aria-hidden />
+                    <h3 className={titleClassName}>{title}</h3>
+                </div>
+                {subtitle ? <div className={`mt-1 pl-2.5 ${subtitleClassName}`}>{subtitle}</div> : null}
+            </div>
+            {action ? <div className="shrink-0">{action}</div> : null}
+        </div>
+    );
+};
 
 export interface ExchangeCurrencyTabProps {
     currentUser: UserWithStatus;
@@ -65,26 +146,22 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
     const { t } = useTranslation('exchange');
     const { t: tCommon } = useTranslation('common');
 
+    const [marketListTab, setMarketListTab] = useState<MarketListTab>('gold_to_diamonds');
     const [instantDirection, setInstantDirection] = useState<InstantDirection>('gold_to_diamonds');
-    const [instantAmount, setInstantAmount] = useState('1000');
+    const [instantAmount, setInstantAmount] = useState('0');
     const [orderFromCurrency, setOrderFromCurrency] = useState<SaleCurrency>('gold');
-    const [orderFromAmount, setOrderFromAmount] = useState('10000');
-    const [orderToAmount, setOrderToAmount] = useState('90');
+    const [orderFromAmount, setOrderFromAmount] = useState('0');
+    const [orderToAmount, setOrderToAmount] = useState('0');
+    const [postOrderConfirmOpen, setPostOrderConfirmOpen] = useState(false);
     const [marketOrders, setMarketOrders] = useState<CurrencyExchangeOrder[]>([]);
     const [ordersLoaded, setOrdersLoaded] = useState(false);
     const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
-    const [selectedReceiptId, setSelectedReceiptId] = useState('');
-    const [obtainItems, setObtainItems] = useState<InventoryItem[] | null>(null);
 
     const myOrders = useMemo(
         () => (currentUser.exchangeState?.currencyOrders ?? []).filter((o) => o.posterId === currentUser.id),
         [currentUser.exchangeState?.currencyOrders, currentUser.id],
     );
     const myOpenOrders = useMemo(() => myOrders.filter((o) => o.status === 'open'), [myOrders]);
-    const myReceipts = useMemo(
-        () => (currentUser.exchangeState?.currencyReceipts ?? []).filter((r) => !r.claimed),
-        [currentUser.exchangeState?.currencyReceipts],
-    );
 
     const refreshMarketOrders = useCallback(async () => {
         setIsRefreshingOrders(true);
@@ -115,10 +192,63 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
         return { pay: diamondsSpent, payCurrency: 'diamonds' as const, receive: gold, receiveCurrency: 'gold' as const };
     }, [instantAmount, instantDirection]);
 
+    const instantDailyRemaining = useMemo(
+        () => getInstantDailyRemaining(currentUser.exchangeState?.instantDaily, Date.now()),
+        [currentUser.exchangeState?.instantDaily],
+    );
+
+    const instantInputMax = useMemo(() => {
+        const listCap = maxExchangeListPrice(instantDirection === 'gold_to_diamonds' ? 'gold' : 'diamonds');
+        if (instantDirection === 'gold_to_diamonds') {
+            return Math.min(listCap, walletGold, instantDailyRemaining.maxGoldInput);
+        }
+        return Math.min(listCap, walletDiamonds, instantDailyRemaining.maxDiamondsInput);
+    }, [instantDirection, walletGold, walletDiamonds, instantDailyRemaining.maxGoldInput, instantDailyRemaining.maxDiamondsInput]);
+
+    const instantDailyUsed = useMemo(() => {
+        const usage = instantDailyRemaining.usage;
+        if (instantDirection === 'gold_to_diamonds') {
+            const diamondsReceived = Math.floor(usage.goldSpent / instantGoldPerDiamondWhenBuyingDiamonds());
+            return {
+                payUsed: usage.goldSpent,
+                payMax: CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_SPENT,
+                payCurrency: 'gold' as const,
+                receiveUsed: diamondsReceived,
+                receiveMax: CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_FROM_GOLD,
+                receiveCurrency: 'diamonds' as const,
+            };
+        }
+        const goldReceived = usage.diamondsSpent * instantGoldPerDiamondWhenSellingDiamonds();
+        return {
+            payUsed: usage.diamondsSpent,
+            payMax: CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_SPENT,
+            payCurrency: 'diamonds' as const,
+            receiveUsed: goldReceived,
+            receiveMax: CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_FROM_DIAMONDS,
+            receiveCurrency: 'gold' as const,
+        };
+    }, [instantDailyRemaining.usage, instantDirection]);
+
     const orderToCurrency: SaleCurrency = orderFromCurrency === 'gold' ? 'diamonds' : 'gold';
 
-    const formatCurrency = (value: number, currency: SaleCurrency) =>
-        currency === 'gold' ? formatWalletCurrencyAmount(value, 'gold') : formatWalletDiamonds(value);
+    const orderInstantGoldPerDiamond =
+        orderFromCurrency === 'gold'
+            ? CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY
+            : CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL;
+
+    const orderMarketRate = useMemo(
+        () => resolveMarketDisplayGoldPerDiamond(marketOrders, orderFromCurrency),
+        [marketOrders, orderFromCurrency],
+    );
+
+    const orderFromParsed = useMemo(() => Math.max(0, Math.floor(Number(orderFromAmount) || 0)), [orderFromAmount]);
+    const orderToParsed = useMemo(() => Math.max(0, Math.floor(Number(orderToAmount) || 0)), [orderToAmount]);
+    const orderRegistrationFee = useMemo(
+        () => exchangeListingFeeFromPrice(clampGameInt(orderFromParsed, { min: 0 })),
+        [orderFromParsed],
+    );
+
+    const myOpenOrder = myOpenOrders[0] ?? null;
 
     const runAction = async (action: ServerAction): Promise<boolean> => {
         const result = await onAction?.(action);
@@ -127,6 +257,19 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
             return false;
         }
         return true;
+    };
+
+    const handleInstantDirectionChange = (direction: InstantDirection) => {
+        setInstantDirection(direction);
+        setInstantAmount('0');
+    };
+
+    const handleInstantAmountChange = (raw: string) => {
+        setInstantAmount(
+            clampDigitsOnlyInputString(raw, {
+                max: instantInputMax,
+            }),
+        );
     };
 
     const handleInstantExchange = async () => {
@@ -147,6 +290,18 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
             window.alert(t('alerts.insufficientDiamonds'));
             return;
         }
+        const dailyError = validateInstantExchangeDailyLimit(
+            instantDirection,
+            currentUser.exchangeState?.instantDaily,
+            instantPreview.payCurrency === 'gold' ? instantPreview.pay : 0,
+            instantPreview.payCurrency === 'diamonds' ? instantPreview.pay : 0,
+            instantPreview.receiveCurrency === 'diamonds' ? instantPreview.receive : 0,
+            instantPreview.receiveCurrency === 'gold' ? instantPreview.receive : 0,
+        );
+        if (dailyError) {
+            window.alert(dailyError);
+            return;
+        }
         const ok = await runAction({
             type: 'INSTANT_CURRENCY_EXCHANGE',
             payload: { direction: instantDirection, amount },
@@ -154,9 +309,46 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
         if (ok) void refreshMarketOrders();
     };
 
-    const handlePostOrder = async () => {
-        const from = Math.max(0, Math.floor(Number(orderFromAmount) || 0));
-        const to = Math.max(0, Math.floor(Number(orderToAmount) || 0));
+    const handleOrderFromCurrencyChange = (currency: SaleCurrency) => {
+        setOrderFromCurrency(currency);
+        setOrderFromAmount('0');
+        setOrderToAmount('0');
+    };
+
+    const computeOrderToAmountString = useCallback(
+        (fromRaw: string): string => {
+            const from = Math.max(0, Math.floor(Number(fromRaw) || 0));
+            if (from <= 0) return '0';
+            const computed = computeDesiredExchangeAmountFromMarketRate(
+                orderFromCurrency,
+                from,
+                orderMarketRate.goldPerDiamond,
+            );
+            const capped = Math.min(computed, maxExchangeListPrice(orderToCurrency));
+            return String(capped);
+        },
+        [orderFromCurrency, orderMarketRate.goldPerDiamond, orderToCurrency],
+    );
+
+    const handleOrderFromAmountChange = (raw: string) => {
+        const clamped = clampDigitsOnlyInputString(raw, {
+            max: maxExchangeListPrice(orderFromCurrency),
+        });
+        setOrderFromAmount(clamped);
+        setOrderToAmount(computeOrderToAmountString(clamped));
+    };
+
+    const handleOrderToAmountChange = (raw: string) => {
+        setOrderToAmount(
+            clampDigitsOnlyInputString(raw, {
+                max: maxExchangeListPrice(orderToCurrency),
+            }),
+        );
+    };
+
+    const handlePostOrderClick = () => {
+        const from = orderFromParsed;
+        const to = orderToParsed;
         if (from <= 0 || to <= 0) {
             window.alert(t('currency.alerts.invalidAmount'));
             return;
@@ -173,11 +365,22 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
             window.alert(t('alerts.insufficientDiamonds'));
             return;
         }
+        setPostOrderConfirmOpen(true);
+    };
+
+    const handlePostOrderConfirm = async () => {
+        const from = orderFromParsed;
+        const to = orderToParsed;
+        setPostOrderConfirmOpen(false);
         const ok = await runAction({
             type: 'POST_CURRENCY_EXCHANGE_ORDER',
             payload: { fromCurrency: orderFromCurrency, fromAmount: from, toAmount: to },
         });
-        if (ok) void refreshMarketOrders();
+        if (ok) {
+            setOrderFromAmount('0');
+            setOrderToAmount('0');
+            void refreshMarketOrders();
+        }
     };
 
     const handleFulfillOrder = async (order: CurrencyExchangeOrder) => {
@@ -205,338 +408,679 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
         if (ok) void refreshMarketOrders();
     };
 
-    const handleClaimReceipt = async (orderId: string) => {
-        const receipt = myReceipts.find((r) => r.orderId === orderId);
-        if (!receipt) return;
-        const fee = exchangeListingFeeFromPrice(receipt.amount);
-        const net = Math.max(0, receipt.amount - fee);
-        const result = await onAction?.({ type: 'CLAIM_CURRENCY_EXCHANGE_RECEIPT', payload: { orderId } });
-        if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
-            window.alert(String((result as { error: string }).error));
-            return;
+    const visibleMarketOrders = useMemo(() => {
+        const merged = new Map<string, CurrencyExchangeOrder>();
+        for (const order of marketOrders) {
+            if (order.status === 'open') merged.set(order.id, order);
         }
-        const cr = (
-            result as
-                | { clientResponse?: { currencyExchangeClaimedGold?: number; currencyExchangeClaimedDiamonds?: number } }
-                | undefined
-        )?.clientResponse;
-        const g = Math.max(0, Math.floor(Number(cr?.currencyExchangeClaimedGold ?? 0)));
-        const d = Math.max(0, Math.floor(Number(cr?.currencyExchangeClaimedDiamonds ?? 0)));
-        const items: InventoryItem[] = [];
-        if (g > 0) items.push(createCurrencyObtainItem('gold', g, tCommon('resources.gold')));
-        if (d > 0) items.push(createCurrencyObtainItem('diamonds', d, tCommon('resources.diamonds')));
-        if (items.length === 0 && net > 0) {
-            items.push(
-                createCurrencyObtainItem(
-                    receipt.currency,
-                    net,
-                    receipt.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds'),
-                ),
-            );
+        for (const order of myOpenOrders) {
+            merged.set(order.id, order);
         }
-        if (items.length > 0) setObtainItems(items);
-        if (selectedReceiptId === orderId) setSelectedReceiptId('');
-    };
+        return Array.from(merged.values()).sort((a, b) => Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0));
+    }, [marketOrders, myOpenOrders]);
 
-    const handleClaimAllReceipts = async () => {
-        if (myReceipts.length === 0) return;
-        const result = await onAction?.({ type: 'CLAIM_CURRENCY_EXCHANGE_RECEIPT', payload: { claimAll: true } });
-        if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
-            window.alert(String((result as { error: string }).error));
-            return;
-        }
-        const cr = (
-            result as
-                | { clientResponse?: { currencyExchangeClaimedGold?: number; currencyExchangeClaimedDiamonds?: number } }
-                | undefined
-        )?.clientResponse;
-        const g = Math.max(0, Math.floor(Number(cr?.currencyExchangeClaimedGold ?? 0)));
-        const d = Math.max(0, Math.floor(Number(cr?.currencyExchangeClaimedDiamonds ?? 0)));
-        const items: InventoryItem[] = [];
-        if (g > 0) items.push(createCurrencyObtainItem('gold', g, tCommon('resources.gold')));
-        if (d > 0) items.push(createCurrencyObtainItem('diamonds', d, tCommon('resources.diamonds')));
-        if (items.length > 0) setObtainItems(items);
-        setSelectedReceiptId('');
-    };
-
-    const visibleMarketOrders = useMemo(
-        () => marketOrders.filter((o) => o.status === 'open' && o.posterId !== currentUser.id),
-        [marketOrders, currentUser.id],
+    const filteredMarketOrders = useMemo(
+        () =>
+            visibleMarketOrders.filter((o) =>
+                marketListTab === 'gold_to_diamonds' ? o.fromCurrency === 'gold' : o.fromCurrency === 'diamonds',
+            ),
+        [visibleMarketOrders, marketListTab],
     );
 
-    const selectedReceipt: CurrencyExchangeReceipt | null =
-        myReceipts.find((r) => r.orderId === selectedReceiptId) ?? myReceipts[0] ?? null;
+    const marketTabCounts = useMemo(
+        () => ({
+            goldToDiamonds: visibleMarketOrders.filter((o) => o.fromCurrency === 'gold').length,
+            diamondsToGold: visibleMarketOrders.filter((o) => o.fromCurrency === 'diamonds').length,
+        }),
+        [visibleMarketOrders],
+    );
 
-    const sectionTitleClass = mobileExchange ? 'text-xs font-bold text-slate-100' : 'text-sm font-bold text-slate-100';
-    const panelClass = `rounded-lg border border-slate-700/60 bg-slate-900/40 ${mobileExchange ? 'p-2' : 'p-3'}`;
-    const inputClass =
-        'w-full rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-xs font-semibold text-slate-100 tabular-nums';
+    const listPanelClass = `relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-slate-600/45 bg-gradient-to-br from-slate-800/75 via-slate-900/90 to-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${mobileExchange ? 'p-3' : 'p-4'}`;
+    const sidePanelClass = `relative overflow-hidden rounded-xl border border-slate-600/45 bg-gradient-to-br from-slate-800/80 via-slate-900/92 to-slate-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${mobileExchange ? 'p-3' : 'p-4'}`;
+    const instantPanelClass = `relative overflow-hidden rounded-xl border border-cyan-400/30 bg-gradient-to-br from-cyan-950/50 via-slate-900/95 to-indigo-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_0_48px_-16px_rgba(34,211,238,0.2)] ${mobileExchange ? 'p-3' : 'p-4'}`;
+    /** 환전 화면 타이포 — 모바일·데스크톱 공통 가독성 스케일 */
+    const exchTy = {
+        sectionTitle: mobileExchange ? 'text-sm font-bold tracking-wide text-slate-50' : 'text-base font-bold tracking-wide text-slate-50',
+        subLabel: mobileExchange ? 'text-xs font-semibold text-slate-400' : 'text-sm font-semibold text-slate-400',
+        metaLabel: mobileExchange ? 'text-xs font-semibold uppercase tracking-wide text-slate-500' : 'text-sm font-semibold uppercase tracking-wide text-slate-500',
+        label: mobileExchange ? 'text-xs font-semibold text-slate-300' : 'text-sm font-semibold text-slate-300',
+        body: mobileExchange ? 'text-xs text-slate-400' : 'text-sm text-slate-400',
+        amount: mobileExchange ? 'text-sm font-bold' : 'text-base font-bold',
+        amountSm: mobileExchange ? 'text-xs font-semibold' : 'text-sm font-semibold',
+        tableHeader: mobileExchange ? 'text-xs font-semibold leading-snug' : 'text-sm font-semibold',
+        tableCell: mobileExchange ? 'text-xs leading-snug' : 'text-sm',
+    };
+    const inputClass = mobileExchange
+        ? 'w-full rounded-lg border border-slate-500/40 bg-slate-950/70 px-3 py-2.5 text-base font-semibold text-slate-50 tabular-nums shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20'
+        : 'w-full rounded-lg border border-slate-500/40 bg-slate-950/70 px-3 py-2.5 text-lg font-semibold text-slate-50 tabular-nums shadow-[inset_0_2px_6px_rgba(0,0,0,0.35)] outline-none transition focus:border-cyan-400/50 focus:ring-2 focus:ring-cyan-400/20';
+    const directionBtnBase = mobileExchange
+        ? 'relative flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-xs font-bold transition-all duration-200'
+        : 'relative flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-2.5 text-sm font-bold transition-all duration-200';
+    const directionBtnActive =
+        'border-cyan-300/55 bg-gradient-to-b from-cyan-500/25 via-cyan-900/40 to-slate-950 text-cyan-50 shadow-[0_0_24px_-8px_rgba(34,211,238,0.45),inset_0_1px_0_rgba(255,255,255,0.12)]';
+    const directionBtnIdle =
+        'border-slate-600/50 bg-slate-950/40 text-slate-400 hover:border-slate-500/70 hover:text-slate-200';
+    const instantCtaClass = mobileExchange
+        ? '!w-full !rounded-lg !border !border-cyan-400/20 !bg-gradient-to-b !from-cyan-500/90 !via-cyan-600/85 !to-cyan-950 !py-2.5 !text-sm !font-bold !text-white !shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition hover:!brightness-110 active:scale-[0.99]'
+        : '!w-full !rounded-lg !border !border-cyan-400/20 !bg-gradient-to-b !from-cyan-500/90 !via-cyan-600/85 !to-cyan-950 !py-2.5 !text-base !font-bold !text-white !shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition hover:!brightness-110 active:scale-[0.99]';
+    const marketOrderListCols = mobileExchange
+        ? 'grid-cols-[minmax(4.5rem,auto)_minmax(3.25rem,1fr)_minmax(3.75rem,1fr)_minmax(3.75rem,1fr)_3.75rem] gap-1'
+        : 'grid-cols-[minmax(4.75rem,auto)_minmax(4.5rem,1fr)_minmax(5.5rem,1fr)_minmax(5.5rem,1fr)_5.5rem] gap-2';
+    const myListingBadgeClass = mobileExchange
+        ? 'shrink-0 rounded-full border border-violet-400/60 bg-violet-950/95 px-0.5 py-px text-[8px] font-bold leading-tight text-violet-100 shadow-md ring-1 ring-black/20'
+        : 'shrink-0 rounded-full border border-violet-400/60 bg-violet-950/95 px-1 py-px text-[10px] font-bold leading-tight text-violet-100 shadow-md ring-1 ring-black/20';
+    const marketOrderListHeaderText = exchTy.tableHeader;
+    const marketOrderListCellText = exchTy.tableCell;
+    const marketOrderListActionBase = mobileExchange
+        ? '!mx-0 !min-h-0 !w-full !rounded-md !border !px-1 !py-1.5 !text-xs !font-bold !tracking-wide !shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-all duration-200 hover:!brightness-110 active:scale-[0.97]'
+        : '!mx-0 !min-h-0 !w-full !rounded-md !border !px-1 !py-1.5 !text-sm !font-bold !tracking-wide !shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] transition-all duration-200 hover:!brightness-110 active:scale-[0.97]';
+    const marketOrderBuyBtnClass = `${marketOrderListActionBase} !border-amber-300/50 !bg-gradient-to-b !from-amber-300/95 !via-amber-500/92 !to-orange-700/95 !text-amber-950 !shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_0_20px_-8px_rgba(251,191,36,0.55)] hover:!border-amber-200/70`;
+    const marketOrderCancelBtnClass = `${marketOrderListActionBase} !border-rose-400/35 !bg-gradient-to-b !from-rose-800/90 !via-rose-950/95 !to-slate-950/95 !text-rose-50 !shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_20px_-10px_rgba(244,63,94,0.45)] hover:!border-rose-300/55`;
+    const cancelOrderBtnClass = mobileExchange
+        ? '!mx-0 !w-full !max-w-[9.5rem] !min-h-0 !rounded-lg !border !border-rose-400/30 !bg-gradient-to-b !from-rose-950/70 !via-slate-950/90 !to-rose-950/80 !px-3 !py-1.5 !text-xs !font-bold !tracking-wide !text-rose-100 !shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_-12px_rgba(244,63,94,0.45)] transition hover:!border-rose-300/45 hover:!brightness-110 active:scale-[0.98]'
+        : '!mx-0 !w-full !max-w-[9.5rem] !min-h-0 !rounded-lg !border !border-rose-400/30 !bg-gradient-to-b !from-rose-950/70 !via-slate-950/90 !to-rose-950/80 !px-3 !py-1.5 !text-sm !font-bold !tracking-wide !text-rose-100 !shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_-12px_rgba(244,63,94,0.45)] transition hover:!border-rose-300/45 hover:!brightness-110 active:scale-[0.98]';
+
+    const instantInputCurrency: SaleCurrency = instantDirection === 'gold_to_diamonds' ? 'gold' : 'diamonds';
 
     return (
         <>
-            {obtainItems && obtainItems.length === 1 ? (
-                <ItemObtainedModal items={obtainItems} onClose={() => setObtainItems(null)} />
-            ) : null}
-            {obtainItems && obtainItems.length > 1 ? (
-                <BulkItemObtainedModal items={obtainItems} onClose={() => setObtainItems(null)} />
+            {postOrderConfirmOpen ? (
+                <DraggableWindow
+                    title={t('currency.postOrderConfirmTitle')}
+                    windowId="currency-post-order-confirm"
+                    onClose={() => setPostOrderConfirmOpen(false)}
+                    initialWidth={420}
+                    modal
+                    closeOnOutsideClick
+                    isTopmost
+                    hideFooter
+                >
+                    <div className="space-y-4 p-4">
+                        <div className="space-y-2.5 rounded-xl border border-slate-600/45 bg-slate-950/60 p-3">
+                            <div className={`flex items-center justify-between gap-2 ${mobileExchange ? 'text-sm' : 'text-base'}`}>
+                                <span className="font-semibold text-slate-400">{t('currency.offerAmount')}</span>
+                                <CurrencyAmountDisplay
+                                    amount={orderFromParsed}
+                                    currency={orderFromCurrency}
+                                    iconClassName="h-5 w-5"
+                                    amountClassName={`${exchTy.amount} text-slate-100`}
+                                />
+                            </div>
+                            <div className={`flex items-center justify-between gap-2 ${mobileExchange ? 'text-sm' : 'text-base'}`}>
+                                <span className="font-semibold text-slate-400">{t('currency.feePercent')}</span>
+                                <CurrencyAmountDisplay
+                                    amount={orderRegistrationFee}
+                                    currency={orderFromCurrency}
+                                    iconClassName="h-5 w-5"
+                                    amountClassName={`${exchTy.amount} text-rose-300/90`}
+                                />
+                            </div>
+                            <div className={`flex items-center justify-between gap-2 border-t border-white/[0.06] pt-2.5 ${mobileExchange ? 'text-sm' : 'text-base'}`}>
+                                <span className="font-semibold text-slate-400">{t('currency.requestAmount')}</span>
+                                <CurrencyAmountDisplay
+                                    amount={orderToParsed}
+                                    currency={orderToCurrency}
+                                    iconClassName="h-5 w-5"
+                                    amountClassName={`${exchTy.amount} text-cyan-100`}
+                                />
+                            </div>
+                        </div>
+                        <div className="flex gap-2">
+                            <Button
+                                onClick={() => setPostOrderConfirmOpen(false)}
+                                colorScheme="gray"
+                                className="flex-1 !rounded-lg"
+                            >
+                                {tCommon('actions.cancel')}
+                            </Button>
+                            <Button
+                                onClick={() => void handlePostOrderConfirm()}
+                                className={`${primaryButtonClass} flex-1 !rounded-lg`}
+                            >
+                                {t('currency.postOrder')}
+                            </Button>
+                        </div>
+                    </div>
+                </DraggableWindow>
             ) : null}
 
             <div
-                className={`flex h-full min-h-0 flex-col gap-2 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS} ${mobileExchange ? '' : 'gap-3 lg:grid lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:overflow-hidden'}`}
+                className={`flex h-full min-h-0 flex-col gap-2 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS} ${mobileExchange ? '' : 'gap-3 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:overflow-hidden'}`}
             >
-                <div className={`flex min-h-0 flex-col gap-2 ${mobileExchange ? '' : 'lg:overflow-y-auto lg:pr-1'}`}>
-                    <div className={panelClass}>
-                        <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                            <h3 className={sectionTitleClass}>{t('currency.instantTitle')}</h3>
-                            <p className="text-[11px] text-slate-400">
-                                {t('currency.marketRateHint', { rate: averageGoldPerDiamond() })}
-                            </p>
-                        </div>
-                        <div className="mb-2 grid grid-cols-2 gap-1.5">
-                            <button
-                                type="button"
-                                onClick={() => setInstantDirection('gold_to_diamonds')}
-                                className={`rounded border px-2 py-1.5 text-[11px] font-bold ${
-                                    instantDirection === 'gold_to_diamonds'
-                                        ? 'border-cyan-400/70 bg-cyan-900/30 text-cyan-100'
-                                        : 'border-slate-600 bg-slate-800/80 text-slate-300'
-                                }`}
-                            >
-                                {t('currency.goldToDiamonds')}
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => setInstantDirection('diamonds_to_gold')}
-                                className={`rounded border px-2 py-1.5 text-[11px] font-bold ${
-                                    instantDirection === 'diamonds_to_gold'
-                                        ? 'border-cyan-400/70 bg-cyan-900/30 text-cyan-100'
-                                        : 'border-slate-600 bg-slate-800/80 text-slate-300'
-                                }`}
-                            >
-                                {t('currency.diamondsToGold')}
-                            </button>
-                        </div>
-                        <label className="mb-1 block text-[11px] font-semibold text-slate-300">
-                            {instantDirection === 'gold_to_diamonds'
-                                ? t('currency.inputGoldAmount')
-                                : t('currency.inputDiamondAmount')}
-                        </label>
-                        <input
-                            className={inputClass}
-                            value={instantAmount}
-                            onChange={(e) =>
-                                setInstantAmount(
-                                    clampDigitsOnlyInputString(e.target.value, {
-                                        max: maxExchangeListPrice(instantDirection === 'gold_to_diamonds' ? 'gold' : 'diamonds'),
-                                    }),
-                                )
+                {/* 좌측: 환전 요청 목록 */}
+                <div className={`flex h-full min-h-0 flex-col ${mobileExchange ? '' : 'lg:overflow-hidden lg:pr-1'}`}>
+                    <div className={`${listPanelClass} h-full`}>
+                        <SectionHeader
+                            title={t('currency.marketOrders')}
+                            accent="slate"
+                            titleClassName={exchTy.sectionTitle}
+                            action={
+                                <ResourceActionButton
+                                    variant="neutral"
+                                    onClick={() => void refreshMarketOrders()}
+                                    disabled={isRefreshingOrders}
+                                    className={`!min-h-0 !rounded-lg !border-slate-500/50 !px-2.5 !py-1 ${mobileExchange ? '!text-xs' : '!text-sm'}`}
+                                >
+                                    {t('labels.refresh')}
+                                </ResourceActionButton>
                             }
-                            inputMode="numeric"
                         />
-                        <div className="mt-2 space-y-1 rounded border border-slate-700/60 bg-slate-950/50 px-2 py-1.5 text-[11px] text-slate-300">
-                            <p>
-                                {t('currency.instantRate')}:{' '}
-                                {instantDirection === 'gold_to_diamonds'
-                                    ? t('currency.goldPerDiamondRate', { rate: instantGoldPerDiamondWhenBuyingDiamonds() })
-                                    : t('currency.goldPerDiamondReceiveRate', { rate: instantGoldPerDiamondWhenSellingDiamonds() })}
-                            </p>
-                            <p className="font-semibold text-amber-100">
-                                {t('currency.pay')}: {formatCurrency(instantPreview.pay, instantPreview.payCurrency)}{' '}
-                                {instantPreview.payCurrency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
-                            </p>
-                            <p className="font-semibold text-cyan-100">
-                                {t('currency.receive')}: {formatCurrency(instantPreview.receive, instantPreview.receiveCurrency)}{' '}
-                                {instantPreview.receiveCurrency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
-                            </p>
-                        </div>
-                        <Button onClick={() => void handleInstantExchange()} className={`${primaryButtonClass} mt-2 !w-full`}>
-                            {t('currency.instantExchange')}
-                        </Button>
-                    </div>
-
-                    <div className={panelClass}>
-                        <h3 className={`${sectionTitleClass} mb-2`}>{t('currency.postOrderTitle')}</h3>
-                        <div className="mb-2 grid grid-cols-2 gap-1.5">
+                        <div className="mb-3 flex gap-1.5 rounded-xl border border-white/[0.05] bg-black/20 p-1">
                             <button
                                 type="button"
-                                onClick={() => setOrderFromCurrency('gold')}
-                                className={`rounded border px-2 py-1.5 text-[11px] font-bold ${
-                                    orderFromCurrency === 'gold'
-                                        ? 'border-amber-400/70 bg-amber-900/25 text-amber-100'
-                                        : 'border-slate-600 bg-slate-800/80 text-slate-300'
+                                onClick={() => setMarketListTab('gold_to_diamonds')}
+                                aria-label={t('currency.marketTabBuyGold')}
+                                className={`${directionBtnBase} ${
+                                    marketListTab === 'gold_to_diamonds'
+                                        ? 'border-amber-400/50 bg-gradient-to-b from-amber-500/20 via-amber-900/35 to-slate-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+                                        : directionBtnIdle
                                 }`}
                             >
-                                {t('currency.offerGold')}
+                                <CurrencyIcon currency="gold" className="h-4 w-4" />
+                                <span>{t('currency.marketTabBuyGold')}</span>
+                                {marketTabCounts.goldToDiamonds > 0 ? (
+                                    <span className={`ml-0.5 min-w-[1.125rem] rounded-full bg-black/40 px-1 text-xs font-bold tabular-nums text-slate-200`}>
+                                        {marketTabCounts.goldToDiamonds}
+                                    </span>
+                                ) : null}
                             </button>
                             <button
                                 type="button"
-                                onClick={() => setOrderFromCurrency('diamonds')}
-                                className={`rounded border px-2 py-1.5 text-[11px] font-bold ${
-                                    orderFromCurrency === 'diamonds'
-                                        ? 'border-violet-400/70 bg-violet-900/25 text-violet-100'
-                                        : 'border-slate-600 bg-slate-800/80 text-slate-300'
+                                onClick={() => setMarketListTab('diamonds_to_gold')}
+                                aria-label={t('currency.marketTabBuyDiamonds')}
+                                className={`${directionBtnBase} ${
+                                    marketListTab === 'diamonds_to_gold'
+                                        ? 'border-violet-400/50 bg-gradient-to-b from-violet-500/20 via-violet-900/35 to-slate-950 text-violet-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+                                        : directionBtnIdle
                                 }`}
                             >
-                                {t('currency.offerDiamonds')}
+                                <CurrencyIcon currency="diamonds" className="h-4 w-4" />
+                                <span>{t('currency.marketTabBuyDiamonds')}</span>
+                                {marketTabCounts.diamondsToGold > 0 ? (
+                                    <span className={`ml-0.5 min-w-[1.125rem] rounded-full bg-black/40 px-1 text-xs font-bold tabular-nums text-slate-200`}>
+                                        {marketTabCounts.diamondsToGold}
+                                    </span>
+                                ) : null}
                             </button>
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                            <div>
-                                <label className="mb-1 block text-[11px] font-semibold text-slate-300">{t('currency.offerAmount')}</label>
-                                <input
-                                    className={inputClass}
-                                    value={orderFromAmount}
-                                    onChange={(e) =>
-                                        setOrderFromAmount(
-                                            clampDigitsOnlyInputString(e.target.value, { max: maxExchangeListPrice(orderFromCurrency) }),
-                                        )
-                                    }
-                                    inputMode="numeric"
-                                />
-                            </div>
-                            <div>
-                                <label className="mb-1 block text-[11px] font-semibold text-slate-300">{t('currency.requestAmount')}</label>
-                                <input
-                                    className={inputClass}
-                                    value={orderToAmount}
-                                    onChange={(e) =>
-                                        setOrderToAmount(
-                                            clampDigitsOnlyInputString(e.target.value, { max: maxExchangeListPrice(orderToCurrency) }),
-                                        )
-                                    }
-                                    inputMode="numeric"
-                                />
-                            </div>
-                        </div>
-                        <p className="mt-2 text-[11px] text-slate-400">{t('currency.postOrderHint')}</p>
-                        <Button onClick={() => void handlePostOrder()} className={`${primaryButtonClass} mt-2 !w-full`}>
-                            {t('currency.postOrder')}
-                        </Button>
-                    </div>
-
-                    {myOpenOrders.length > 0 ? (
-                        <div className={panelClass}>
-                            <h3 className={`${sectionTitleClass} mb-2`}>{t('currency.myOpenOrders')}</h3>
-                            <div className="space-y-1.5">
-                                {myOpenOrders.map((order) => (
-                                    <div
-                                        key={order.id}
-                                        className="flex flex-wrap items-center justify-between gap-2 rounded border border-slate-700/60 bg-slate-950/40 px-2 py-1.5 text-[11px]"
-                                    >
-                                        <span className="font-semibold text-slate-200">
-                                            {formatCurrency(order.fromAmount, order.fromCurrency)} →{' '}
-                                            {formatCurrency(order.toAmount, order.toCurrency)}
-                                        </span>
-                                        <Button
-                                            onClick={() => void handleCancelOrder(order.id)}
-                                            className="!mx-0 !min-h-0 !px-2 !py-1 !text-[10px]"
-                                        >
-                                            {t('currency.cancelOrder')}
-                                        </Button>
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    ) : null}
-                </div>
-
-                <div className={`flex min-h-0 flex-col gap-2 ${mobileExchange ? '' : 'lg:overflow-hidden'}`}>
-                    <div className={`${panelClass} flex min-h-0 flex-1 flex-col`}>
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                            <h3 className={sectionTitleClass}>{t('currency.marketOrders')}</h3>
-                            <ResourceActionButton
-                                variant="neutral"
-                                onClick={() => void refreshMarketOrders()}
-                                disabled={isRefreshingOrders}
-                                className="!min-h-0 !px-2 !py-1 !text-[10px]"
-                            >
-                                {t('labels.refresh')}
-                            </ResourceActionButton>
-                        </div>
-                        <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
+                        <div className={`min-h-[12rem] flex-1 overflow-y-auto pr-0.5 ${BAG_SCROLLBAR_Y_CLASS} lg:min-h-0`}>
                             {!ordersLoaded ? (
-                                <p className="py-6 text-center text-xs text-slate-400">{t('loading.wait')}</p>
-                            ) : visibleMarketOrders.length === 0 ? (
-                                <p className="py-6 text-center text-xs text-slate-400">{t('currency.noMarketOrders')}</p>
-                            ) : (
-                                <div className="space-y-1.5">
-                                    {visibleMarketOrders.map((order) => (
-                                        <div
-                                            key={order.id}
-                                            className="rounded border border-slate-700/60 bg-slate-950/40 px-2 py-2 text-[11px]"
-                                        >
-                                            <p className="mb-1 font-semibold text-slate-200">{order.posterNickname}</p>
-                                            <p className="mb-2 text-slate-300">
-                                                {t('currency.offerLabel')}: {formatCurrency(order.fromAmount, order.fromCurrency)}{' '}
-                                                {order.fromCurrency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
-                                                <br />
-                                                {t('currency.requestLabel')}: {formatCurrency(order.toAmount, order.toCurrency)}{' '}
-                                                {order.toCurrency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds')}
-                                            </p>
-                                            <Button
-                                                onClick={() => void handleFulfillOrder(order)}
-                                                className={`${primaryButtonClass} !w-full !text-[11px]`}
-                                            >
-                                                {t('currency.fulfillOrder')}
-                                            </Button>
-                                        </div>
-                                    ))}
+                                <p className={`py-10 text-center ${exchTy.body}`}>{t('loading.wait')}</p>
+                            ) : filteredMarketOrders.length === 0 ? (
+                                <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
+                                    <div className="flex items-center gap-2 opacity-40">
+                                        {marketListTab === 'gold_to_diamonds' ? (
+                                            <>
+                                                <CurrencyIcon currency="gold" className="h-8 w-8" />
+                                                <span className="text-slate-500">→</span>
+                                                <CurrencyIcon currency="diamonds" className="h-8 w-8" />
+                                            </>
+                                        ) : (
+                                            <>
+                                                <CurrencyIcon currency="diamonds" className="h-8 w-8" />
+                                                <span className="text-slate-500">→</span>
+                                                <CurrencyIcon currency="gold" className="h-8 w-8" />
+                                            </>
+                                        )}
+                                    </div>
+                                    <p className={exchTy.body}>
+                                        {visibleMarketOrders.length === 0
+                                            ? t('currency.noMarketOrders')
+                                            : marketListTab === 'gold_to_diamonds'
+                                              ? t('currency.noMarketOrdersGoldToDiamonds')
+                                              : t('currency.noMarketOrdersDiamondsToGold')}
+                                    </p>
                                 </div>
+                            ) : (
+                                <>
+                                    <div
+                                        className={`sticky top-0 z-10 mb-2 grid rounded border border-slate-600/70 bg-slate-900/95 text-slate-300 backdrop-blur-sm ${marketOrderListCols} ${mobileExchange ? 'px-1.5 py-1' : 'px-2 py-1.5'} ${marketOrderListHeaderText}`}
+                                    >
+                                        <div className="text-center" aria-hidden />
+                                        <div className="text-center">{t('currency.marketListColQuantity')}</div>
+                                        <div className="text-center">{t('currency.marketListColUnitPrice')}</div>
+                                        <div className="text-center">{t('currency.marketListColPrice')}</div>
+                                        <div className="text-center">{t('currency.marketListColAction')}</div>
+                                    </div>
+                                    <div className={mobileExchange ? 'space-y-1.5' : 'space-y-2'}>
+                                        {filteredMarketOrders.map((order) => {
+                                            const isOwnOrder = order.posterId === currentUser.id;
+                                            const unitGoldPerDiamond = computeOrderUnitGoldPerDiamond(order);
+                                            return (
+                                                <div
+                                                    key={order.id}
+                                                    className={`grid w-full min-w-0 items-center rounded-lg border border-slate-700/60 bg-slate-900/50 ${marketOrderListCols} ${mobileExchange ? 'px-1.5 py-1.5' : 'px-2 py-2'}`}
+                                                >
+                                                    <div className="flex items-center justify-center gap-0.5">
+                                                        <div
+                                                            className={`flex shrink-0 items-center justify-center rounded bg-black/25 ${mobileExchange ? 'h-9 w-9' : 'h-10 w-10'}`}
+                                                        >
+                                                            <CurrencyIcon
+                                                                currency={order.fromCurrency}
+                                                                className={mobileExchange ? 'h-6 w-6' : 'h-7 w-7'}
+                                                            />
+                                                        </div>
+                                                        {isOwnOrder ? (
+                                                            <span className={myListingBadgeClass}>{t('labels.myListingBadge')}</span>
+                                                        ) : null}
+                                                    </div>
+                                                    <div className="flex justify-center">
+                                                        <CurrencyAmountDisplay
+                                                            amount={order.fromAmount}
+                                                            currency={order.fromCurrency}
+                                                            iconClassName={mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'}
+                                                            amountClassName={`${marketOrderListCellText} font-bold tabular-nums text-slate-100`}
+                                                        />
+                                                    </div>
+                                                    <div className="flex justify-center">
+                                                        {order.fromCurrency === 'gold' ? (
+                                                            <CurrencyArrowPair
+                                                                fromAmount={unitGoldPerDiamond}
+                                                                fromCurrency="gold"
+                                                                toAmount={1}
+                                                                toCurrency="diamonds"
+                                                                iconClassName={mobileExchange ? 'h-3 w-3' : 'h-3.5 w-3.5'}
+                                                                amountClassName={`${marketOrderListCellText} font-semibold text-cyan-100`}
+                                                                className="justify-center"
+                                                            />
+                                                        ) : (
+                                                            <CurrencyArrowPair
+                                                                fromAmount={1}
+                                                                fromCurrency="diamonds"
+                                                                toAmount={unitGoldPerDiamond}
+                                                                toCurrency="gold"
+                                                                iconClassName={mobileExchange ? 'h-3 w-3' : 'h-3.5 w-3.5'}
+                                                                amountClassName={`${marketOrderListCellText} font-semibold text-cyan-100`}
+                                                                className="justify-center"
+                                                            />
+                                                        )}
+                                                    </div>
+                                                    <div className="flex justify-center">
+                                                        <CurrencyAmountDisplay
+                                                            amount={order.toAmount}
+                                                            currency={order.toCurrency}
+                                                            iconClassName={mobileExchange ? 'h-3.5 w-3.5' : 'h-4 w-4'}
+                                                            amountClassName={`${marketOrderListCellText} font-bold tabular-nums text-amber-100`}
+                                                        />
+                                                    </div>
+                                                    <div className="flex justify-center">
+                                                        {isOwnOrder ? (
+                                                            <Button
+                                                                onClick={() => void handleCancelOrder(order.id)}
+                                                                colorScheme="none"
+                                                                className={marketOrderCancelBtnClass}
+                                                            >
+                                                                {t('currency.cancelOrder')}
+                                                            </Button>
+                                                        ) : (
+                                                            <Button
+                                                                onClick={() => void handleFulfillOrder(order)}
+                                                                colorScheme="none"
+                                                                className={marketOrderBuyBtnClass}
+                                                            >
+                                                                {t('modals.purchase')}
+                                                            </Button>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </>
                             )}
                         </div>
                     </div>
+                </div>
 
-                    <div className={panelClass}>
-                        <div className="mb-2 flex items-center justify-between gap-2">
-                            <h3 className={sectionTitleClass}>{t('currency.claimTitle')}</h3>
-                            {myReceipts.length > 0 ? (
-                                <Button onClick={() => void handleClaimAllReceipts()} className="!mx-0 !min-h-0 !px-2 !py-1 !text-[10px]">
-                                    {t('labels.claimAll')}
-                                </Button>
-                            ) : null}
+                {/* 우측: 바로환전 → 환전 요청 등록 */}
+                <div
+                    className={`flex h-full min-h-0 flex-col gap-2 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS} ${mobileExchange ? '' : 'lg:pl-0.5'}`}
+                >
+                    <div className={instantPanelClass}>
+                        <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-cyan-400/10 blur-2xl" aria-hidden />
+                        <SectionHeader title={t('currency.instantTitle')} accent="cyan" titleClassName={exchTy.sectionTitle} />
+
+                        <div className="flex gap-1.5 rounded-xl border border-white/[0.05] bg-black/20 p-1">
+                            <button
+                                type="button"
+                                onClick={() => handleInstantDirectionChange('gold_to_diamonds')}
+                                aria-label={t('currency.goldToDiamonds')}
+                                className={`${directionBtnBase} ${
+                                    instantDirection === 'gold_to_diamonds' ? directionBtnActive : directionBtnIdle
+                                }`}
+                            >
+                                <CurrencyIcon currency="gold" className="h-5 w-5" />
+                                <span className="text-slate-500">→</span>
+                                <CurrencyIcon currency="diamonds" className="h-5 w-5" />
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => handleInstantDirectionChange('diamonds_to_gold')}
+                                aria-label={t('currency.diamondsToGold')}
+                                className={`${directionBtnBase} ${
+                                    instantDirection === 'diamonds_to_gold' ? directionBtnActive : directionBtnIdle
+                                }`}
+                            >
+                                <CurrencyIcon currency="diamonds" className="h-5 w-5" />
+                                <span className="text-slate-500">→</span>
+                                <CurrencyIcon currency="gold" className="h-5 w-5" />
+                            </button>
                         </div>
-                        {myReceipts.length === 0 ? (
-                            <p className="py-4 text-center text-xs text-slate-400">{t('currency.noClaimPending')}</p>
-                        ) : (
-                            <div className="space-y-1.5">
-                                {myReceipts.map((receipt) => {
-                                    const fee = exchangeListingFeeFromPrice(receipt.amount);
-                                    const net = Math.max(0, receipt.amount - fee);
-                                    const isSelected = selectedReceipt?.orderId === receipt.orderId;
-                                    return (
-                                        <button
-                                            key={receipt.orderId}
-                                            type="button"
-                                            onClick={() => setSelectedReceiptId(receipt.orderId)}
-                                            className={`grid w-full grid-cols-[1fr_auto_auto_auto] items-center gap-1 rounded border px-2 py-1.5 text-left text-[11px] ${
-                                                isSelected
-                                                    ? 'border-cyan-400/70 bg-cyan-900/20'
-                                                    : 'border-slate-700/60 bg-slate-950/40 hover:border-slate-500/70'
-                                            }`}
-                                        >
-                                            <span className="min-w-0 font-semibold text-slate-200">
-                                                {formatCurrency(receipt.fromAmount, receipt.fromCurrency)} →{' '}
-                                                {formatCurrency(receipt.amount, receipt.currency)}
+
+                        <div className="mt-3 overflow-hidden rounded-xl border border-cyan-400/15 bg-black/30 shadow-[0_8px_24px_-12px_rgba(34,211,238,0.15)]">
+                            <div className="flex flex-col gap-3 border-b border-white/[0.06] px-3 py-2.5 sm:flex-row sm:items-start sm:gap-4">
+                                <div className="min-w-0 flex-1 text-center">
+                                    <p className={`mb-1.5 ${exchTy.subLabel}`}>
+                                        {t('currency.instantRate')}
+                                    </p>
+                                    <div className="flex justify-center">
+                                        {instantDirection === 'gold_to_diamonds' ? (
+                                            <CurrencyArrowPair
+                                                fromAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY}
+                                                fromCurrency="gold"
+                                                toAmount={1}
+                                                toCurrency="diamonds"
+                                                iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                amountClassName={`${exchTy.amountSm} text-slate-100`}
+                                            />
+                                        ) : (
+                                            <CurrencyArrowPair
+                                                fromAmount={1}
+                                                fromCurrency="diamonds"
+                                                toAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL}
+                                                toCurrency="gold"
+                                                iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                amountClassName={`${exchTy.amountSm} text-slate-100`}
+                                            />
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="hidden w-px self-stretch bg-white/[0.06] sm:block" aria-hidden />
+
+                                <div className="min-w-0 flex-1 text-center">
+                                    <p className={`mb-1.5 ${exchTy.subLabel}`}>
+                                        {t('currency.dailyInstantLimit')}
+                                    </p>
+                                    <div className="space-y-1.5">
+                                        <div className={`flex justify-center ${mobileExchange ? 'text-xs' : 'text-sm'}`}>
+                                            <span className="inline-flex items-center gap-1 tabular-nums">
+                                                <CurrencyAmountDisplay
+                                                    amount={instantDailyUsed.payUsed}
+                                                    currency={instantDailyUsed.payCurrency}
+                                                    iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                    amountClassName={`${exchTy.amountSm} text-slate-200`}
+                                                />
+                                                <span className="text-slate-600">/</span>
+                                                <CurrencyAmountDisplay
+                                                    amount={instantDailyUsed.payMax}
+                                                    currency={instantDailyUsed.payCurrency}
+                                                    iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                    amountClassName={`${exchTy.amountSm} text-slate-400`}
+                                                />
                                             </span>
-                                            <span className="text-rose-200">{formatCurrency(fee, receipt.currency)}</span>
-                                            <span className="font-bold text-emerald-200">{formatCurrency(net, receipt.currency)}</span>
-                                            <Button
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    void handleClaimReceipt(receipt.orderId);
-                                                }}
-                                                className="!mx-0 !min-h-0 !px-2 !py-1 !text-[10px]"
-                                            >
-                                                {t('currency.claim')}
-                                            </Button>
-                                        </button>
-                                    );
-                                })}
+                                        </div>
+                                        <div className={`flex justify-center ${mobileExchange ? 'text-xs' : 'text-sm'}`}>
+                                            <span className="inline-flex items-center gap-1 tabular-nums">
+                                                <CurrencyAmountDisplay
+                                                    amount={instantDailyUsed.receiveUsed}
+                                                    currency={instantDailyUsed.receiveCurrency}
+                                                    iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                    amountClassName={`${exchTy.amountSm} text-slate-200`}
+                                                />
+                                                <span className="text-slate-600">/</span>
+                                                <CurrencyAmountDisplay
+                                                    amount={instantDailyUsed.receiveMax}
+                                                    currency={instantDailyUsed.receiveCurrency}
+                                                    iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                    amountClassName={`${exchTy.amountSm} text-slate-400`}
+                                                />
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        )}
-                        {myReceipts.length > 0 ? (
-                            <p className="mt-2 text-[10px] text-slate-500">{t('currency.claimFeeHint')}</p>
-                        ) : null}
+
+                            <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-stretch">
+                                <div className="grid min-w-0 flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2 self-center sm:self-stretch">
+                                    <div className="rounded-lg border border-amber-400/20 bg-amber-950/30 px-2 py-2 text-center">
+                                        <p className={`mb-1 ${exchTy.metaLabel} text-amber-200/70`}>
+                                            {t('currency.pay')}
+                                        </p>
+                                        <CurrencyAmountDisplay
+                                            amount={instantPreview.pay}
+                                            currency={instantPreview.payCurrency}
+                                            iconClassName={mobileExchange ? 'h-5 w-5' : 'h-6 w-6'}
+                                            amountClassName={`${exchTy.amount} text-amber-100`}
+                                            className="justify-center"
+                                        />
+                                    </div>
+                                    <span className={`${mobileExchange ? 'text-xl' : 'text-2xl'} text-cyan-400/80`}>→</span>
+                                    <div className="rounded-lg border border-violet-400/20 bg-violet-950/30 px-2 py-2 text-center">
+                                        <p className={`mb-1 ${exchTy.metaLabel} text-violet-200/70`}>
+                                            {t('currency.receive')}
+                                        </p>
+                                        <CurrencyAmountDisplay
+                                            amount={instantPreview.receive}
+                                            currency={instantPreview.receiveCurrency}
+                                            iconClassName={mobileExchange ? 'h-5 w-5' : 'h-6 w-6'}
+                                            amountClassName={`${exchTy.amount} text-violet-100`}
+                                            className="justify-center"
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+                                    <label className={`flex items-center justify-center gap-1.5 ${exchTy.label}`}>
+                                        {t('currency.inputAmount')}
+                                        <CurrencyIcon currency={instantInputCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
+                                    </label>
+                                    <input
+                                        className={`${inputClass} !text-center`}
+                                        value={instantAmount}
+                                        onChange={(e) => handleInstantAmountChange(e.target.value)}
+                                        inputMode="numeric"
+                                        disabled={instantInputMax <= 0}
+                                        placeholder="0"
+                                    />
+                                    <Button
+                                        onClick={() => void handleInstantExchange()}
+                                        className={instantCtaClass}
+                                        disabled={instantInputMax <= 0 || instantPreview.receive <= 0}
+                                    >
+                                        {t('currency.instantExchange')}
+                                    </Button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className={sidePanelClass}>
+                        <SectionHeader title={t('currency.postOrderTitle')} accent="amber" titleClassName={exchTy.sectionTitle} />
+
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                            <div className="flex min-w-0 flex-[0.88] flex-col gap-2 sm:max-w-[46%]">
+                                <div className="shrink-0 rounded-xl border border-white/[0.06] bg-gradient-to-br from-slate-950/70 via-black/30 to-slate-950/80 px-2 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                    <div className="flex flex-col gap-2">
+                                        <div className="text-center">
+                                            <p className={`mb-1 ${exchTy.metaLabel}`}>
+                                                {t('currency.instantRate')}
+                                            </p>
+                                            <div className="flex justify-center">
+                                                {orderFromCurrency === 'gold' ? (
+                                                    <CurrencyArrowPair
+                                                        fromAmount={orderInstantGoldPerDiamond}
+                                                        fromCurrency="gold"
+                                                        toAmount={1}
+                                                        toCurrency="diamonds"
+                                                        iconClassName={mobileExchange ? 'h-4 w-4' : 'h-4 w-4'}
+                                                        amountClassName={`${exchTy.amountSm} text-slate-100`}
+                                                    />
+                                                ) : (
+                                                    <CurrencyArrowPair
+                                                        fromAmount={1}
+                                                        fromCurrency="diamonds"
+                                                        toAmount={orderInstantGoldPerDiamond}
+                                                        toCurrency="gold"
+                                                        iconClassName={mobileExchange ? 'h-4 w-4' : 'h-4 w-4'}
+                                                        amountClassName={`${exchTy.amountSm} text-slate-100`}
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        <div className="h-px bg-white/[0.07]" aria-hidden />
+
+                                        <div className="text-center">
+                                            <p className={`mb-1 ${exchTy.metaLabel}`}>
+                                                {t('currency.averageMarketRate')}
+                                            </p>
+                                            <div className="flex justify-center">
+                                                {orderFromCurrency === 'gold' ? (
+                                                    <CurrencyArrowPair
+                                                        fromAmount={orderMarketRate.goldPerDiamond}
+                                                        fromCurrency="gold"
+                                                        toAmount={1}
+                                                        toCurrency="diamonds"
+                                                        iconClassName={mobileExchange ? 'h-4 w-4' : 'h-4 w-4'}
+                                                        amountClassName={`${exchTy.amountSm} text-cyan-100`}
+                                                    />
+                                                ) : (
+                                                    <CurrencyArrowPair
+                                                        fromAmount={1}
+                                                        fromCurrency="diamonds"
+                                                        toAmount={orderMarketRate.goldPerDiamond}
+                                                        toCurrency="gold"
+                                                        iconClassName={mobileExchange ? 'h-4 w-4' : 'h-4 w-4'}
+                                                        amountClassName={`${exchTy.amountSm} text-cyan-100`}
+                                                    />
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="flex min-h-[6.5rem] flex-1 flex-col rounded-xl border border-amber-400/10 bg-gradient-to-br from-amber-950/20 via-slate-950/75 to-slate-950/90 px-2.5 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                    <p className={`mb-2 ${exchTy.label} text-amber-200/80`}>
+                                        {t('currency.myExchangeRequest')}
+                                    </p>
+                                    {myOpenOrder ? (
+                                        <div className="flex flex-1 flex-col items-center justify-center gap-2.5">
+                                            <div className="rounded-lg border border-white/[0.06] bg-black/30 px-2.5 py-2">
+                                                <CurrencyArrowPair
+                                                    fromAmount={myOpenOrder.fromAmount}
+                                                    fromCurrency={myOpenOrder.fromCurrency}
+                                                    toAmount={myOpenOrder.toAmount}
+                                                    toCurrency={myOpenOrder.toCurrency}
+                                                    iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                    amountClassName={`${exchTy.amountSm} text-slate-100`}
+                                                    className="justify-center"
+                                                />
+                                            </div>
+                                            <Button
+                                                onClick={() => void handleCancelOrder(myOpenOrder.id)}
+                                                colorScheme="none"
+                                                className={cancelOrderBtnClass}
+                                            >
+                                                {t('currency.cancelOrder')}
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <p className={`flex flex-1 items-center justify-center ${exchTy.body} text-slate-500`}>
+                                            {t('currency.noMyExchangeRequest')}
+                                        </p>
+                                    )}
+                                </div>
+                            </div>
+
+                            <div className="hidden w-px self-stretch bg-white/[0.06] sm:block" aria-hidden />
+
+                            <div className="flex min-w-0 flex-[1.12] flex-col justify-center gap-2.5">
+                                <div className="flex gap-1.5 rounded-xl border border-white/[0.05] bg-black/20 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleOrderFromCurrencyChange('gold')}
+                                        aria-label={t('currency.goldToDiamonds')}
+                                        className={`${directionBtnBase} ${
+                                            orderFromCurrency === 'gold' ? directionBtnActive : directionBtnIdle
+                                        }`}
+                                    >
+                                        <CurrencyIcon currency="gold" className="h-5 w-5" />
+                                        <span className="text-slate-500">→</span>
+                                        <CurrencyIcon currency="diamonds" className="h-5 w-5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleOrderFromCurrencyChange('diamonds')}
+                                        aria-label={t('currency.diamondsToGold')}
+                                        className={`${directionBtnBase} ${
+                                            orderFromCurrency === 'diamonds' ? directionBtnActive : directionBtnIdle
+                                        }`}
+                                    >
+                                        <CurrencyIcon currency="diamonds" className="h-5 w-5" />
+                                        <span className="text-slate-500">→</span>
+                                        <CurrencyIcon currency="gold" className="h-5 w-5" />
+                                    </button>
+                                </div>
+
+                                <div className="space-y-2.5">
+                                    <div className="flex items-end justify-center gap-2">
+                                        <div className="min-w-0 flex-1 text-center">
+                                            <label className={`mb-1.5 flex items-center justify-center gap-1 ${exchTy.subLabel}`}>
+                                                {t('currency.offerAmount')}
+                                                <CurrencyIcon currency={orderFromCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
+                                            </label>
+                                            <input
+                                                className={`${inputClass} !text-center`}
+                                                value={orderFromAmount}
+                                                onChange={(e) => handleOrderFromAmountChange(e.target.value)}
+                                                inputMode="numeric"
+                                                placeholder="0"
+                                                disabled={myOpenOrder != null}
+                                            />
+                                        </div>
+                                        <div className="shrink-0 pb-2 text-center">
+                                            <p className={`mb-1 ${exchTy.metaLabel}`}>
+                                                {t('currency.feePercent')}
+                                            </p>
+                                            <CurrencyAmountDisplay
+                                                amount={orderRegistrationFee}
+                                                currency={orderFromCurrency}
+                                                iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                amountClassName={`${exchTy.amountSm} text-rose-300/90`}
+                                                className="justify-center"
+                                            />
+                                        </div>
+                                    </div>
+                                    <div className="text-center">
+                                        <label className={`mb-1.5 flex items-center justify-center gap-1 ${exchTy.subLabel}`}>
+                                            {t('currency.requestAmount')}
+                                            <CurrencyIcon currency={orderToCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
+                                        </label>
+                                        <input
+                                            className={`${inputClass} !text-center`}
+                                            value={orderToAmount}
+                                            onChange={(e) => handleOrderToAmountChange(e.target.value)}
+                                            inputMode="numeric"
+                                            placeholder="0"
+                                            disabled={myOpenOrder != null}
+                                        />
+                                    </div>
+                                </div>
+
+                                <Button
+                                    onClick={() => handlePostOrderClick()}
+                                    className={`${primaryButtonClass} !w-full !rounded-lg`}
+                                    disabled={
+                                        myOpenOrder != null ||
+                                        orderFromParsed <= 0 ||
+                                        orderToParsed <= 0
+                                    }
+                                >
+                                    {t('currency.postOrder')}
+                                </Button>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

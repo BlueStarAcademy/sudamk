@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[宠物·等级强化]{{fromGrade}}→{{toGrade}}（宠物Lv.{{minLevel}}以上）",
           "soulGradeUpgradeGeneric": "【宠物等级提升】用于提升公平竞技场中其他AI宠物的等级。",
           "eggHatchRandom": "【宠物·孵化场】放入槽位，孵化成随机类型的AI宠物。",
-          "welcomeEggHatch": "【宠物·孵化场】放置槽位——孵化时间1分钟，孵化后AI宠物等级5级"
+          "welcomeEggHatch": "【宠物·孵化场】放置槽位——孵化时间1分钟，孵化后AI宠物等级10级"
         }
       },
       "enhanceRange": {

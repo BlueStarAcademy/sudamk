@@ -284,7 +284,7 @@ const AppContent: React.FC = () => {
         currentRoute.view === 'set-nickname' ||
         currentRoute.view === 'register' ||
         currentRoute.view === 'kakao-callback';
-    const backgroundClass = !currentUser ? 'bg-login-background' : showMainBg ? 'bg-zinc-950' : 'bg-primary';
+    const backgroundClass = !currentUser || showMainBg ? 'bg-login-background' : 'bg-primary';
 
     const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout === true;
     /** 8인치+ 태블릿(PC 셸)은 세로 스크롤 여유를 PC 화면 보기와 동일하게 둔다 */
@@ -472,7 +472,7 @@ const AppContent: React.FC = () => {
                             <main
                                 className={`relative z-0 flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-x-hidden overscroll-y-none ${lockPcMainScroll ? 'overflow-y-hidden' : 'overflow-hidden'} ${showMainBg ? 'bg-transparent' : ''}`}
                             >
-                                {showMainBg && <MainBackgroundLayer variant="app" />}
+                                {showMainBg && <MainBackgroundLayer variant="auth" />}
                                 <NativeMobileScaledContent className="relative z-[1] min-h-0 w-full flex-1">
                                     {!isGameView && !hideAppHeader && (
                                         <>
@@ -659,7 +659,7 @@ const AppContent: React.FC = () => {
                                     marginBottom: isNarrowViewport ? 'env(safe-area-inset-bottom, 0px)' : '0px',
                                 }}
                             >
-                                {showMainBg && <MainBackgroundLayer variant="app" />}
+                                {showMainBg && <MainBackgroundLayer variant="auth" />}
                                 <div className="relative z-[1] min-h-0 flex-1 flex flex-col">
                                     <Router />
                                 </div>

@@ -70,7 +70,7 @@ export type PairPetHatcherySession = {
     startedAt: number;
     /** 부화 시작 시 차감한 알 인벤 행 id (취소 시 복구) */
     eggItemId?: string;
-    /** 부화에 사용한 알의 templateId (예: `pair-egg-welcome` → 1분·레벨 5) */
+    /** 부화에 사용한 알의 templateId (예: `pair-egg-welcome` → 1분·레벨 10) */
     eggTemplateId?: string;
 };
 
@@ -583,6 +583,12 @@ export type ExchangeState = {
   currencyOrders?: CurrencyExchangeOrder[];
   /** P2P 환전 완료 후 수령 대기 */
   currencyReceipts?: CurrencyExchangeReceipt[];
+  /** 일일 바로환전 사용량 (KST 0시 기준 리셋) */
+  instantDaily?: {
+    lastResetDayKST: number;
+    goldSpent: number;
+    diamondsSpent: number;
+  };
 };
 
 /** PVP / 펫 / 펫 페어 챔피언십 경기장(인게임) — 전략바둑 랭킹전과 동일한 분기(KST) 시즌·1200점대 ELO */

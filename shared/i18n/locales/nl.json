@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Verbetering huisdierniveau] {{fromGrade}} →{{toGrade}} (Huisdierniveau {{minLevel}} of hoger)",
           "soulGradeUpgradeGeneric": "[Verhoging van huisdierkwaliteit] Wordt gebruikt om de rang van mede-AI-huisdieren in de Fair Arena te verhogen.",
           "eggHatchRandom": "[Huisdier · Broederij] Plaats het in een sleuf en kom uit in een willekeurig type AI-huisdier.",
-          "welcomeEggHatch": "[Huisdier · Broederij] Geplaatst in slot — broedtijd 1 minuut, AI-huisdier van niveau 5 wanneer het uitkomt"
+          "welcomeEggHatch": "[Huisdier · Broederij] Geplaatst in slot — broedtijd 1 minuut, AI-huisdier van niveau 10 wanneer het uitkomt"
         }
       },
       "enhanceRange": {

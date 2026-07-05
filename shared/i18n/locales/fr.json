@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Amélioration de la qualité de l'animal] {{fromGrade}}→{{toGrade}} (Animal Lv.{{minLevel}} ou supérieur)",
           "soulGradeUpgradeGeneric": "[Amélioration du niveau des animaux de compagnie] Utilisé pour augmenter le rang des autres animaux de compagnie IA dans la Fair Arena.",
           "eggHatchRandom": "[Animal · Couvoir] Placez-le dans un emplacement et faites éclore un type aléatoire d'animal IA.",
-          "welcomeEggHatch": "[Animal · Couvoir] Placé dans un emplacement - temps d'éclosion 1 minute, animal de compagnie IA de niveau 5 à l'éclosion"
+          "welcomeEggHatch": "[Animal · Couvoir] Placé dans un emplacement - temps d'éclosion 1 minute, animal de compagnie IA de niveau 10 à l'éclosion"
         }
       },
       "enhanceRange": {

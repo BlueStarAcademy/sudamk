@@ -2093,13 +2093,13 @@ const Profile: React.FC<ProfileProps> = () => {
     const imagePaneClass = 'min-h-0 min-w-0 flex-[1.78] p-0.5';
     /** PC 경기장 카드 우측: 타이틀 상단·버튼 하단 고정, 중간 통계 블록 세로 중앙 */
     const infoPanelShellClass =
-        'flex h-full min-h-0 min-w-[196px] flex-[0.92] flex-col gap-2 border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]';
+        'flex h-full min-h-0 min-w-[196px] flex-[0.92] flex-col gap-2 border-l border-amber-200/20 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]';
     const infoPanelMiddleClass =
         'flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-center gap-2 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]';
     const infoTitleClass =
-        'inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2 py-1 text-[15px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]';
+        'inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/40 bg-gradient-to-r from-amber-950/80 via-zinc-900/90 to-amber-950/80 px-2 py-1 text-[15px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]';
     const infoRowClass =
-        'grid w-full min-w-0 grid-cols-[minmax(4.25rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-1.5 text-[12.5px] leading-snug';
+        'grid w-full min-w-0 grid-cols-[minmax(4.25rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/12 bg-black/35 px-2.5 py-1.5 text-[12.5px] leading-snug';
     const infoLabelClass = 'min-w-0 text-center font-semibold text-slate-300/95';
     const infoValueClass = 'min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep';
     const hasPcHomeTrainingQuestReward =

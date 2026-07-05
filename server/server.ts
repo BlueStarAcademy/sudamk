@@ -7,6 +7,16 @@ import dotenv from 'dotenv';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const envPath = path.resolve(__dirname, '..', '.env');
 dotenv.config({ path: envPath });
+try {
+    const parsedEnv = dotenv.parse(fs.readFileSync(envPath));
+    for (const key of ['KATA_SERVER_URL', 'KATA_SERVER_KEY', 'KATA_SERVER_TIMEOUT_MS', 'KATA_APPLY_MOVE_DELAY_MS']) {
+        if (!process.env[key]?.trim() && parsedEnv[key]?.trim()) {
+            process.env[key] = parsedEnv[key];
+        }
+    }
+} catch {
+    // dotenv.config above already handles the common path; this only fills blank KATA env overrides in local dev.
+}
 // 즉시 stderr 출력 (크래시 시 로그에 아무것도 안 남는 경우 원인 파악용)
 process.stderr.write(`[Server] Bootstrap: pid=${process.pid} cwd=${process.cwd()} env_loaded\n`);
 
@@ -5031,9 +5041,18 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             ]);
             if (questClaimActionTypes.has(type)) {
                 try {
+                    const sessionQuestsSnapshot = user.quests
+                        ? JSON.parse(JSON.stringify(user.quests))
+                        : undefined;
                     const freshUser = await db.getUser(userId, { includeInventory: true, includeEquipment: true });
                     if (freshUser) {
                         Object.assign(user, freshUser);
+                        if (sessionQuestsSnapshot) {
+                            const { mergeQuestLogPreservingSessionProgress } = await import(
+                                '../utils/questProgressCap.js'
+                            );
+                            mergeQuestLogPreservingSessionProgress(user.quests, sessionQuestsSnapshot);
+                        }
                     }
                     const syncedQuestUser = await resetAndGenerateQuests(user);
                     Object.assign(user, syncedQuestUser);

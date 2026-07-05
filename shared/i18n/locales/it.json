@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Miglioramento del grado dell'animale domestico] {{fromGrade}}→{{toGrade}} (Liv. dell'animale domestico{{minLevel}} o superiore)",
           "soulGradeUpgradeGeneric": "[Miglioramento del grado dell'animale domestico] Utilizzato per aumentare il grado degli altri animali domestici dell'IA nell'Arena della fiera.",
           "eggHatchRandom": "[Animale domestico · Incubatoio] Posizionalo in uno slot e fai schiudere un tipo casuale di animale domestico IA.",
-          "welcomeEggHatch": "[Animale domestico · Allevamento] Inserito nello slot: tempo di schiusa 1 minuto, animale domestico AI di livello 5 quando si schiude"
+          "welcomeEggHatch": "[Animale domestico · Allevamento] Inserito nello slot: tempo di schiusa 1 minuto, animale domestico AI di livello 10 quando si schiude"
         }
       },
       "enhanceRange": {

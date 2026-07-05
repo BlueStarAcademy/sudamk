@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Peningkatan Gred Haiwan Peliharaan] {{fromGrade}}→{{toGrade}} (Lv. Haiwan Peliharaan{{minLevel}} atau lebih tinggi)",
           "soulGradeUpgradeGeneric": "[Peningkatan Gred Haiwan Kesayangan] Digunakan untuk meningkatkan pangkat sesama haiwan peliharaan AI di Arena Pameran.",
           "eggHatchRandom": "[Pet · Hatchery] Letakkan dalam slot dan menetas ke dalam jenis rawak haiwan peliharaan AI.",
-          "welcomeEggHatch": "[Pet · Hatchery] Diletakkan dalam slot — masa penetasan 1 minit, tahap 5 AI haiwan peliharaan apabila ditetas"
+          "welcomeEggHatch": "[Pet · Hatchery] Diletakkan dalam slot — masa penetasan 1 minit, tahap 10 AI haiwan peliharaan apabila ditetas"
         }
       },
       "enhanceRange": {

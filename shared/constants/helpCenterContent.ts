@@ -447,7 +447,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             type: 'callout',
                             tone: 'tip',
                             title: '시작 보상',
-                            text: '게임을 처음 시작하면 우편에 (특)신비로운알이 도착합니다. 5레벨 펫을 부화시킨 뒤 본격적으로 플레이하는 것을 권장합니다.',
+                            text: '게임을 처음 시작하면 우편에 (특)신비로운알이 도착합니다. 10레벨 펫을 부화시킨 뒤 본격적으로 플레이하는 것을 권장합니다.',
                         },
                         {
                             type: 'imageRow',
@@ -521,7 +521,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             type: 'callout',
                             tone: 'tip',
                             title: '시작 팁',
-                            text: '처음 접속 시 우편의 (특)신비로운 알로 5레벨 펫을 부화한 뒤 정보 탭에서 장착하면 페어·펫 대국을 바로 이용할 수 있습니다.',
+                            text: '처음 접속 시 우편의 (특)신비로운 알로 10레벨 펫을 부화한 뒤 정보 탭에서 장착하면 페어·펫 대국을 바로 이용할 수 있습니다.',
                         },
                         {
                             type: 'imageRow',
@@ -607,7 +607,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                         {
                             type: 'bullets',
                             items: [
-                                '1번 부화 슬롯: 기본 부화(환영 알은 약 1분·레벨 5 고정).',
+                                '1번 부화 슬롯: 기본 부화(환영 알은 약 1분·레벨 10 고정).',
                                 '강화 I~III: 페어 승리·골드로 1번 슬롯을 단계적으로 강화(시간 단축·레벨 범위 확대).',
                                 'VIP 슬롯: 기능 VIP 활성 시 고정 레벨 10 펫을 빠르게 부화.',
                                 '즉시 완료(다이아)·펫 인벤 가득 참 시 수령 불가 — 인벤 슬롯을 비우거나 확장하세요.',

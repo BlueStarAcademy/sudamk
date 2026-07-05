@@ -1373,6 +1373,9 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
 
     const { coreStatBonuses } = useMemo(() => calculateUserEffects(currentUser), [currentUser]);
 
+    /** 로그인 경로 등에서 equipment가 아직 내려오지 않은 경우 가방 렌더 크래시 방지 */
+    const userEquipment = useMemo(() => currentUser.equipment ?? {}, [currentUser.equipment]);
+
     const handleExpand = () => {
         if (activeTab === 'all' || !canExpand) return;
         setIsExpandModalOpen(true);
@@ -1397,7 +1400,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         const updatedPreset = {
             ...presets[selectedPreset],
             name: newPresetName,
-            equipment: currentUser.equipment,
+            equipment: userEquipment,
         };
         onAction({ type: 'SAVE_PRESET', payload: { preset: updatedPreset, index: selectedPreset } });
         setIsRenameModalOpen(false);
@@ -1531,10 +1534,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     }, [presets]);
 
     const getItemForSlot = useCallback((slot: EquipmentSlot) => {
-        const itemId = currentUser.equipment[slot];
+        const itemId = userEquipment[slot];
         if (!itemId) return undefined;
         return inventoryWithLatestItemMeta.find(item => item.id === itemId);
-    }, [currentUser.equipment, inventoryWithLatestItemMeta, updateTrigger]);
+    }, [userEquipment, inventoryWithLatestItemMeta, updateTrigger]);
 
     const correspondingEquippedItem = useMemo(() => {
         if (!selectedItem || !selectedItem.slot) return null;
@@ -1566,11 +1569,11 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
     /** 장비 교체 시 6종 바둑 능력치 변화 (비교 모달용) */
     const equipSwapStatPreview = useMemo(() => {
         if (!selectedItem || selectedItem.type !== 'equipment' || !selectedItem.slot) return null;
-        const currentEquippedItemId = currentUser.equipment[selectedItem.slot];
+        const currentEquippedItemId = userEquipment[selectedItem.slot];
         if (currentEquippedItemId && currentEquippedItemId === selectedItem.id) return null;
 
         const currentStats = calculateTotalStats(currentUser);
-        const hypotheticalEquipment = { ...currentUser.equipment, [selectedItem.slot]: selectedItem.id };
+        const hypotheticalEquipment = { ...userEquipment, [selectedItem.slot]: selectedItem.id };
         const hypotheticalInventory = currentUser.inventory.map((item) => {
             if (item.id === selectedItem.id) return { ...item, isEquipped: true };
             if (currentEquippedItemId && item.id === currentEquippedItemId) return { ...item, isEquipped: false };
@@ -1590,7 +1593,7 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
         const currentSum = Object.values(currentStats).reduce((a, b) => a + b, 0);
         const afterSum = Object.values(afterStats).reduce((a, b) => a + b, 0);
         return { currentStats, afterStats, delta, currentSum, afterSum, sumDelta: afterSum - currentSum };
-    }, [selectedItem, currentUser]);
+    }, [selectedItem, currentUser, userEquipment]);
 
     const renderMobileBagItemDetailPanel = () => {
         if (!selectedItem) return null;

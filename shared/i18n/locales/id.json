@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Peningkatan Kelas Hewan Peliharaan] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}} atau lebih tinggi)",
           "soulGradeUpgradeGeneric": "[Peningkatan Kelas Hewan Peliharaan] Digunakan untuk meningkatkan peringkat sesama hewan peliharaan AI di Arena Pameran.",
           "eggHatchRandom": "[Hewan Peliharaan · Penetasan] Tempatkan di slot dan tetaskan menjadi hewan peliharaan AI tipe acak.",
-          "welcomeEggHatch": "[Hewan Peliharaan · Penetasan] Ditempatkan di slot — waktu penetasan 1 menit, hewan peliharaan AI level 5 saat menetas"
+          "welcomeEggHatch": "[Hewan Peliharaan · Penetasan] Ditempatkan di slot — waktu penetasan 1 menit, hewan peliharaan AI level 10 saat menetas"
         }
       },
       "enhanceRange": {

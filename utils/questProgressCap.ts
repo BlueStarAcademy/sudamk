@@ -1,4 +1,4 @@
-import type { DailyQuestData, MonthlyQuestData, QuestLog, WeeklyQuestData } from '../types.js';
+import type { DailyQuestData, MonthlyQuestData, Quest, QuestLog, WeeklyQuestData } from '../types.js';
 import {
     DAILY_MILESTONE_THRESHOLDS,
     WEEKLY_MILESTONE_THRESHOLDS,
@@ -58,6 +58,84 @@ export function normalizeQuestPeriodMetadata(
     }
 
     return { modified, data };
+}
+
+function mergeQuestEntryPreservingSessionProgress(primary: Quest, session: Quest | undefined): boolean {
+    if (!session) return false;
+    let modified = false;
+    const mergedProgress = Math.max(primary.progress ?? 0, session.progress ?? 0);
+    if (mergedProgress !== (primary.progress ?? 0)) {
+        primary.progress = mergedProgress;
+        modified = true;
+    }
+    if (session.isClaimed && !primary.isClaimed) {
+        primary.isClaimed = true;
+        modified = true;
+    }
+    return modified;
+}
+
+/**
+ * 수령 직전 DB 스냅샷으로 user를 덮어쓸 때, 세션(캐시)에만 반영된 퀘스트 진행을 잃지 않도록 병합한다.
+ * (비동기 db.updateUser 완료 전 수령, 또는 캐시 TTL 내 최신 진행도 보존)
+ */
+export function mergeQuestLogPreservingSessionProgress(
+    target: QuestLog | undefined,
+    session: QuestLog | undefined,
+): boolean {
+    if (!target || !session) return false;
+    let modified = false;
+    for (const key of ['daily', 'weekly', 'monthly'] as const) {
+        const targetPeriod = target[key];
+        const sessionPeriod = session[key];
+        if (!targetPeriod || !sessionPeriod) continue;
+
+        const maxActivity = Math.max(targetPeriod.activityProgress ?? 0, sessionPeriod.activityProgress ?? 0);
+        if (maxActivity !== (targetPeriod.activityProgress ?? 0)) {
+            targetPeriod.activityProgress = maxActivity;
+            modified = true;
+        }
+
+        const targetMilestones = normalizeClaimedMilestones(targetPeriod.claimedMilestones);
+        const sessionMilestones = normalizeClaimedMilestones(sessionPeriod.claimedMilestones);
+        const mergedMilestones = targetMilestones.map((claimed, index) => claimed || sessionMilestones[index]!);
+        if (mergedMilestones.some((claimed, index) => claimed !== targetMilestones[index])) {
+            targetPeriod.claimedMilestones = mergedMilestones;
+            modified = true;
+        }
+
+        const targetReset = targetPeriod.lastReset ?? 0;
+        const sessionReset = sessionPeriod.lastReset ?? 0;
+        const mergedReset = Math.max(targetReset, sessionReset);
+        if (mergedReset > 0 && mergedReset !== targetReset) {
+            targetPeriod.lastReset = mergedReset;
+            modified = true;
+        }
+
+        const targetQuests = targetPeriod.quests ?? [];
+        const sessionQuests = sessionPeriod.quests ?? [];
+        if (targetQuests.length === 0 && sessionQuests.length > 0) {
+            targetPeriod.quests = sessionQuests.map((quest) => ({ ...quest }));
+            modified = true;
+            continue;
+        }
+
+        for (let index = 0; index < targetQuests.length; index++) {
+            if (mergeQuestEntryPreservingSessionProgress(targetQuests[index]!, sessionQuests[index])) {
+                modified = true;
+            }
+        }
+
+        for (let index = targetQuests.length; index < sessionQuests.length; index++) {
+            const sessionQuest = sessionQuests[index];
+            if (!sessionQuest) continue;
+            if ((sessionQuest.progress ?? 0) > 0 || sessionQuest.isClaimed) {
+                targetQuests.push({ ...sessionQuest });
+                modified = true;
+            }
+        }
+    }
+    return modified;
 }
 
 export function normalizeQuestLogMetadata(quests: QuestLog | undefined, now: number): boolean {

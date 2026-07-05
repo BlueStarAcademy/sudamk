@@ -20,7 +20,7 @@ export const PC_LOBBY_DESKTOP_SHELL_PADDING_CLASS = 'p-2 sm:p-4 lg:p-2';
 /** 중앙 뷰포트 외곽 셸 — 좌측 패널과 동일 앰버 테두리, 투명 배경 (Profile 홈·챔피언십 로비 등) */
 export const PC_HOME_CENTER_SHELL_CLASS =
     'relative flex min-h-0 min-w-0 flex-1 flex-col items-center overflow-hidden rounded-xl border-2 border-amber-500/45 ' +
-    'bg-transparent p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15';
+    'bg-gradient-to-br from-zinc-950/92 via-zinc-900/88 to-black/90 backdrop-blur-[3px] p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_18px_50px_-22px_rgba(0,0,0,0.78)] ring-1 ring-amber-100/15';
 
 /** 중앙 뷰포트 내부 max-width */
 export const PC_HOME_CENTER_INNER_MAX_CLASS = 'max-w-[min(100%,1040px)]';
@@ -31,7 +31,7 @@ export const PC_QUICK_RAIL_COLUMN_CLASS =
 
 /** 퀵 레일 래퍼 (Profile·로비 공통 크롬) */
 export const PC_QUICK_RAIL_WRAPPER_CLASS =
-    'flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-900 via-amber-950 to-zinc-950 p-1 shadow-xl shadow-black/40';
+    'flex h-full min-h-0 flex-col rounded-xl border-2 border-amber-600/55 bg-gradient-to-br from-zinc-950 via-zinc-900 to-black p-1 shadow-xl shadow-black/50 backdrop-blur-[2px]';
 
 /** 퀵 유틸 인라인 패널 — 중앙 열 전체 높이·폭 사용 (max-width·justify-center 없음) */
 export const PC_QUICK_UTILITY_CENTER_SHELL_CLASS =

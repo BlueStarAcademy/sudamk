@@ -7466,6 +7466,82 @@ export const useApp = () => {
                     updatedUserFromResponse = undefined;
                 }
 
+                const immediateDisassemblyResult = result.clientResponse?.disassemblyResult || result.disassemblyResult;
+                const immediateCraftResult = result.clientResponse?.craftResult || result.craftResult;
+                const immediateCombinationResult = result.clientResponse?.combinationResult || result.combinationResult;
+                const immediateRefinementResult =
+                    action.type === 'REFINE_EQUIPMENT' ? result.clientResponse?.refinementResult : null;
+                const immediateEnhancementOutcome = result.clientResponse?.enhancementOutcome || result.enhancementOutcome;
+                const immediateEnhancementAnimationTarget =
+                    result.clientResponse?.enhancementAnimationTarget || result.enhancementAnimationTarget;
+                const isQuestRewardSummaryHandledLocally =
+                    action.type === 'CLAIM_QUEST_REWARD' ||
+                    action.type === 'CLAIM_ACTIVITY_MILESTONE' ||
+                    action.type === 'CLAIM_ACHIEVEMENT_REWARD';
+                const immediateRewardSummary = isQuestRewardSummaryHandledLocally
+                    ? null
+                    : result.rewardSummary || result.clientResponse?.rewardSummary;
+                const immediateBlacksmithFeedbackHandled = {
+                    disassembly: Boolean(immediateDisassemblyResult),
+                    craft: Boolean(immediateCraftResult),
+                    combination: Boolean(immediateCombinationResult),
+                    refinement: Boolean(immediateRefinementResult),
+                    enhancement: Boolean(immediateEnhancementOutcome),
+                };
+                const immediateRewardSummaryHandled = Boolean(immediateRewardSummary);
+                if (
+                    immediateRewardSummaryHandled ||
+                    immediateBlacksmithFeedbackHandled.disassembly ||
+                    immediateBlacksmithFeedbackHandled.craft ||
+                    immediateBlacksmithFeedbackHandled.combination ||
+                    immediateBlacksmithFeedbackHandled.refinement ||
+                    immediateBlacksmithFeedbackHandled.enhancement
+                ) {
+                    flushSync(() => {
+                        if (immediateRewardSummary) {
+                            setRewardSummary(immediateRewardSummary);
+                        }
+                        if (immediateDisassemblyResult) {
+                            setDisassemblyResult(immediateDisassemblyResult);
+                        }
+                        if (immediateCraftResult) {
+                            setCraftResult(immediateCraftResult);
+                        }
+                        if (immediateCombinationResult) {
+                            setCombinationResult(immediateCombinationResult);
+                        }
+                        if (immediateRefinementResult) {
+                            setRefinementResult(immediateRefinementResult);
+                        }
+                        if (immediateEnhancementOutcome) {
+                            const { message, success, itemBefore, itemAfter, xpGained } = immediateEnhancementOutcome;
+                            setEnhancementResult({ message, success });
+                            setEnhancementOutcome({ message, success, itemBefore, itemAfter, xpGained, isRolling: false });
+                            setIsEnhancementResultModalOpen(true);
+                            if (immediateEnhancementAnimationTarget) {
+                                setEnhancementAnimationTarget(immediateEnhancementAnimationTarget);
+                            }
+                        }
+                    });
+                    if (immediateDisassemblyResult?.jackpot || immediateCraftResult?.jackpot) {
+                        audioService.disassemblyJackpot();
+                    }
+                    if (immediateCombinationResult) {
+                        if (immediateCombinationResult.isGreatSuccess) {
+                            audioService.combinationGreatSuccess();
+                        } else {
+                            audioService.combinationSuccess();
+                        }
+                    }
+                    if (immediateEnhancementOutcome) {
+                        if (immediateEnhancementOutcome.success) {
+                            audioService.enhancementSuccess();
+                        } else {
+                            audioService.enhancementFail();
+                        }
+                    }
+                }
+
                 if (
                     updatedUserFromResponse &&
                     action.type === 'BUY_CONDITION_POTION' &&
@@ -7801,16 +7877,16 @@ export const useApp = () => {
                  if (scoreChange) setTournamentScoreChange(scoreChange);
                 
                  // 제련 결과 처리
-                 if (action.type === 'REFINE_EQUIPMENT' && result.clientResponse?.refinementResult) {
+                 if (!immediateBlacksmithFeedbackHandled.refinement && action.type === 'REFINE_EQUIPMENT' && result.clientResponse?.refinementResult) {
                      setRefinementResult(result.clientResponse.refinementResult);
                  }
                 
                  // 보상 수령 모달 처리 (즉시 표시를 위해 flushSync 사용)
-                if (result.rewardSummary) {
+                if (!isQuestRewardSummaryHandledLocally && !immediateRewardSummaryHandled && result.rewardSummary) {
                     flushSync(() => {
                         setRewardSummary(result.rewardSummary);
                     });
-                } else if (result.clientResponse?.rewardSummary) {
+                } else if (!isQuestRewardSummaryHandledLocally && !immediateRewardSummaryHandled && result.clientResponse?.rewardSummary) {
                     flushSync(() => {
                         setRewardSummary(result.clientResponse.rewardSummary);
                     });
@@ -7843,12 +7919,12 @@ export const useApp = () => {
                     };
                 }
                 const disassemblyResult = result.clientResponse?.disassemblyResult || result.disassemblyResult;
-                if (disassemblyResult) { 
+                if (!immediateBlacksmithFeedbackHandled.disassembly && disassemblyResult) { 
                     setDisassemblyResult(disassemblyResult);
                     if (disassemblyResult.jackpot) audioService.disassemblyJackpot();
                 }
                 const craftResult = result.clientResponse?.craftResult || result.craftResult;
-                if (craftResult) {
+                if (!immediateBlacksmithFeedbackHandled.craft && craftResult) {
                     console.log(`[handleAction] ${action.type} - Setting craftResult:`, {
                         craftResult,
                         hasCraftResult: !!craftResult,
@@ -7881,7 +7957,7 @@ export const useApp = () => {
                     }
                 }
                 const combinationResult = result.clientResponse?.combinationResult || result.combinationResult;
-                if (combinationResult) {
+                if (!immediateBlacksmithFeedbackHandled.combination && combinationResult) {
                     setCombinationResult(combinationResult);
                     if (combinationResult.isGreatSuccess) {
                         audioService.combinationGreatSuccess(); // Assuming this sound exists
@@ -7900,7 +7976,7 @@ export const useApp = () => {
                 }
                 
                 const enhancementOutcome = result.clientResponse?.enhancementOutcome || result.enhancementOutcome;
-                if (enhancementOutcome) {
+                if (!immediateBlacksmithFeedbackHandled.enhancement && enhancementOutcome) {
                     const { message, success, itemBefore, itemAfter, xpGained } = enhancementOutcome;
                     const enhancementAnimationTarget =
                         result.clientResponse?.enhancementAnimationTarget || result.enhancementAnimationTarget;

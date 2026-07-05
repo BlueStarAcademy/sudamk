@@ -193,7 +193,7 @@ export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'
     [PAIR_WELCOME_EGG_MATERIAL_NAME]: {
         name: PAIR_WELCOME_EGG_MATERIAL_NAME,
         description:
-            '신비로운 알과 같은 모습이지만, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 5 AI 펫이 나옵니다.',
+            '신비로운 알과 같은 모습이지만, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 10 AI 펫이 나옵니다.',
         type: 'material',
         slot: null,
         image: PAIR_EGG_DISPLAY_IMAGE,

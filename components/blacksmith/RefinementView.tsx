@@ -3,6 +3,7 @@ import { useLocalizedItemGrade, useLocalizedEquipmentSlot } from '../../shared/i
 import { useTranslation } from 'react-i18next';
 import { UserWithStatus, InventoryItem, ServerAction, ItemOption, CoreStat, SpecialStat, MythicStat, ItemGrade } from '../../types.js';
 import Button from '../Button.js';
+import ConfirmModal from '../ConfirmModal.js';
 import { MAIN_STAT_DEFINITIONS, SUB_OPTION_POOLS, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, GRADE_SUB_OPTION_RULES, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, MATERIAL_ITEMS, CORE_STATS_DATA, MAIN_ENHANCEMENT_STEP_MULTIPLIER, resolveCombatSubPoolDefinition } from '../../constants';
 import {
     resolveCombatSubValueRefinementRange,
@@ -298,6 +299,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
     const [refinementType, setRefinementType] = useState<RefinementType | null>(null);
     const [isRefining, setIsRefining] = useState(false);
     const [refinementProgress, setRefinementProgress] = useState(0);
+    const [isCharmConfirmOpen, setIsCharmConfirmOpen] = useState(false);
     const refinementIntervalRef = useRef<number | null>(null);
     const refinementTimeoutRef = useRef<number | null>(null);
 
@@ -512,15 +514,11 @@ const RefinementView: React.FC<RefinementViewProps> = ({
         return (selectedItem as any).refinementCount ?? 0;
     }, [selectedItem]);
 
-    // 제련 가능 여부
-    const canRefine = useMemo(() => {
+    const canRefineWithSelectedMethod = useMemo(() => {
         if (!selectedItem || !selectedOption || !refinementType || !canRefineAtAll) return false;
-        
-        // 제련 가능 횟수 확인
-        if (refinementCount <= 0) return false;
-        
+
         if (currentUser.gold < requiredGold) return false;
-        
+
         if (refinementType === 'type') {
             return ticketCounts.type >= requiredTickets && availableOptions.length > 0;
         } else if (refinementType === 'value') {
@@ -528,9 +526,20 @@ const RefinementView: React.FC<RefinementViewProps> = ({
         } else if (refinementType === 'mythic') {
             return ticketCounts.mythic >= requiredTickets && selectedOption.type === 'mythicSub' && availableOptions.length > 0;
         }
-        
+
         return false;
-    }, [selectedItem, selectedOption, refinementType, ticketCounts, requiredTickets, availableOptions, canRefineAtAll, currentUser.gold, requiredGold, refinementCount]);
+    }, [selectedItem, selectedOption, refinementType, ticketCounts, requiredTickets, availableOptions, canRefineAtAll, currentUser.gold, requiredGold]);
+
+    // 제련 가능 여부
+    const canRefine = useMemo(() => {
+        return canRefineWithSelectedMethod && refinementCount > 0;
+    }, [canRefineWithSelectedMethod, refinementCount]);
+
+    const canPromptUseRefinementCharm = useMemo(() => {
+        return canRefineWithSelectedMethod && refinementCount <= 0 && ticketCounts.charm > 0;
+    }, [canRefineWithSelectedMethod, refinementCount, ticketCounts.charm]);
+
+    const canPressRefineButton = canRefine || canPromptUseRefinementCharm;
 
     // 변경권 아이템 정보
     const ticketItemInfo = useMemo(() => {
@@ -556,25 +565,24 @@ const RefinementView: React.FC<RefinementViewProps> = ({
     };
 
     const handleRefine = async () => {
-        if (!canRefine || !selectedItem || !selectedOption) return;
+        if (!selectedItem || !selectedOption || !refinementType) return;
+        if (refinementCount <= 0) {
+            if (canPromptUseRefinementCharm) {
+                setIsCharmConfirmOpen(true);
+            }
+            return;
+        }
+        if (!canRefine) return;
         
         setIsRefining(true);
         setRefinementProgress(0);
+        clearRefinementTimers();
         
         refinementIntervalRef.current = window.setInterval(() => {
-            setRefinementProgress(prev => {
-                if (prev >= 100) {
-                    clearRefinementTimers();
-                    return 100;
-                }
-                return prev + 2;
-            });
+            setRefinementProgress(prev => Math.min(90, prev + 12));
         }, 40);
         
-        refinementTimeoutRef.current = window.setTimeout(async () => {
-            clearRefinementTimers();
-            setRefinementProgress(100);
-            
+        try {
             await onAction({
                 type: 'REFINE_EQUIPMENT',
                 payload: {
@@ -584,12 +592,14 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                     refinementType: refinementType,
                 }
             });
-            
+            setRefinementProgress(100);
+        } finally {
+            clearRefinementTimers();
             setIsRefining(false);
             setRefinementProgress(0);
             setSelectedOption(null);
             setRefinementType(null);
-        }, 2000);
+        }
     };
     const handleUseRefinementCharm = async () => {
         if (!selectedItem || ticketCounts.charm <= 0) return;
@@ -679,8 +689,14 @@ const RefinementView: React.FC<RefinementViewProps> = ({
     );
 
     const refinementActionFooter =
-        selectedOption && !refinementExhausted ? (
+        selectedOption ? (
             <div className="mt-2 shrink-0 space-y-2 border-t border-white/10 pt-2">
+                {refinementExhausted ? (
+                    <div className={`rounded border border-amber-500/30 bg-amber-950/25 px-2 py-1.5 ${typo.caption} text-amber-100`}>
+                        <p className="font-semibold">{t('refine.countDepleted')}</p>
+                        <p className="mt-0.5 text-amber-100/75">{t('refine.charmUsageHint')}</p>
+                    </div>
+                ) : null}
                 <div className="rounded border border-white/10 bg-black/35 p-1.5">
                     <div className={`mb-1 text-gray-400 ${typo.caption}`}>{t('refine.requiredMaterials')}</div>
                     {refinementType && ticketItemInfo ? (
@@ -731,9 +747,9 @@ const RefinementView: React.FC<RefinementViewProps> = ({
 
                 <button
                     onClick={handleRefine}
-                    disabled={!canRefine || isRefining}
+                    disabled={!canPressRefineButton || isRefining}
                     className={`group relative mx-auto block w-full min-w-0 rounded-lg px-2.5 py-2.5 font-bold transition-all duration-300 overflow-hidden ${typo.bodySemi} ${
-                        canRefine && !isRefining
+                        canPressRefineButton && !isRefining
                             ? 'bg-gradient-to-r from-amber-500 via-orange-500 to-red-500 text-white shadow-[0_0_14px_rgba(251,146,60,0.55)] hover:shadow-[0_0_20px_rgba(251,146,60,0.75)]'
                             : 'cursor-not-allowed bg-gray-700 text-gray-400 opacity-50'
                     }`}
@@ -788,31 +804,6 @@ const RefinementView: React.FC<RefinementViewProps> = ({
             </span>
         </div>
     ) : null;
-
-    const refinementExhaustedPanel = (
-        <div className={`flex min-h-0 flex-1 flex-col justify-center gap-2 rounded-lg bg-gray-900/40 p-3 text-amber-200/95 ${typo.body}`}>
-            <p className="font-semibold leading-snug">{t('refine.countDepleted')}</p>
-            <p className={`${typo.caption} leading-relaxed text-gray-400`}>
-                {t('refine.charmUsageHint')}
-            </p>
-            <div className="mt-1 flex items-center justify-between gap-2 rounded border border-amber-500/30 bg-black/30 px-2 py-1.5">
-                <div className="flex items-center gap-2">
-                    <img src={refinementCharmInfo.image} alt={refinementCharmInfo.name} className="h-7 w-7 object-contain" />
-                    <div className={`${typo.body} leading-tight`}>
-                        <p className="font-semibold text-amber-100">{refinementCharmInfo.name}</p>
-                        <p className="text-gray-300">{t('refine.ownedCharms', { count: ticketCounts.charm })}</p>
-                    </div>
-                </div>
-                <Button
-                    onClick={() => void handleUseRefinementCharm()}
-                    disabled={ticketCounts.charm <= 0}
-                    className="!px-3 !py-1.5 !text-xs !font-semibold"
-                >
-                    사용하기
-                </Button>
-            </div>
-        </div>
-    );
 
     const refinementInfoBody = selectedOption ? (
         <div className={`flex min-h-0 flex-1 flex-col gap-2 ${typo.body}`}>
@@ -944,27 +935,21 @@ const RefinementView: React.FC<RefinementViewProps> = ({
         >
             <h3 className={`mb-1 shrink-0 text-center ${typo.heading} text-amber-100`}>{t('refine.selectedGearShort')}</h3>
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                {refinementExhausted ? (
-                    refinementExhaustedPanel
-                ) : (
-                    <>
-                        <ItemDisplay
-                            item={selectedItem}
-                            selectedOption={selectedOption}
-                            pcViewer={pcViewer}
-                            mobileWork={stackedViewport}
-                            onOptionClick={(type, index) => {
-                                setSelectedOption({ type, index });
-                                setRefinementType(null);
-                            }}
-                        />
-                        {stackedViewport && !selectedOption ? (
-                            <p className={`mt-2 shrink-0 px-2 text-center ${typo.caption} text-slate-400`}>
-                                제련할 옵션을 탭하면 제련 정보 화면으로 이동합니다.
-                            </p>
-                        ) : null}
-                    </>
-                )}
+                <ItemDisplay
+                    item={selectedItem}
+                    selectedOption={selectedOption}
+                    pcViewer={pcViewer}
+                    mobileWork={stackedViewport}
+                    onOptionClick={(type, index) => {
+                        setSelectedOption({ type, index });
+                        setRefinementType(null);
+                    }}
+                />
+                {stackedViewport && !selectedOption ? (
+                    <p className={`mt-2 shrink-0 px-2 text-center ${typo.caption} text-slate-400`}>
+                        제련할 옵션을 탭하면 제련 정보 화면으로 이동합니다.
+                    </p>
+                ) : null}
             </div>
             {ownedTicketBar}
         </div>
@@ -1000,7 +985,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                    {refinementExhausted ? refinementExhaustedPanel : refinementInfoBody}
+                    {refinementInfoBody}
                 </div>
                 {refinementActionFooter}
             </div>
@@ -1012,7 +997,7 @@ const RefinementView: React.FC<RefinementViewProps> = ({
             {mobileStepIndicator}
             {stackedViewport ? (
                 <div className={`${BLACKSMITH_MOBILE_WORK_ROOT_CLASS} min-h-0 flex-1`}>
-                    {!selectedOption || refinementExhausted ? equipmentPanel : refinementPanel}
+                    {!selectedOption ? equipmentPanel : refinementPanel}
                 </div>
             ) : (
                 <div className="grid min-h-0 min-w-0 flex-1 grid-cols-2 gap-3">
@@ -1025,6 +1010,19 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                 onClose={onResultConfirm}
                 isTopmost
             />
+            {isCharmConfirmOpen ? (
+                <ConfirmModal
+                    title={refinementCharmInfo.name}
+                    message={`${t('refine.countDepleted')}\n${t('refine.charmUsageHint')}\n${t('refine.ownedCharms', { count: ticketCounts.charm })}`}
+                    onConfirm={() => void handleUseRefinementCharm()}
+                    onCancel={() => setIsCharmConfirmOpen(false)}
+                    confirmText={t('actions.confirm', { ns: 'common' })}
+                    cancelText={t('actions.cancel', { ns: 'common' })}
+                    confirmColorScheme="yellow"
+                    windowId="refinement-charm-confirm"
+                    isTopmost
+                />
+            ) : null}
         </div>
     );
 };

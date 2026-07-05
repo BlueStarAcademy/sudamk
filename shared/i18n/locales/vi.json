@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Nâng cấp cấp độ thú cưng] {{fromGrade}}→{{toGrade}} (Thú cưng cấp độ{{minLevel}} trở lên)",
           "soulGradeUpgradeGeneric": "[Nâng cấp thú cưng] Được sử dụng để tăng thứ hạng của thú cưng AI đồng loại trong Đấu trường Công bằng.",
           "eggHatchRandom": "[Thú cưng · Trại giống] Đặt vào một khe và nở thành một loại thú cưng AI ngẫu nhiên.",
-          "welcomeEggHatch": "[Thú cưng · Trại giống] Được đặt trong khe - thời gian nở 1 phút, thú cưng AI cấp 5 khi nở"
+          "welcomeEggHatch": "[Thú cưng · Trại giống] Được đặt trong khe - thời gian nở 1 phút, thú cưng AI cấp 10 khi nở"
         }
       },
       "enhanceRange": {

@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Îmbunătățirea gradului pentru animale de companie] {{fromGrade}}→{{toGrade}} (Nivel animal de companie{{minLevel}} sau mai mare)",
           "soulGradeUpgradeGeneric": "[Îmbunătățirea gradului de companie] Folosit pentru a crește rangul altor animale de companie AI din Arena Târgului.",
           "eggHatchRandom": "[Pet · Hatchery] Așezați într-un slot și deschideți un tip aleatoriu de animal de companie AI.",
-          "welcomeEggHatch": "[Pet · Hatchery] Plasat în slot — timp de clocire 1 minut, nivel 5 AI animal de companie când eclozionat"
+          "welcomeEggHatch": "[Pet · Hatchery] Plasat în slot — timp de clocire 1 minut, nivel 10 AI animal de companie când eclozionat"
         }
       },
       "enhanceRange": {

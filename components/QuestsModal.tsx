@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react';
-import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward } from '../types.js';
+import { UserWithStatus, Quest, ServerAction, QuestLog, QuestReward, InventoryItem } from '../types.js';
 import DraggableWindow from './DraggableWindow.js';
+import RewardSummaryModal from './RewardSummaryModal.js';
 import { DAILY_MILESTONE_THRESHOLDS, WEEKLY_MILESTONE_THRESHOLDS, MONTHLY_MILESTONE_THRESHOLDS, DAILY_MILESTONE_REWARDS, WEEKLY_MILESTONE_REWARDS, MONTHLY_MILESTONE_REWARDS, CONSUMABLE_ITEMS, ACHIEVEMENT_TRACKS } from '../constants';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH, isInsideSudamrAdUi } from '../constants/ads.js';
 import { clampQuestProgressToTarget, DEFAULT_CLAIMED_MILESTONES } from '../utils/questProgressCap.js';
@@ -51,10 +52,21 @@ const getQuestDisplayTitle = (title: string): string => {
 interface QuestsModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
-    onAction: (action: ServerAction) => void;
+    onAction: (action: ServerAction) => void | Promise<any>;
     isTopmost?: boolean;
     /** PC 로비 중앙 인라인 패널 — DraggableWindow 생략 */
     embedded?: boolean;
+}
+
+type QuestRewardSummary = {
+    reward: QuestReward;
+    items: InventoryItem[];
+    title: string;
+};
+
+function extractQuestRewardSummary(result: unknown): QuestRewardSummary | null {
+    const response = result as { rewardSummary?: QuestRewardSummary; clientResponse?: { rewardSummary?: QuestRewardSummary } } | undefined;
+    return response?.rewardSummary ?? response?.clientResponse?.rewardSummary ?? null;
 }
 
 type QuestTab = 'daily' | 'weekly' | 'monthly' | 'achievements';
@@ -879,27 +891,34 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
     const currentUser = propCurrentUser;
 
     const [activeTab, setActiveTab] = useState<QuestTab>('daily');
+    const [localRewardSummary, setLocalRewardSummary] = useState<QuestRewardSummary | null>(null);
     const { quests } = currentUser;
     const claimAction = useKeyedAsyncAction();
 
     const handleClaim = (questId: string) => {
         void claimAction.run(`quest-${questId}`, async () => {
-            await onAction({ type: 'CLAIM_QUEST_REWARD', payload: { questId } });
+            const result = await onAction({ type: 'CLAIM_QUEST_REWARD', payload: { questId } });
+            const summary = extractQuestRewardSummary(result);
+            if (summary) setLocalRewardSummary(summary);
         });
     };
 
     const handleClaimAchievement = (trackId: string, stageIndex: number) => {
         void claimAction.run(`achievement-${trackId}-${stageIndex}`, async () => {
-            await onAction({
+            const result = await onAction({
                 type: 'CLAIM_ACHIEVEMENT_REWARD',
                 payload: { trackId, stageIndex },
             });
+            const summary = extractQuestRewardSummary(result);
+            if (summary) setLocalRewardSummary(summary);
         });
     };
 
     const handleClaimMilestone = (index: number, questType: 'daily' | 'weekly' | 'monthly') => {
         void claimAction.run(`milestone-${questType}-${index}`, async () => {
-            await onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType } });
+            const result = await onAction({ type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: index, questType } });
+            const summary = extractQuestRewardSummary(result);
+            if (summary) setLocalRewardSummary(summary);
         });
     };
 
@@ -1137,7 +1156,18 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
     );
 
     if (embedded) {
-        return <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{questBody}</div>;
+        return (
+            <>
+                <div className={PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS}>{questBody}</div>
+                {localRewardSummary ? (
+                    <RewardSummaryModal
+                        summary={localRewardSummary}
+                        onClose={() => setLocalRewardSummary(null)}
+                        isTopmost
+                    />
+                ) : null}
+            </>
+        );
     }
 
     return (
@@ -1157,7 +1187,16 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
             bodyNoScroll={false}
             bodyScrollable
         >
-            {questBody}
+            <>
+                {questBody}
+                {localRewardSummary ? (
+                    <RewardSummaryModal
+                        summary={localRewardSummary}
+                        onClose={() => setLocalRewardSummary(null)}
+                        isTopmost
+                    />
+                ) : null}
+            </>
         </DraggableWindow>
     );
 };

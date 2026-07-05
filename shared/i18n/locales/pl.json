@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Ulepszenie poziomu zwierzaka] {{fromGrade}} →{{toGrade}} (Poz. zwierzaka {{minLevel}} lub wyższy)",
           "soulGradeUpgradeGeneric": "[Wzmocnienie poziomu zwierzaka] Służy do zwiększania rangi innych zwierzaków AI na Fair Arena.",
           "eggHatchRandom": "[Zwierzak · Wylęgarnia] Umieść w slocie i wykluj się z losowego typu zwierzaka AI.",
-          "welcomeEggHatch": "[Zwierzę · Wylęgarnia] Umieszczone w slocie — czas wylęgu 1 minuta, zwierzę AI poziomu 5 po wykluciu"
+          "welcomeEggHatch": "[Zwierzę · Wylęgarnia] Umieszczone w slocie — czas wylęgu 1 minuta, zwierzę AI poziomu 10 po wykluciu"
         }
       },
       "enhanceRange": {

@@ -2,14 +2,21 @@ import React, { useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { tx } from '../shared/i18n/runtimeText.js';
 import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
+import {
+    buildCurrencyExchangeClaimAllHistoryLine,
+    buildCurrencyExchangeClaimHistoryLine,
+    HX_CURRENCY_CLAIM,
+    HX_CURRENCY_CLAIM_ALL,
+    HX_CURRENCY_DONE,
+    HX_DIA,
+    HX_FEE,
+    HX_GOLD,
+    HX_PURCHASE_DONE,
+    HX_SETTLEMENT_ALL,
+    HX_SETTLEMENT_ONE,
+    isExchangeHistoryLineForDisplay,
+} from '../shared/utils/exchangeHistory.js';
 
-/** Persisted exchange history markers (Unicode — local/server history matching, not UI copy) */
-const HX_PURCHASE_DONE = '\uAD6C\uB9E4 \uC644\uB8CC';
-const HX_SETTLEMENT_ONE = '\uC815\uC0B0 \uC218\uB9BD';
-const HX_SETTLEMENT_ALL = '\uC815\uC0B0 \uBAA8\uB450 \uC218\uB9BD';
-const HX_GOLD = '\uACE8\uB4DC';
-const HX_DIA = '\uB514\uC774\uC544';
-const HX_FEE = '\uC218\uC218\uB8CC';
 /** 이력 파싱용 — 저장 문자열은 locale과 무관하게 고정 */
 const HX_CURRENCY_SUFFIX_PATTERN = `${HX_GOLD}|${HX_DIA}|Gold|Diamonds`;
 
@@ -88,6 +95,22 @@ type SettlementItem = {
     currency: SaleCurrency;
     soldAt: number;
     claimed: boolean;
+};
+type SettlementDisplayItem = {
+    id: string;
+    kind: 'listing' | 'currency';
+    itemName: string;
+    soldPrice: number;
+    currency: SaleCurrency;
+    fee: number;
+    net: number;
+    itemGrade: ItemGrade;
+    itemStars: number;
+    itemImage?: string;
+    listingId?: string;
+    orderId?: string;
+    fromCurrency?: SaleCurrency;
+    fromAmount?: number;
 };
 type PendingRegistration = {
     item: InventoryItem;
@@ -327,10 +350,7 @@ const minPriceByCurrency: Record<SaleCurrency, number> = {
 const BAG_SCROLLBAR_Y_CLASS =
     '[scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.3)_transparent] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:bg-transparent [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-slate-500/38 hover:[&::-webkit-scrollbar-thumb]:bg-slate-400/48';
 
-/** 거래 이력 탭에 표시: 구매 완료·정산 수령(판매 대금)만 */
-const isExchangeHistoryLineForDisplay = (line: string): boolean =>
-    line.includes(HX_PURCHASE_DONE) || line.includes(HX_SETTLEMENT_ALL) || line.includes(HX_SETTLEMENT_ONE);
-
+/** 거래 이력 탭에 표시: 구매·정산·환전 */
 const getBuyListingGroupKey = (entry: Pick<ExchangeListing, 'itemName' | 'itemGrade' | 'itemStars' | 'itemSlot' | 'currency'>): string =>
     [entry.itemName, entry.itemGrade ?? ItemGrade.Normal, entry.itemStars ?? 0, entry.itemSlot ?? 'none', entry.currency].join('::');
 
@@ -688,12 +708,23 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         setListings((prev) => mergeExchangeListingsPreferServer(prev, serverListings));
         setSettlements(serverSettlements);
     }, [currentUser.id, serverListingsSig, serverSettlementsSig]);
-    /** exchangeState가 id 변경 없이 늦게 도착한 경우(로컬 이력이 아직 비어 있을 때만 서버로 채움) */
+    /** exchangeState가 id 변경 없이 늦게 도착한 경우 — 서버에만 있는 새 이력 병합 */
+    const serverHistorySig = useMemo(
+        () => ((currentUser.exchangeState?.history as string[] | undefined) ?? []).join('\n'),
+        [currentUser.exchangeState?.history],
+    );
     React.useEffect(() => {
         const serverHistory = (currentUser.exchangeState?.history as string[] | undefined) ?? [];
         if (!Array.isArray(serverHistory) || serverHistory.length === 0) return;
-        setHistory((prev) => (prev.length === 0 ? serverHistory : prev));
-    }, [currentUser.id, currentUser.exchangeState?.history?.length]);
+        setHistory((prev) => {
+            if (prev.length === 0) return serverHistory;
+            if (prev[0] === serverHistory[0]) return prev;
+            const seen = new Set(prev);
+            const newLines = serverHistory.filter((line) => !seen.has(line));
+            if (newLines.length === 0) return prev;
+            return [...newLines, ...prev].slice(0, 200);
+        });
+    }, [currentUser.id, serverHistorySig]);
     React.useEffect(() => {
         if (skipInitialExchangePersist.current) {
             skipInitialExchangePersist.current = false;
@@ -921,8 +952,48 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         appendHistory(`${HX_PURCHASE_DONE}: ${listing.itemName} / ${formatHistoryCurrencyAmount(listing.price, listing.currency)}`);
     };
 
-    const handleClaimSettlement = async (listingId: string) => {
-        const settlement = settlements.find((entry) => entry.listingId === listingId && !entry.claimed);
+    const handleClaimSettlement = async (settlementId: string) => {
+        const displayItem = settlementDisplayItems.find((entry) => entry.id === settlementId);
+        if (!displayItem) return;
+
+        if (displayItem.kind === 'currency' && displayItem.orderId) {
+            const claimFee = displayItem.fee;
+            const netAmount = displayItem.net;
+            const result = await onAction?.({
+                type: 'CLAIM_CURRENCY_EXCHANGE_RECEIPT',
+                payload: { orderId: displayItem.orderId },
+            });
+            if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
+                window.alert(String((result as { error: string }).error));
+                return;
+            }
+            const cr = (
+                result as
+                    | {
+                          clientResponse?: {
+                              currencyExchangeClaimedGold?: number;
+                              currencyExchangeClaimedDiamonds?: number;
+                          };
+                      }
+                    | undefined
+            )?.clientResponse;
+            const g = Math.max(0, Math.floor(Number(cr?.currencyExchangeClaimedGold ?? 0)));
+            const d = Math.max(0, Math.floor(Number(cr?.currencyExchangeClaimedDiamonds ?? 0)));
+            const obtain: InventoryItem[] = [];
+            if (g > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('gold', g));
+            if (d > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('diamonds', d));
+            if (obtain.length > 0) setSettlementObtainItems(obtain);
+            appendHistory(
+                buildCurrencyExchangeClaimHistoryLine({
+                    netAmount,
+                    currency: displayItem.currency,
+                    feeAmount: claimFee,
+                }),
+            );
+            return;
+        }
+
+        const settlement = settlements.find((entry) => entry.listingId === settlementId && !entry.claimed);
         if (!settlement) return;
 
         const claimFee = exchangeListingFeeFromPrice(settlement.soldPrice);
@@ -930,7 +1001,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
 
         const result = await onAction?.({
             type: 'CLAIM_EXCHANGE_SETTLEMENT',
-            payload: { listingId },
+            payload: { listingId: settlement.listingId },
         });
         if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
             window.alert(String((result as { error: string }).error));
@@ -956,35 +1027,67 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         appendHistory(`${HX_SETTLEMENT_ONE}: ${settlement.itemName} / \uC2E4\uC218\uB9BD ${formatHistoryCurrencyAmount(netAmount, settlement.currency)} (${HX_FEE} ${formatHistoryCurrencyAmount(claimFee, settlement.currency)})`);
     };
     const handleClaimAllSettlements = async () => {
-        if (unclaimedSettlements.length === 0) return;
+        if (settlementDisplayItems.length === 0) return;
 
-        const result = await onAction?.({
-            type: 'CLAIM_EXCHANGE_SETTLEMENT',
-            payload: { claimAll: true },
-        });
-        if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
-            window.alert(String((result as { error: string }).error));
-            return;
+        let totalGoldNet = 0;
+        let totalDiamondsNet = 0;
+
+        if (unclaimedSettlements.length > 0) {
+            const result = await onAction?.({
+                type: 'CLAIM_EXCHANGE_SETTLEMENT',
+                payload: { claimAll: true },
+            });
+            if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
+                window.alert(String((result as { error: string }).error));
+                return;
+            }
+            const cr = (
+                result as
+                    | {
+                          clientResponse?: {
+                              exchangeSettlementClaimedGold?: number;
+                              exchangeSettlementClaimedDiamonds?: number;
+                          };
+                      }
+                    | undefined
+            )?.clientResponse;
+            totalGoldNet += Math.max(0, Math.floor(Number(cr?.exchangeSettlementClaimedGold ?? 0)));
+            totalDiamondsNet += Math.max(0, Math.floor(Number(cr?.exchangeSettlementClaimedDiamonds ?? 0)));
+            appendHistory(
+                `${HX_SETTLEMENT_ALL}: ${HX_GOLD} ${formatGoldAmountKoG(totalGoldNet)} / ${HX_DIA} ${formatWalletDiamonds(totalDiamondsNet)}`,
+            );
         }
-        const cr = (
-            result as
-                | {
-                      clientResponse?: {
-                          exchangeSettlementClaimedGold?: number;
-                          exchangeSettlementClaimedDiamonds?: number;
-                      };
-                  }
-                | undefined
-        )?.clientResponse;
-        const totalGoldNet = Math.max(0, Math.floor(Number(cr?.exchangeSettlementClaimedGold ?? 0)));
-        const totalDiamondsNet = Math.max(0, Math.floor(Number(cr?.exchangeSettlementClaimedDiamonds ?? 0)));
+
+        if (unclaimedCurrencyReceipts.length > 0) {
+            const result = await onAction?.({
+                type: 'CLAIM_CURRENCY_EXCHANGE_RECEIPT',
+                payload: { claimAll: true },
+            });
+            if (result && typeof result === 'object' && 'error' in result && (result as { error?: string }).error) {
+                window.alert(String((result as { error: string }).error));
+                return;
+            }
+            const cr = (
+                result as
+                    | {
+                          clientResponse?: {
+                              currencyExchangeClaimedGold?: number;
+                              currencyExchangeClaimedDiamonds?: number;
+                          };
+                      }
+                    | undefined
+            )?.clientResponse;
+            const g = Math.max(0, Math.floor(Number(cr?.currencyExchangeClaimedGold ?? 0)));
+            const d = Math.max(0, Math.floor(Number(cr?.currencyExchangeClaimedDiamonds ?? 0)));
+            totalGoldNet += g;
+            totalDiamondsNet += d;
+            appendHistory(buildCurrencyExchangeClaimAllHistoryLine({ goldNet: g, diamondsNet: d }));
+        }
+
         const obtain: InventoryItem[] = [];
         if (totalGoldNet > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('gold', totalGoldNet));
         if (totalDiamondsNet > 0) obtain.push(createExchangeSettlementCurrencyObtainItem('diamonds', totalDiamondsNet));
         if (obtain.length > 0) setSettlementObtainItems(obtain);
-        appendHistory(
-            `${HX_SETTLEMENT_ALL}: ${HX_GOLD} ${formatGoldAmountKoG(totalGoldNet)} / ${HX_DIA} ${formatWalletDiamonds(totalDiamondsNet)}`,
-        );
     };
 
     const handleCancelListing = (listingId: string) => {
@@ -1147,23 +1250,46 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         () => (currentUser.exchangeState?.currencyReceipts ?? []).filter((entry) => entry && entry.claimed !== true),
         [currentUser.exchangeState?.currencyReceipts],
     );
-    const settlementDisplayItems = useMemo(
-        () =>
-            unclaimedSettlements.map((entry) => {
-                const linkedListing = listings.find((listing) => listing.id === entry.listingId);
-                const fee = exchangeListingFeeFromPrice(entry.soldPrice);
-                const net = Math.max(0, entry.soldPrice - fee);
-                return {
-                    ...entry,
-                    fee,
-                    net,
-                    itemImage: linkedListing?.itemImage,
-                    itemGrade: (linkedListing?.itemGrade as ItemGrade | undefined) ?? ItemGrade.Normal,
-                    itemStars: linkedListing?.itemStars ?? 0,
-                };
-            }),
-        [unclaimedSettlements, listings],
-    );
+    const settlementDisplayItems = useMemo((): SettlementDisplayItem[] => {
+        const listingItems: SettlementDisplayItem[] = unclaimedSettlements.map((entry) => {
+            const linkedListing = listings.find((listing) => listing.id === entry.listingId);
+            const fee = exchangeListingFeeFromPrice(entry.soldPrice);
+            const net = Math.max(0, entry.soldPrice - fee);
+            return {
+                id: entry.listingId,
+                kind: 'listing',
+                listingId: entry.listingId,
+                itemName: entry.itemName,
+                soldPrice: entry.soldPrice,
+                currency: entry.currency,
+                fee,
+                net,
+                itemImage: linkedListing?.itemImage,
+                itemGrade: (linkedListing?.itemGrade as ItemGrade | undefined) ?? ItemGrade.Normal,
+                itemStars: linkedListing?.itemStars ?? 0,
+            };
+        });
+        const currencyItems: SettlementDisplayItem[] = unclaimedCurrencyReceipts.map((receipt) => {
+            const fee = exchangeListingFeeFromPrice(receipt.amount);
+            const net = Math.max(0, receipt.amount - fee);
+            return {
+                id: `cx-${receipt.orderId}`,
+                kind: 'currency',
+                orderId: receipt.orderId,
+                itemName: t('currency.settlementEntryName'),
+                soldPrice: receipt.amount,
+                currency: receipt.currency,
+                fee,
+                net,
+                itemImage: receipt.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp',
+                itemGrade: ItemGrade.Normal,
+                itemStars: 0,
+                fromCurrency: receipt.fromCurrency,
+                fromAmount: receipt.fromAmount,
+            };
+        });
+        return [...listingItems, ...currencyItems];
+    }, [unclaimedSettlements, unclaimedCurrencyReceipts, listings, t]);
     const settlementTotals = useMemo(() => {
         let selectedFeeGold = 0;
         let selectedFeeDiamonds = 0;
@@ -1186,7 +1312,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         };
     }, [settlementDisplayItems]);
     const selectedSettlement =
-        settlementDisplayItems.find((entry) => entry.listingId === selectedSettlementId) ??
+        settlementDisplayItems.find((entry) => entry.id === selectedSettlementId) ??
         settlementDisplayItems[0] ??
         null;
     React.useEffect(() => {
@@ -1194,8 +1320,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             if (selectedSettlementId) setSelectedSettlementId('');
             return;
         }
-        if (!selectedSettlementId || !settlementDisplayItems.some((entry) => entry.listingId === selectedSettlementId)) {
-            setSelectedSettlementId(settlementDisplayItems[0].listingId);
+        if (!selectedSettlementId || !settlementDisplayItems.some((entry) => entry.id === selectedSettlementId)) {
+            setSelectedSettlementId(settlementDisplayItems[0].id);
         }
     }, [settlementDisplayItems, selectedSettlementId]);
     const visibleExchangeHistory = useMemo(
@@ -1217,31 +1343,64 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                 ? t('labels.purchaseComplete')
                 : line.includes(HX_SETTLEMENT_ONE) || line.includes(HX_SETTLEMENT_ALL)
                   ? t('labels.settlementReceived')
-                  : '-';
+                  : line.includes(HX_CURRENCY_DONE)
+                    ? t('labels.currencyExchangeDone')
+                    : line.includes(HX_CURRENCY_CLAIM) || line.includes(HX_CURRENCY_CLAIM_ALL)
+                      ? t('labels.currencyExchangeClaim')
+                      : '-';
             const itemNameMatch = message.match(/^[^:]+:\s*([^/]+?)(?:\s*\/|$)/);
             const itemName = itemNameMatch?.[1]?.trim();
             const matches = [...line.matchAll(new RegExp(`([0-9,]+)(${HX_CURRENCY_SUFFIX_PATTERN})`, 'g'))];
             const priceMatch = matches[0];
+            const receiveMatch = line.includes(HX_CURRENCY_DONE) && matches.length > 1 ? matches[1] : null;
             const feeMatch = line.match(new RegExp(`${HX_FEE}[^0-9]*([0-9,]+)(${HX_CURRENCY_SUFFIX_PATTERN})`));
-            const priceAmount = priceMatch ? Number((priceMatch[1] ?? '0').replace(/,/g, '')) || 0 : 0;
-            const priceCurrency = (isHistoryGoldSuffix(priceMatch?.[2]) ? 'gold' : priceMatch ? 'diamonds' : null) as SaleCurrency | null;
+            const netReceiveMatch =
+                line.includes(HX_CURRENCY_CLAIM) && !line.includes(HX_CURRENCY_CLAIM_ALL)
+                    ? line.match(new RegExp(`\\uC2E4\\uC218\\uB9BD\\s*([0-9,]+)(${HX_CURRENCY_SUFFIX_PATTERN})`))
+                    : null;
+            const displayMatch =
+                line.includes(HX_CURRENCY_DONE) && receiveMatch
+                    ? receiveMatch
+                    : netReceiveMatch
+                      ? [netReceiveMatch[1], netReceiveMatch[2]]
+                      : priceMatch;
+            const priceAmount = displayMatch
+                ? Number((displayMatch[1] ?? '0').replace(/,/g, '')) || 0
+                : priceMatch
+                  ? Number((priceMatch[1] ?? '0').replace(/,/g, '')) || 0
+                  : 0;
+            const priceCurrency = (
+                isHistoryGoldSuffix(displayMatch?.[2] ?? priceMatch?.[2])
+                    ? 'gold'
+                    : displayMatch || priceMatch
+                      ? 'diamonds'
+                      : null
+            ) as SaleCurrency | null;
             const feeAmount = feeMatch ? Number((feeMatch[1] ?? '0').replace(/,/g, '')) || 0 : 0;
             const feeCurrency = (isHistoryGoldSuffix(feeMatch?.[2]) ? 'gold' : feeMatch ? 'diamonds' : null) as SaleCurrency | null;
             if (line.includes(HX_PURCHASE_DONE) && priceMatch) {
                 if (isHistoryGoldSuffix(priceMatch[2])) totals.outGold += priceAmount;
                 else totals.outDiamonds += priceAmount;
             }
-            if (line.includes(HX_SETTLEMENT_ALL)) {
+            if (line.includes(HX_CURRENCY_DONE) && priceMatch && receiveMatch) {
+                const payAmount = Number((priceMatch[1] ?? '0').replace(/,/g, '')) || 0;
+                const recvAmount = Number((receiveMatch[1] ?? '0').replace(/,/g, '')) || 0;
+                if (isHistoryGoldSuffix(priceMatch[2])) totals.outGold += payAmount;
+                else totals.outDiamonds += payAmount;
+                if (isHistoryGoldSuffix(receiveMatch[2])) totals.inGold += recvAmount;
+                else totals.inDiamonds += recvAmount;
+            }
+            if (line.includes(HX_SETTLEMENT_ALL) || line.includes(HX_CURRENCY_CLAIM_ALL)) {
                 matches.forEach((m) => {
                     const amount = Number((m[1] ?? '0').replace(/,/g, '')) || 0;
                     if (isHistoryGoldSuffix(m[2])) totals.inGold += amount;
                     else totals.inDiamonds += amount;
                 });
-            } else if (line.includes(HX_SETTLEMENT_ONE) && priceMatch) {
+            } else if ((line.includes(HX_SETTLEMENT_ONE) || line.includes(HX_CURRENCY_CLAIM)) && priceMatch) {
                 if (isHistoryGoldSuffix(priceMatch[2])) totals.inGold += priceAmount;
                 else totals.inDiamonds += priceAmount;
             }
-            if (line.includes(HX_SETTLEMENT_ALL)) {
+            if (line.includes(HX_SETTLEMENT_ALL) || line.includes(HX_CURRENCY_CLAIM_ALL)) {
                 const goldBulk = line.match(new RegExp(`(?:${HX_GOLD}|Gold)\\s*([0-9,]+)`));
                 const diaBulk = line.match(new RegExp(`(?:${HX_DIA}|Diamonds)\\s*([0-9,]+)`));
                 const gBulk = goldBulk ? Number((goldBulk[1] ?? '0').replace(/,/g, '')) || 0 : 0;
@@ -1254,6 +1413,32 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                     timestampText,
                     statusText,
                     itemImage: bulkImage,
+                    itemGrade: ItemGrade.Normal,
+                    itemStars: 0,
+                    priceAmount: line.includes(HX_CURRENCY_CLAIM_ALL) ? gBulk || dBulk : priceAmount,
+                    priceCurrency: line.includes(HX_CURRENCY_CLAIM_ALL)
+                        ? gBulk > 0 && dBulk === 0
+                            ? 'gold'
+                            : dBulk > 0 && gBulk === 0
+                              ? 'diamonds'
+                              : priceCurrency
+                        : priceCurrency,
+                    feeAmount,
+                    feeCurrency,
+                };
+            }
+            if (line.includes(HX_CURRENCY_DONE) || line.includes(HX_CURRENCY_CLAIM)) {
+                const currencyImage =
+                    priceCurrency === 'gold'
+                        ? '/images/icon/Gold.webp'
+                        : priceCurrency === 'diamonds'
+                          ? '/images/icon/Zem.webp'
+                          : '/images/Box/GoldBox3.webp';
+                return {
+                    line,
+                    timestampText,
+                    statusText,
+                    itemImage: currencyImage,
                     itemGrade: ItemGrade.Normal,
                     itemStars: 0,
                     priceAmount,
@@ -2108,19 +2293,17 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 placeholder={t('labels.searchPlaceholder')}
                                                 className={`min-w-0 w-full rounded border border-slate-600 bg-slate-800 px-2 py-1.5 text-slate-100 outline-none placeholder:text-slate-400 ${mobileExchange ? 'text-[11px] leading-snug' : 'text-xs'}`}
                                             />
-                                            <button
-                                                type="button"
+                                            <ResourceActionButton
+                                                variant="neutral"
                                                 onClick={() => {
                                                     setBuyManualRefreshCooldownUntilMs(Date.now() + 5000);
                                                     void refreshMarketListings();
                                                 }}
-                                                aria-label={t('labels.refresh')}
-                                                title={t('labels.refresh')}
-                                                className={`shrink-0 rounded border border-slate-600 bg-slate-800 text-slate-200 transition hover:border-slate-400 hover:text-white ${mobileExchange ? 'w-8 text-[13px]' : 'w-9 text-sm'} ${buyRefreshButtonDisabled ? 'opacity-70' : ''}`}
                                                 disabled={buyRefreshButtonDisabled}
+                                                className="shrink-0 !w-auto !min-h-0 !rounded-lg !border-slate-500/50 !px-2.5 !py-1 !text-[10px] !tracking-normal !shadow-none"
                                             >
-                                                ↻
-                                            </button>
+                                                {t('labels.refresh')}
+                                            </ResourceActionButton>
                                         </div>
                                     </div>
                                     <div className={`min-h-0 flex-1 overflow-y-auto pr-1 ${BAG_SCROLLBAR_Y_CLASS}`}>
@@ -2688,20 +2871,21 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         )}
                                         <div className="space-y-2">
                                             {settlementDisplayItems.map((entry) => {
-                                                const gradeKey = (entry.itemGrade ?? ItemGrade.Normal) as ItemGrade;
+                                                const isCurrency = entry.kind === 'currency';
+                                                const gradeKey = entry.itemGrade ?? ItemGrade.Normal;
                                                 const gradeLabel = localizedGrade(gradeKey);
                                                 const starVisual = getStarVisual(entry.itemStars ?? 0);
                                                 const currencyIcon = entry.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp';
                                                 const currencyAlt = entry.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds');
                                                 return (
                                                     <button
-                                                        key={entry.listingId}
+                                                        key={entry.id}
                                                         type="button"
-                                                        onClick={() => setSelectedSettlementId(entry.listingId)}
+                                                        onClick={() => setSelectedSettlementId(entry.id)}
                                                         className={`grid w-full items-center rounded-lg border text-left transition ${settlementListCols} ${
                                                             mobileExchange ? 'px-1.5 py-1.5' : 'px-2 py-2'
                                                         } ${
-                                                            selectedSettlement?.listingId === entry.listingId
+                                                            selectedSettlement?.id === entry.id
                                                                 ? 'border-cyan-400/70 bg-cyan-900/25'
                                                                 : 'border-slate-700/60 bg-slate-900/50 hover:border-slate-500/70'
                                                         }`}
@@ -2710,30 +2894,52 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                             className={`min-w-0 items-center ${mobileExchange ? 'grid grid-cols-[48px_minmax(0,1fr)] gap-1.5' : 'grid grid-cols-[56px_minmax(0,1fr)_56px] gap-2'}`}
                                                         >
                                                             <div className={`relative shrink-0 overflow-hidden rounded bg-black/25 ${mobileExchange ? 'h-12 w-12' : 'h-14 w-14'}`}>
-                                                                <img src={gradeBackgrounds[gradeKey]} alt={gradeLabel} className="absolute inset-0 h-full w-full object-cover" />
-                                                                {entry.itemImage ? <img src={entry.itemImage} alt={entry.itemName} className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" /> : null}
-                                                                {starVisual ? (
-                                                                    <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                                                        <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                                                        <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{entry.itemStars}</span>
-                                                                    </div>
-                                                                ) : null}
+                                                                {isCurrency ? (
+                                                                    <img src={currencyIcon} alt={currencyAlt} className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" />
+                                                                ) : (
+                                                                    <>
+                                                                        <img src={gradeBackgrounds[gradeKey]} alt={gradeLabel} className="absolute inset-0 h-full w-full object-cover" />
+                                                                        {entry.itemImage ? <img src={entry.itemImage} alt={entry.itemName} className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" /> : null}
+                                                                        {starVisual ? (
+                                                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
+                                                                                <img src={starVisual.image} alt="" className="h-3 w-3" />
+                                                                                <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{entry.itemStars}</span>
+                                                                            </div>
+                                                                        ) : null}
+                                                                    </>
+                                                                )}
                                                             </div>
                                                             {mobileExchange ? (
-                                                                <p className="min-w-0 text-left text-[11px] font-semibold leading-tight text-slate-100">
-                                                                    <span className={`${gradeStyles[gradeKey]?.color ?? 'text-slate-200'}`}>[{gradeLabel}]</span>{' '}
-                                                                    <span className="line-clamp-2 break-words">{entry.itemName}</span>
+                                                                <p className={`min-w-0 text-left text-[11px] font-semibold leading-tight ${isCurrency ? 'text-cyan-100' : 'text-slate-100'}`}>
+                                                                    {isCurrency ? (
+                                                                        <span className="line-clamp-2 break-words">{entry.itemName}</span>
+                                                                    ) : (
+                                                                        <>
+                                                                            <span className={`${gradeStyles[gradeKey]?.color ?? 'text-slate-200'}`}>[{gradeLabel}]</span>{' '}
+                                                                            <span className="line-clamp-2 break-words">{entry.itemName}</span>
+                                                                        </>
+                                                                    )}
                                                                 </p>
                                                             ) : (
                                                                 <p
-                                                                    className="min-w-0 whitespace-nowrap text-center font-semibold"
-                                                                    style={{
-                                                                        fontSize: `${Math.max(12, Math.min(15, Math.floor(15 - Math.max(0, (`[${gradeLabel}] ${entry.itemName}`).length - 16) * 0.22)))}px`,
-                                                                        letterSpacing: '-0.015em',
-                                                                    }}
+                                                                    className={`min-w-0 whitespace-nowrap text-center font-semibold ${isCurrency ? 'text-cyan-100' : ''}`}
+                                                                    style={
+                                                                        isCurrency
+                                                                            ? undefined
+                                                                            : {
+                                                                                  fontSize: `${Math.max(12, Math.min(15, Math.floor(15 - Math.max(0, (`[${gradeLabel}] ${entry.itemName}`).length - 16) * 0.22)))}px`,
+                                                                                  letterSpacing: '-0.015em',
+                                                                              }
+                                                                    }
                                                                 >
-                                                                    <span className={`${gradeStyles[gradeKey]?.color ?? 'text-slate-200'}`}>[{gradeLabel}]</span>{' '}
-                                                                    <span>{entry.itemName}</span>
+                                                                    {isCurrency ? (
+                                                                        <span>{entry.itemName}</span>
+                                                                    ) : (
+                                                                        <>
+                                                                            <span className={`${gradeStyles[gradeKey]?.color ?? 'text-slate-200'}`}>[{gradeLabel}]</span>{' '}
+                                                                            <span>{entry.itemName}</span>
+                                                                        </>
+                                                                    )}
                                                                 </p>
                                                             )}
                                                             {!mobileExchange ? <div className="h-14 w-14" aria-hidden /> : null}
@@ -2773,6 +2979,14 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         <div className="flex h-full min-h-0 flex-col gap-3">
                                             <div className={`rounded border border-slate-700/60 bg-slate-950/55 px-3 py-2.5 text-slate-100 ${settlementDetailText}`}>
                                                 <p className={`mb-1.5 ${settlementDetailLabel}`}>{t('labels.selectedItem')}</p>
+                                                {selectedSettlement.kind === 'currency' &&
+                                                selectedSettlement.fromCurrency != null &&
+                                                selectedSettlement.fromAmount != null ? (
+                                                    <p className="mb-2 text-xs text-slate-400">
+                                                        {formatWalletCurrencyAmount(selectedSettlement.fromAmount, selectedSettlement.fromCurrency)} →{' '}
+                                                        {formatWalletCurrencyAmount(selectedSettlement.soldPrice, selectedSettlement.currency)}
+                                                    </p>
+                                                ) : null}
                                                 <div className="flex items-center justify-between">
                                                     <span className="text-rose-200">{t('labels.fee')}</span>
                                                     <span className="flex items-center gap-1 tabular-nums font-semibold text-rose-200">
@@ -2828,7 +3042,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 </div>
                                             </div>
                                             <div className="mt-auto shrink-0 space-y-2 pt-1">
-                                                <Button onClick={() => handleClaimSettlement(selectedSettlement.listingId)} className={exchangePrimaryButtonClass}>
+                                                <Button onClick={() => handleClaimSettlement(selectedSettlement.id)} className={exchangePrimaryButtonClass}>
                                                     {t('labels.claimSelected')}
                                                 </Button>
                                                 <Button onClick={handleClaimAllSettlements} disabled={settlementDisplayItems.length === 0} className={exchangeSecondaryButtonClass}>
@@ -2955,7 +3169,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                     {row.timestampText}
                                                 </p>
                                                 <div
-                                                    className={`flex items-center justify-center gap-0.5 font-semibold ${row.statusText === t('labels.settlementReceived') ? 'text-emerald-400' : 'text-slate-100'} ${mobileExchange ? 'text-[11px] leading-tight' : 'text-base'}`}
+                                                    className={`flex items-center justify-center gap-0.5 font-semibold ${row.statusText === t('labels.settlementReceived') || row.statusText === t('labels.currencyExchangeDone') || row.statusText === t('labels.currencyExchangeClaim') ? 'text-emerald-400' : 'text-slate-100'} ${mobileExchange ? 'text-[11px] leading-tight' : 'text-base'}`}
                                                 >
                                                     {row.priceCurrency ? (
                                                         <>

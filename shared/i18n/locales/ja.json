@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[ペット・グレード強化] {{fromGrade}}→{{toGrade}} (ペットLv.{{minLevel}}以上)",
           "soulGradeUpgradeGeneric": "【ペット・グレード強化】ペアスタジアム同僚AIペットのグレードアップに使用",
           "eggHatchRandom": "【ペット・孵化場】スロットに配置し、ランダムな種類のAIペットで孵化",
-          "welcomeEggHatch": "[ペット・孵化場]スロットに配置 - 孵化時間1分、孵化時レベル5 AIペット"
+          "welcomeEggHatch": "[ペット・孵化場]スロットに配置 - 孵化時間1分、孵化時レベル10 AIペット"
         }
       },
       "enhanceRange": {

@@ -381,16 +381,16 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     }
 
     const verticalOuter = compact
-        ? `rounded-xl border border-slate-600/40 bg-slate-950/50 p-1 flex flex-col gap-1.5 overflow-hidden ${fillHeight ? 'h-full min-h-0' : ''}`
-        : `rounded-xl border border-slate-600/40 bg-slate-950/50 p-1.5 flex flex-col gap-2 overflow-hidden ${fillHeight ? 'h-full min-h-0' : ''}`;
+        ? `rounded-xl border border-slate-600/45 bg-zinc-950/90 p-1 flex flex-col gap-1.5 overflow-hidden ${fillHeight ? 'h-full min-h-0' : ''}`
+        : `rounded-xl border border-slate-600/45 bg-zinc-950/90 p-1.5 flex flex-col gap-2 overflow-hidden ${fillHeight ? 'h-full min-h-0' : ''}`;
 
     const gameplayPanel = compact
-        ? 'flex min-h-0 flex-[6_1_0] flex-col gap-0.5 overflow-hidden rounded-lg border border-amber-500/40 bg-gradient-to-b from-amber-950/50 to-slate-950/90 p-1 shadow-inner'
-        : 'flex min-h-0 flex-[6_1_0] flex-col gap-1 overflow-hidden rounded-lg border border-amber-500/45 bg-gradient-to-b from-amber-950/55 via-amber-900/20 to-slate-950/90 p-1.5 shadow-inner';
+        ? 'flex min-h-0 flex-[6_1_0] flex-col gap-0.5 overflow-hidden rounded-lg border border-amber-500/40 bg-gradient-to-b from-amber-950/75 to-zinc-950 p-1 shadow-inner'
+        : 'flex min-h-0 flex-[6_1_0] flex-col gap-1 overflow-hidden rounded-lg border border-amber-500/45 bg-gradient-to-b from-amber-950/80 via-zinc-900/85 to-zinc-950 p-1.5 shadow-inner';
 
     const utilityPanel = compact
-        ? 'flex min-h-0 flex-[5_1_0] flex-col gap-0.5 overflow-hidden rounded-lg border border-violet-500/35 bg-gradient-to-b from-violet-950/35 to-slate-950/90 p-1 shadow-inner'
-        : 'flex min-h-0 flex-[5_1_0] flex-col gap-1 overflow-hidden rounded-lg border border-violet-500/40 bg-gradient-to-b from-violet-950/40 via-slate-900/30 to-slate-950/90 p-1.5 shadow-inner';
+        ? 'flex min-h-0 flex-[5_1_0] flex-col gap-0.5 overflow-hidden rounded-lg border border-violet-500/35 bg-gradient-to-b from-violet-950/70 to-zinc-950 p-1 shadow-inner'
+        : 'flex min-h-0 flex-[5_1_0] flex-col gap-1 overflow-hidden rounded-lg border border-violet-500/40 bg-gradient-to-b from-violet-950/75 via-zinc-900/80 to-zinc-950 p-1.5 shadow-inner';
 
     const pcBtnGameplay = compact
         ? 'relative flex min-h-0 flex-1 w-full flex-col items-center justify-center gap-0.5 rounded-md border border-amber-600/35 bg-gradient-to-br from-amber-900/50 to-slate-900/80 px-0.5 py-0.5 shadow-sm transition-transform hover:border-amber-400/50 active:scale-[0.98]'

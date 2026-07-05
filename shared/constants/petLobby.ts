@@ -98,8 +98,9 @@ export function isPairLobbyPetInventoryFull(user: {
 
 export const PAIR_EGG_TEMPLATE_ID = 'pair-egg-mystery';
 
-/** 환영 우편 등: 신비로운알과 동일 이미지, 부화 시 슬롯 무관 1분·레벨 5 펫 */
+/** 환영 우편 등: 신비로운알과 동일 이미지, 부화 시 슬롯 무관 1분·레벨 10 펫 */
 export const PAIR_WELCOME_EGG_TEMPLATE_ID = 'pair-egg-welcome';
+export const PAIR_WELCOME_EGG_HATCH_LEVEL = 10;
 
 /** 상점 지급·MATERIAL_ITEMS 키와 동일한 알 이름 */
 export const PAIR_EGG_MATERIAL_NAME = '신비로운알';
@@ -202,8 +203,8 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         dailyLimit: 1,
         image: PAIR_EGG_DISPLAY_IMAGE,
         description:
-            '신비로운 알과 같은 모습이지만, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 5 AI 펫이 나옵니다.',
-        shortDescription: '5레벨 펫이 1분만에 부화하는 알',
+            '신비로운 알과 같은 모습이지만, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 10 AI 펫이 나옵니다.',
+        shortDescription: '10레벨 펫이 1분만에 부화하는 알',
     },
     {
         id: 'pair_shop_soul_1',

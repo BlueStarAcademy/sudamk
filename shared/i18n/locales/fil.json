@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Pet Grade Enhancement] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}} o mas mataas)",
           "soulGradeUpgradeGeneric": "[Pet Grade Enhancement] Ginamit para pataasin ang ranggo ng kapwa AI pet sa Fair Arena.",
           "eggHatchRandom": "[Pet · Hatchery] Ilagay sa isang slot at hatch sa isang random na uri ng AI pet.",
-          "welcomeEggHatch": "[Pet · Hatchery] Inilagay sa slot — oras ng pagpisa 1 minuto, level 5 AI pet kapag napisa"
+          "welcomeEggHatch": "[Pet · Hatchery] Inilagay sa slot — oras ng pagpisa 1 minuto, level 10 AI pet kapag napisa"
         }
       },
       "enhanceRange": {

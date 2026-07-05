@@ -38,7 +38,8 @@ import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js'
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import { collectEquipmentCashPackageLoot, grantDiamondCashShopPackageFromMail } from './shopActions.js';
 import * as guildService from '../guildService.js';
-import { createDefaultQuests } from '../initialData.ts';
+import { createDefaultQuests } from '../initialData.js';
+import { DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS } from '../../shared/constants/quests.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -121,10 +122,23 @@ function findQuestForClaim(
     const questType = typeMap[match[1] as 'd' | 'w' | 'm'];
     const index = Number(match[2]);
     const questList = user.quests?.[questType]?.quests;
-    if (!questList || !Number.isInteger(index) || index < 0 || index >= questList.length) {
+    if (!questList || !Number.isInteger(index) || index < 0) {
         return null;
     }
-    return { quest: questList[index], questType };
+    if (index < questList.length) {
+        return { quest: questList[index]!, questType };
+    }
+    const templateByType = {
+        daily: DAILY_QUESTS,
+        weekly: WEEKLY_QUESTS,
+        monthly: MONTHLY_QUESTS,
+    } as const;
+    const templateTitle = templateByType[questType][index]?.title;
+    if (templateTitle) {
+        const byTitle = questList.find((q) => q.title === templateTitle);
+        if (byTitle) return { quest: byTitle, questType };
+    }
+    return null;
 }
 
 export const handleRewardAction = async (volatileState: VolatileState, action: ServerAction & { userId: string }, user: User): Promise<HandleActionResult> => {
@@ -440,9 +454,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             });
 
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints']).catch((error) => {
-                console.error(`[CLAIM_QUEST_REWARD] Error broadcasting user update:`, error);
-            });
+            broadcastUserUpdate(user, ['inventory', 'equipment', 'quests', 'gold', 'diamonds', 'actionPoints']);
             
             return { 
                 clientResponse: { 

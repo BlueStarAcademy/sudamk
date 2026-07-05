@@ -35,12 +35,24 @@ export function shouldPreferKataBestMoveOverReported(
     return wr < threshold;
 }
 
-// 환경변수
-const KATA_SERVER_URL = process.env.KATA_SERVER_URL?.trim();
-const KATA_SERVER_KEY = process.env.KATA_SERVER_KEY?.trim();
-const KATA_SERVER_TIMEOUT_MS = Math.max(5000, parseInt(process.env.KATA_SERVER_TIMEOUT_MS || '15000', 10));
+// ESM 정적 import 평가 순서상 dotenv.config()보다 이 모듈이 먼저 로드될 수 있으므로,
+// 환경변수는 top-level 상수로 캡처하지 않고 사용 시점에 읽는다.
+function getKataServerUrl(): string {
+    return process.env.KATA_SERVER_URL?.trim() ?? '';
+}
+
+function getKataServerKey(): string {
+    return process.env.KATA_SERVER_KEY?.trim() ?? '';
+}
+
+function getKataServerTimeoutMs(): number {
+    return Math.max(5000, parseInt(process.env.KATA_SERVER_TIMEOUT_MS || '15000', 10));
+}
+
 /** Kata 응답 후 실제 착점(또는 PASS)을 적용하기 전 대기 — 유저 착수는 즉시 처리되고 AI 수만 체감상 늦춤 (ms, 0 비활성) */
-const KATA_APPLY_MOVE_DELAY_MS = Math.max(0, parseInt(process.env.KATA_APPLY_MOVE_DELAY_MS || '1000', 10));
+function getKataApplyMoveDelayMs(): number {
+    return Math.max(0, parseInt(process.env.KATA_APPLY_MOVE_DELAY_MS || '1000', 10));
+}
 
 function sleep(ms: number): Promise<void> {
     if (ms <= 0) return Promise.resolve();
@@ -241,7 +253,10 @@ function buildKataServerMoveRequestKey(params: GenerateKataServerMoveParams): st
  * `moveApiRetries`가 있으면 빈 응답·오류·타임아웃 시 카타 서버에 재요청한다.
  */
 async function generateKataServerMoveCandidatesUncached(params: GenerateKataServerMoveParams): Promise<KataServerMoveCandidateDetails> {
-    if (!KATA_SERVER_URL) {
+    const kataServerUrl = getKataServerUrl();
+    const kataServerKey = getKataServerKey();
+    const kataServerTimeoutMs = getKataServerTimeoutMs();
+    if (!kataServerUrl) {
         throw new Error('KATA_SERVER_URL is not set');
     }
 
@@ -271,13 +286,13 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
         allowPass,
     };
 
-    const url = `${KATA_SERVER_URL}/move`;
+    const url = `${kataServerUrl}/move`;
     const headers: Record<string, string> = {
         'Content-Type': 'application/json',
         'Accept': 'application/json, text/plain, */*',
     };
-    if (KATA_SERVER_KEY) {
-        headers['Authorization'] = `key ${KATA_SERVER_KEY}`;
+    if (kataServerKey) {
+        headers['Authorization'] = `key ${kataServerKey}`;
     }
     if (gameId) {
         headers['game_id'] = kataSessionTag ? `${gameId}:${kataSessionTag}` : gameId;
@@ -300,7 +315,7 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
 
     const singleHttpAttempt = async (): Promise<KataServerMoveCandidateDetails> => {
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), KATA_SERVER_TIMEOUT_MS);
+        const timeoutId = setTimeout(() => controller.abort(), kataServerTimeoutMs);
         try {
             console.log(
                 `[KataServer] Requesting move: level=${level} boardSize=${boardSize} moves=${moves.length} firstMove=${isFirstMove} player=${player}`
@@ -372,7 +387,7 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
             };
         } catch (err: any) {
             if (err.name === 'AbortError') {
-                throw new Error(`KataServer timeout (${KATA_SERVER_TIMEOUT_MS}ms)`);
+                throw new Error(`KataServer timeout (${kataServerTimeoutMs}ms)`);
             }
             throw err;
         } finally {
@@ -386,7 +401,7 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
             const hasCandidates = r.candidates.length > 0;
             if (hasCandidates || attempt === maxAttempts - 1) {
                 if (hasCandidates && !params.skipApplyDelay) {
-                    await sleep(KATA_APPLY_MOVE_DELAY_MS);
+                    await sleep(getKataApplyMoveDelayMs());
                 }
                 return r;
             }
@@ -444,10 +459,12 @@ export async function generateKataServerMove(params: GenerateKataServerMoveParam
  * KataServer 사용 가능 여부 (환경변수 설정 확인)
  */
 export function isKataServerAvailable(): boolean {
-    return !!KATA_SERVER_URL;
+    return !!getKataServerUrl();
 }
 
-const KATA_SERVER_PROBE_TIMEOUT_MS = Math.min(8000, KATA_SERVER_TIMEOUT_MS);
+function getKataServerProbeTimeoutMs(): number {
+    return Math.min(8000, getKataServerTimeoutMs());
+}
 
 /** 배포·관리용: URL 설정 여부(비밀 미노출) */
 export function getKataServerConfigSummary(): {
@@ -456,7 +473,9 @@ export function getKataServerConfigSummary(): {
     timeoutMs: number;
     authKeyConfigured: boolean;
 } {
-    const raw = KATA_SERVER_URL || '';
+    const raw = getKataServerUrl();
+    const timeoutMs = getKataServerTimeoutMs();
+    const kataServerKey = getKataServerKey();
     let host: string | null = null;
     try {
         if (raw) host = new URL(raw).host;
@@ -464,10 +483,10 @@ export function getKataServerConfigSummary(): {
         host = null;
     }
     return {
-        moveApiConfigured: !!KATA_SERVER_URL,
+        moveApiConfigured: !!raw,
         host,
-        timeoutMs: KATA_SERVER_TIMEOUT_MS,
-        authKeyConfigured: !!KATA_SERVER_KEY,
+        timeoutMs,
+        authKeyConfigured: !!kataServerKey,
     };
 }
 
@@ -482,10 +501,13 @@ export async function probeKataServerConnection(): Promise<{
     error?: string;
     sampleMove?: string;
 }> {
-    if (!KATA_SERVER_URL) {
+    const kataServerUrl = getKataServerUrl();
+    const kataServerKey = getKataServerKey();
+    const probeTimeoutMs = getKataServerProbeTimeoutMs();
+    if (!kataServerUrl) {
         return { ok: false, error: 'KATA_SERVER_URL is not set' };
     }
-    const url = `${KATA_SERVER_URL}/move`;
+    const url = `${kataServerUrl}/move`;
     const body = {
         level: -12,
         boardXSize: 9,
@@ -500,11 +522,11 @@ export async function probeKataServerConnection(): Promise<{
         'Content-Type': 'application/json',
         Accept: 'application/json, text/plain, */*',
     };
-    if (KATA_SERVER_KEY) {
-        headers.Authorization = `key ${KATA_SERVER_KEY}`;
+    if (kataServerKey) {
+        headers.Authorization = `key ${kataServerKey}`;
     }
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), KATA_SERVER_PROBE_TIMEOUT_MS);
+    const timeoutId = setTimeout(() => controller.abort(), probeTimeoutMs);
     const t0 = Date.now();
     try {
         const response = await fetch(url, {
@@ -544,7 +566,7 @@ export async function probeKataServerConnection(): Promise<{
             return {
                 ok: false,
                 latencyMs,
-                error: `Probe timeout (${KATA_SERVER_PROBE_TIMEOUT_MS}ms)`,
+                error: `Probe timeout (${probeTimeoutMs}ms)`,
             };
         }
         return { ok: false, latencyMs, error: err?.message ?? String(err) };

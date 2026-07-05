@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Pet Grade Enhancement] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}} eller högre)",
           "soulGradeUpgradeGeneric": "[Förbättring av husdjursgrad] Används för att öka rankningen av andra AI-husdjur i mässarenan.",
           "eggHatchRandom": "[Pet · Hatchery] Placera i en springa och kläcks in i en slumpmässig typ av AI-husdjur.",
-          "welcomeEggHatch": "[Sällskapsdjur · Kläckningsanläggning] Placeras i luckan — kläckningstid 1 minut, nivå 5 AI husdjur när det kläcks"
+          "welcomeEggHatch": "[Sällskapsdjur · Kläckningsanläggning] Placeras i luckan — kläckningstid 1 minut, nivå 10 AI husdjur när det kläcks"
         }
       },
       "enhanceRange": {

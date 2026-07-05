@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Evcil Hayvan Sınıfı Yükseltme] {{fromGrade}}→{{toGrade}} (Evcil Hayvan Lv.{{minLevel}} veya daha yüksek)",
           "soulGradeUpgradeGeneric": "[Pet Sınıfı Yükseltme] Fuar Arenasındaki diğer AI evcil hayvanlarının rütbesini yükseltmek için kullanılır.",
           "eggHatchRandom": "[Evcil Hayvan · Kuluçkahane] Bir yuvaya yerleştirin ve rastgele türde bir AI evcil hayvana yumurtadan çıkın.",
-          "welcomeEggHatch": "[Evcil Hayvan · Kuluçkahane] Yuvaya yerleştirildi — kuluçkadan çıkma süresi 1 dakika, yumurtadan çıktığında seviye 5 AI evcil hayvan"
+          "welcomeEggHatch": "[Evcil Hayvan · Kuluçkahane] Yuvaya yerleştirildi — kuluçkadan çıkma süresi 1 dakika, yumurtadan çıktığında seviye 10 AI evcil hayvan"
         }
       },
       "enhanceRange": {

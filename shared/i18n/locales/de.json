@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Verbesserung der Haustierstufe] {{fromGrade}}→{{toGrade}} (Haustierstufe {{minLevel}} oder höher)",
           "soulGradeUpgradeGeneric": "[Verbesserung der Haustierstufe] Wird verwendet, um den Rang anderer KI-Haustiere in der Messearena zu erhöhen.",
           "eggHatchRandom": "[Haustier · Brüterei] Platziere es in einem Schlitz und schlüpfe in ein zufälliges KI-Haustier.",
-          "welcomeEggHatch": "[Haustier · Brüterei] Im Steckplatz platziert – Schlüpfzeit 1 Minute, KI-Haustier der Stufe 5, wenn es geschlüpft ist"
+          "welcomeEggHatch": "[Haustier · Brüterei] Im Steckplatz platziert – Schlüpfzeit 1 Minute, KI-Haustier der Stufe 10, wenn es geschlüpft ist"
         }
       },
       "enhanceRange": {

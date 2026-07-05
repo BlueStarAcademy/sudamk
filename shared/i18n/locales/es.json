@@ -4815,7 +4815,7 @@
           "soulGradeUpgrade": "[Mejora de calificación de mascota] {{fromGrade}}→{{toGrade}} (Nivel de mascota {{minLevel}} o superior)",
           "soulGradeUpgradeGeneric": "[Mejora del grado de mascota] Se utiliza para aumentar el rango de otras mascotas de IA en Fair Arena.",
           "eggHatchRandom": "[Mascota · Criadero] Colóquelo en una ranura y eclosione en un tipo aleatorio de mascota AI.",
-          "welcomeEggHatch": "[Mascota · Criadero] Colocado en la ranura: tiempo de eclosión 1 minuto, mascota IA de nivel 5 cuando nace"
+          "welcomeEggHatch": "[Mascota · Criadero] Colocado en la ranura: tiempo de eclosión 1 minuto, mascota IA de nivel 10 cuando nace"
         }
       },
       "enhanceRange": {

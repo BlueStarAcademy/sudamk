@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     DEFAULT_CLAIMED_MILESTONES,
+    mergeQuestLogPreservingSessionProgress,
     normalizeClaimedMilestones,
     normalizeQuestLogMetadata,
     normalizeQuestPeriodMetadata,
@@ -108,5 +109,31 @@ describe('normalizeQuestLogMetadata', () => {
 
         expect(normalizeQuestLogMetadata(quests, now)).toBe(true);
         expect(quests.daily.lastReset).toBe(now);
+    });
+});
+
+describe('mergeQuestLogPreservingSessionProgress', () => {
+    it('keeps higher quest progress from session after DB snapshot overwrite', () => {
+        const target = {
+            daily: {
+                quests: [{ id: 'q-d-0-new', title: '출석하기', description: '', target: 1, progress: 0, isClaimed: false, reward: { gold: 100 } }],
+                activityProgress: 0,
+                claimedMilestones: [false, false, false, false, false],
+                lastReset: 0,
+            },
+        };
+        const session = {
+            daily: {
+                quests: [{ id: 'q-d-0-old', title: '출석하기', description: '', target: 1, progress: 1, isClaimed: false, reward: { gold: 100 }, activityPoints: 10 }],
+                activityProgress: 10,
+                claimedMilestones: [false, false, false, false, false],
+                lastReset: 1_700_000_000_000,
+            },
+        };
+
+        expect(mergeQuestLogPreservingSessionProgress(target as any, session as any)).toBe(true);
+        expect(target.daily.quests[0]?.progress).toBe(1);
+        expect(target.daily.activityProgress).toBe(10);
+        expect(target.daily.lastReset).toBe(1_700_000_000_000);
     });
 });

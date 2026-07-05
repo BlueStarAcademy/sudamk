@@ -453,35 +453,24 @@ useEffect(() => {
             onStartEnhancement(selectedItem);
         }
 
-        const duration = 2000;
         const targetItemId = selectedItem.id;
-        const startTime = Date.now();
 
         enhancementIntervalRef.current = window.setInterval(() => {
-            const elapsed = Date.now() - startTime;
-            const percent = Math.min(100, Math.round((elapsed / duration) * 100));
-            setEnhancementProgress(percent);
-            if (elapsed >= duration && enhancementIntervalRef.current !== null) {
-                window.clearInterval(enhancementIntervalRef.current);
-                enhancementIntervalRef.current = null;
-            }
+            setEnhancementProgress(prev => Math.min(90, prev + 12));
         }, 50);
 
-        enhancementTimeoutRef.current = window.setTimeout(() => {
-            enhancementTimeoutRef.current = null;
-            (async () => {
-                try {
-                    setEnhancementProgress(100);
-                    await onAction({ type: 'ENHANCE_ITEM', payload: { itemId: targetItemId } });
-                } catch (error) {
-                    console.error('[EnhancementView] Failed to enhance item:', error);
-                } finally {
-                    clearEnhancementTimers();
-                    setIsEnhancing(false);
-                    setEnhancementProgress(0);
-                }
-            })();
-        }, duration);
+        (async () => {
+            try {
+                await onAction({ type: 'ENHANCE_ITEM', payload: { itemId: targetItemId } });
+                setEnhancementProgress(100);
+            } catch (error) {
+                console.error('[EnhancementView] Failed to enhance item:', error);
+            } finally {
+                clearEnhancementTimers();
+                setIsEnhancing(false);
+                setEnhancementProgress(0);
+            }
+        })();
     };
 
     const detailValueClass = typo.mono;

@@ -104,6 +104,7 @@ import {
     PAIR_EGG_TEMPLATE_ID,
     PAIR_EGG_MATERIAL_NAME,
     PAIR_WELCOME_EGG_TEMPLATE_ID,
+    PAIR_WELCOME_EGG_HATCH_LEVEL,
     PAIR_WELCOME_EGG_MATERIAL_NAME,
     PAIR_SOULSTONE_NAMES,
     PAIR_PET_LOBBY_INV_EXPAND_STEP,
@@ -5239,7 +5240,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (!def) return { error: '유효하지 않은 슬롯입니다.' };
             const petLevel =
                 session.eggTemplateId === PAIR_WELCOME_EGG_TEMPLATE_ID
-                    ? Math.min(PAIR_PET_MAX_LEVEL, 5)
+                    ? Math.min(PAIR_PET_MAX_LEVEL, PAIR_WELCOME_EGG_HATCH_LEVEL)
                     : rollHatchPetLevelFromRule(def.levelRule);
             const petMeta = rollPairPetMetaForHatchAtLevel(petLevel);
             const petTemplate = rollPairPetTemplateId();
@@ -5348,7 +5349,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (!defIf) return { error: '유효하지 않은 슬롯입니다.' };
             const petLevelIf =
                 sessIf.eggTemplateId === PAIR_WELCOME_EGG_TEMPLATE_ID
-                    ? Math.min(PAIR_PET_MAX_LEVEL, 5)
+                    ? Math.min(PAIR_PET_MAX_LEVEL, PAIR_WELCOME_EGG_HATCH_LEVEL)
                     : rollHatchPetLevelFromRule(defIf.levelRule);
             const petMetaIf = rollPairPetMetaForHatchAtLevel(petLevelIf);
             const petTemplateIf = rollPairPetTemplateId();
