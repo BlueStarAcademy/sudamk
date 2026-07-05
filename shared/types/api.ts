@@ -436,6 +436,7 @@ export type ServerAction =
     | { type: 'PAIR_PET_START_TRAINING', payload: { slotIndex: number; itemId: string } }
     | { type: 'PAIR_PET_CANCEL_TRAINING', payload: { slotIndex: number } }
     | { type: 'PAIR_PET_CLAIM_TRAINING', payload: { slotIndex: number } }
+    | { type: 'PAIR_PET_CLAIM_TRAINING_AD_DOUBLE', payload: { claimId: string } }
     | { type: 'PAIR_PET_RESYNC_TRAINING_SLOTS' }
     | { type: 'FRIEND_SYNC', payload?: never }
     | { type: 'FRIEND_SEND_REQUEST', payload: { targetUserId: string } }
@@ -731,7 +732,7 @@ export type ServerAction =
     | { type: 'START_SINGLE_PLAYER_MISSION', payload: { missionId: string } }
     | { type: 'CLAIM_SINGLE_PLAYER_MISSION_REWARD', payload: { missionId: string } }
     | { type: 'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD', payload: { level: SinglePlayerLevel; milestone: 10 | 20 } }
-    | { type: 'CLAIM_ALL_TRAINING_QUEST_REWARDS', payload?: never }
+    | { type: 'CLAIM_ALL_TRAINING_QUEST_REWARDS', payload?: { previewOnly?: boolean; adDouble?: boolean } }
     | { type: 'LEVEL_UP_TRAINING_QUEST', payload: { missionId: string } }
     | { type: 'MANNER_ACTION', payload: { targetUserId: string, actionType: 'up' | 'down' } }
     // Guild

@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
@@ -7,6 +7,7 @@ import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
+import { useAdContext } from '../ads/AdProvider.js';
 
 interface ClaimAllTrainingQuestRewardsModalProps {
     rewards: Array<{
@@ -19,6 +20,9 @@ interface ClaimAllTrainingQuestRewardsModalProps {
     }>;
     totalGold: number;
     totalDiamonds: number;
+    mode?: 'preview' | 'claimed';
+    onClaimNormal?: () => Promise<boolean>;
+    onClaimAdDouble?: () => Promise<boolean>;
     onClose: () => void;
     isTopmost?: boolean;
 }
@@ -100,18 +104,47 @@ function MobileClaimBody({
     rewards,
     totalGold,
     totalDiamonds,
+    mode,
+    onClaimNormal,
+    onClaimAdDouble,
     onClose,
 }: {
     rewards: ClaimAllTrainingQuestRewardsModalProps['rewards'];
     totalGold: number;
     totalDiamonds: number;
+    mode: 'preview' | 'claimed';
+    onClaimNormal?: () => Promise<boolean>;
+    onClaimAdDouble?: () => Promise<boolean>;
     onClose: () => void;
 }) {
     const { t } = useTranslation(['lobby', 'common']);
+    const { showShopAdRewardInterstitial, isAdFree } = useAdContext();
+    const [pending, setPending] = useState<'normal' | 'ad' | null>(null);
+
+    const handleNormal = () => {
+        if (!onClaimNormal || pending) return;
+        setPending('normal');
+        void onClaimNormal().finally(() => setPending(null));
+    };
+    const handleAd = () => {
+        if (!onClaimAdDouble || pending) return;
+        showShopAdRewardInterstitial(
+            () => {
+                setPending('ad');
+                void onClaimAdDouble().finally(() => setPending(null));
+            },
+            {
+                placementName: 'singleplayer-training-quest-claim-all-double',
+                onDismissed: () => window.alert(t('common:ads.dismissedNoReward')),
+            },
+        );
+    };
+    const previewMode = mode === 'preview';
+
     return (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
             <h2 className="shrink-0 px-0.5 text-center text-xs font-bold leading-snug text-white/95 sm:text-sm">
-                {t('singleplayer.claimAllSuccess')}
+                {previewMode ? t('singleplayer.claimAllPreviewTitle') : t('singleplayer.claimAllSuccess')}
             </h2>
 
             <div
@@ -175,9 +208,38 @@ function MobileClaimBody({
             <div className="mt-2 flex shrink-0 flex-col items-center gap-2 border-t border-white/10 pt-2">
                 <ClaimAllTotalsBox totalGold={totalGold} totalDiamonds={totalDiamonds} variant="compact" />
 
-                <Button onClick={onClose} colorScheme="none" bare className={`${PREMIUM_QUEST_BTN.claimAllConfirm} mt-0.5`} cooldownMs={0}>
-                    {t('common:actions.ok')}
-                </Button>
+                {previewMode ? (
+                    <div className="grid w-full grid-cols-2 gap-2">
+                        <Button
+                            onClick={handleAd}
+                            disabled={pending != null}
+                            colorScheme="none"
+                            bare
+                            className={`${PREMIUM_QUEST_BTN.claimAllConfirm} mt-0.5 !w-full !max-w-none !whitespace-nowrap !px-2 !text-xs sm:!text-sm`}
+                            cooldownMs={0}
+                        >
+                            {pending === 'ad'
+                                ? t('singleplayer.claimAllAdClaiming')
+                                : isAdFree
+                                  ? t('singleplayer.claimAllAdFree')
+                                  : t('singleplayer.claimAllAdDouble')}
+                        </Button>
+                        <Button
+                            onClick={handleNormal}
+                            disabled={pending != null}
+                            colorScheme="none"
+                            bare
+                            className={`${PREMIUM_QUEST_BTN.claimAllConfirm} mt-0.5 !w-full !max-w-none !whitespace-nowrap !px-2 !text-xs sm:!text-sm`}
+                            cooldownMs={0}
+                        >
+                            {pending === 'normal' ? t('singleplayer.claiming') : t('singleplayer.claimAllNormal')}
+                        </Button>
+                    </div>
+                ) : (
+                    <Button onClick={onClose} colorScheme="none" bare className={`${PREMIUM_QUEST_BTN.claimAllConfirm} mt-0.5`} cooldownMs={0}>
+                        {t('common:actions.ok')}
+                    </Button>
+                )}
             </div>
         </div>
     );
@@ -187,13 +249,38 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
     rewards,
     totalGold,
     totalDiamonds,
+    mode = 'claimed',
+    onClaimNormal,
+    onClaimAdDouble,
     onClose,
     isTopmost,
 }) => {
     const { t } = useTranslation(['lobby', 'common']);
+    const { showShopAdRewardInterstitial, isAdFree } = useAdContext();
     const isHandheld = useIsHandheldDevice(1025);
     const { isNativeMobile } = useNativeMobileShell();
     const isCompactUi = isHandheld || isNativeMobile;
+    const [pending, setPending] = useState<'normal' | 'ad' | null>(null);
+    const previewMode = mode === 'preview';
+
+    const handleNormal = () => {
+        if (!onClaimNormal || pending) return;
+        setPending('normal');
+        void onClaimNormal().finally(() => setPending(null));
+    };
+    const handleAd = () => {
+        if (!onClaimAdDouble || pending) return;
+        showShopAdRewardInterstitial(
+            () => {
+                setPending('ad');
+                void onClaimAdDouble().finally(() => setPending(null));
+            },
+            {
+                placementName: 'singleplayer-training-quest-claim-all-double',
+                onDismissed: () => window.alert(t('common:ads.dismissedNoReward')),
+            },
+        );
+    };
 
     /** 헤더·푸터·패딩·본문 블록을 반영해 내용이 잘리지 않게 높이 추정, 뷰포트 상한 내에서만 캡 */
     const panelInitialHeight = useMemo(() => {
@@ -233,7 +320,7 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
             closeOnOutsideClick={true}
             onClose={onClose}
             windowId="claim-all-training-quest-rewards"
-            initialWidth={isCompactUi ? 340 : 420}
+            initialWidth={isCompactUi ? 360 : 500}
             initialHeight={panelInitialHeight}
             isTopmost={isTopmost}
             zIndex={10000}
@@ -254,12 +341,17 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                         rewards={rewards}
                         totalGold={totalGold}
                         totalDiamonds={totalDiamonds}
+                        mode={mode}
+                        onClaimNormal={onClaimNormal}
+                        onClaimAdDouble={onClaimAdDouble}
                         onClose={onClose}
                     />
                 </div>
             ) : (
                 <div className="mx-auto flex w-full max-w-[min(100%,26rem)] min-h-0 flex-col text-center text-on-panel">
-                    <h2 className="mb-3 shrink-0 text-lg font-bold leading-snug sm:text-xl">{t('singleplayer.claimAllSuccess')}</h2>
+                    <h2 className="mb-3 shrink-0 text-lg font-bold leading-snug sm:text-xl">
+                        {previewMode ? t('singleplayer.claimAllPreviewTitle') : t('singleplayer.claimAllSuccess')}
+                    </h2>
 
                     <div className="mb-3 min-h-0 space-y-1.5 overflow-x-hidden overflow-y-visible rounded-lg bg-gray-900/50 p-3">
                         {rewards.map((reward) => {
@@ -319,11 +411,40 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                         </div>
                     )}
 
-                    <div className="flex justify-center pt-1">
-                        <Button onClick={onClose} colorScheme="none" bare className={PREMIUM_QUEST_BTN.claimAllConfirm} cooldownMs={0}>
-                            {t('common:actions.ok')}
-                        </Button>
-                    </div>
+                    {previewMode ? (
+                        <div className="grid grid-cols-2 justify-center gap-2 pt-1">
+                            <Button
+                                onClick={handleAd}
+                                disabled={pending != null}
+                                colorScheme="none"
+                                bare
+                                className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !w-full !max-w-none !whitespace-nowrap !px-3`}
+                                cooldownMs={0}
+                            >
+                                {pending === 'ad'
+                                    ? t('singleplayer.claimAllAdClaiming')
+                                    : isAdFree
+                                      ? t('singleplayer.claimAllAdFree')
+                                      : t('singleplayer.claimAllAdDouble')}
+                            </Button>
+                            <Button
+                                onClick={handleNormal}
+                                disabled={pending != null}
+                                colorScheme="none"
+                                bare
+                                className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !w-full !max-w-none !whitespace-nowrap !px-3`}
+                                cooldownMs={0}
+                            >
+                                {pending === 'normal' ? t('singleplayer.claiming') : t('singleplayer.claimAllNormal')}
+                            </Button>
+                        </div>
+                    ) : (
+                        <div className="flex justify-center pt-1">
+                            <Button onClick={onClose} colorScheme="none" bare className={PREMIUM_QUEST_BTN.claimAllConfirm} cooldownMs={0}>
+                                {t('common:actions.ok')}
+                            </Button>
+                        </div>
+                    )}
                 </div>
             )}
         </DraggableWindow>

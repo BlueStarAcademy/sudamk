@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { Player } from '../../../types/index.js';
 import {
+    pickRicherWsBoardSnapshot,
     resolveChessPvePlayingSession,
     resolvePveScoringBoardAndMoveHistory,
     resolveStrategicPvePlayingBoardAndMoveHistory,
@@ -59,6 +60,61 @@ describe('resolvePveScoringBoardAndMoveHistory', () => {
         const resolved = resolvePveScoringBoardAndMoveHistory(server, client);
         expect(resolved.moveHistory).toHaveLength(2);
         expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+    });
+
+    it('keeps client when scoring server snapshot diverges from displayed PVE sequence', () => {
+        const client = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+                { x: 2, y: 1, player: Player.Black },
+            ],
+            boardState: [
+                [Player.Black, Player.None, Player.None],
+                [Player.None, Player.White, Player.Black],
+                [Player.None, Player.None, Player.None],
+            ],
+        } as LiveGameSession;
+        const server = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 2, y: 2, player: Player.White },
+                { x: 2, y: 1, player: Player.Black },
+                { x: 1, y: 2, player: Player.White },
+            ],
+            boardState: [
+                [Player.Black, Player.None, Player.None],
+                [Player.None, Player.None, Player.Black],
+                [Player.None, Player.White, Player.White],
+            ],
+        } as LiveGameSession;
+
+        const resolved = resolvePveScoringBoardAndMoveHistory(server, client);
+        expect(resolved.moveHistory).toEqual(client.moveHistory);
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+        expect(resolved.boardState?.[2]?.[1]).toBe(Player.None);
+    });
+});
+
+describe('pickRicherWsBoardSnapshot', () => {
+    it('does not pick a longer deferred snapshot when it diverges from the displayed prefix', () => {
+        const client = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+                { x: 2, y: 1, player: Player.Black },
+            ],
+        } as LiveGameSession;
+        const pendingDeferred = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 2, y: 2, player: Player.White },
+                { x: 2, y: 1, player: Player.Black },
+                { x: 1, y: 2, player: Player.White },
+            ],
+        } as LiveGameSession;
+
+        expect(pickRicherWsBoardSnapshot(client, pendingDeferred)).toBe(client);
     });
 });
 
@@ -146,6 +202,38 @@ describe('resolveStrategicPvePlayingBoardAndMoveHistory', () => {
         expect(resolved.moveHistory?.[1]).toEqual({ x: 1, y: 1, player: Player.White });
         expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
         expect(resolved.boardState?.[2]?.[2]).toBe(Player.None);
+    });
+
+    it('keeps client when a later slim packet diverges from the already displayed AI move', () => {
+        const client = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+                { x: 2, y: 1, player: Player.Black },
+            ],
+            boardState: [
+                [Player.Black, Player.None, Player.None],
+                [Player.None, Player.White, Player.Black],
+                [Player.None, Player.None, Player.None],
+            ],
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+        const staleServer = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 2, y: 2, player: Player.White },
+                { x: 2, y: 1, player: Player.Black },
+                { x: 1, y: 2, player: Player.White },
+            ],
+            boardState: undefined,
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(staleServer, client);
+        expect(resolved.moveHistory).toEqual(client.moveHistory);
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+        expect(resolved.boardState?.[2]?.[2]).toBe(Player.None);
+        expect(resolved.boardState?.[2]?.[1]).toBe(Player.None);
     });
 
     it('replay removes captured stones when server sent slim packet after capture', () => {
@@ -238,6 +326,36 @@ describe('resolveChessPvePlayingSession', () => {
         const resolved = resolveChessPvePlayingSession(server, client);
         expect(resolved.moveHistory).toHaveLength(2);
         expect(resolved.boardState![7]![7]).toBe(Player.White);
+    });
+
+    it('keeps client when longer chess PVE server snapshot diverges from displayed prefix', () => {
+        const client = {
+            mode: GameMode.Chess,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+                { x: 5, y: 5, player: Player.Black },
+            ],
+            currentPlayer: Player.White,
+        } as LiveGameSession;
+        const server = {
+            ...client,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 8, y: 8, player: Player.White },
+                { x: 5, y: 5, player: Player.Black },
+                { x: 4, y: 4, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+        } as LiveGameSession;
+
+        const resolved = resolveChessPvePlayingSession(server, client);
+        expect(resolved.moveHistory).toEqual(client.moveHistory);
+        expect(resolved.boardState![7]![7]).toBe(Player.White);
+        expect(resolved.boardState![8]![8]).toBe(Player.None);
     });
 
     it('keeps client when same-length stale server has diverged AI stone position', () => {

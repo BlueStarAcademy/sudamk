@@ -18,12 +18,12 @@ function isClaimReadyTrainingSession(
  * 또한 슬롯을 연속 수령할 때 이전 CLAIM 응답이 다른 슬롯의 수련완료 세션을 되살리지 않게 한다.
  */
 export function mergePairPetTrainingSlotsPreserveRecentRestart(
-    baseSlots: PairPetTrainingSlotState[] | null | undefined,
-    patchSlots: PairPetTrainingSlotState[] | null | undefined,
+    baseSlots: (PairPetTrainingSlotState | null)[] | null | undefined,
+    patchSlots: (PairPetTrainingSlotState | null)[] | null | undefined,
     now = Date.now(),
     preserveWindowMs = 15_000,
     clientClaimedSlotIndices?: ReadonlySet<number>,
-): PairPetTrainingSlotState[] {
+): (PairPetTrainingSlotState | null)[] {
     const base = normalizePairPetTrainingSlots(baseSlots);
     const patch = normalizePairPetTrainingSlots(patchSlots);
     const out = [...patch];
@@ -58,17 +58,17 @@ export function mergePairPetTrainingSlotsPreserveRecentRestart(
 
 /** 수련 시작·재수련 낙관 UI — 롤백용 스냅샷과 함께 반환 */
 export function buildOptimisticPairPetTrainingStartUpdate(
-    currentSlots: PairPetTrainingSlotState[] | null | undefined,
+    currentSlots: (PairPetTrainingSlotState | null)[] | null | undefined,
     slotIndex: number,
     itemId: string,
     startedAt = Date.now(),
 ): {
-    nextSlots: PairPetTrainingSlotState[];
-    prevSlotsSnapshot: PairPetTrainingSlotState[];
+    nextSlots: (PairPetTrainingSlotState | null)[];
+    prevSlotsSnapshot: (PairPetTrainingSlotState | null)[];
 } {
     const prevSlots = normalizePairPetTrainingSlots(currentSlots);
-    const prevSlotsSnapshot = [...prevSlots] as PairPetTrainingSlotState[];
-    const nextSlots = [...prevSlots] as PairPetTrainingSlotState[];
+    const prevSlotsSnapshot = [...prevSlots];
+    const nextSlots = [...prevSlots];
     nextSlots[slotIndex] = { slotIndex, itemId, startedAt };
     return { nextSlots, prevSlotsSnapshot };
 }

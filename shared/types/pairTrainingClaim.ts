@@ -21,4 +21,14 @@ export type PairTrainingClaimClientSummary = {
     } | null;
     /** 이번 수령으로 펫이 레벨업하며 추가된 6코어 보너스(없으면 생략) */
     pairPetLevelUpCoreBonuses?: Partial<Record<CoreStat, number>>;
+    /** 광고 시청으로 이 수련 보상을 1회 더 받을 때 사용하는 서버 검증 ID */
+    adDoubleClaimId?: string;
+    /** 광고 보상 2배를 이미 수령했는지 */
+    adDoubled?: boolean;
+    /** 광고로 추가 지급된 골드(표시용) */
+    adGoldBonus?: number;
+    /** 광고로 추가 지급된 펫 경험치(표시용) */
+    adXpBonus?: number;
+    /** 광고로 추가 지급된 영혼석(표시용) */
+    adSoulDropBonus?: { materialName: string; quantity: number } | null;
 };

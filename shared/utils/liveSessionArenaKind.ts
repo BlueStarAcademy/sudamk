@@ -54,6 +54,8 @@ export type ArenaSessionPolicy = {
     itemConsumptionModel: ArenaItemConsumptionModel;
     resultDisplayModel: ArenaResultDisplayModel;
     resultRewardModel: ArenaResultRewardModel;
+    /** 경기 결과 골드가 있으면 광고 시청으로 경기 골드 2배 수령을 허용하는 PVE/AI 계열 경기 */
+    allowsResultAdGoldDouble: boolean;
 };
 
 const hasNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.length > 0;
@@ -315,5 +317,6 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
                   : 'none',
         resultDisplayModel,
         resultRewardModel,
+        allowsResultAdGoldDouble: isPveLike,
     };
 }

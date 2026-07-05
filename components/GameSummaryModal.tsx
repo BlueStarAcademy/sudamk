@@ -276,17 +276,17 @@ const XpBar: React.FC<{
                 </div>
                 <div className="w-full min-w-0 overflow-x-auto [-webkit-overflow-scrolling:touch] [scrollbar-width:thin]">
                     <p
-                        className="whitespace-nowrap text-center text-[9px] font-bold tabular-nums text-slate-600"
+                        className="whitespace-nowrap text-center text-[9px] font-bold tabular-nums text-slate-200"
                         style={{ fontSize: `${8 * mobileTextScale}px` }}
                     >
                         {levelUp ? (
                             <>
-                                0 <span className="text-emerald-700">+{final.toLocaleString()}</span> / {max.toLocaleString()} XP
+                                0 <span className="text-emerald-300">+{final.toLocaleString()}</span> / {max.toLocaleString()} XP
                             </>
                         ) : (
                             <>
                                 {initial.toLocaleString()}{' '}
-                                <span className="text-emerald-700">+{xpGain}</span> / {max.toLocaleString()} XP
+                                <span className="text-emerald-300">+{xpGain}</span> / {max.toLocaleString()} XP
                             </>
                         )}
                     </p>
@@ -338,7 +338,7 @@ const XpBar: React.FC<{
                 <span
                     className={`absolute inset-0 z-[10] flex items-center justify-center ${
                         pcCompact ? 'text-[10px]' : 'text-xs min-[1024px]:text-sm'
-                    } font-bold text-black/80 drop-shadow-sm`}
+                    } font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]`}
                 >
                     {barCenterLabel}
                 </span>

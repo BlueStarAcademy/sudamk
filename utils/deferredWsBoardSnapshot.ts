@@ -15,6 +15,21 @@ export function wsSessionMoveHistoryLen(session: LiveGameSession | null | undefi
     return Array.isArray(mh) ? mh.length : 0;
 }
 
+function moveHistoriesSharePrefix(
+    a: LiveGameSession['moveHistory'] | undefined,
+    b: LiveGameSession['moveHistory'] | undefined,
+): boolean {
+    if (!Array.isArray(a) || !Array.isArray(b)) return true;
+    const len = Math.min(a.length, b.length);
+    for (let i = 0; i < len; i++) {
+        const am = a[i];
+        const bm = b[i];
+        if (!am || !bm) return false;
+        if (am.x !== bm.x || am.y !== bm.y || am.player !== bm.player) return false;
+    }
+    return true;
+}
+
 /**
  * AI 수 WS 지연 적용 중 서버가 먼저 `scoring`만 보낼 때,
  * React state보다 긴 수순을 가진 pending 스냅샷을 선택해 마지막 착점·판면이 사라지지 않게 한다.
@@ -25,6 +40,7 @@ export function pickRicherWsBoardSnapshot(
 ): LiveGameSession | null | undefined {
     if (!pendingDeferred) return client ?? undefined;
     if (!client) return pendingDeferred;
+    if (!moveHistoriesSharePrefix(pendingDeferred.moveHistory, client.moveHistory)) return client;
     return wsSessionMoveHistoryLen(pendingDeferred) > wsSessionMoveHistoryLen(client) ? pendingDeferred : client;
 }
 
@@ -56,6 +72,14 @@ export function resolvePveScoringBoardAndMoveHistory(
     const clientMhLen = wsSessionMoveHistoryLen(client);
     const serverBoardOk = isSubstantiveBoardState(server.boardState);
     const clientBoardOk = isSubstantiveBoardState(client.boardState);
+    const historiesSharePrefix = moveHistoriesSharePrefix(server.moveHistory, client.moveHistory);
+
+    if (!historiesSharePrefix && clientMhLen > 0) {
+        return {
+            boardState: client.boardState ?? server.boardState,
+            moveHistory: client.moveHistory,
+        };
+    }
 
     let moveHistory: LiveGameSession['moveHistory'];
     if (clientMhLen > serverMhLen) {
@@ -214,6 +238,16 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
     const clientMhLen = wsSessionMoveHistoryLen(clientSnap);
     const serverBoardOk = isSubstantiveBoardState(server.boardState);
     const clientBoardOk = isSubstantiveBoardState(clientSnap.boardState);
+    const historiesSharePrefix = moveHistoriesSharePrefix(server.moveHistory, clientSnap.moveHistory);
+
+    // 이미 화면에 확정된 수순과 prefix가 다른 패킷은 다른 분기/낡은 지연 스냅샷이다.
+    // 특히 로비 AI 전략게임의 지연 AI 표시 중 이런 패킷을 재생하면 이전 AI 착점이 다른 자리로 바뀐다.
+    if (!historiesSharePrefix && clientMhLen > 0 && clientBoardOk) {
+        return {
+            boardState: clientSnap.boardState,
+            moveHistory: clientSnap.moveHistory,
+        };
+    }
 
     // 수순 길이는 같지만 마지막 착점이 다른 낡은/분기 패킷 — 체스 PVE와 같이 클라 보드를 우선한다.
     if (
@@ -315,6 +349,7 @@ function pickChessPlayingAuthoritativeSnapshot(
     const serverMhLen = wsSessionMoveHistoryLen(server);
     const clientMhLen = wsSessionMoveHistoryLen(client);
 
+    if (!moveHistoriesSharePrefix(server.moveHistory, client.moveHistory)) return client;
     if (serverMhLen > clientMhLen) return server;
     if (clientMhLen > serverMhLen) return client;
     if (serverMhLen > 0 && !chessSessionLastMovesMatch(server, client)) return client;

@@ -134,11 +134,13 @@ describe('arena policy', () => {
         expect(pve.requiresClientSyncBeforeAction).toBe(true);
         expect(pve.resultDisplayModel).toBe('waitScoringOverlay');
         expect(pve.resultRewardModel).toBe('pveSummary');
+        expect(pve.allowsResultAdGoldDouble).toBe(true);
 
         const pvp = resolveArenaSessionPolicy(session({ gameCategory: GameCategory.Normal, isAiGame: false }));
         expect(pvp.requiresClientSyncBeforeAction).toBe(false);
         expect(pvp.resultDisplayModel).toBe('instantEnd');
         expect(pvp.resultRewardModel).toBe('pvpSummary');
+        expect(pvp.allowsResultAdGoldDouble).toBe(false);
 
         const pair = resolveArenaSessionPolicy(
             session({
@@ -158,6 +160,7 @@ describe('arena policy', () => {
         );
         expect(pair.isPairGame).toBe(true);
         expect(pair.resultRewardModel).toBe('pairSummary');
+        expect(pair.allowsResultAdGoldDouble).toBe(true);
     });
 
     it('enables automatic base stone placement only for non-PvP Base-rule sessions', () => {

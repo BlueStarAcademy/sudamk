@@ -2,6 +2,7 @@ import { Player, GameMode, LeagueTier, UserStatus, WinReason, RPSChoice, DiceGoV
 // FIX: ChatMessage is now defined in api.ts to break circular dependency.
 import { UserStatusInfo, ChatMessage } from './api.js';
 import type { UnifiedResultContract } from './resultContract.js';
+import type { PairTrainingClaimClientSummary } from './pairTrainingClaim.js';
 
 // --- Item & Equipment ---
 
@@ -62,6 +63,15 @@ export type PairPetTrainingSlotState = {
     startedAt: number;
     /** `PAIR_PET_START_TRAINING` 시 롤·취소 시 폐기 */
     precomputedRewards?: PairPetTrainingPrecomputedRewards;
+};
+
+/** 수련 보상 수령 직후 광고 시청 2배 보상 1회 지급 검증용 서버 상태 */
+export type PairPetTrainingAdDoubleClaimState = {
+    claimId: string;
+    createdAt: number;
+    slotIndex: number;
+    itemId?: string;
+    summary: PairTrainingClaimClientSummary;
 };
 
 /** 부화장 슬롯에 올려둔 알(부화 진행 중) */
@@ -803,6 +813,8 @@ export type User = {
   pairPetLobbySlotCount?: number;
   /** 페어 펫 수련장: 슬롯별 진행 중 세션(null = 비어 있음) */
   pairPetTrainingSlots?: (PairPetTrainingSlotState | null)[];
+  /** 페어 펫 수련 완료 보상 광고 2배: 최근 수령분별 1회성 대기 상태 */
+  pairPetTrainingAdDoubleClaims?: Record<string, PairPetTrainingAdDoubleClaimState>;
   /** 부화장 1번 슬롯 강화 I~III 해금 여부 `[tier1, tier2, tier3]` (레거시 4칸 해금 배열도 마이그레이션) */
   pairPetHatcherySlotUnlocked?: boolean[];
   /** 부화장: 1번 슬롯 + VIP 슬롯 진행 세션 */

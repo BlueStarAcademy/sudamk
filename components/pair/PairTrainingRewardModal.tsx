@@ -27,6 +27,7 @@ import {
 import PairPetLevelUpCoreDelta from './PairPetLevelUpCoreDelta.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../../shared/constants/pairPetGrade.js';
 import { buildOptimisticPairPetTrainingStartUpdate } from '../../shared/utils/pairPetTrainingSlotsClientMerge.js';
+import { useAdContext } from '../ads/AdProvider.js';
 
 const XP_BAR_BASE_MS = 700;
 const XP_BAR_GAIN_MS = 600;
@@ -247,9 +248,11 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
     const { currentUserWithStatus, handlers } = useAppContext();
     const { t } = useTranslation(['pair', 'common', 'game']);
     const { t: tCommon } = useTranslation('common');
+    const { showShopAdRewardInterstitial, isAdFree } = useAdContext();
     const isMobile = useIsHandheldDevice();
     const [phase, setPhase] = useState<'ready' | 'done'>(claimSummary ? 'done' : 'ready');
     const [summary, setSummary] = useState<PairTrainingClaimClientSummary | null>(claimSummary);
+    const [adDoublePending, setAdDoublePending] = useState(false);
 
     /** 부모가 매 렌더마다 새 함수를 넘기면(예: `applyPetAction` inline) effect 의존성에 넣으면 `isBusy` 토글마다 재수령·실패·모달 닫힘 → ref로 고정 */
     const applyPetActionRef = useRef(applyPetAction);
@@ -290,6 +293,38 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
         setSummary(s);
         setPhase('done');
         markPairTrainingClaimCompleted(slotIndex);
+    };
+
+    const handleAdDoubleClaim = () => {
+        const claimId = summary?.adDoubleClaimId;
+        if (!claimId || adDoublePending || summary?.adDoubled) return;
+        const runClaim = () => {
+            setAdDoublePending(true);
+            void Promise.resolve(
+                applyPetActionRef.current({
+                    type: 'PAIR_PET_CLAIM_TRAINING_AD_DOUBLE',
+                    payload: { claimId },
+                }),
+            )
+                .then((raw) => {
+                    const { error, summary: doubledSummary } = parsePairTrainingClaimResponse(raw);
+                    if (error) {
+                        window.alert(error);
+                        return;
+                    }
+                    if (!doubledSummary) {
+                        window.alert(t('training.adDoubleFailed'));
+                        return;
+                    }
+                    setSummary(doubledSummary);
+                })
+                .finally(() => setAdDoublePending(false));
+        };
+
+        showShopAdRewardInterstitial(runClaim, {
+            placementName: `pair-training-ad-double-${claimId}`,
+            onDismissed: () => window.alert(t('common:ads.dismissedNoReward')),
+        });
     };
 
     /** 수령 완료 후 재수련 — 선행 수령 확정 후 UI 즉시 반영, START만 백그라운드 */
@@ -477,6 +512,13 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                 xpChange: summary.pairPetXp?.change,
             }),
     );
+    const canClaimAdDouble = Boolean(
+        summary?.adDoubleClaimId &&
+            !summary.adDoubled &&
+            ((summary.goldGain ?? 0) > 0 ||
+                (summary.pairPetXp?.change ?? summary.xpGain ?? 0) > 0 ||
+                (summary.soulDrop?.quantity ?? 0) > 0),
+    );
 
     return (
         <DraggableWindow
@@ -637,6 +679,27 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                         />
                                     </div>
                                 )
+                            ) : null}
+
+                            {canClaimAdDouble ? (
+                                <div className="mx-auto mt-3 flex w-full max-w-sm justify-center sm:mt-4">
+                                    <button
+                                        type="button"
+                                        disabled={adDoublePending || isBusy}
+                                        onClick={handleAdDoubleClaim}
+                                        className="min-h-[38px] w-full rounded-full border border-amber-300/60 bg-gradient-to-r from-amber-500 to-yellow-400 px-4 py-2 text-xs font-black text-slate-950 shadow-[0_10px_28px_-14px_rgba(251,191,36,0.9)] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-70 sm:text-sm"
+                                    >
+                                        {adDoublePending
+                                            ? t('training.adDoubleClaiming')
+                                            : isAdFree
+                                              ? t('training.adDoubleAdFree')
+                                              : t('training.adDoubleButton')}
+                                    </button>
+                                </div>
+                            ) : summary.adDoubled ? (
+                                <p className="mx-auto mt-3 max-w-sm rounded-full border border-emerald-400/25 bg-emerald-950/30 px-3 py-1.5 text-center text-[0.65rem] font-bold text-emerald-200 sm:mt-4 sm:text-xs">
+                                    {t('training.adDoubleClaimed')}
+                                </p>
                             ) : null}
 
                             <div className="mx-auto mt-4 flex w-full max-w-sm flex-row items-stretch justify-center gap-2 sm:mt-5 sm:gap-3">

@@ -374,6 +374,38 @@ function applyPairPetXp(meta: PairPetMeta, rawGain: number, itemGrade: ItemGrade
     }
 }
 
+const PAIR_TRAINING_AD_DOUBLE_CLAIM_TTL_MS = 30 * 60 * 1000;
+const PAIR_TRAINING_AD_DOUBLE_CLAIM_MAX = 8;
+
+function prunePairTrainingAdDoubleClaims(user: User, now = Date.now()): void {
+    const claims = user.pairPetTrainingAdDoubleClaims;
+    if (!claims || typeof claims !== 'object') {
+        user.pairPetTrainingAdDoubleClaims = undefined;
+        return;
+    }
+    const entries = Object.entries(claims)
+        .filter(([, claim]) => claim && now - Number(claim.createdAt ?? 0) <= PAIR_TRAINING_AD_DOUBLE_CLAIM_TTL_MS)
+        .sort((a, b) => Number(b[1].createdAt ?? 0) - Number(a[1].createdAt ?? 0))
+        .slice(0, PAIR_TRAINING_AD_DOUBLE_CLAIM_MAX);
+    user.pairPetTrainingAdDoubleClaims = entries.length > 0 ? Object.fromEntries(entries) : undefined;
+}
+
+function addCoreBonusDelta(
+    a: PairTrainingClaimClientSummary['pairPetLevelUpCoreBonuses'],
+    b: PairTrainingClaimClientSummary['pairPetLevelUpCoreBonuses'],
+): PairTrainingClaimClientSummary['pairPetLevelUpCoreBonuses'] | undefined {
+    const out: Partial<Record<CoreStat, number>> = {};
+    for (const src of [a, b]) {
+        if (!src) continue;
+        for (const key of Object.keys(src) as CoreStat[]) {
+            const value = src[key];
+            if (typeof value !== 'number' || value === 0) continue;
+            out[key] = (out[key] ?? 0) + value;
+        }
+    }
+    return Object.keys(out).length > 0 ? out : undefined;
+}
+
 type HandleActionResult = { 
     clientResponse?: any;
     error?: string;
@@ -5742,6 +5774,25 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 };
             }
 
+            prunePairTrainingAdDoubleClaims(user);
+            const adDoubleClaimId = randomUUID();
+            pairTrainingClaimSummary = {
+                ...pairTrainingClaimSummary,
+                adDoubleClaimId,
+                adDoubled: false,
+            };
+            user.pairPetTrainingAdDoubleClaims = {
+                ...(user.pairPetTrainingAdDoubleClaims ?? {}),
+                [adDoubleClaimId]: {
+                    claimId: adDoubleClaimId,
+                    createdAt: Date.now(),
+                    slotIndex,
+                    itemId: session.itemId,
+                    summary: pairTrainingClaimSummary,
+                },
+            };
+            prunePairTrainingAdDoubleClaims(user);
+
             user.pairPetTrainingSlots[slotIndex] = null;
             recordPairPetTrainingClaimForAchievements(user);
 
@@ -5750,6 +5801,132 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             await db.updateUser(user);
             const { broadcastUserUpdate } = await import('../socket.js');
             broadcastUserUpdate(user, ['inventory', 'gold', 'pairPetTrainingSlots', 'quests']);
+            return { clientResponse: { updatedUser, pairTrainingClaimSummary } };
+        }
+
+        case 'PAIR_PET_CLAIM_TRAINING_AD_DOUBLE': {
+            const { claimId } = payload as { claimId?: string };
+            if (!claimId || typeof claimId !== 'string') {
+                return { error: '유효하지 않은 광고 보상입니다.' };
+            }
+            prunePairTrainingAdDoubleClaims(user);
+            const claim = user.pairPetTrainingAdDoubleClaims?.[claimId];
+            if (!claim) {
+                return { error: '수령할 수 있는 광고 2배 보상이 없습니다.' };
+            }
+
+            const original = claim.summary;
+            const goldBonus = Math.max(0, Math.floor(Number(original.goldGain ?? 0)));
+            const xpBonus = Math.max(0, Math.floor(Number(original.pairPetXp?.change ?? original.xpGain ?? 0)));
+            const soulBonus =
+                original.soulDrop && original.soulDrop.quantity > 0
+                    ? {
+                          materialName: original.soulDrop.materialName,
+                          quantity: Math.max(0, Math.floor(Number(original.soulDrop.quantity ?? 0))),
+                      }
+                    : null;
+
+            if (goldBonus <= 0 && xpBonus <= 0 && (!soulBonus || soulBonus.quantity <= 0)) {
+                delete user.pairPetTrainingAdDoubleClaims![claimId];
+                prunePairTrainingAdDoubleClaims(user);
+                await db.updateUser(user);
+                return { error: '추가로 받을 수 있는 보상이 없습니다.' };
+            }
+
+            if (soulBonus && soulBonus.quantity > 0) {
+                const soulStack = makePairMaterialStack(
+                    soulBonus.materialName,
+                    soulTemplateIdFromMaterialName(soulBonus.materialName),
+                    soulBonus.quantity,
+                );
+                if (!user.inventorySlots) {
+                    user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
+                }
+                const mergedSoul = addItemsToInventory(user.inventory, user.inventorySlots, [soulStack]);
+                if (!mergedSoul.success || !mergedSoul.updatedInventory) {
+                    return { error: '인벤토리 공간이 부족해 광고 2배 보상을 받을 수 없습니다.' };
+                }
+                user.inventory = mergedSoul.updatedInventory;
+            }
+
+            user.gold = (user.gold ?? 0) + goldBonus;
+
+            let pairPetLevel = original.pairPetLevel;
+            let pairPetXp = original.pairPetXp;
+            let adCoreDelta: PairTrainingClaimClientSummary['pairPetLevelUpCoreBonuses'];
+            if (claim.itemId && xpBonus > 0) {
+                const petIdx = user.inventory.findIndex((it) => it.id === claim.itemId);
+                if (petIdx >= 0) {
+                    const petRow = user.inventory[petIdx]!;
+                    const metaBefore = readPairPetMetaFromRow(petRow);
+                    const meta = { ...metaBefore };
+                    applyPairPetXp(meta, xpBonus, petRow.grade ?? ItemGrade.Normal);
+                    user.inventory[petIdx] = { ...petRow, pairPetMeta: meta };
+
+                    const finalLevel = Math.min(PAIR_PET_MAX_LEVEL, Math.max(1, Math.floor(meta.level) || 1));
+                    const finalXp = Math.max(0, Math.floor(meta.xp ?? 0));
+                    const finalMax = getPairPetXpRequirementForLevel(finalLevel);
+                    pairPetLevel = original.pairPetLevel
+                        ? {
+                              initial: original.pairPetLevel.initial,
+                              final: finalLevel,
+                              progress: {
+                                  initial: original.pairPetLevel.progress.initial,
+                                  final: finalXp,
+                                  max: Number.isFinite(finalMax) && finalMax > 0 ? finalMax : original.pairPetLevel.progress.max,
+                              },
+                          }
+                        : null;
+                    pairPetXp = { change: Math.max(0, Number(original.pairPetXp?.change ?? 0)) + xpBonus };
+                    adCoreDelta = diffPairPetLevelUpCoreBonuses(metaBefore.levelUpCoreBonuses, meta.levelUpCoreBonuses);
+                }
+            }
+
+            const doubledSoulDrop =
+                original.soulDrop && soulBonus
+                    ? {
+                          materialName: original.soulDrop.materialName,
+                          quantity: Math.max(0, Number(original.soulDrop.quantity ?? 0)) + soulBonus.quantity,
+                      }
+                    : original.soulDrop;
+            const pairTrainingClaimSummary: PairTrainingClaimClientSummary = {
+                ...original,
+                goldGain: Math.max(0, Number(original.goldGain ?? 0)) + goldBonus,
+                goldBase:
+                    typeof original.goldBase === 'number'
+                        ? Math.max(0, Number(original.goldBase ?? 0)) * 2
+                        : original.goldBase,
+                goldFromSpecialization:
+                    typeof original.goldFromSpecialization === 'number'
+                        ? Math.max(0, Number(original.goldFromSpecialization ?? 0)) * 2
+                        : original.goldFromSpecialization,
+                xpGain: Math.max(0, Number(original.xpGain ?? 0)) + xpBonus,
+                xpBase:
+                    typeof original.xpBase === 'number'
+                        ? Math.max(0, Number(original.xpBase ?? 0)) * 2
+                        : original.xpBase,
+                xpFromSpecialization:
+                    typeof original.xpFromSpecialization === 'number'
+                        ? Math.max(0, Number(original.xpFromSpecialization ?? 0)) * 2
+                        : original.xpFromSpecialization,
+                soulDrop: doubledSoulDrop,
+                pairPetXp,
+                pairPetLevel,
+                pairPetLevelUpCoreBonuses: addCoreBonusDelta(original.pairPetLevelUpCoreBonuses, adCoreDelta),
+                adDoubleClaimId: claimId,
+                adDoubled: true,
+                adGoldBonus: goldBonus,
+                adXpBonus: xpBonus,
+                adSoulDropBonus: soulBonus,
+            };
+
+            delete user.pairPetTrainingAdDoubleClaims![claimId];
+            prunePairTrainingAdDoubleClaims(user);
+
+            const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_CLAIM_TRAINING_AD_DOUBLE');
+            await db.updateUser(user);
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['inventory', 'gold', 'quests']);
             return { clientResponse: { updatedUser, pairTrainingClaimSummary } };
         }
 

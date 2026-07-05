@@ -179,13 +179,7 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             if (game.winner == null || game.winner === Player.None) return { error: '승리 경기에서만 수령할 수 있습니다.' };
 
             const policy = resolveArenaSessionPolicy(game);
-            const eligibleArena =
-                policy.kind === 'singleplayer' ||
-                policy.kind === 'tower' ||
-                policy.kind === 'adventure' ||
-                policy.kind === 'guildwar' ||
-                (policy.kind === 'normal' && policy.matchAxis === 'pve' && game.isAiGame === true);
-            if (!eligibleArena) return { error: '이 경기에서는 광고 골드 2배 보상을 받을 수 없습니다.' };
+            if (!policy.allowsResultAdGoldDouble) return { error: '이 경기에서는 광고 골드 2배 보상을 받을 수 없습니다.' };
             if (!resolveResultAdGoldPlayerWon(game, user.id)) return { error: '승리한 플레이어만 수령할 수 있습니다.' };
 
             if (!game.summary) return { error: '경기 보상 정보가 아직 준비되지 않았습니다.' };

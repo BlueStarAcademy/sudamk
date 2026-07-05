@@ -4908,7 +4908,16 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
             {
                 const { ensurePrismaConnected } = await import('./prismaClient.js');
-                if (!(await ensurePrismaConnected())) {
+                const ACTION_DB_READY_TIMEOUT_MS = 5_000;
+                const dbReady = await Promise.race([
+                    ensurePrismaConnected(),
+                    new Promise<false>((resolve) => setTimeout(() => resolve(false), ACTION_DB_READY_TIMEOUT_MS)),
+                ]);
+                if (!dbReady) {
+                    console.warn(`[/api/action] Database readiness check timed out or failed before ${type}`, {
+                        userId,
+                        timeoutMs: ACTION_DB_READY_TIMEOUT_MS,
+                    });
                     respondAction(503, {
                         message:
                             '데이터베이스에 일시적으로 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.',

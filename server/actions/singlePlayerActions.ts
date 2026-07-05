@@ -55,6 +55,92 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
     return Math.max(0, Math.floor(base + add));
 };
 
+type TrainingQuestBulkRewardRow = {
+    missionId: string;
+    missionName: string;
+    missionLevel: number;
+    rewardType: 'gold' | 'diamonds';
+    rewardAmount: number;
+    rawAvailableAmount: number;
+    remainderMs: number;
+    productionIntervalMs: number;
+    maxCapacity: number;
+};
+
+async function buildTrainingQuestBulkRewardPreview(
+    user: User,
+    now: number,
+): Promise<{
+    rewards: TrainingQuestBulkRewardRow[];
+    totalGold: number;
+    totalDiamonds: number;
+}> {
+    if (!user.singlePlayerMissions) user.singlePlayerMissions = {};
+    const rewards: TrainingQuestBulkRewardRow[] = [];
+    let totalGold = 0;
+    let totalDiamonds = 0;
+    const rewardConfig = await getRewardConfig();
+
+    for (const missionInfo of SINGLE_PLAYER_MISSIONS) {
+        const missionState = user.singlePlayerMissions[missionInfo.id];
+        if (!missionState || !missionState.isStarted) continue;
+
+        const currentLevel = missionState.level || 1;
+        if (!missionInfo.levels || !Array.isArray(missionInfo.levels) || missionInfo.levels.length < currentLevel) continue;
+
+        const levelInfo = missionInfo.levels[currentLevel - 1];
+        if (!levelInfo) continue;
+
+        let missionAccumulated = missionState.accumulatedAmount;
+        if (typeof missionAccumulated !== 'number') {
+            const parsed = Number(missionAccumulated);
+            missionAccumulated = Number.isFinite(parsed) ? parsed : 0;
+        }
+        let lastCollectionTime = missionState.lastCollectionTime;
+        if (!lastCollectionTime || typeof lastCollectionTime !== 'number') {
+            const parsed = Number(lastCollectionTime);
+            lastCollectionTime = Number.isFinite(parsed) ? parsed : now;
+        }
+
+        const productionIntervalMs = levelInfo.productionRateMinutes * 60 * 1000;
+        const baseAccumulated = missionAccumulated || 0;
+        let generatedAmount = 0;
+        let remainderMs = 0;
+
+        if (productionIntervalMs > 0) {
+            const elapsedMs = Math.max(0, now - lastCollectionTime);
+            const cycles = Math.floor(elapsedMs / productionIntervalMs);
+            generatedAmount = cycles * levelInfo.rewardAmount;
+            remainderMs = elapsedMs % productionIntervalMs;
+        }
+
+        const availableAmount = Math.min(levelInfo.maxCapacity, baseAccumulated + generatedAmount);
+        if (availableAmount < 1) continue;
+
+        const rewardType = missionInfo.rewardType;
+        const adjustedAmount =
+            rewardType === 'gold'
+                ? addRewardBonus(availableAmount, rewardConfig.singleMissionGoldBonus)
+                : addRewardBonus(availableAmount, rewardConfig.singleMissionDiamondBonus);
+        if (rewardType === 'gold') totalGold += adjustedAmount;
+        else totalDiamonds += adjustedAmount;
+
+        rewards.push({
+            missionId: missionInfo.id,
+            missionName: missionInfo.name,
+            missionLevel: currentLevel,
+            rewardType,
+            rewardAmount: adjustedAmount,
+            rawAvailableAmount: availableAmount,
+            remainderMs,
+            productionIntervalMs,
+            maxCapacity: levelInfo.maxCapacity,
+        });
+    }
+
+    return { rewards, totalGold, totalDiamonds };
+}
+
 const getSinglePlayerRuleFlags = (gameMode: GameMode, mixModes: GameMode[]) => ({
     hasHidden: gameMode === GameMode.Hidden || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Hidden)),
     hasMissile: gameMode === GameMode.Missile || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Missile)),
@@ -1133,113 +1219,73 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             };
         }
         case 'CLAIM_ALL_TRAINING_QUEST_REWARDS': {
-            if (!user.singlePlayerMissions) {
-                user.singlePlayerMissions = {};
+            const opts = (payload && typeof payload === 'object' ? payload : {}) as { previewOnly?: boolean; adDouble?: boolean };
+            const preview = await buildTrainingQuestBulkRewardPreview(user, now);
+            const multiplier = opts.adDouble === true ? 2 : 1;
+            const rewards = preview.rewards.map(({ rawAvailableAmount: _rawAvailableAmount, remainderMs: _remainderMs, productionIntervalMs: _productionIntervalMs, maxCapacity: _maxCapacity, ...row }) => ({
+                ...row,
+                rewardAmount: row.rewardAmount * multiplier,
+            }));
+            const totalGold = preview.totalGold * multiplier;
+            const totalDiamonds = preview.totalDiamonds * multiplier;
+
+            if (preview.rewards.length < 1) {
+                return { error: '수령할 보상이 없습니다.' };
             }
-            
-            const rewards: Array<{
-                missionId: string;
-                missionName: string;
-                missionLevel: number;
-                rewardType: 'gold' | 'diamonds';
-                rewardAmount: number;
-            }> = [];
-            let totalGold = 0;
-            let totalDiamonds = 0;
-            const rewardConfig = await getRewardConfig();
-            
-            // 이미 시작된 미션만 처리 (시작 시점에 이미 언락 검사 통과했으므로 clearedStages 재검사 생략)
-            for (const missionInfo of SINGLE_PLAYER_MISSIONS) {
-                const missionState = user.singlePlayerMissions[missionInfo.id];
-                if (!missionState || !missionState.isStarted) continue;
-                
-                const currentLevel = missionState.level || 1;
-                if (!missionInfo.levels || !Array.isArray(missionInfo.levels) || missionInfo.levels.length < currentLevel) continue;
-                
-                const levelInfo = missionInfo.levels[currentLevel - 1];
-                if (!levelInfo) continue;
-                
-                // 미션 상태 초기화
-                let missionAccumulated = missionState.accumulatedAmount;
-                if (typeof missionAccumulated !== 'number') {
-                    const parsed = Number(missionAccumulated);
-                    missionAccumulated = Number.isFinite(parsed) ? parsed : 0;
-                }
-                let lastCollectionTime = missionState.lastCollectionTime;
-                if (!lastCollectionTime || typeof lastCollectionTime !== 'number') {
-                    const parsed = Number(lastCollectionTime);
-                    lastCollectionTime = Number.isFinite(parsed) ? parsed : now;
-                }
-                
-                const productionIntervalMs = levelInfo.productionRateMinutes * 60 * 1000;
-                const baseAccumulated = missionAccumulated || 0;
-                let generatedAmount = 0;
-                let remainderMs = 0;
-                
-                if (productionIntervalMs > 0) {
-                    const elapsedMs = Math.max(0, now - lastCollectionTime);
-                    const cycles = Math.floor(elapsedMs / productionIntervalMs);
-                    generatedAmount = cycles * levelInfo.rewardAmount;
-                    remainderMs = elapsedMs % productionIntervalMs;
-                }
-                
-                const availableAmount = Math.min(levelInfo.maxCapacity, baseAccumulated + generatedAmount);
-                
-                if (availableAmount < 1) continue;
-                
-                // 보상 추가
-                const rewardType = missionInfo.rewardType;
-                const adjustedAmount =
-                    rewardType === 'gold'
-                        ? addRewardBonus(availableAmount, rewardConfig.singleMissionGoldBonus)
-                        : addRewardBonus(availableAmount, rewardConfig.singleMissionDiamondBonus);
-                if (rewardType === 'gold') {
-                    user.gold += adjustedAmount;
-                    totalGold += adjustedAmount;
+
+            if (opts.previewOnly) {
+                return {
+                    clientResponse: {
+                        claimAllTrainingQuestRewards: {
+                            rewards,
+                            totalGold,
+                            totalDiamonds,
+                            previewOnly: true,
+                            adDouble: opts.adDouble === true,
+                        },
+                    },
+                };
+            }
+
+            if (!user.singlePlayerMissions) user.singlePlayerMissions = {};
+            for (const reward of preview.rewards) {
+                const missionState = user.singlePlayerMissions[reward.missionId];
+                if (!missionState) continue;
+                if (reward.rewardType === 'gold') {
+                    user.gold += reward.rewardAmount * multiplier;
                 } else {
-                    user.diamonds += adjustedAmount;
-                    totalDiamonds += adjustedAmount;
+                    user.diamonds += reward.rewardAmount * multiplier;
                 }
-                
-                rewards.push({
-                    missionId: missionInfo.id,
-                    missionName: missionInfo.name,
-                    missionLevel: currentLevel,
-                    rewardType,
-                    rewardAmount: adjustedAmount
-                });
-                
-                // 누적 수령액 증가 (레벨업용)
                 const currentAccumulatedCollection = typeof missionState.accumulatedCollection === 'number'
                     ? missionState.accumulatedCollection
                     : Number(missionState.accumulatedCollection) || 0;
-                missionState.accumulatedCollection = currentAccumulatedCollection + adjustedAmount;
+                missionState.accumulatedCollection = currentAccumulatedCollection + reward.rewardAmount * multiplier;
                 missionState.accumulatedAmount = 0;
-                missionState.lastCollectionTime = productionIntervalMs > 0 ? now - remainderMs : now;
-                if (productionIntervalMs > 0 && availableAmount >= levelInfo.maxCapacity) {
+                missionState.lastCollectionTime = reward.productionIntervalMs > 0 ? now - reward.remainderMs : now;
+                if (reward.productionIntervalMs > 0 && reward.rawAvailableAmount >= reward.maxCapacity) {
                     missionState.lastCollectionTime = now;
                 }
             }
-            
-            if (rewards.length > 0) {
-                updateQuestProgress(user, 'training_quest_claim', undefined, rewards.length);
-                db.updateUser(user).catch(err => {
-                    console.error(`[CLAIM_ALL_TRAINING_QUEST_REWARDS] Failed to save user ${user.id}:`, err);
-                });
-                const { broadcastUserUpdate } = await import('../socket.js');
-                broadcastUserUpdate(user, ['gold', 'diamonds', 'singlePlayerMissions', 'quests']);
-            }
-            
+
+            updateQuestProgress(user, 'training_quest_claim', undefined, preview.rewards.length);
+            db.updateUser(user).catch(err => {
+                console.error(`[CLAIM_ALL_TRAINING_QUEST_REWARDS] Failed to save user ${user.id}:`, err);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['gold', 'diamonds', 'singlePlayerMissions', 'quests']);
+
             const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_ALL_TRAINING_QUEST_REWARDS');
-            
+
             return {
                 clientResponse: {
                     updatedUser,
                     claimAllTrainingQuestRewards: {
                         rewards,
                         totalGold,
-                        totalDiamonds
+                        totalDiamonds,
+                        previewOnly: false,
+                        adDouble: opts.adDouble === true,
                     }
                 }
             };

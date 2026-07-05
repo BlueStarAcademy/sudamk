@@ -515,6 +515,10 @@ const applyDefaults = (
     pairPetTrainingSlots: normalizePairPetTrainingSlots(
         user.pairPetTrainingSlots ?? (status?.serializedUser as User | undefined)?.pairPetTrainingSlots
     ),
+    pairPetTrainingAdDoubleClaims:
+        user.pairPetTrainingAdDoubleClaims ??
+        (status?.serializedUser as User | undefined)?.pairPetTrainingAdDoubleClaims ??
+        undefined,
     pairPetHatcherySlotUnlocked: normalizePairPetHatcherySlotUnlocked(
         user.pairPetHatcherySlotUnlocked ?? (status?.serializedUser as User | undefined)?.pairPetHatcherySlotUnlocked
     ),

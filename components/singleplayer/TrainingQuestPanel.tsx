@@ -48,6 +48,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
         }>;
         totalGold: number;
         totalDiamonds: number;
+        mode: 'preview' | 'claimed';
     } | null>(null);
     const [isClaimingAll, setIsClaimingAll] = useState(false);
     const [actionErrorMessage, setActionErrorMessage] = useState<string | null>(null);
@@ -297,18 +298,19 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
         }).length;
     }, [trainingQuests, currentTime]);
     
-    // 일괄 수령 핸들러
+    const parseClaimAllData = (result: any) =>
+        result?.claimAllTrainingQuestRewards ?? result?.clientResponse?.claimAllTrainingQuestRewards ?? null;
+
+    // 일괄 수령 핸들러: 먼저 미리보기만 불러와 사용자가 수령 방식을 고르게 한다.
     const handleClaimAllRewards = async () => {
         if (isClaimingAll || claimableQuestsCount === 0) return;
         
         setIsClaimingAll(true);
         setActionErrorMessage(null);
         try {
-            // 아이템 획득 사운드 재생
-            audioService.claimReward();
-            
             const result = await handlers.handleAction({
-                type: 'CLAIM_ALL_TRAINING_QUEST_REWARDS'
+                type: 'CLAIM_ALL_TRAINING_QUEST_REWARDS',
+                payload: { previewOnly: true },
             }) as any;
             if (result?.error) {
                 setActionErrorMessage(getActionFailureMessage(result, t('singleplayer.errors.claimAllFailed')));
@@ -316,13 +318,14 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
             }
             
             // 응답 구조 확인: handleAction에서 반환된 값
-            const claimAllData = result?.claimAllTrainingQuestRewards;
+            const claimAllData = parseClaimAllData(result);
             
             if (claimAllData) {
                 setClaimAllRewards({
                     rewards: claimAllData.rewards || [],
                     totalGold: claimAllData.totalGold || 0,
-                    totalDiamonds: claimAllData.totalDiamonds || 0
+                    totalDiamonds: claimAllData.totalDiamonds || 0,
+                    mode: 'preview',
                 });
             } else {
                 console.warn('[TrainingQuestPanel] Claim all rewards - No claimAllTrainingQuestRewards in response:', result);
@@ -331,6 +334,43 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
         } catch (error) {
             console.error('[TrainingQuestPanel] Claim all rewards error:', error);
             setActionErrorMessage(getActionFailureMessage(error, t('singleplayer.errors.claimAllFailed')));
+        } finally {
+            setIsClaimingAll(false);
+        }
+    };
+
+    const claimAllFromPreview = async (adDouble: boolean): Promise<boolean> => {
+        if (isClaimingAll) return false;
+        setIsClaimingAll(true);
+        setActionErrorMessage(null);
+        try {
+            const result = await handlers.handleAction({
+                type: 'CLAIM_ALL_TRAINING_QUEST_REWARDS',
+                payload: { adDouble },
+            }) as any;
+            if (result?.error) {
+                setActionErrorMessage(getActionFailureMessage(result, t('singleplayer.errors.claimAllFailed')));
+                return false;
+            }
+            const claimAllData = parseClaimAllData(result);
+            if (!claimAllData) {
+                console.warn('[TrainingQuestPanel] Claim all rewards - No claimAllTrainingQuestRewards in response:', result);
+                setActionErrorMessage(t('singleplayer.errors.claimAllResultMissing'));
+                return false;
+            }
+
+            audioService.claimReward();
+            setClaimAllRewards({
+                rewards: claimAllData.rewards || [],
+                totalGold: claimAllData.totalGold || 0,
+                totalDiamonds: claimAllData.totalDiamonds || 0,
+                mode: 'claimed',
+            });
+            return true;
+        } catch (error) {
+            console.error('[TrainingQuestPanel] Claim all rewards error:', error);
+            setActionErrorMessage(getActionFailureMessage(error, t('singleplayer.errors.claimAllFailed')));
+            return false;
         } finally {
             setIsClaimingAll(false);
         }
@@ -1190,6 +1230,9 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                     rewards={claimAllRewards.rewards}
                     totalGold={claimAllRewards.totalGold}
                     totalDiamonds={claimAllRewards.totalDiamonds}
+                    mode={claimAllRewards.mode}
+                    onClaimNormal={() => claimAllFromPreview(false)}
+                    onClaimAdDouble={() => claimAllFromPreview(true)}
                     onClose={() => setClaimAllRewards(null)}
                     isTopmost={true}
                 />

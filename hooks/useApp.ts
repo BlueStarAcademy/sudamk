@@ -556,6 +556,25 @@ function shouldSkipDelayedAiSnapshotApply(
     const delayedMoves = delayedSnapshot.moveHistory?.length ?? 0;
     if (latestMoves > delayedMoves) return true;
 
+    const latestHistory = latestGame.moveHistory;
+    const delayedHistory = delayedSnapshot.moveHistory;
+    if (Array.isArray(latestHistory) && Array.isArray(delayedHistory)) {
+        const prefixLen = Math.min(latestHistory.length, delayedHistory.length);
+        for (let i = 0; i < prefixLen; i++) {
+            const latestMove = latestHistory[i];
+            const delayedMove = delayedHistory[i];
+            if (
+                !latestMove ||
+                !delayedMove ||
+                latestMove.x !== delayedMove.x ||
+                latestMove.y !== delayedMove.y ||
+                latestMove.player !== delayedMove.player
+            ) {
+                return true;
+            }
+        }
+    }
+
     // 수순 길이가 같아도 마지막 착수가 다르면 더 최신 국면(다른 분기)일 수 있으므로
     // 늦게 도착한 지연 스냅샷이 최신 상태를 덮어쓰지 않게 차단한다.
     if (latestMoves > 0 && latestMoves === delayedMoves) {
@@ -586,7 +605,9 @@ function shouldSkipDelayedAiSnapshotApply(
         if (
             latestLast &&
             delayedLast &&
-            (latestLast.x !== delayedLast.x || latestLast.y !== delayedLast.y)
+            (latestLast.x !== delayedLast.x ||
+                latestLast.y !== delayedLast.y ||
+                latestGame.moveHistory?.[latestMoves - 1]?.player !== delayedSnapshot.moveHistory?.[delayedMoves - 1]?.player)
         ) {
             return true;
         }
@@ -799,6 +820,23 @@ function getLastPlacedPointForStaleCheck(g: LiveGameSession | undefined): { x: n
         }
     }
     return null;
+}
+
+function moveHistorySharesPrefixForStaleCheck(
+    incoming: LiveGameSession,
+    existing: LiveGameSession,
+): boolean {
+    const incomingHistory = incoming.moveHistory;
+    const existingHistory = existing.moveHistory;
+    if (!Array.isArray(incomingHistory) || !Array.isArray(existingHistory)) return true;
+    const prefixLen = Math.min(incomingHistory.length, existingHistory.length);
+    for (let i = 0; i < prefixLen; i++) {
+        const inc = incomingHistory[i];
+        const ext = existingHistory[i];
+        if (!inc || !ext) return false;
+        if (inc.x !== ext.x || inc.y !== ext.y || inc.player !== ext.player) return false;
+    }
+    return true;
 }
 
 function liveGamePayloadHasRenderableBoardGrid(game: LiveGameSession | undefined): boolean {
@@ -1394,6 +1432,10 @@ function shouldDropStaleStrategicGameUpdate(
     }
 
     if (incomingMoves < existingMoves) {
+        return true;
+    }
+
+    if (incomingMoves > 0 && existingMoves > 0 && !moveHistorySharesPrefixForStaleCheck(incoming, existing)) {
         return true;
     }
 
@@ -3878,6 +3920,7 @@ export const useApp = () => {
             action.type !== 'BUY_CONDITION_POTION' &&
             action.type !== 'USE_CONDITION_POTION' &&
             action.type !== 'PAIR_PET_CLAIM_TRAINING' &&
+            action.type !== 'PAIR_PET_CLAIM_TRAINING_AD_DOUBLE' &&
             action.type !== 'PAIR_PET_START_TRAINING' &&
             action.type !== 'CHESS_MOVE_PIECE' &&
             action.type !== 'START_SINGLE_PLAYER_GAME' &&
@@ -7610,6 +7653,7 @@ export const useApp = () => {
                         'PAIR_PET_START_TRAINING',
                         'PAIR_PET_CANCEL_TRAINING',
                         'PAIR_PET_CLAIM_TRAINING',
+                        'PAIR_PET_CLAIM_TRAINING_AD_DOUBLE',
                         'PAIR_PET_RESYNC_TRAINING_SLOTS',
                         'PAIR_PET_HATCHERY_UNLOCK',
                         'PAIR_PET_HATCHERY_START',
@@ -7624,6 +7668,7 @@ export const useApp = () => {
                         // 서버 selective update가 이미 deepClone — 펫 수련은 추가 전체 복제 생략
                         if (
                             action.type !== 'PAIR_PET_CLAIM_TRAINING' &&
+                            action.type !== 'PAIR_PET_CLAIM_TRAINING_AD_DOUBLE' &&
                             action.type !== 'PAIR_PET_START_TRAINING' &&
                             !shopPurchaseActionTypes.has(action.type)
                         ) {

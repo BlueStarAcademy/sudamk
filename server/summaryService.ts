@@ -1263,6 +1263,8 @@ const getRewardConfig = async (): Promise<RewardConfig> => {
     return normalizeRewardConfig(stored ?? DEFAULT_REWARD_CONFIG);
 };
 
+const ADVENTURE_LOSS_REWARD_RATIO = 0.25;
+
 // --- END NEW REWARD CONSTANTS ---
 
 const calculateGameRewards = (
@@ -1392,6 +1394,37 @@ function boxTierRomanFromLootName(name: string): number {
     return 1;
 }
 
+function calculateAdventureMonsterBattleGoldReward(
+    game: LiveGameSession,
+    rewardMultiplier: number,
+    effects: effectService.CalculatedEffects,
+    adventureProfile: User['adventureProfile'],
+): { gold: number; understandingGoldBonus: number } {
+    const level = Math.max(1, Math.min(50, Math.floor(game.adventureMonsterLevel ?? 1)));
+    const settings = game.settings;
+    const baseGold =
+        STRATEGIC_GOLD_REWARDS[settings.boardSize as keyof typeof STRATEGIC_GOLD_REWARDS] || STRATEGIC_GOLD_REWARDS[19];
+    const { codexOnlyPercent, understandingPercent } = splitAdventureGoldBonusPercents(effects, adventureProfile);
+    const advStageId = typeof game.adventureStageId === 'string' ? game.adventureStageId : '';
+    const regGoldPct = advStageId ? getRegionalWinGoldBonusPercentForStage(adventureProfile, advStageId) : 0;
+
+    // 모험 골드는 "기본 보상 + (기본 보상 기준 N% 가산)" 규칙으로 합연산 처리.
+    // 버프 간 곱증폭을 피하기 위해 각 항목은 동일한 기준금(baseRewardBeforeBuffs)에만 적용한다.
+    let baseRewardBeforeBuffs = Math.round(baseGold * rewardMultiplier);
+    baseRewardBeforeBuffs = Math.round(baseRewardBeforeBuffs * adventureMonsterGoldLevelMultiplier(level));
+    const globalGoldPercent = (effects.goldRewardMultiplier - 1) * 100;
+    const totalBonusPercent =
+        globalGoldPercent + effects.winGoldBonusPercent + codexOnlyPercent + understandingPercent + regGoldPct;
+    const totalBonusGold = Math.round(baseRewardBeforeBuffs * (totalBonusPercent / 100));
+    const goldBeforeAdventureMul = Math.max(0, baseRewardBeforeBuffs + totalBonusGold);
+    const goldReward = Math.round(goldBeforeAdventureMul * ADVENTURE_BATTLE_GOLD_MULTIPLIER);
+    const understandingGoldBonus = Math.max(
+        0,
+        Math.round(baseRewardBeforeBuffs * (understandingPercent / 100) * ADVENTURE_BATTLE_GOLD_MULTIPLIER),
+    );
+    return { gold: goldReward, understandingGoldBonus };
+}
+
 /** 모험 몬스터 대국 승리 전용: 골드 + 장비/재료 슬롯 각각 판정 */
 function calculateAdventureMonsterBattleRewards(
     game: LiveGameSession,
@@ -1407,17 +1440,11 @@ function calculateAdventureMonsterBattleRewards(
     understandingGoldBonus: number;
 } {
     const level = Math.max(1, Math.min(50, Math.floor(game.adventureMonsterLevel ?? 1)));
-    const settings = game.settings;
-    const baseGold =
-        STRATEGIC_GOLD_REWARDS[settings.boardSize as keyof typeof STRATEGIC_GOLD_REWARDS] || STRATEGIC_GOLD_REWARDS[19];
-
     const advEqDrop = effects.adventureUnderstandingEquipmentDropBonusPercent ?? 0;
     const advMatDrop = effects.adventureUnderstandingMaterialDropBonusPercent ?? 0;
     const advHgEq = effects.adventureUnderstandingHighGradeEquipmentBonusPercent ?? 0;
     const advHgMat = effects.adventureUnderstandingHighGradeMaterialBonusPercent ?? 0;
-    const { codexOnlyPercent, understandingPercent } = splitAdventureGoldBonusPercents(effects, adventureProfile);
     const advStageId = typeof game.adventureStageId === 'string' ? game.adventureStageId : '';
-    const regGoldPct = advStageId ? getRegionalWinGoldBonusPercentForStage(adventureProfile, advStageId) : 0;
     const regEqPct = advStageId ? getRegionalEquipmentDropBonusPercentForStage(adventureProfile, advStageId) : 0;
     const regMatPct = advStageId ? getRegionalMaterialDropBonusPercentForStage(adventureProfile, advStageId) : 0;
 
@@ -1432,21 +1459,12 @@ function calculateAdventureMonsterBattleRewards(
 
     const slotMul = Math.max(0.45, rewardMultiplier);
     const dropExtra = effects.winDropBonusPercent + effects.itemDropRateBonus;
-
-    // 모험 골드는 "기본 보상 + (기본 보상 기준 N% 가산)" 규칙으로 합연산 처리.
-    // 버프 간 곱증폭을 피하기 위해 각 항목은 동일한 기준금(baseRewardBeforeBuffs)에만 적용한다.
-    let baseRewardBeforeBuffs = Math.round(baseGold * rewardMultiplier);
-    baseRewardBeforeBuffs = Math.round(baseRewardBeforeBuffs * adventureMonsterGoldLevelMultiplier(level));
     const isBoss19Board = game.adventureBoardSize === 19;
-    const globalGoldPercent = (effects.goldRewardMultiplier - 1) * 100;
-    const totalBonusPercent =
-        globalGoldPercent + effects.winGoldBonusPercent + codexOnlyPercent + understandingPercent + regGoldPct;
-    const totalBonusGold = Math.round(baseRewardBeforeBuffs * (totalBonusPercent / 100));
-    const goldBeforeAdventureMul = Math.max(0, baseRewardBeforeBuffs + totalBonusGold);
-    const goldReward = Math.round(goldBeforeAdventureMul * ADVENTURE_BATTLE_GOLD_MULTIPLIER);
-    const understandingGoldBonus = Math.max(
-        0,
-        Math.round(baseRewardBeforeBuffs * (understandingPercent / 100) * ADVENTURE_BATTLE_GOLD_MULTIPLIER),
+    const { gold: goldReward, understandingGoldBonus } = calculateAdventureMonsterBattleGoldReward(
+        game,
+        rewardMultiplier,
+        effects,
+        adventureProfile,
     );
 
     const items: InventoryItem[] = [];
@@ -1578,6 +1596,13 @@ const processPlayerSummary = async (
     const opponentLevel = opponent.userLevel;
     const initialXp = updatedPlayer.userXp;
     const isAdventureGame = game.gameCategory === 'adventure';
+    const isAdventureHumanLoss =
+        !isNoContest &&
+        !isDraw &&
+        isAdventureGame &&
+        player.id !== aiUserId &&
+        !isWinner;
+    const isAdventureRewardableLoss = isAdventureHumanLoss && winReason !== 'resign';
     const adventureBoardSize = game.adventureBoardSize ?? game.settings.boardSize;
     const isStrategicLobbyAi = !isNoContest && isWaitingRoomAiGame(game) && isStrategic;
     const liveArenaPhaseMul =
@@ -1597,10 +1622,13 @@ const processPlayerSummary = async (
     let xpGain = isNoContest ? 0 : (isWinner ? 100 : (isDraw ? 0 : 25)); // Strategic defaults
     // 모험은 `isWaitingRoomAiGame`에서 제외되지만, 분기 순서상 모험을 먼저 고정해 대기실 AI EXP와 겹치지 않게 한다.
     if (!isNoContest && isAdventureGame) {
+        const baseAdventureXp =
+            getAdventureBaseStrategyXp(adventureBoardSize) + getAdventureMonsterLevelXpBonus(game.adventureMonsterLevel);
+        const adventureWinXp = Math.round(baseAdventureXp * ADVENTURE_BATTLE_XP_MULTIPLIER);
         if (isWinner) {
-            const baseAdventureXp =
-                getAdventureBaseStrategyXp(adventureBoardSize) + getAdventureMonsterLevelXpBonus(game.adventureMonsterLevel);
-            xpGain = Math.round(baseAdventureXp * ADVENTURE_BATTLE_XP_MULTIPLIER);
+            xpGain = adventureWinXp;
+        } else if (isAdventureRewardableLoss) {
+            xpGain = Math.round(adventureWinXp * ADVENTURE_LOSS_REWARD_RATIO);
         } else {
             xpGain = 0;
         }
@@ -1667,8 +1695,8 @@ const processPlayerSummary = async (
         const tierMul = aiLobbyRewardMultiplierFromProfileStep(step);
         xpGain = Math.round(xpGain * tierMul);
     }
-    // 모험 몬스터 대전에서 패배한 유저는 EXP·보상 경로가 얽여도 0으로 고정
-    if (!isNoContest && !isDraw && isAdventureGame && player.id !== aiUserId && !isWinner) {
+    // 모험 몬스터 대전 기권패 등 보상 대상이 아닌 패배는 EXP·보상 경로가 얽여도 0으로 고정
+    if (isAdventureHumanLoss && !isAdventureRewardableLoss) {
         xpGain = 0;
     }
     /** 보상 VIP: 전략·놀이바둑 승리 시 골드·경험치(아래 rewards 반영) 2배 — 모험·길드전·타워·싱글 등 제외 */
@@ -1870,11 +1898,7 @@ const processPlayerSummary = async (
         resolvedAdventureBattleMode != null;
 
     const isAdventureLoss =
-        !isNoContest &&
-        !isDraw &&
-        !isWinner &&
-        player.id !== aiUserId &&
-        game.gameCategory === 'adventure' &&
+        isAdventureHumanLoss &&
         typeof game.adventureMonsterCodexId === 'string' &&
         typeof game.adventureStageId === 'string';
 
@@ -1933,6 +1957,36 @@ const processPlayerSummary = async (
                 obtained: true,
                 amount: isAdventureChapterBossCodexId(advCodexId) ? 2 : 1,
             },
+        };
+    } else if (isAdventureRewardableLoss && isAdventureLoss) {
+        const effectsAfterAdventureLoss = effectService.calculateUserEffects(updatedPlayer);
+        const advGold = calculateAdventureMonsterBattleGoldReward(
+            game,
+            rewardMultiplier,
+            effectsAfterAdventureLoss,
+            updatedPlayer.adventureProfile,
+        );
+        const lossGold = Math.round(advGold.gold * ADVENTURE_LOSS_REWARD_RATIO);
+        const lossUnderstandingGoldBonus = Math.round(advGold.understandingGoldBonus * ADVENTURE_LOSS_REWARD_RATIO);
+        rewards = {
+            gold: lossGold,
+            diamonds: 0,
+            items: [],
+            ...(lossUnderstandingGoldBonus > 0 ? { adventureGoldUnderstandingBonus: lossUnderstandingGoldBonus } : {}),
+        };
+        const advCodexId = game.adventureMonsterCodexId!;
+        const prevProf = normalizeAdventureProfile(updatedPlayer.adventureProfile);
+        const wins = Math.max(0, Math.floor((prevProf.codexDefeatCounts ?? {})[advCodexId] ?? 0));
+        adventureCodexDelta = { codexId: advCodexId, winsBefore: wins, winsAfter: wins };
+        adventureRewardSlots = {
+            gold: {
+                obtained: lossGold > 0,
+                amount: lossGold,
+                ...(lossUnderstandingGoldBonus > 0 ? { understandingBonus: lossUnderstandingGoldBonus } : {}),
+            },
+            keyFragment: { obtained: false, amount: 0 },
+            equipment: { obtained: false },
+            material: { obtained: false },
         };
     } else {
         const baseRewards = calculateGameRewards(game, updatedPlayer, isWinner, isDraw, itemDropBonus, materialDropBonus, rewardMultiplier, effects);
@@ -2064,7 +2118,6 @@ const processPlayerSummary = async (
         (!isAdventureGame || isAdventureWin);
 
     if (isStrategicLobbyAi && player.id !== aiUserId) {
-        rewards.gold = 0;
         rewards.diamonds = 0;
         rewards.items = [];
         delete rewards.adventureGoldUnderstandingBonus;
@@ -2096,9 +2149,9 @@ const processPlayerSummary = async (
         vipGrantedDisplay = vip.grantedDisplay;
     }
 
-    // 모험 패배: 일반 대국 보상 경로에서 붙은 골드·아이템·VIP 보너스는 지급하지 않음(기권패 등)
+    // 모험 기권패 등 보상 대상이 아닌 패배: 일반 대국 보상 경로에서 붙은 골드·아이템·VIP 보너스는 지급하지 않음
     const stripAdventureHumanLossRewards =
-        !isNoContest && !isDraw && isAdventureGame && player.id !== aiUserId && !isWinner;
+        isAdventureHumanLoss && !isAdventureRewardableLoss;
     if (stripAdventureHumanLossRewards) {
         rewards.gold = 0;
         rewards.diamonds = 0;

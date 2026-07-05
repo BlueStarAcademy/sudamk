@@ -26,14 +26,7 @@ export function getResultAdGoldDoubleBase(
 }
 
 export function isResultAdGoldDoubleEligibleSession(session: LiveGameSession): boolean {
-    const policy = resolveArenaSessionPolicy(session);
-    return (
-        policy.kind === 'singleplayer' ||
-        policy.kind === 'tower' ||
-        policy.kind === 'adventure' ||
-        policy.kind === 'guildwar' ||
-        (policy.kind === 'normal' && policy.matchAxis === 'pve' && session.isAiGame === true)
-    );
+    return resolveArenaSessionPolicy(session).allowsResultAdGoldDouble;
 }
 
 const ResultAdGoldDoubleButton: React.FC<ResultAdGoldDoubleButtonProps> = ({

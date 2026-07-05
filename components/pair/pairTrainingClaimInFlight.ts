@@ -61,7 +61,7 @@ export async function awaitPairTrainingClaimSettled(
     options: {
         petItemId: string;
         commitClaim: () => Promise<unknown>;
-        getTrainingSlots: () => PairPetTrainingSlotState[] | null | undefined;
+        getTrainingSlots: () => (PairPetTrainingSlotState | null)[] | null | undefined;
     },
 ): Promise<{ error?: string; summary: PairTrainingClaimClientSummary | null }> {
     const { petItemId, commitClaim, getTrainingSlots } = options;
