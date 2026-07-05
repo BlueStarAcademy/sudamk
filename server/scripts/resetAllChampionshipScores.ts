@@ -2,6 +2,9 @@
 
 import * as db from '../db.js';
 import * as types from '../../types/index.js';
+import { CHAMPIONSHIP_VERSUS_VENUE_KINDS } from '../../shared/constants/championshipVersusVenue.js';
+import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
+import { getCurrentSeason } from '../../shared/utils/timeUtils.js';
 
 const resetAllChampionshipScores = async () => {
     console.log('[Emergency] Starting championship score reset...');
@@ -12,6 +15,9 @@ const resetAllChampionshipScores = async () => {
     let usersUpdated = 0;
     let tournamentScoreReset = 0;
     let cumulativeScoreReset = 0;
+    let versusRatingReset = 0;
+    const now = Date.now();
+    const currentSeasonName = getCurrentSeason(now).name;
     
     for (const user of allUsers) {
         let needsUpdate = false;
@@ -45,10 +51,32 @@ const resetAllChampionshipScores = async () => {
                 updatedUser.dailyRankings.championship = {
                     rank: 0,
                     score: 0,
-                    lastUpdated: Date.now()
+                    lastUpdated: now
                 };
                 needsUpdate = true;
             }
+        }
+
+        if (!updatedUser.championshipVersusVenueRatings) {
+            updatedUser.championshipVersusVenueRatings = {};
+        }
+        for (const venue of CHAMPIONSHIP_VERSUS_VENUE_KINDS) {
+            const before = updatedUser.championshipVersusVenueRatings[venue];
+            const needsVersusReset =
+                !before ||
+                before.rating !== RANKED_ELO_BASE_SCORE ||
+                before.ratingSeasonKey !== currentSeasonName ||
+                before.seasonWins !== 0 ||
+                before.seasonLosses !== 0;
+            if (!needsVersusReset) continue;
+            updatedUser.championshipVersusVenueRatings[venue] = {
+                rating: RANKED_ELO_BASE_SCORE,
+                ratingSeasonKey: currentSeasonName,
+                seasonWins: 0,
+                seasonLosses: 0,
+            };
+            needsUpdate = true;
+            versusRatingReset++;
         }
         
         if (needsUpdate) {
@@ -63,6 +91,7 @@ const resetAllChampionshipScores = async () => {
     console.log(`[Emergency] Users updated: ${usersUpdated}`);
     console.log(`[Emergency] tournamentScore reset: ${tournamentScoreReset}`);
     console.log(`[Emergency] cumulativeTournamentScore reset: ${cumulativeScoreReset}`);
+    console.log(`[Emergency] championship versus ratings reset: ${versusRatingReset}`);
     console.log(`[Emergency] ========================================`);
 };
 

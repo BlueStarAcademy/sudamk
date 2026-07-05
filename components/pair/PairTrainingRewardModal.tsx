@@ -418,12 +418,7 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                         return;
                     }
                     markPairTrainingClaimCompleted(slotIndex);
-                    const coreDelta = serverSummary.pairPetLevelUpCoreBonuses;
-                    if (coreDelta && Object.values(coreDelta).some((v) => typeof v === 'number' && v !== 0)) {
-                        setSummary((prev) =>
-                            prev ? { ...prev, pairPetLevelUpCoreBonuses: coreDelta } : serverSummary,
-                        );
-                    }
+                    setSummary(serverSummary);
                 });
 
             return () => {

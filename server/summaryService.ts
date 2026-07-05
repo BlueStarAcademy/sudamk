@@ -2243,16 +2243,15 @@ const processPlayerSummary = async (
         }
     }
 
-    // 모험 패배/무승부 등: 결과 모달에서 골드·장비·재료 슬롯을 항상 그리기 위해 연출용 슬롯 부여
+    // 모험 전용 메타가 누락된 복구/구형 세션도 결과 모달에서 실제 골드·EXP 보상이 숨지지 않도록 fallback 슬롯을 부여한다.
     if (
         !isNoContest &&
         game.gameCategory === 'adventure' &&
         player.id !== aiUserId &&
-        typeof game.adventureMonsterCodexId === 'string' &&
         !adventureRewardSlots
     ) {
         adventureRewardSlots = {
-            gold: { obtained: false, amount: 0 },
+            gold: { obtained: rewards.gold > 0, amount: rewards.gold },
             keyFragment: { obtained: false, amount: 0 },
             equipment: { obtained: false },
             material: { obtained: false },

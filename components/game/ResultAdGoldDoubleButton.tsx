@@ -7,7 +7,7 @@ import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKi
 type ResultAdGoldDoubleButtonProps = {
     session: LiveGameSession;
     summary?: Pick<GameSummary, 'gold' | 'matchGold' | 'vipGoldBonus' | 'adGoldBonus' | 'adGoldDoubled'> | null;
-    isWinner: boolean;
+    isWinner?: boolean;
     onAction?: (action: ServerAction) => void | Promise<unknown>;
     onClaimed?: (amount: number) => void;
     className?: string;
@@ -32,7 +32,7 @@ export function isResultAdGoldDoubleEligibleSession(session: LiveGameSession): b
 const ResultAdGoldDoubleButton: React.FC<ResultAdGoldDoubleButtonProps> = ({
     session,
     summary,
-    isWinner,
+    isWinner: _isWinner,
     onAction,
     onClaimed,
     className = '',
@@ -45,7 +45,6 @@ const ResultAdGoldDoubleButton: React.FC<ResultAdGoldDoubleButtonProps> = ({
     const baseGold = useMemo(() => getResultAdGoldDoubleBase(summary), [summary]);
     const canClaim =
         Boolean(onAction) &&
-        isWinner &&
         isResultAdGoldDoubleEligibleSession(session) &&
         baseGold > 0 &&
         !summary?.adGoldDoubled &&

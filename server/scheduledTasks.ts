@@ -406,6 +406,7 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
             for (const venue of CHAMPIONSHIP_VERSUS_VENUE_KINDS) {
                 const e = user.championshipVersusVenueRatings[venue];
                 if (e) {
+                    e.rating = RANKED_ELO_BASE_SCORE;
                     e.seasonWins = 0;
                     e.seasonLosses = 0;
                     e.ratingSeasonKey = incomingSeason.name;
@@ -698,6 +699,7 @@ export async function resetAllChampionshipScoresToZero(): Promise<void> {
     console.log(`[OneTimeReset] Resetting all championship cumulative scores to 0`);
     const allUsers = await db.getAllUsers();
     const now = Date.now();
+    const currentSeasonName = getCurrentSeason(now).name;
     let updatedCount = 0;
 
     for (const user of allUsers) {
@@ -721,6 +723,29 @@ export async function resetAllChampionshipScoresToZero(): Promise<void> {
                 lastUpdated: now
             };
             hasChanges = true;
+        }
+
+        if (!user.championshipVersusVenueRatings) {
+            user.championshipVersusVenueRatings = {};
+            hasChanges = true;
+        }
+        for (const venue of CHAMPIONSHIP_VERSUS_VENUE_KINDS) {
+            const entry = user.championshipVersusVenueRatings[venue];
+            if (
+                !entry ||
+                entry.rating !== RANKED_ELO_BASE_SCORE ||
+                entry.ratingSeasonKey !== currentSeasonName ||
+                entry.seasonWins !== 0 ||
+                entry.seasonLosses !== 0
+            ) {
+                user.championshipVersusVenueRatings[venue] = {
+                    rating: RANKED_ELO_BASE_SCORE,
+                    ratingSeasonKey: currentSeasonName,
+                    seasonWins: 0,
+                    seasonLosses: 0,
+                };
+                hasChanges = true;
+            }
         }
 
         if (hasChanges) {

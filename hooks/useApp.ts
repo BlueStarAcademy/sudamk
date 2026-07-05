@@ -7780,6 +7780,7 @@ export const useApp = () => {
                         const dungeonState = (result as any).dungeonState || result.clientResponse?.dungeonState;
                         if (dungeonState && dungeonState.type) {
                             try {
+                                clearChampionshipDungeonClientSessionStorage(currentUserRef.current?.id);
                                 sessionStorage.setItem(`pendingDungeon_${dungeonState.type}`, JSON.stringify(dungeonState));
                             } catch (e) {
                                 console.warn('[handleAction] Failed to store pending dungeon state', e);

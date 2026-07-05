@@ -2007,12 +2007,22 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
 
             const persisted = (freshUser as any)[stateKey] as types.TournamentState | null | undefined;
-            const hasUnclaimedComplete =
+            const hasCompletedPersistedRun =
                 persisted &&
-                (persisted.status === 'complete' || persisted.status === 'eliminated') &&
+                persisted.type === dungeonType &&
+                persisted.currentStageAttempt != null &&
+                (persisted.status === 'complete' || persisted.status === 'eliminated');
+            const hasUnclaimedComplete =
+                hasCompletedPersistedRun &&
                 !(freshUser as any)[statusKey];
             if (hasUnclaimedComplete) {
                 return { error: '완료된 경기의 보상을 먼저 수령해주세요.' };
+            }
+            if (hasCompletedPersistedRun) {
+                (freshUser as any)[stateKey] = null;
+                if (volatileState.activeTournaments?.[freshUser.id]?.type === dungeonType) {
+                    delete volatileState.activeTournaments[freshUser.id];
+                }
             }
 
             const resumable =

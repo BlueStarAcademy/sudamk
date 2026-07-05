@@ -242,6 +242,71 @@ describe('shouldOpenResultModalByPolicy', () => {
         ).toBe(true);
     });
 
+    it('opens adventure waitSummary result when the summary row just arrived', () => {
+        const s = session({
+            gameStatus: 'ended',
+            gameCategory: GameCategory.Adventure,
+            isAiGame: true,
+            adventureStageId: 'adv-stage-1',
+        });
+        expect(
+            shouldOpenResultModalByPolicy({
+                session: s,
+                showResultModal: false,
+                gameHasJustEnded: false,
+                prevGameStatus: 'ended',
+                hasAnalysisResult: false,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: true,
+                gameSummaryJustArrived: true,
+            }),
+        ).toBe(true);
+    });
+
+    it('opens adventure waitSummary result when entering an already-ended game with summary ready', () => {
+        const s = session({
+            gameStatus: 'ended',
+            gameCategory: GameCategory.Adventure,
+            isAiGame: true,
+            adventureStageId: 'adv-stage-1',
+        });
+        expect(
+            shouldOpenResultModalByPolicy({
+                session: s,
+                showResultModal: false,
+                gameHasJustEnded: false,
+                prevGameStatus: 'ended',
+                hasAnalysisResult: false,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: true,
+                gameSummaryJustArrived: false,
+                postGameSummaryAcknowledged: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('does not reopen adventure waitSummary result after the user acknowledged it', () => {
+        const s = session({
+            gameStatus: 'ended',
+            gameCategory: GameCategory.Adventure,
+            isAiGame: true,
+            adventureStageId: 'adv-stage-1',
+        });
+        expect(
+            shouldOpenResultModalByPolicy({
+                session: s,
+                showResultModal: false,
+                gameHasJustEnded: false,
+                prevGameStatus: 'ended',
+                hasAnalysisResult: false,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: true,
+                gameSummaryJustArrived: false,
+                postGameSummaryAcknowledged: true,
+            }),
+        ).toBe(false);
+    });
+
     it('waits for score-based overlay during scoring (PVP included)', () => {
         expect(
             shouldWaitForScoreBasedScoringOverlay({

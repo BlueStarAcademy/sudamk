@@ -43,6 +43,8 @@ import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../shared/constants/singlePlaye
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import { MAX_GAME_INTEGER_INPUT, MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from '../../shared/constants/numericLimits.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
+import { CHAMPIONSHIP_VERSUS_VENUE_KINDS } from '../../shared/constants/championshipVersusVenue.js';
+import { getCurrentSeason } from '../../shared/utils/timeUtils.js';
 import { applyRankedMatchStatsFullResetToUser } from '../rankedMatchStatsReset.js';
 import type { KataServerRuntimeOverrides } from '../../shared/types/kataServerRuntime.js';
 import { resetKataServerRuntimeOverrides, saveKataServerRuntimePatch } from '../kataServerRuntimeStore.js';
@@ -1437,6 +1439,16 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
                 targetUser.cumulativeTournamentScore = 0;
                 targetUser.tournamentScore = 0;
                 targetUser.yesterdayTournamentScore = 0;
+                if (!targetUser.championshipVersusVenueRatings) targetUser.championshipVersusVenueRatings = {};
+                const currentSeasonName = getCurrentSeason(now).name;
+                for (const venue of CHAMPIONSHIP_VERSUS_VENUE_KINDS) {
+                    targetUser.championshipVersusVenueRatings[venue] = {
+                        rating: RANKED_ELO_BASE_SCORE,
+                        ratingSeasonKey: currentSeasonName,
+                        seasonWins: 0,
+                        seasonLosses: 0,
+                    };
+                }
                 if (targetUser.dailyRankings) {
                     (targetUser.dailyRankings as any).championship = { rank: 0, score: 0, lastUpdated: now };
                 } else {

@@ -1775,6 +1775,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         if (isAdventureGame) {
             return (
                 !!mySummary.adventureRewardSlots ||
+                (mySummary.gold ?? 0) > 0 ||
+                (!isPlayful && (mySummary.xp?.change ?? 0) > 0) ||
                 (!isPlayful && (mySummary.pairPetXp?.change ?? 0) > 0)
             );
         }

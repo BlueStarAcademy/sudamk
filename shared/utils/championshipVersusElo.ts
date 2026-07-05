@@ -235,7 +235,7 @@ export function normalizeChampionshipVersusVenueRatingEntryInPlace(
 
     if (!legacy.seasonKey || legacy.seasonKey !== season) {
         const next: ChampionshipVersusVenueRatingEntry = {
-            rating: legacy.rating,
+            rating: CHAMPIONSHIP_VERSUS_ELO_DEFAULT,
             ratingSeasonKey: season,
             seasonWins: 0,
             seasonLosses: 0,
@@ -243,8 +243,13 @@ export function normalizeChampionshipVersusVenueRatingEntryInPlace(
         user.championshipVersusVenueRatings[venue] = next;
         return next;
     }
+    const hasNoCurrentSeasonGames = legacy.seasonWins + legacy.seasonLosses === 0;
+    const normalizedRating =
+        hasNoCurrentSeasonGames && legacy.rating !== CHAMPIONSHIP_VERSUS_ELO_DEFAULT
+            ? CHAMPIONSHIP_VERSUS_ELO_DEFAULT
+            : legacy.rating;
     const next: ChampionshipVersusVenueRatingEntry = {
-        rating: legacy.rating,
+        rating: normalizedRating,
         ratingSeasonKey: season,
         seasonWins: legacy.seasonWins,
         seasonLosses: legacy.seasonLosses,

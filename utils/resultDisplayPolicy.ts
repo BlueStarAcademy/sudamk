@@ -11,6 +11,7 @@ type ResultDisplayParams = {
     resultModalWaitSummary: boolean;
     hasMyGameSummary: boolean;
     gameSummaryJustArrived: boolean;
+    postGameSummaryAcknowledged?: boolean;
 };
 
 function shouldOpenResultModalForSummaryLikeEnd(params: ResultDisplayParams): boolean {
@@ -22,9 +23,16 @@ function shouldOpenResultModalForSummaryLikeEnd(params: ResultDisplayParams): bo
         resultModalWaitSummary,
         hasMyGameSummary,
         gameSummaryJustArrived,
+        postGameSummaryAcknowledged = false,
     } = params;
     const scoreEndNeedsAnalysis = session.winReason === 'score' && !hasAnalysisResult;
     const summaryNotReady = resultModalWaitSummary && !hasMyGameSummary;
+    const summaryReadyTerminal =
+        resultModalWaitSummary &&
+        session.gameStatus === 'ended' &&
+        hasMyGameSummary &&
+        !postGameSummaryAcknowledged &&
+        !scoreEndNeedsAnalysis;
     return (
         (gameHasJustEnded &&
             !scoreEndNeedsAnalysis &&
@@ -33,6 +41,7 @@ function shouldOpenResultModalForSummaryLikeEnd(params: ResultDisplayParams): bo
             hasAnalysisResult &&
             prevGameStatus !== 'ended' &&
             !summaryNotReady) ||
+        summaryReadyTerminal ||
         gameSummaryJustArrived
     );
 }

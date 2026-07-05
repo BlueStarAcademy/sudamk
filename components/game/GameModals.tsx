@@ -197,21 +197,34 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         // scoring 상태일 때는 분석 결과가 준비될 때까지 게임 화면을 유지 (바둑판 초기화 방지)
         // 도전의 탑과 싱글플레이어는 이미 위에서 처리했으므로 제외
         // 싱글/탑과 동일: `ended`만으로는 모달을 띄우지 않음 — 확인으로 showResultModal을 false로 내린 뒤 ended여도 다시 뜨는 무한 루프 방지
-        // instantEnd(PVP·로비 AI): 체크메이트·포획승 등 직후 낡은 playing 패킷이 섞여도 showResultModal 동안 결과를 유지(탑과 동일)
-        const pvpResultShellReady =
+        // instantEnd(PVP·로비 AI) 및 waitSummary(모험·길드전): 종료 직후 낡은 playing/사전 단계 패킷이 섞여도
+        // showResultModal 동안 결과를 유지한다. waitSummary는 Game.tsx가 summary 준비 후에만 플래그를 켠다.
+        const genericResultShellReady =
             showResultModal &&
             (arenaPolicy.resultDisplayModel === 'instantEnd' ||
+                arenaPolicy.resultDisplayModel === 'waitSummary' ||
                 gameStatus === 'ended' ||
                 gameStatus === 'no_contest');
         if (
-            pvpResultShellReady &&
+            genericResultShellReady &&
             arenaPolicy.kind !== 'singleplayer' &&
             arenaPolicy.kind !== 'tower'
         ) {
+            if (gameStatus === 'no_contest') return (
+                <NoContestModal
+                    session={session}
+                    currentUser={currentUser}
+                    onConfirm={onCloseResults}
+                    onAction={onAction}
+                    onOpenGameRecordList={onOpenGameRecordList}
+                    isSpectator={isSpectator}
+                />
+            );
             if (
                 gameStatus === 'ended' ||
                 gameStatus === 'scoring' ||
-                arenaPolicy.resultDisplayModel === 'instantEnd'
+                arenaPolicy.resultDisplayModel === 'instantEnd' ||
+                arenaPolicy.resultDisplayModel === 'waitSummary'
             ) {
                 return (
                 <GameSummaryModal
@@ -227,16 +240,6 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
                 />
                 );
             }
-            if (gameStatus === 'no_contest') return (
-                <NoContestModal
-                    session={session}
-                    currentUser={currentUser}
-                    onConfirm={onCloseResults}
-                    onAction={onAction}
-                    onOpenGameRecordList={onOpenGameRecordList}
-                    isSpectator={isSpectator}
-                />
-            );
         }
         return null;
     };

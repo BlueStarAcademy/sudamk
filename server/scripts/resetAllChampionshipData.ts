@@ -15,6 +15,9 @@
 import prisma from '../prismaClient.js';
 import * as db from '../db.js';
 import * as types from '../../types/index.js';
+import { CHAMPIONSHIP_VERSUS_VENUE_KINDS } from '../../shared/constants/championshipVersusVenue.js';
+import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
+import { getCurrentSeason } from '../../shared/utils/timeUtils.js';
 
 const resetAllChampionshipData = async () => {
     console.log('='.repeat(60));
@@ -45,6 +48,9 @@ const resetAllChampionshipData = async () => {
         let scoreReset = 0;
         let singlePlayerReset = 0;
         let towerReset = 0;
+        let versusRatingReset = 0;
+        const now = Date.now();
+        const currentSeasonName = getCurrentSeason(now).name;
         
         // 2. 각 사용자의 챔피언십 데이터 초기화
         console.log('[2/3] 각 사용자의 챔피언십 데이터 초기화 중...');
@@ -171,6 +177,27 @@ const resetAllChampionshipData = async () => {
                     kvNeedsUpdate = true;
                     scoreReset++;
                 }
+                if (!updatedKvUser.championshipVersusVenueRatings) {
+                    updatedKvUser.championshipVersusVenueRatings = {};
+                }
+                for (const venue of CHAMPIONSHIP_VERSUS_VENUE_KINDS) {
+                    const before = updatedKvUser.championshipVersusVenueRatings[venue];
+                    const needsVersusReset =
+                        !before ||
+                        before.rating !== RANKED_ELO_BASE_SCORE ||
+                        before.ratingSeasonKey !== currentSeasonName ||
+                        before.seasonWins !== 0 ||
+                        before.seasonLosses !== 0;
+                    if (!needsVersusReset) continue;
+                    updatedKvUser.championshipVersusVenueRatings[venue] = {
+                        rating: RANKED_ELO_BASE_SCORE,
+                        ratingSeasonKey: currentSeasonName,
+                        seasonWins: 0,
+                        seasonLosses: 0,
+                    };
+                    kvNeedsUpdate = true;
+                    versusRatingReset++;
+                }
                 
                 // 7. 보상 수령 상태 초기화
                 if (updatedKvUser.neighborhoodRewardClaimed) {
@@ -284,6 +311,18 @@ const resetAllChampionshipData = async () => {
                     delete updatedStatus.dailyRankings.championship;
                     statusNeedsUpdate = true;
                 }
+                if (updatedStatus.championshipVersusVenueRatings) {
+                    delete updatedStatus.championshipVersusVenueRatings;
+                    statusNeedsUpdate = true;
+                }
+                if (
+                    updatedStatus.serializedUser &&
+                    typeof updatedStatus.serializedUser === 'object' &&
+                    updatedStatus.serializedUser.championshipVersusVenueRatings
+                ) {
+                    delete updatedStatus.serializedUser.championshipVersusVenueRatings;
+                    statusNeedsUpdate = true;
+                }
                 
                 if (statusNeedsUpdate) {
                     await prisma.user.update({
@@ -306,6 +345,7 @@ const resetAllChampionshipData = async () => {
         console.log(`  - 토너먼트 상태 초기화: ${tournamentStateReset}개`);
         console.log(`  - 일일 랭킹 초기화: ${dailyRankingsReset}명`);
         console.log(`  - 점수 초기화: ${scoreReset}개`);
+        console.log(`  - 챔피언십 대전장 티어 점수 초기화: ${versusRatingReset}개`);
         console.log(`  - 싱글플레이 초기화: ${singlePlayerReset}명`);
         console.log(`  - 도전의 탑 초기화: ${towerReset}개`);
         console.log('='.repeat(60));

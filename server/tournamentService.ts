@@ -829,7 +829,11 @@ export const createTournament = (type: TournamentType, user: User, players: Play
                d1.getUTCDate() === d2.getUTCDate();
     };
     const isToday = isSameDayKST(lastPlayedDate, now);
-    let userCondition: number | undefined = (isToday && existingTournament)
+    const existingTournamentCanCarryCondition =
+        existingTournament &&
+        existingTournament.status !== 'complete' &&
+        existingTournament.status !== 'eliminated';
+    let userCondition: number | undefined = (isToday && existingTournamentCanCarryCondition)
         ? existingTournament.players.find(p => p.id === user.id)?.condition
         : undefined;
     // 뒤로 나갔다 재입장 시: 세션은 없지만 오늘자 스냅샷이 있으면 그 컨디션 유지 (편법 방지)

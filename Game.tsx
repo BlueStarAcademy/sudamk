@@ -2041,6 +2041,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             resultModalWaitSummary,
             hasMyGameSummary,
             gameSummaryJustArrived,
+            postGameSummaryAcknowledged,
         });
         const shouldShowAfterScoringOverlay = shouldOpenResultModalAfterScoringOverlay({
             isScoreBasedPresentation,

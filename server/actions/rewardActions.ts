@@ -1,6 +1,6 @@
 import * as db from '../db.js';
 import { randomUUID } from 'crypto';
-import { type ServerAction, type User, type VolatileState, type Guild, InventoryItem, Quest, QuestLog, InventoryItemType, TournamentType, TournamentState, QuestReward, Player } from '../../types/index.js';
+import { type ServerAction, type User, type VolatileState, type Guild, InventoryItem, Quest, QuestLog, InventoryItemType, TournamentType, TournamentState, QuestReward } from '../../types/index.js';
 import { ItemGrade } from '../../types/enums.js';
 import { updateQuestProgress } from '../questService.js';
 import { SHOP_ITEMS } from '../shop.js';
@@ -90,14 +90,6 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
     return Math.max(0, Math.floor(base + add));
 };
 
-function resolveResultAdGoldPlayerWon(game: NonNullable<Awaited<ReturnType<typeof db.getLiveGame>>>, userId: string): boolean {
-    const pairSeat = game.settings?.pairGame?.turnOrder?.find((seat) => seat.participantId === userId);
-    if (pairSeat) return pairSeat.player === game.winner;
-    if (game.blackPlayerId === userId) return game.winner === Player.Black;
-    if (game.whitePlayerId === userId) return game.winner === Player.White;
-    return false;
-}
-
 function getResultAdGoldBase(summary: { gold?: number; matchGold?: number; vipGoldBonus?: number; adGoldBonus?: number }): number {
     const matchGold = Number(summary.matchGold);
     if (Number.isFinite(matchGold) && matchGold > 0) {
@@ -176,11 +168,9 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             }
             if (!game) return { error: '경기를 찾을 수 없습니다.' };
             if (game.gameStatus !== 'ended') return { error: '종료된 경기에서만 수령할 수 있습니다.' };
-            if (game.winner == null || game.winner === Player.None) return { error: '승리 경기에서만 수령할 수 있습니다.' };
 
             const policy = resolveArenaSessionPolicy(game);
             if (!policy.allowsResultAdGoldDouble) return { error: '이 경기에서는 광고 골드 2배 보상을 받을 수 없습니다.' };
-            if (!resolveResultAdGoldPlayerWon(game, user.id)) return { error: '승리한 플레이어만 수령할 수 있습니다.' };
 
             if (!game.summary) return { error: '경기 보상 정보가 아직 준비되지 않았습니다.' };
             const summary = game.summary[user.id];

@@ -605,7 +605,7 @@ export type ExchangeState = {
 export type ChampionshipVersusVenueKind = 'pvp' | 'pet' | 'petpair';
 
 export type ChampionshipVersusVenueRatingEntry = {
-    /** 시즌 ELO (전략바둑 랭킹전과 동일 기준점 1200, 시즌이 바뀌어도 점수는 유지) */
+    /** 현재 시즌 ELO (전략바둑 랭킹전과 동일 기준점 1200, 시즌 종료 시 기본점으로 리셋) */
     rating: number;
     /** `getCurrentSeason().name` 과 일치해야 현재 시즌 전적·집계에 포함 */
     ratingSeasonKey: string;

@@ -75,6 +75,9 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
             pending && isChampionshipDungeonTournamentFromToday(pending, snapDay);
 
         if (pendingFromToday && contextFromToday) {
+            if ((pending.lastPlayedDate || 0) > (fromContext.lastPlayedDate || 0)) {
+                return pending;
+            }
             const contextTerminal =
                 fromContext.status === 'complete' || fromContext.status === 'eliminated';
             const pendingPlayable =
