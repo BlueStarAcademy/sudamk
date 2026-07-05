@@ -2972,6 +2972,21 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 }
             }
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+
+            // 바둑학원 시작 확인 모달에서 나가기는 아직 대국을 시작하지 않은 상태이므로
+            // 기권패/패배 정산 없이 임시 세션만 정리한다.
+            if (
+                game.gameStatus === 'pending' &&
+                game.isSinglePlayer &&
+                game.gameCategory !== 'tower'
+            ) {
+                clearAiSession(gameId);
+                volatileState.gameCache?.delete(gameId);
+                await db.deleteGame(gameId);
+                if (volatileState.gameChats) delete volatileState.gameChats[gameId];
+                broadcast({ type: 'GAME_DELETED', payload: { gameId } });
+                return {};
+            }
             
             // If the user leaves before the game is officially over (e.g. resigns), end the game.
             if (!['ended', 'no_contest'].includes(game.gameStatus)) {

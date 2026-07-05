@@ -236,7 +236,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
             variant="store"
             headerContent={
                 <span className="hidden sm:inline shrink-0 rounded bg-amber-950/80 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-200/90 ring-1 ring-amber-600/50">
-                    Reforge
+                    {t('refine.resultBadge')}
                 </span>
             }
         >
@@ -277,7 +277,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
                                 <h2 className={`truncate text-base font-bold leading-tight ${styles.color}`} title={after.name}>
                                     {after.name}
                                 </h2>
-                                <p className="mt-1 text-xs text-stone-400">{result.message}</p>
+                                <p className="mt-1 text-xs text-stone-400">{t('refine.completeMessage')}</p>
                                 {after.options?.main && (
                                     <p
                                         className="mt-1.5 truncate text-xs font-semibold text-amber-200/95"
@@ -300,7 +300,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
 
                         {result.success && diffs.length === 0 && (
                             <p className="rounded-lg border border-stone-700/80 bg-stone-900/50 px-3 py-4 text-center text-sm text-stone-400">
-                                표시할 변경 내역이 없습니다.
+                                {t('refine.noResultDiffs')}
                             </p>
                         )}
 
@@ -327,7 +327,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
                                         <div className="grid grid-cols-[1fr_auto_1fr] gap-2 items-center text-[11px] sm:text-xs">
                                             <div className="min-w-0 rounded-lg border border-red-950/60 bg-red-950/25 p-2 ring-1 ring-red-900/20">
                                                 <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-red-400/80">
-                                                    이전
+                                                    {t('refine.before')}
                                                 </div>
                                                 {d.isMythic && d.mythicBefore ? (
                                                     <MythicOptionAbbrev option={d.mythicBefore} textClassName="text-red-300/95 text-[11px]" />
@@ -340,7 +340,7 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
                                             </div>
                                             <div className="min-w-0 rounded-lg border border-emerald-950/50 bg-emerald-950/20 p-2 ring-1 ring-emerald-800/25 shadow-[inset_0_0_12px_rgba(16,185,129,0.06)]">
                                                 <div className="mb-1 text-[9px] font-semibold uppercase tracking-wider text-emerald-400/90">
-                                                    이후
+                                                    {t('refine.after')}
                                                 </div>
                                                 {d.isMythic && d.mythicAfter ? (
                                                     <MythicOptionAbbrev option={d.mythicAfter} textClassName="text-emerald-200 text-[11px] font-semibold" />

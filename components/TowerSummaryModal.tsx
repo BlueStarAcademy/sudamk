@@ -33,6 +33,7 @@ import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.
 import SpResultRecordPetIdentityRow from './game/SpResultRecordPetIdentityRow.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 import GameResultModalFitContent from './game/GameResultModalFitContent.js';
+import ResultAdGoldDoubleButton from './game/ResultAdGoldDoubleButton.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -151,7 +152,7 @@ const ScoreDetailsComponent: React.FC<{
     );
 };
 
-const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentUser, onAction: _onAction, onClose }) => {
+const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
     const { t } = useTranslation('game');
     const { modalLayerUsesDesignPixels } = useAppContext();
     const isCompactViewport = useIsHandheldDevice(900);
@@ -168,6 +169,11 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const analysisResult = session.analysisResult?.['system'];
     const renderableScoreDetails = hasRenderableScoreDetails(analysisResult);
     const summary = session.summary?.[currentUser.id];
+    const [localAdGoldBonus, setLocalAdGoldBonus] = useState(0);
+
+    useEffect(() => {
+        setLocalAdGoldBonus(0);
+    }, [session.id]);
     
     // 계가 결과가 있으면 점수를 기반으로 승리/실패 판단, 없으면 session.winner 사용 (`towerPreGameDisplay`와 인게임 푸터 동일)
     const isWinner = isTowerHumanWinnerFromSession(session);
@@ -179,6 +185,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     
     // 결과창은 서버가 확정한 실제 지급 내역(summary)만 표시한다.
     const displaySummary = summary;
+    const optimisticAdGoldBonus = (summary?.adGoldBonus ?? 0) > 0 ? 0 : localAdGoldBonus;
 
     const failureReason = useMemo(() => {
         if (isWinner) return null;
@@ -320,12 +327,12 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const hasRewardSlots = useMemo(
         () =>
             !!displaySummary &&
-            ((displaySummary.gold ?? 0) > 0 ||
+            (((displaySummary.gold ?? 0) + optimisticAdGoldBonus) > 0 ||
                 (displaySummary.xp?.change ?? 0) > 0 ||
                 (displaySummary.pairPetXp?.change ?? 0) > 0 ||
                 (showPetGradeUpgradeInsteadOfXp && displaySummary.pairPetXp != null) ||
                 (Array.isArray(displaySummary.items) && displaySummary.items.length > 0)),
-        [displaySummary, showPetGradeUpgradeInsteadOfXp],
+        [displaySummary, optimisticAdGoldBonus, showPetGradeUpgradeInsteadOfXp],
     );
 
     /** 싱글플레이 기록 탭과 동일: 요약에 `xp`가 있을 때만 표시 */
@@ -465,9 +472,9 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </p>
                 ) : (
                     <>
-                        {(displaySummary.gold ?? 0) > 0 && (
+                        {((displaySummary.gold ?? 0) + optimisticAdGoldBonus) > 0 && (
                             <ResultModalGoldCurrencySlot
-                                amount={displaySummary.gold ?? 0}
+                                amount={(displaySummary.gold ?? 0) + optimisticAdGoldBonus}
                                 compact={isMobile}
                                 dimmed={!summary}
                             />
@@ -538,6 +545,16 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </>
                 )}
             </div>
+            {displaySummary ? (
+                <ResultAdGoldDoubleButton
+                    session={session}
+                    summary={displaySummary}
+                    isWinner={isWinner === true}
+                    onAction={onAction}
+                    onClaimed={(amount) => setLocalAdGoldBonus((prev) => prev + amount)}
+                    className="pt-1"
+                />
+            ) : null}
         </div>
     );
 

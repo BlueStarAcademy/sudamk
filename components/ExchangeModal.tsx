@@ -344,7 +344,7 @@ function createExchangeSettlementCurrencyObtainItem(currency: SaleCurrency, quan
 }
 
 const minPriceByCurrency: Record<SaleCurrency, number> = {
-    gold: 100,
+    gold: 1000,
     diamonds: 10,
 };
 const BAG_SCROLLBAR_Y_CLASS =
@@ -411,7 +411,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
     const mobileExchange = Boolean(isNativeMobile);
     const [activeTab, setActiveTab] = useState<ExchangeTab>('buy');
     const [saleCurrency, setSaleCurrency] = useState<SaleCurrency>('gold');
-    const [salePrice, setSalePrice] = useState<string>('100');
+    const [salePrice, setSalePrice] = useState<string>('0');
     const [selectedItemId, setSelectedItemId] = useState<string>('');
     const [selectedBuyListingId, setSelectedBuyListingId] = useState<string>('');
     const [selectedSettlementId, setSelectedSettlementId] = useState<string>('');
@@ -636,13 +636,6 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
             void onAction?.({ type: 'UNMARK_ITEM_EXCHANGE_LISTED', payload: { itemId } });
         });
     }, [currentUser.id, currentUser.inventory, listings, onAction]);
-    const lastSoldForSelected =
-        selectedItem
-            ? [...listings]
-                  .filter((entry) => entry.status === 'sold' && entry.itemId === selectedItem.id)
-                  .sort((a, b) => (b.soldAt ?? 0) - (a.soldAt ?? 0))[0]
-            : null;
-
     React.useEffect(() => {
         const timer = window.setInterval(() => setNowMs(Date.now()), 1000);
         return () => window.clearInterval(timer);
@@ -845,7 +838,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         setSelectedItemId('');
         setSellComposerOpen(false);
         setSellPickerOpen(false);
-        setSalePrice(String(minPriceByCurrency[currency]));
+        setSalePrice('0');
     };
 
     const handleRegisterSale = () => {
@@ -871,14 +864,15 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         );
         if (alreadyListed) {
             setSelectedItemId('');
-            setSalePrice(String(minPriceByCurrency[saleCurrency]));
+            setSalePrice('0');
             return;
         }
-        const parsedPrice = clampGameInt(Math.floor(Number(salePrice)), { min: minimumPrice, max: maxSaleListPrice });
-        if (!Number.isFinite(parsedPrice) || parsedPrice < minimumPrice) {
+        const rawPrice = Math.floor(Number(salePrice));
+        if (!Number.isFinite(rawPrice) || rawPrice < minimumPrice) {
             window.alert(tx('exchange:alerts.minimumPrice', { price: formatCurrency(minimumPrice, saleCurrency) }));
             return;
         }
+        const parsedPrice = clampGameInt(rawPrice, { min: minimumPrice, max: maxSaleListPrice });
         if (saleCurrency === 'gold' && walletGold < saleFee) {
             window.alert(tx('exchange:alerts.insufficientFee', { fee: formatCurrency(saleFee, saleCurrency) }));
             return;
@@ -1227,18 +1221,26 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
         if (!mobileExchange) return;
         if (activeTab !== 'buy' && selectedBuyListingId) setSelectedBuyListingId('');
     }, [mobileExchange, activeTab, selectedBuyListingId]);
+    const selectedItemName = selectedItem?.name.trim() ?? '';
     const currentLowestForSelected =
-        selectedItem
+        selectedItem && selectedItemName
             ? listingsWithComputed
                   .filter(
                       (entry) =>
                           entry.status === 'listed' &&
                           entry.effectiveVerification === 'active' &&
                           !entry.isExpired &&
-                          entry.itemId === selectedItem.id &&
+                          entry.itemId !== selectedItem.id &&
+                          entry.itemName.trim() === selectedItemName &&
                           entry.currency === saleCurrency,
                   )
                   .sort((a, b) => a.price - b.price)[0] ?? null
+            : null;
+    const lastSoldForSelected =
+        selectedItem && selectedItemName
+            ? [...marketListings]
+                  .filter((entry) => entry.status === 'sold' && entry.itemName.trim() === selectedItemName)
+                  .sort((a, b) => (b.soldAt ?? 0) - (a.soldAt ?? 0))[0] ?? null
             : null;
     React.useEffect(() => {
         if (!selectedItemId) return;
@@ -1657,7 +1659,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             checked={saleCurrency === 'gold'}
                             onChange={() => {
                                 setSaleCurrency('gold');
-                                setSalePrice(String(minPriceByCurrency.gold));
+                                setSalePrice('0');
                             }}
                             className="sr-only"
                         />
@@ -1672,7 +1674,7 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             checked={saleCurrency === 'diamonds'}
                             onChange={() => {
                                 setSaleCurrency('diamonds');
-                                setSalePrice(String(minPriceByCurrency.diamonds));
+                                setSalePrice('0');
                             }}
                             className="sr-only"
                         />

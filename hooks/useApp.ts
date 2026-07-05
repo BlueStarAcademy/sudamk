@@ -8284,6 +8284,7 @@ export const useApp = () => {
                         action.type === 'START_AI_GAME' ||
                         action.type === 'START_GUILD_WAR_GAME' ||
                         action.type === 'START_ADVENTURE_MONSTER_BATTLE' ||
+                        action.type === 'CLAIM_RESULT_AD_GOLD_DOUBLE' ||
                         action.type === 'START_SINGLE_PLAYER_GAME' ||
                         action.type === 'START_TOWER_GAME' ||
                         action.type === 'CONFIRM_TOWER_GAME_START' ||
@@ -8348,6 +8349,7 @@ export const useApp = () => {
                                     action.type === 'CANCEL_MISSILE_SELECTION' ||
                                     action.type === 'MISSILE_INVALID_SELECTION' ||
                                     action.type === 'MISSILE_ANIMATION_COMPLETE' ||
+                                    action.type === 'CLAIM_RESULT_AD_GOLD_DOUBLE' ||
                                     action.type === 'START_SINGLE_PLAYER_GAME' ||
                                     action.type === 'REQUEST_STRATEGIC_PET_HINT' ||
                                     !currentGames[effectiveGameId];
@@ -8416,6 +8418,7 @@ export const useApp = () => {
                                     action.type === 'MISSILE_ANIMATION_COMPLETE' ||
                                     action.type === 'START_TOWER_GAME' ||
                                     action.type === 'BUY_TOWER_ITEM' ||
+                                    action.type === 'CLAIM_RESULT_AD_GOLD_DOUBLE' ||
                                     action.type === 'REQUEST_STRATEGIC_PET_HINT' ||
                                     !currentGames[effectiveGameId]
                                 ) {
@@ -8500,7 +8503,7 @@ export const useApp = () => {
                         
                         // 사용자 상태도 즉시 업데이트 (gameId와 status를 'in-game'으로 설정)
                         // currentUserWithStatus는 onlineUsers에서 가져오므로, onlineUsers를 업데이트하면 자동으로 반영됨
-                        if (currentUser?.id) {
+                        if (currentUser?.id && action.type !== 'CLAIM_RESULT_AD_GOLD_DOUBLE') {
                             setOnlineUsers(prevUsers => {
                                 const userIndex = prevUsers.findIndex(u => u.id === currentUser.id);
                                 if (userIndex >= 0) {

@@ -23,7 +23,7 @@ import {
     applySpeedMoveClockEnd,
     applySpeedNextTurnClockStart,
 } from '../shared/utils/speedTimePressureSessionSync.js';
-import { generateKataServerMoveCandidateDetails, isKataServerAvailable, PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD } from './kataServerService.js';
+import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import { applyCastleTerritoryAfterMove } from './modes/castle.js';
 import { enumerateLegalCastleMoves, processCastleMove } from '../shared/utils/castleGoRules.js';
 import { enumerateLegalChessGoStonePlacements, getChessGoStoneCapturePointValue, processChessGoMove, sessionUsesChessGo, applyChessCaptureScoreForRemovedStones } from '../shared/utils/chessGoRules.js';
@@ -99,6 +99,43 @@ function isPveDeferredAutoScoringGame(game: types.LiveGameSession): boolean {
 function shouldAiResignWhenNoLegalBoardMove(game: types.LiveGameSession): boolean {
     const policy = resolveArenaSessionPolicy(game as any);
     return !policy.isPairGame;
+}
+
+function resolveAdventureKataLevelForSession(
+    game: types.LiveGameSession,
+    kataRuntimeSnap = getKataServerRuntimeSnapshot(),
+): number | undefined {
+    if (resolveArenaSessionPolicy(game as any).kind !== 'adventure') return undefined;
+    const lvRaw = (game as any).adventureMonsterLevel;
+    const lv = typeof lvRaw === 'number' ? lvRaw : parseInt(String(lvRaw ?? ''), 10);
+    if (!Number.isFinite(lv) || lv < 1) return undefined;
+    const kataLevel = adventureKataLevelFromSnapshot(kataRuntimeSnap, lv);
+    if (game.settings && typeof game.settings === 'object') {
+        (game.settings as any).kataServerLevel = kataLevel;
+    }
+    return kataLevel;
+}
+
+function resolveTowerKataLevelForSession(
+    game: types.LiveGameSession,
+    kataRuntimeSnap = getKataServerRuntimeSnapshot(),
+): number | undefined {
+    if (resolveArenaSessionPolicy(game as any).kind !== 'tower') return undefined;
+    const floorRaw = (game as any).towerFloor;
+    const floor = typeof floorRaw === 'number' ? floorRaw : parseInt(String(floorRaw ?? ''), 10);
+    if (!Number.isFinite(floor) || floor < 1) return undefined;
+    const kataLevel = towerKataLevelFromSnapshot(kataRuntimeSnap, floor);
+    if (game.settings && typeof game.settings === 'object') {
+        (game.settings as any).kataServerLevel = kataLevel;
+    }
+    return kataLevel;
+}
+
+function resolveAuthoritativePveKataLevelForSession(
+    game: types.LiveGameSession,
+    kataRuntimeSnap = getKataServerRuntimeSnapshot(),
+): number | undefined {
+    return resolveAdventureKataLevelForSession(game, kataRuntimeSnap) ?? resolveTowerKataLevelForSession(game, kataRuntimeSnap);
 }
 
 /**
@@ -280,21 +317,12 @@ async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession)
     }
     const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
     let configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
-    if (configuredKataLevel === undefined) {
-        const gc = String((game as any).gameCategory ?? '');
-        if (gc === 'tower') {
-            const floorRaw = (game as any).towerFloor;
-            const floor = typeof floorRaw === 'number' ? floorRaw : parseInt(String(floorRaw ?? ''), 10);
-            if (Number.isFinite(floor) && floor >= 1) {
-                configuredKataLevel = towerKataLevelFromSnapshot(kataRuntimeSnap, floor);
-            }
-        } else if (gc === 'adventure') {
-            const lvRaw = (game as any).adventureMonsterLevel;
-            const lv = typeof lvRaw === 'number' ? lvRaw : parseInt(String(lvRaw ?? ''), 10);
-            if (Number.isFinite(lv) && lv >= 1) {
-                configuredKataLevel = adventureKataLevelFromSnapshot(kataRuntimeSnap, lv);
-            }
-        } else if (gc === 'guildwar') {
+    const authoritativePveKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap);
+    if (authoritativePveKataLevel !== undefined) {
+        configuredKataLevel = authoritativePveKataLevel;
+    } else if (configuredKataLevel === undefined) {
+        const policy = resolveArenaSessionPolicy(game as any);
+        if (policy.kind === 'guildwar') {
             const boardId = String((game as any).guildWarBoardId ?? '');
             if (boardId) {
                 configuredKataLevel = guildWarKataLevelFromSnapshot(kataRuntimeSnap, boardId);
@@ -1989,11 +2017,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
     let lastCandidates: Point[] = [];
     let lastBest: Point | null = null;
     let preferHistoryEncoding = false;
-    const preferBestMoveWhenWinrateBelow =
-        resolveArenaSessionPolicy(game as any).matchAxis !== 'pvp'
-            ? PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD
-            : undefined;
-
+    const kataRuntimeSnap = getKataServerRuntimeSnapshot();
     for (let resync = 0; resync < KATA_EXCLUSIVE_MAX_BOARD_RESYNC; resync++) {
         const moveHistory = buildKataMoveHistoryForExclusivePick(
             game,
@@ -2001,12 +2025,13 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             resync,
             preferHistoryEncoding,
         );
+        const requestKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap) ?? kataLevel;
 
         const kataParams = {
             boardSize: game.settings.boardSize || 19,
             player: (aiPlayerEnum === types.Player.White ? 'white' : 'black') as 'white' | 'black',
             moveHistory,
-            level: kataLevel,
+            level: requestKataLevel,
             komi: Number(game.finalKomi ?? game.settings.komi),
             gameId: game.id,
             kataSessionTag: composeKataSessionTagForGame(
@@ -2016,7 +2041,6 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             // Kata `/move`는 항상 착점만 사용 — PASS·기권은 서버에서 처리하지 않는다.
             allowPass: false,
             moveApiRetries: guildWarKataRetries,
-            preferBestMoveWhenWinrateBelow,
         };
 
         let kataDetails: Awaited<ReturnType<typeof generateKataServerMoveCandidateDetails>>;
@@ -2412,21 +2436,12 @@ export async function makeGoAiBotMove(
     const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
     let configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
     // 도전의 탑·모험·길드전: DB/캐시·병합 등으로 settings.kataServerLevel만 빠지면 프로필 폴백으로 떨어져 체감이 달라짐 → 카테고리별 표로 복구.
-    if (configuredKataLevel === undefined) {
-        const gc = String((game as any).gameCategory ?? '');
-        if (gc === 'tower') {
-            const floorRaw = (game as any).towerFloor;
-            const floor = typeof floorRaw === 'number' ? floorRaw : parseInt(String(floorRaw ?? ''), 10);
-            if (Number.isFinite(floor) && floor >= 1) {
-                configuredKataLevel = towerKataLevelFromSnapshot(kataRuntimeSnap, floor);
-            }
-        } else if (gc === 'adventure') {
-            const lvRaw = (game as any).adventureMonsterLevel;
-            const lv = typeof lvRaw === 'number' ? lvRaw : parseInt(String(lvRaw ?? ''), 10);
-            if (Number.isFinite(lv) && lv >= 1) {
-                configuredKataLevel = adventureKataLevelFromSnapshot(kataRuntimeSnap, lv);
-            }
-        } else if (gc === 'guildwar') {
+    // 탑/모험은 특히 `settings.kataServerLevel` 오염(층/몬스터 레벨이 levelbot 값으로 들어가는 경우 등)을 막기 위해 매 턴 전용 표에서 재산출한다.
+    const authoritativePveKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap);
+    if (authoritativePveKataLevel !== undefined) {
+        configuredKataLevel = authoritativePveKataLevel;
+    } else if (configuredKataLevel === undefined) {
+        if (arenaPolicy.kind === 'guildwar') {
             const boardId = String((game as any).guildWarBoardId ?? '');
             if (boardId) {
                 configuredKataLevel = guildWarKataLevelFromSnapshot(kataRuntimeSnap, boardId);

@@ -1214,9 +1214,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 if (!Number.isFinite(listPrice) || (listCurrency !== 'gold' && listCurrency !== 'diamonds')) {
                     return { error: '유효하지 않은 요청입니다.' };
                 }
-                const minBy = listCurrency === 'gold' ? 100 : 10;
+                const minBy = listCurrency === 'gold' ? 1000 : 10;
                 if (listPrice < minBy) {
-                    return { error: listCurrency === 'gold' ? '최소 판매가는 100골드입니다.' : '최소 판매가는 10다이아입니다.' };
+                    return { error: listCurrency === 'gold' ? '최소 판매가는 1000골드입니다.' : '최소 판매가는 10다이아입니다.' };
                 }
                 const listMax = maxExchangeListPrice(listCurrency);
                 if (listPrice > listMax) {

@@ -19,7 +19,6 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { calculateRefinementGoldCost } from '../../constants/rules.js';
 import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
-import RefinementResultModal from './RefinementResultModal.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
 
@@ -276,8 +275,6 @@ interface RefinementViewProps {
     selectedItem: InventoryItem | null;
     currentUser: UserWithStatus;
     onAction: (action: ServerAction) => void;
-    refinementResult: { message: string; success: boolean; itemBefore: InventoryItem; itemAfter: InventoryItem; } | null;
-    onResultConfirm: () => void;
     stackedViewport?: boolean;
 }
 
@@ -287,8 +284,6 @@ const RefinementView: React.FC<RefinementViewProps> = ({
     selectedItem,
     currentUser,
     onAction,
-    refinementResult,
-    onResultConfirm,
     stackedViewport = false,
 }) => {
     const { t } = useTranslation('blacksmith');
@@ -1005,11 +1000,6 @@ const RefinementView: React.FC<RefinementViewProps> = ({
                     {refinementPanel}
                 </div>
             )}
-            <RefinementResultModal
-                result={refinementResult}
-                onClose={onResultConfirm}
-                isTopmost
-            />
             {isCharmConfirmOpen ? (
                 <ConfirmModal
                     title={refinementCharmInfo.name}

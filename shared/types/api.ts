@@ -610,6 +610,7 @@ export type ServerAction =
     | { type: 'CLAIM_QUEST_REWARD', payload: { questId: string } }
     | { type: 'CLAIM_ACTIVITY_MILESTONE', payload: { milestoneIndex: number, questType: 'daily' | 'weekly' | 'monthly' } }
     | { type: 'CLAIM_ACHIEVEMENT_REWARD', payload: { trackId: string; stageIndex: number } }
+    | { type: 'CLAIM_RESULT_AD_GOLD_DOUBLE', payload: { gameId: string } }
     // Shop
     | { type: 'BUY_SHOP_ITEM', payload: { itemId: string, quantity: number } }
     | { type: 'BUY_CHAMPIONSHIP_SHOP_ITEM', payload: { productId: string; quantity?: number } }

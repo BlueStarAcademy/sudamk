@@ -9,6 +9,7 @@ import DisassemblyView, {
 } from './blacksmith/DisassemblyView.js';
 import ConversionView from './blacksmith/ConversionView.js';
 import RefinementView from './blacksmith/RefinementView.js';
+import RefinementResultModal from './blacksmith/RefinementResultModal.js';
 import InventoryGrid from './blacksmith/InventoryGrid.js';
 import BlacksmithEquipmentPickerModal from './blacksmith/BlacksmithEquipmentPickerModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -482,8 +483,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                 selectedItem={selectedItem} 
                 currentUser={currentUserWithStatus} 
                 onAction={handlers.handleAction}
-                refinementResult={modals.refinementResult}
-                onResultConfirm={handlers.clearRefinementResult}
                 stackedViewport={stackedForDetail}
             />;
             default: return null;
@@ -1023,6 +1022,13 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                     zIndex={useStackedBlacksmithLayout ? 150 : 90}
                 />
             )}
+            {modals.refinementResult ? (
+                <RefinementResultModal
+                    result={modals.refinementResult}
+                    onClose={handlers.clearRefinementResult}
+                    isTopmost={Boolean(isTopmost)}
+                />
+            ) : null}
         </>
     );
 };

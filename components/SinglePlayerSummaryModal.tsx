@@ -28,6 +28,7 @@ import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.
 import SpResultRecordSideBySidePanel from './game/SpResultRecordSideBySidePanel.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 import GameResultModalFitContent from './game/GameResultModalFitContent.js';
+import ResultAdGoldDoubleButton from './game/ResultAdGoldDoubleButton.js';
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
     'relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12';
@@ -138,7 +139,7 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
     );
 };
 
-const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction: _onAction, onClose }) => {
+const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ session, currentUser, onAction, onClose }) => {
     const { t } = useTranslation('game');
     const { modalLayerUsesDesignPixels, singlePlayerStagesListRevision } = useAppContext();
     const isScoring = session.gameStatus === 'scoring';
@@ -146,6 +147,11 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const analysisResult = session.analysisResult?.['system'];
     const renderableScoreDetails = hasRenderableScoreDetails(analysisResult);
     const summary = session.summary?.[currentUser.id];
+    const [localAdGoldBonus, setLocalAdGoldBonus] = useState(0);
+
+    useEffect(() => {
+        setLocalAdGoldBonus(0);
+    }, [session.id]);
 
     const stagesList = getSinglePlayerStages();
     const currentStageIndex = stagesList.findIndex(s => s.id === session.stageId);
@@ -374,6 +380,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === currentUser.borderId)?.url, [currentUser.borderId]);
     // calculatedSummary를 사용하여 보상 표시 (summary가 없을 때도 계산된 보상 사용)
     const displaySummary: GameSummary | SinglePlayerFallbackSummary | undefined = calculatedSummary || summary;
+    const optimisticAdGoldBonus = (summary?.adGoldBonus ?? 0) > 0 ? 0 : localAdGoldBonus;
     const xpRequirement = getXpRequirementForLevel(Math.max(1, currentUser.userLevel));
     const clampedXp = Math.min(currentUser.userXp, xpRequirement);
     const xpChange = displaySummary?.xp?.change ?? 0;
@@ -425,12 +432,12 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const hasRewardSlots = useMemo(
         () =>
             !!displaySummary &&
-            ((displaySummary.gold ?? 0) > 0 ||
+            (((displaySummary.gold ?? 0) + optimisticAdGoldBonus) > 0 ||
                 (displaySummary.xp?.change ?? 0) > 0 ||
                 (displaySummary.pairPetXp?.change ?? 0) > 0 ||
                 (showPetGradeUpgradeInsteadOfXp && displaySummary.pairPetXp != null) ||
                 (Array.isArray(displaySummary.items) && displaySummary.items.length > 0)),
-        [displaySummary, showPetGradeUpgradeInsteadOfXp],
+        [displaySummary, optimisticAdGoldBonus, showPetGradeUpgradeInsteadOfXp],
     );
 
     // 계가 결과가 없으면 "계가 중..." 표시, 있으면 승리/실패 판단
@@ -485,9 +492,9 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     </p>
                 ) : (
                     <>
-                        {(displaySummary.gold ?? 0) > 0 && (
+                        {((displaySummary.gold ?? 0) + optimisticAdGoldBonus) > 0 && (
                             <ResultModalGoldCurrencySlot
-                                amount={displaySummary.gold ?? 0}
+                                amount={(displaySummary.gold ?? 0) + optimisticAdGoldBonus}
                                 compact={desktopCompactRewards || isMobile}
                                 dimmed={!summary}
                             />
@@ -550,6 +557,16 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     외 {displaySummary.items.length - 2}개 아이템
                 </p>
             )}
+            {displaySummary ? (
+                <ResultAdGoldDoubleButton
+                    session={session}
+                    summary={summary ?? displaySummary}
+                    isWinner={isWinner === true}
+                    onAction={onAction}
+                    onClaimed={(amount) => setLocalAdGoldBonus((prev) => prev + amount)}
+                    className="pt-1"
+                />
+            ) : null}
         </div>
     );
 

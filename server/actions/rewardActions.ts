@@ -1,6 +1,6 @@
 import * as db from '../db.js';
 import { randomUUID } from 'crypto';
-import { type ServerAction, type User, type VolatileState, type Guild, InventoryItem, Quest, QuestLog, InventoryItemType, TournamentType, TournamentState, QuestReward } from '../../types/index.js';
+import { type ServerAction, type User, type VolatileState, type Guild, InventoryItem, Quest, QuestLog, InventoryItemType, TournamentType, TournamentState, QuestReward, Player } from '../../types/index.js';
 import { ItemGrade } from '../../types/enums.js';
 import { updateQuestProgress } from '../questService.js';
 import { SHOP_ITEMS } from '../shop.js';
@@ -40,6 +40,8 @@ import { collectEquipmentCashPackageLoot, grantDiamondCashShopPackageFromMail } 
 import * as guildService from '../guildService.js';
 import { createDefaultQuests } from '../initialData.js';
 import { DAILY_QUESTS, WEEKLY_QUESTS, MONTHLY_QUESTS } from '../../shared/constants/quests.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { updateGameCache } from '../gameCache.js';
 
 const getRandomInt = (min: number, max: number): number => {
     return Math.floor(Math.random() * (max - min + 1)) + min;
@@ -87,6 +89,25 @@ const addRewardBonus = (value: number | undefined, bonus: number): number => {
     const add = Number(bonus) || 0;
     return Math.max(0, Math.floor(base + add));
 };
+
+function resolveResultAdGoldPlayerWon(game: NonNullable<Awaited<ReturnType<typeof db.getLiveGame>>>, userId: string): boolean {
+    const pairSeat = game.settings?.pairGame?.turnOrder?.find((seat) => seat.participantId === userId);
+    if (pairSeat) return pairSeat.player === game.winner;
+    if (game.blackPlayerId === userId) return game.winner === Player.Black;
+    if (game.whitePlayerId === userId) return game.winner === Player.White;
+    return false;
+}
+
+function getResultAdGoldBase(summary: { gold?: number; matchGold?: number; vipGoldBonus?: number; adGoldBonus?: number }): number {
+    const matchGold = Number(summary.matchGold);
+    if (Number.isFinite(matchGold) && matchGold > 0) {
+        return Math.floor(matchGold);
+    }
+    const totalGold = Math.max(0, Number(summary.gold ?? 0));
+    const vipGoldBonus = Math.max(0, Number(summary.vipGoldBonus ?? 0));
+    const adGoldBonus = Math.max(0, Number(summary.adGoldBonus ?? 0));
+    return Math.max(0, Math.floor(totalGold - vipGoldBonus - adGoldBonus));
+}
 
 const QUEST_ID_INDEX_PATTERN = /^q-([dwm])-(\d+)-/;
 
@@ -145,6 +166,72 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
     const { type, payload } = action as any;
 
     switch (type) {
+        case 'CLAIM_RESULT_AD_GOLD_DOUBLE': {
+            const gameId = typeof payload?.gameId === 'string' ? payload.gameId : '';
+            if (!gameId) return { error: '유효하지 않은 경기입니다.' };
+
+            let game = volatileState.gameCache?.get(gameId)?.game ?? null;
+            if (!game) {
+                game = await db.getLiveGame(gameId);
+            }
+            if (!game) return { error: '경기를 찾을 수 없습니다.' };
+            if (game.gameStatus !== 'ended') return { error: '종료된 경기에서만 수령할 수 있습니다.' };
+            if (game.winner == null || game.winner === Player.None) return { error: '승리 경기에서만 수령할 수 있습니다.' };
+
+            const policy = resolveArenaSessionPolicy(game);
+            const eligibleArena =
+                policy.kind === 'singleplayer' ||
+                policy.kind === 'tower' ||
+                policy.kind === 'adventure' ||
+                policy.kind === 'guildwar' ||
+                (policy.kind === 'normal' && policy.matchAxis === 'pve' && game.isAiGame === true);
+            if (!eligibleArena) return { error: '이 경기에서는 광고 골드 2배 보상을 받을 수 없습니다.' };
+            if (!resolveResultAdGoldPlayerWon(game, user.id)) return { error: '승리한 플레이어만 수령할 수 있습니다.' };
+
+            if (!game.summary) return { error: '경기 보상 정보가 아직 준비되지 않았습니다.' };
+            const summary = game.summary[user.id];
+            if (!summary) return { error: '내 경기 보상 정보가 아직 준비되지 않았습니다.' };
+            if (summary.adGoldDoubled || (summary.adGoldBonus ?? 0) > 0) {
+                return { error: '이미 광고 골드 2배 보상을 수령했습니다.' };
+            }
+
+            const adGoldBonus = getResultAdGoldBase(summary);
+            if (adGoldBonus <= 0) return { error: '추가로 받을 골드 보상이 없습니다.' };
+
+            user.gold = Math.max(0, Number(user.gold ?? 0)) + adGoldBonus;
+            summary.gold = Math.max(0, Number(summary.gold ?? 0)) + adGoldBonus;
+            if (typeof summary.matchGold === 'number' && Number.isFinite(summary.matchGold)) {
+                summary.matchGold += adGoldBonus;
+            }
+            if (summary.adventureRewardSlots?.gold) {
+                summary.adventureRewardSlots = {
+                    ...summary.adventureRewardSlots,
+                    gold: {
+                        ...summary.adventureRewardSlots.gold,
+                        amount: Math.max(0, Number(summary.adventureRewardSlots.gold.amount ?? 0)) + adGoldBonus,
+                    },
+                };
+            }
+            summary.adGoldBonus = adGoldBonus;
+            summary.adGoldDoubled = true;
+
+            await db.updateUser(user);
+            await db.saveGame(game, true);
+            updateGameCache(game);
+
+            const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_RESULT_AD_GOLD_DOUBLE');
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['gold']);
+
+            return {
+                clientResponse: {
+                    updatedUser,
+                    game,
+                    adGoldBonus,
+                    summary,
+                },
+            };
+        }
         case 'CLAIM_MAIL_ATTACHMENTS': {
             const { mailId } = payload;
             const mail = user.mail.find(m => m.id === mailId);

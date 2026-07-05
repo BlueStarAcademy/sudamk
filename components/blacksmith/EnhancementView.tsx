@@ -24,6 +24,9 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
+const ENHANCEMENT_PROGRESS_DURATION_MS = 3000;
+const ENHANCEMENT_PROGRESS_TICK_MS = 50;
+
 const renderStarDisplay = (stars: number, previousStars?: number, isAnimating?: boolean) => {
     if (stars === 0) return null;
 
@@ -448,29 +451,38 @@ useEffect(() => {
 
         clearEnhancementTimers();
 
-        // 제련 시작 시 즉시 모달을 열고 롤링 애니메이션 시작
+        // 강화 게이지를 먼저 채운 뒤 결과를 요청해, 결과 모달이 게이지보다 먼저 뜨지 않게 한다.
         if (onStartEnhancement) {
             onStartEnhancement(selectedItem);
         }
 
         const targetItemId = selectedItem.id;
+        const startedAt = Date.now();
 
         enhancementIntervalRef.current = window.setInterval(() => {
-            setEnhancementProgress(prev => Math.min(90, prev + 12));
-        }, 50);
+            const elapsed = Date.now() - startedAt;
+            setEnhancementProgress(Math.min(99, (elapsed / ENHANCEMENT_PROGRESS_DURATION_MS) * 100));
+        }, ENHANCEMENT_PROGRESS_TICK_MS);
 
-        (async () => {
-            try {
-                await onAction({ type: 'ENHANCE_ITEM', payload: { itemId: targetItemId } });
-                setEnhancementProgress(100);
-            } catch (error) {
-                console.error('[EnhancementView] Failed to enhance item:', error);
-            } finally {
-                clearEnhancementTimers();
-                setIsEnhancing(false);
-                setEnhancementProgress(0);
+        enhancementTimeoutRef.current = window.setTimeout(() => {
+            if (enhancementIntervalRef.current !== null) {
+                window.clearInterval(enhancementIntervalRef.current);
+                enhancementIntervalRef.current = null;
             }
-        })();
+            setEnhancementProgress(100);
+
+            (async () => {
+                try {
+                    await onAction({ type: 'ENHANCE_ITEM', payload: { itemId: targetItemId } });
+                } catch (error) {
+                    console.error('[EnhancementView] Failed to enhance item:', error);
+                } finally {
+                    clearEnhancementTimers();
+                    setIsEnhancing(false);
+                    setEnhancementProgress(0);
+                }
+            })();
+        }, ENHANCEMENT_PROGRESS_DURATION_MS);
     };
 
     const detailValueClass = typo.mono;
@@ -600,7 +612,7 @@ useEffect(() => {
                         </div>
                         <div className="h-2 w-full bg-slate-800/80 rounded-full overflow-hidden border border-slate-700/60">
                             <div
-                                className={`h-full bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 transition-[width] duration-100 ease-linear ${isEnhancing ? '' : 'opacity-0'}`}
+                                className={`h-full bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-500 transition-[width] duration-75 ease-linear ${isEnhancing ? '' : 'opacity-0'}`}
                                 style={{ width: `${isEnhancing ? enhancementProgress : 0}%` }}
                             />
                         </div>

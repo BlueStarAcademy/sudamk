@@ -42,6 +42,7 @@ import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
+import ResultAdGoldDoubleButton from './game/ResultAdGoldDoubleButton.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import {
@@ -1630,6 +1631,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     onConfirm,
     secondaryConfirmAction: _secondaryConfirmAction,
     onLeaveToAdventureMap,
+    onAction,
     isSpectator = false,
 }) => {
     const { t } = useTranslation('game');
@@ -1721,11 +1723,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     }, []);
     const [vipUnlockRouletteActive, setVipUnlockRouletteActive] = useState(false);
     const [vipUnlockGranted, setVipUnlockGranted] = useState(false);
+    const [localAdGoldBonus, setLocalAdGoldBonus] = useState(0);
     const prevVipLockedRef = useRef<boolean | null>(null);
 
     useEffect(() => {
         setVipUnlockRouletteActive(false);
         setVipUnlockGranted(false);
+        setLocalAdGoldBonus(0);
         prevVipLockedRef.current = null;
     }, [session.id]);
 
@@ -1796,6 +1800,18 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         }
         return totalGold;
     }, [mySummary]);
+    const optimisticAdGoldBonus = (mySummary?.adGoldBonus ?? 0) > 0 ? 0 : localAdGoldBonus;
+    const displayedMatchGoldWithAdBonus = displayedMatchGold + optimisticAdGoldBonus;
+    const adventureRewardSlotsForRender = useMemo(() => {
+        if (!mySummary?.adventureRewardSlots || optimisticAdGoldBonus <= 0) return mySummary?.adventureRewardSlots;
+        return {
+            ...mySummary.adventureRewardSlots,
+            gold: {
+                ...mySummary.adventureRewardSlots.gold,
+                amount: Math.max(0, Number(mySummary.adventureRewardSlots.gold.amount ?? 0)) + optimisticAdGoldBonus,
+            },
+        };
+    }, [mySummary?.adventureRewardSlots, optimisticAdGoldBonus]);
     const isGuildWar = isGuildWarLiveSession(session as any);
     const isChampionshipVersusSummary = typeof session.description === 'string' && isChampionshipVersusKataSummaryDescription(session.description);
     const showMannerPostGameStats = !isChampionshipVersusSummary;
@@ -2386,10 +2402,10 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                     </p>
                 ) : (
                     <>
-                        {isAdventureGame && mySummary.adventureRewardSlots ? (
+                        {isAdventureGame && adventureRewardSlotsForRender ? (
                             <div className="min-w-0 w-full max-w-full">
                                 <AdventureBattleRewardRowWithReveal
-                                    slots={mySummary.adventureRewardSlots}
+                                    slots={adventureRewardSlotsForRender}
                                     xpChange={mySummary.xp?.change ?? 0}
                                     pairPetXpChange={mySummary.pairPetXp?.change ?? 0}
                                     isPlayful={isPlayful}
@@ -2401,9 +2417,9 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             </div>
                         ) : (
                             <>
-                        {displayedMatchGold > 0 && (
+                        {displayedMatchGoldWithAdBonus > 0 && (
                             <ResultModalGoldCurrencySlot
-                                amount={displayedMatchGold}
+                                amount={displayedMatchGoldWithAdBonus}
                                 compact={useCompactRewardSlots}
                                 understandingBonus={mySummary.adventureGoldUnderstandingBonus}
                             />
@@ -2507,6 +2523,16 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                     </>
                 )}
             </div>
+            {!isSpectator && mySummary ? (
+                <ResultAdGoldDoubleButton
+                    session={session}
+                    summary={mySummary}
+                    isWinner={isWinner === true}
+                    onAction={onAction}
+                    onClaimed={(amount) => setLocalAdGoldBonus((prev) => prev + amount)}
+                    className="pt-1"
+                />
+            ) : null}
         </div>
     );
 

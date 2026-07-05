@@ -1,4 +1,6 @@
 import type { KataServerRuntimeSnapshot } from '../types/kataServerRuntime.js';
+import { adventureMonsterLevelToKataServerLevel } from './strategicAiDifficulty.js';
+import { getTowerKataServerLevelByFloor } from './towerKataServerLevel.js';
 
 export function strategicKataLevelFromSnapshot(snap: KataServerRuntimeSnapshot, step: number): number {
     const s = Math.max(1, Math.min(10, Math.round(step)));
@@ -12,12 +14,12 @@ export function strategicDisplayLevelFromSnapshot(snap: KataServerRuntimeSnapsho
 
 export function adventureKataLevelFromSnapshot(snap: KataServerRuntimeSnapshot, monsterLevel: number): number {
     const lv = Math.max(1, Math.min(50, Math.floor(monsterLevel)));
-    return snap.adventureKataByMonsterLevel[String(lv)] ?? -31;
+    return snap.adventureKataByMonsterLevel[String(lv)] ?? adventureMonsterLevelToKataServerLevel(lv);
 }
 
 export function towerKataLevelFromSnapshot(snap: KataServerRuntimeSnapshot, floor: number): number {
     const f = Math.max(1, Math.min(100, Math.floor(floor)));
-    return snap.towerKataByFloor[String(f)] ?? -30;
+    return snap.towerKataByFloor[String(f)] ?? getTowerKataServerLevelByFloor(f);
 }
 
 export function guildWarKataLevelFromSnapshot(snap: KataServerRuntimeSnapshot, boardId: string): number {

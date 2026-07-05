@@ -24,6 +24,7 @@ export function getSelectiveUserUpdate(
         'MARK_ITEM_EXCHANGE_LISTED': ['inventory', 'gold', 'diamonds', 'equipmentPresets'],
         'UNMARK_ITEM_EXCHANGE_LISTED': ['inventory', 'exchangeState'],
         'CLAIM_EXCHANGE_SETTLEMENT': ['exchangeState', 'gold', 'diamonds'],
+        'CLAIM_RESULT_AD_GOLD_DOUBLE': ['gold'],
         'INSTANT_CURRENCY_EXCHANGE': ['gold', 'diamonds', 'exchangeState'],
         'POST_CURRENCY_EXCHANGE_ORDER': ['exchangeState', 'gold', 'diamonds'],
         'FULFILL_CURRENCY_EXCHANGE_ORDER': ['gold', 'diamonds', 'exchangeState'],

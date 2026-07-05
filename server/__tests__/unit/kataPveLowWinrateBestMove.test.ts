@@ -1,11 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import {
-    normalizeKataWinrateToFraction,
-    PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD,
-    shouldPreferKataBestMoveOverReported,
-} from '../../kataServerService.js';
 
-describe('kata PVE low winrate bestMove preference', () => {
+describe('kata move candidate ordering', () => {
     beforeEach(() => {
         vi.resetModules();
         vi.stubEnv('KATA_SERVER_URL', 'http://kata.example');
@@ -19,30 +14,7 @@ describe('kata PVE low winrate bestMove preference', () => {
         vi.restoreAllMocks();
     });
 
-    it('normalizes percent-scale winrate to fraction', () => {
-        expect(normalizeKataWinrateToFraction(4)).toBe(0.04);
-        expect(normalizeKataWinrateToFraction(0.04)).toBe(0.04);
-    });
-
-    it('prefers bestMove when winrate is below 5%', () => {
-        expect(
-            shouldPreferKataBestMoveOverReported(0.03, PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD, 'E4', 'C5'),
-        ).toBe(true);
-        expect(
-            shouldPreferKataBestMoveOverReported(4, PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD, 'E4', 'C5'),
-        ).toBe(true);
-    });
-
-    it('keeps level move when winrate is at or above 5%', () => {
-        expect(
-            shouldPreferKataBestMoveOverReported(0.05, PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD, 'E4', 'C5'),
-        ).toBe(false);
-        expect(
-            shouldPreferKataBestMoveOverReported(0.52, PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD, 'E4', 'C5'),
-        ).toBe(false);
-    });
-
-    it('orders bestMove before move in candidates when PVE threshold is set', async () => {
+    it('keeps KataServer move before bestMove regardless of low winrate', async () => {
         const fetchMock = vi.fn(async () =>
             new Response(
                 JSON.stringify({
@@ -64,14 +36,13 @@ describe('kata PVE low winrate bestMove preference', () => {
             level: -31,
             gameId: 'sp-game-low-wr',
             allowPass: false,
-            preferBestMoveWhenWinrateBelow: PVE_KATA_PREFER_BEST_MOVE_WINRATE_THRESHOLD,
         });
 
-        expect(result.candidates[0]).toEqual({ x: 4, y: 5 });
-        expect(result.candidates[1]).toEqual({ x: 2, y: 4 });
+        expect(result.candidates[0]).toEqual({ x: 2, y: 4 });
+        expect(result.candidates[1]).toEqual({ x: 4, y: 5 });
     });
 
-    it('keeps move before bestMove when threshold is not set (PVP)', async () => {
+    it('keeps KataServer move before bestMove in PVP too', async () => {
         const fetchMock = vi.fn(async () =>
             new Response(
                 JSON.stringify({

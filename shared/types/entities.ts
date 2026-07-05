@@ -1305,6 +1305,10 @@ export type GameSummary = {
   gold?: number;
   /** 경기 자체 정산 골드( VIP 슬롯 골드 제외 ) */
   matchGold?: number;
+  /** 결과 모달 광고 시청으로 추가 지급된 경기 골드 */
+  adGoldBonus?: number;
+  /** 결과 모달 광고 골드 2배 보상을 이미 수령했는지 */
+  adGoldDoubled?: boolean;
   /** 페어바둑 장착 펫 경험치 변화 */
   pairPetXp?: StatChange;
   /** 페어바둑 장착 펫 레벨·경험치 진행 변화 */
