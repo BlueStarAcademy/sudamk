@@ -20,19 +20,6 @@ export type ChampionshipDungeonDailyEntryState = {
     canWatchAd: boolean;
 };
 
-const playedDateKey = (type: TournamentType): keyof User => {
-    switch (type) {
-        case 'neighborhood':
-            return 'lastNeighborhoodPlayedDate';
-        case 'national':
-            return 'lastNationalPlayedDate';
-        case 'world':
-            return 'lastWorldPlayedDate';
-        default:
-            return 'lastNeighborhoodPlayedDate';
-    }
-};
-
 const tournamentStateKey = (type: TournamentType): keyof User => {
     switch (type) {
         case 'neighborhood':
@@ -60,15 +47,10 @@ function normalizeRecord(
     };
 }
 
-/** 레거시 유저: 신규 필드 없을 때 오늘 입장 소비 여부 추정 */
+/** 레거시 유저: 신규 필드 없을 때 오늘 던전 입장 소비 여부 추정 (last*PlayedDate 단독은 제외 — 0시 자동 세션과 구분) */
 function inferLegacyEntriesUsedToday(user: User, type: TournamentType, now: number): number {
     const snap = user.dungeonConditionSnapshot?.[type];
     if (snap && isSameDayKST(snap.dateStartOfDayKST, now)) {
-        return 1;
-    }
-
-    const playedRaw = (user as Record<string, unknown>)[playedDateKey(type)] as number | undefined;
-    if (typeof playedRaw === 'number' && playedRaw > 0 && isSameDayKST(playedRaw, now)) {
         return 1;
     }
 
@@ -173,4 +155,27 @@ export function grantChampionshipDungeonAdBonusEntry(
 
 export function clearChampionshipDungeonDailyEntryRecords(user: User): void {
     user.championshipDungeonDailyEntry = undefined;
+}
+
+const DUNGEON_ENTRY_TYPES: TournamentType[] = ['neighborhood', 'national', 'world'];
+
+/** KST 기준 오늘이 아닌 입장 기록만 제거 (로그인·날짜 변경 시) */
+export function clearStaleChampionshipDungeonDailyEntryRecords(
+    user: User,
+    now: number = Date.now(),
+): boolean {
+    const raw = user.championshipDungeonDailyEntry;
+    if (!raw) return false;
+    let modified = false;
+    for (const type of DUNGEON_ENTRY_TYPES) {
+        const rec = raw[type];
+        if (rec && typeof rec.dateStartOfDayKST === 'number' && !isSameDayKST(rec.dateStartOfDayKST, now)) {
+            delete raw[type];
+            modified = true;
+        }
+    }
+    if (modified && Object.keys(raw).length === 0) {
+        user.championshipDungeonDailyEntry = undefined;
+    }
+    return modified;
 }

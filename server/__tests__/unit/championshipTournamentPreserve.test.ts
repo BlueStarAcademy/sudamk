@@ -9,6 +9,7 @@ import {
     repairTournamentSimulatingPointer,
     recoverStuckChampionshipRoundInProgress,
     prepareTournamentStateForMatchStart,
+    isDungeonAutoNextResultReviewActive,
 } from '../../../shared/utils/championshipTournamentPreserve.js';
 
 const mkMatch = (id: string, extra: Partial<Match> = {}): Match => ({
@@ -332,5 +333,59 @@ describe('championshipTournamentPreserve', () => {
         expect(shouldSyncOnly).toBe(false);
         expect(tournament.status).toBe('bracket_ready');
         expect(tournament.currentSimulatingMatch).toBeNull();
+    });
+
+    it('isDungeonAutoNextResultReviewActive is true during client countdown', () => {
+        const now = 1_000_000;
+        expect(
+            isDungeonAutoNextResultReviewActive({
+                finishedUserMatchCount: 1,
+                hasLastFinishedUserMatch: true,
+                autoNextCountdown: 5,
+                nextRoundStartTime: now + 10_000,
+                tournamentStatus: 'bracket_ready',
+                now,
+            }),
+        ).toBe(true);
+    });
+
+    it('isDungeonAutoNextResultReviewActive is false after server countdown expires', () => {
+        const now = 1_000_000;
+        expect(
+            isDungeonAutoNextResultReviewActive({
+                finishedUserMatchCount: 1,
+                hasLastFinishedUserMatch: true,
+                autoNextCountdown: null,
+                nextRoundStartTime: now - 1,
+                tournamentStatus: 'round_in_progress',
+                now,
+            }),
+        ).toBe(false);
+    });
+
+    it('isDungeonAutoNextResultReviewActive stays true during prefetch while client countdown runs', () => {
+        const now = 1_000_000;
+        expect(
+            isDungeonAutoNextResultReviewActive({
+                finishedUserMatchCount: 1,
+                hasLastFinishedUserMatch: true,
+                autoNextCountdown: 3,
+                nextRoundStartTime: now - 1,
+                tournamentStatus: 'round_in_progress',
+                now,
+            }),
+        ).toBe(true);
+    });
+
+    it('isDungeonAutoNextResultReviewActive is false when eliminated', () => {
+        expect(
+            isDungeonAutoNextResultReviewActive({
+                finishedUserMatchCount: 1,
+                hasLastFinishedUserMatch: true,
+                autoNextCountdown: 5,
+                nextRoundStartTime: Date.now() + 10_000,
+                tournamentStatus: 'eliminated',
+            }),
+        ).toBe(false);
     });
 });

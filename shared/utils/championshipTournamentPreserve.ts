@@ -278,3 +278,24 @@ export function mergeChampionshipTournamentPreserveLostRealGame(
     }
     return patch;
 }
+
+/** 챔피언십 던전 2회차~: 결과 모달·10초 연출 중 이전 회차 보드를 유지할지 판단 */
+export function isDungeonAutoNextResultReviewActive(params: {
+    finishedUserMatchCount: number;
+    hasLastFinishedUserMatch: boolean;
+    autoNextCountdown: number | null;
+    nextRoundStartTime: number | null | undefined;
+    tournamentStatus: TournamentState['status'];
+    now?: number;
+}): boolean {
+    if (params.tournamentStatus === 'complete' || params.tournamentStatus === 'eliminated') {
+        return false;
+    }
+    if (params.finishedUserMatchCount < 1) return false;
+    if (!params.hasLastFinishedUserMatch) return false;
+    if (params.autoNextCountdown !== null) return true;
+    const startTime = params.nextRoundStartTime;
+    const now = params.now ?? Date.now();
+    if (startTime != null && now < startTime) return true;
+    return false;
+}

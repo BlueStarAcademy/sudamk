@@ -6,6 +6,7 @@ import * as types from '../shared/types/index.js';
 import { volatileState } from './state.js';
 import { isDifferentDayKST, isDifferentWeekKST, isDifferentMonthKST, getStartOfDayKST } from '../shared/utils/timeUtils.js';
 import { invalidateStaleChampionshipDungeonRunsForUser } from '../shared/utils/championshipDungeonDailyReset.js';
+import { clearStaleChampionshipDungeonDailyEntryRecords } from '../shared/utils/championshipDungeonDailyEntry.js';
 import * as effectService from './effectService.js';
 import { regenerateActionPoints } from './effectService.js';
 import { updateGameStates } from './gameModes.js';
@@ -407,6 +408,10 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
 
         // 입장일(컨디션 스냅샷)이 바뀐 날: 일일 입장이 리셋된 것과 동일 → 진행 중 던전 런만 무효
         // (상세 판정은 invalidateStaleChampionshipDungeonRunsForUser에서 일괄 처리)
+    }
+
+    if (clearStaleChampionshipDungeonDailyEntryRecords(updatedUser, now)) {
+        modified = true;
     }
 
     const dungeonDailyReset = invalidateStaleChampionshipDungeonRunsForUser(updatedUser, now);

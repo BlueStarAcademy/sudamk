@@ -26,6 +26,7 @@ import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { randomUUID } from 'crypto';
 import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate, getTodayKSTDateString } from '../shared/utils/timeUtils.js';
 import { clearChampionshipDungeonDailyEntryFields } from '../shared/utils/championshipDungeonDailyReset.js';
+import { clearChampionshipDungeonDailyEntryRecords } from '../shared/utils/championshipDungeonDailyEntry.js';
 import { DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID } from '../shared/constants/auth.js';
 import {
     GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT,
@@ -2094,7 +2095,10 @@ export async function processDailyQuestReset(): Promise<void> {
 
     for (const user of allUsers) {
         let updatedUser = await resetAndGenerateQuests(user);
-        
+
+        const hadDailyEntry = user.championshipDungeonDailyEntry != null;
+        clearChampionshipDungeonDailyEntryRecords(updatedUser);
+
         // Check if quests or tournament states were actually reset
         const questsChanged = JSON.stringify(user.quests) !== JSON.stringify(updatedUser.quests);
         const tournamentStatesChanged = 
@@ -2105,7 +2109,7 @@ export async function processDailyQuestReset(): Promise<void> {
             user.lastNationalPlayedDate !== updatedUser.lastNationalPlayedDate ||
             user.lastWorldPlayedDate !== updatedUser.lastWorldPlayedDate;
         
-        if (questsChanged || tournamentStatesChanged) {
+        if (questsChanged || tournamentStatesChanged || hadDailyEntry) {
             await db.updateUser(updatedUser);
             const { updateUserCache } = await import('./gameCache.js');
             updateUserCache(updatedUser);
@@ -2118,6 +2122,7 @@ export async function processDailyQuestReset(): Promise<void> {
                 'lastNeighborhoodPlayedDate',
                 'lastNationalPlayedDate',
                 'lastWorldPlayedDate',
+                'championshipDungeonDailyEntry',
             ]).catch((err) => {
                 console.warn(`[DailyQuestReset] Failed to broadcast quest reset for user ${user.id}:`, err?.message);
             });

@@ -351,6 +351,8 @@ export const useTournamentSimulation = (
     tournament: TournamentState | null,
     currentUser: User | null,
     playbackSpeed: ChampionshipPlaybackSpeed = 1,
+    /** 던전 10초 결과 연출 중: prefetch 기보가 와도 재생·중계 시작을 지연 */
+    deferPlayback = false,
 ) => {
     const { handlers } = useAppContext();
     const [localTournament, setLocalTournament] = useState<TournamentState | null>(() => resolveInitialTournament(tournament, currentUser));
@@ -628,6 +630,15 @@ export const useTournamentSimulation = (
             if (realMatchScoringTransitionTimeoutRef.current) {
                 clearTimeout(realMatchScoringTransitionTimeoutRef.current);
                 realMatchScoringTransitionTimeoutRef.current = null;
+            }
+            isSimulatingRef.current = false;
+            return;
+        }
+
+        if (deferPlayback) {
+            if (simulationIntervalRef.current) {
+                clearInterval(simulationIntervalRef.current);
+                simulationIntervalRef.current = null;
             }
             isSimulatingRef.current = false;
             return;
@@ -1284,6 +1295,7 @@ export const useTournamentSimulation = (
         localTournament?.status,
         activeSimRealGameMoveCount,
         currentUser?.id,
+        deferPlayback,
     ]);
 
     // 실대국 재생·계가가 끝났는데 COMPLETE가 유실된 경우 서버 상태가 round_in_progress에 멈추지 않게 재전송한다.
