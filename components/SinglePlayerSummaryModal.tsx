@@ -23,6 +23,7 @@ import {
 } from './game/ResultModalRewardSlot.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
+import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import { effectivePairPetGradeFromRow, pairPetShowsGradeUpgradeNeededInsteadOfXp } from '../shared/constants/pairPetGrade.js';
 import { RESULT_MODAL_SCORE_MOBILE_PX } from './game/resultModalScoreTypography.js';
 import SpResultRecordSideBySidePanel from './game/SpResultRecordSideBySidePanel.js';
@@ -120,14 +121,18 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
         <div className={`space-y-1.5 ${isMobile ? 'p-1.5' : 'p-2'} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : 'text-zinc-100'}`}>
             <div className={`grid gap-1.5 sm:gap-2 ${isMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
-                    <h3 className={`font-bold text-center mb-0.5 text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>{t('black')}</h3>
+                    <div className="mb-0.5 flex justify-center">
+                        <GoStoneIcon color="black" className={isMobile ? 'h-4 w-4' : 'h-5 w-5'} />
+                    </div>
                     <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.territory')}:</span> <span className="font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
                     <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.captures')}:</span> <span className="font-medium text-zinc-50">{scoreDetails.black.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.deadStones')}:</span> <span className="font-medium text-zinc-50">{scoreDetails.black.deadStones ?? 0}</span></div>
                     <div className={`flex justify-between border-t border-amber-500/20 pt-0.5 mt-0.5 font-bold text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.totalRow * mobileTextScale}px` : undefined }}><span>{t('summary.total')}:</span> <span className="text-amber-200">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${isMobile ? 'p-1' : 'p-1.5'}`}>
-                    <h3 className={`font-bold text-center mb-0.5 text-zinc-50 ${isMobile ? 'text-sm' : 'text-base min-[1024px]:text-lg'}`} style={{ fontSize: isMobile ? `${mx.columnHead * mobileTextScale}px` : undefined }}>{t('white')}</h3>
+                    <div className="mb-0.5 flex justify-center">
+                        <GoStoneIcon color="white" className={isMobile ? 'h-4 w-4' : 'h-5 w-5'} />
+                    </div>
                     <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.territory')}:</span> <span className="font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
                     <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.captures')}:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between text-zinc-200" style={{ fontSize: isMobile ? `${mx.dataRow * mobileTextScale}px` : undefined }}><span className="text-zinc-300">{t('summary.deadStones')}:</span> <span className="font-medium text-zinc-50">{scoreDetails.white.deadStones ?? 0}</span></div>

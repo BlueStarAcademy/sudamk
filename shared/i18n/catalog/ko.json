@@ -5272,6 +5272,7 @@
       "myOpenOrders": "내 환전 요청",
       "cancelOrder": "취소",
       "marketOrders": "환전 요청 목록",
+      "marketTabAll": "전체",
       "marketTabBuyGold": "골드 구매",
       "marketTabBuyDiamonds": "다이아 구매",
       "marketListColQuantity": "수량",

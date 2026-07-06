@@ -150,6 +150,16 @@ const CurlingAlkkagiTotalScoreRow: React.FC<{
     );
 };
 
+/** 경기 결과 모달: 흑·백 텍스트 대신 바둑돌 아이콘 */
+const ResultModalStoneLabel: React.FC<{
+    color: 'black' | 'white';
+    className?: string;
+}> = ({ color, className = 'h-4 w-4 sm:h-5 sm:w-5' }) => (
+    <span className="inline-flex items-center justify-center">
+        <GoStoneIcon color={color} className={className} />
+    </span>
+);
+
 const XP_BAR_BASE_MS = 700;
 const XP_BAR_GAIN_MS = 600;
 
@@ -401,14 +411,18 @@ const ScoreDetailsComponent: React.FC<{ analysis: AnalysisResult, session: LiveG
                 className={`grid min-w-0 gap-1 sm:gap-1.5 ${scoreGridTwoColsOnMobile ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'}`}
             >
                 <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'px-1.5 py-1'} rounded-md`}>
-                    <h3 className="mb-0.5 text-center font-bold" style={{ fontSize: isMobile ? mobPx(mx.columnHead) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreHead) }}>{i18n.t('game:black')}</h3>
+                    <div className="mb-0.5 flex justify-center">
+                        <ResultModalStoneLabel color="black" className={isMobile ? 'h-4 w-4' : 'h-5 w-5'} />
+                    </div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>{gs('territory')}</span> <span className={valClass}>{scoreDetails.black.territory.toFixed(0)}</span></div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>{gs('captures')}</span> <span className={valClass}>{scoreDetails.black.liveCaptures ?? 0}</span></div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>{gs('deadStones')}</span> <span className={valClass}>{Math.round(Number(scoreDetails.black.deadStones ?? 0))}</span></div>
                     <div className="mt-0.5 flex min-w-0 justify-between gap-1.5 border-t border-gray-600 pt-0.5 font-bold" style={{ fontSize: isMobile ? mobPx(mx.totalRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreTotal) }}><span className="shrink-0 whitespace-nowrap">{gs('total')}</span> <span className="tabular-nums text-yellow-300">{scoreDetails.black.total.toFixed(1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 bg-gray-800/50 ${isMobile ? 'p-1.5' : 'px-1.5 py-1'} rounded-md`}>
-                    <h3 className="mb-0.5 text-center font-bold" style={{ fontSize: isMobile ? mobPx(mx.columnHead) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreHead) }}>{i18n.t('game:white')}</h3>
+                    <div className="mb-0.5 flex justify-center">
+                        <ResultModalStoneLabel color="white" className={isMobile ? 'h-4 w-4' : 'h-5 w-5'} />
+                    </div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>{gs('territory')}</span> <span className={valClass}>{scoreDetails.white.territory.toFixed(0)}</span></div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>{gs('captures')}</span> <span className={valClass}>{scoreDetails.white.liveCaptures ?? 0}</span></div>
                     <div className={rowClass} style={{ fontSize: isMobile ? mobPx(mx.dataRow) : deskPx(RESULT_MODAL_DESKTOP_PX.scoreData) }}><span className={labelClass}>{gs('deadStones')}</span> <span className={valClass}>{Math.round(Number(scoreDetails.white.deadStones ?? 0))}</span></div>
@@ -617,12 +631,10 @@ const CaptureScoreDetailsComponent: React.FC<{
             </p>
                 <div className="flex flex-wrap items-end justify-center gap-x-2 gap-y-0.5 sm:gap-x-3">
                 <div className="flex flex-col items-center gap-0.5">
-                    <span
-                        className="font-bold uppercase tracking-wider text-stone-400"
-                        style={{ fontSize: isMobile ? mobPx(dx.captureLabel) : deskPx(dx.captureLabel) }}
-                    >
-                        {i18n.t('game:black')}
-                    </span>
+                    <ResultModalStoneLabel
+                        color="black"
+                        className={isMobile ? 'h-5 w-5' : 'h-6 w-6'}
+                    />
                     <span
                         className={`font-mono font-bold ${blackWon ? 'text-green-400' : 'text-white'}`}
                         style={{ fontSize: isMobile ? mobPx(22) : deskPx(dx.scoreHero) }}
@@ -637,12 +649,10 @@ const CaptureScoreDetailsComponent: React.FC<{
                     :
                 </span>
                 <div className="flex flex-col items-center gap-0.5">
-                    <span
-                        className="font-bold uppercase tracking-wider text-stone-400"
-                        style={{ fontSize: isMobile ? mobPx(dx.captureLabel) : deskPx(dx.captureLabel) }}
-                    >
-                        {i18n.t('game:white')}
-                    </span>
+                    <ResultModalStoneLabel
+                        color="white"
+                        className={isMobile ? 'h-5 w-5' : 'h-6 w-6'}
+                    />
                     <span
                         className={`font-mono font-bold ${whiteWon ? 'text-green-400' : 'text-white'}`}
                         style={{ fontSize: isMobile ? mobPx(22) : deskPx(dx.scoreHero) }}
@@ -846,18 +856,16 @@ const CurlingScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession, isM
                                         className="border-l border-amber-500/18 bg-black/25 px-1 py-1 text-center text-[10px] font-bold tracking-wide text-stone-100 sm:text-[11px]"
                                         colSpan={2}
                                     >
-                                        <span className="inline-flex items-center justify-center gap-1">
-                                            <GoStoneIcon color="black" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                            <span>{i18n.t("game:black")}</span>
+                                        <span className="inline-flex items-center justify-center">
+                                            <GoStoneIcon color="black" className="h-4 w-4 sm:h-5 sm:w-5" />
                                         </span>
                                     </th>
                                     <th
                                         className="border-l border-amber-500/18 bg-slate-800/35 px-1 py-1 text-center text-[10px] font-bold tracking-wide text-slate-50 sm:text-[11px]"
                                         colSpan={2}
                                     >
-                                        <span className="inline-flex items-center justify-center gap-1">
-                                            <GoStoneIcon color="white" className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                                            <span>{i18n.t("game:white")}</span>
+                                        <span className="inline-flex items-center justify-center">
+                                            <GoStoneIcon color="white" className="h-4 w-4 sm:h-5 sm:w-5" />
                                         </span>
                                     </th>
                                 </tr>
@@ -1003,8 +1011,7 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
                                 <div className="grid grid-cols-2 gap-1.5">
                                     <div className="min-w-0 rounded-md border border-stone-600/40 bg-black/30 px-1.5 py-1 ring-1 ring-inset ring-stone-500/10">
                                         <div className="flex min-w-0 items-center gap-1.5">
-                                            <GoStoneIcon color="black" className="h-3.5 w-3.5 shrink-0" />
-                                            <span className="text-[10px] font-bold tracking-wide text-stone-200">{i18n.t("game:black")}</span>
+                                            <GoStoneIcon color="black" className="h-4 w-4 shrink-0" />
                                         </div>
                                         <p
                                             className="mt-1 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
@@ -1027,8 +1034,7 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
                                     </div>
                                     <div className="min-w-0 rounded-md border border-slate-500/40 bg-slate-950/55 px-1.5 py-1 ring-1 ring-inset ring-slate-400/10">
                                         <div className="flex min-w-0 items-center gap-1.5">
-                                            <GoStoneIcon color="white" className="h-3.5 w-3.5 shrink-0" />
-                                            <span className="text-[10px] font-bold tracking-wide text-slate-100">{i18n.t("game:white")}</span>
+                                            <GoStoneIcon color="white" className="h-4 w-4 shrink-0" />
                                         </div>
                                         <p
                                             className="mt-1 flex min-w-0 items-baseline justify-between gap-1 text-[9px] font-medium leading-none text-slate-200"
@@ -1093,17 +1099,15 @@ const AlkkagiScoreDetailsComponent: React.FC<{ gameSession: LiveGameSession; isM
                                         <th className="w-[14%] bg-zinc-900/60 px-1 py-1 sm:py-1.5" aria-hidden />
                                         <th className="border-l border-amber-500/18 bg-black/25 px-1 py-1 text-center sm:px-2 sm:py-1.5" colSpan={2}>
                                             <div className="flex flex-col items-center justify-center gap-1">
-                                                <div className="flex items-center justify-center gap-1.5">
-                                                    <GoStoneIcon color="black" className="h-4 w-4 sm:h-5 sm:w-5" />
-                                                    <span className="text-[11px] font-bold tracking-wide text-stone-100 sm:text-xs">{i18n.t("game:black")}</span>
+                                                <div className="flex items-center justify-center">
+                                                    <GoStoneIcon color="black" className="h-5 w-5 sm:h-6 sm:w-6" />
                                                 </div>
                                             </div>
                                         </th>
                                         <th className="border-l border-amber-500/18 bg-slate-800/35 px-1 py-1 text-center sm:px-2 sm:py-1.5" colSpan={2}>
                                             <div className="flex flex-col items-center justify-center gap-1">
-                                                <div className="flex items-center justify-center gap-1.5">
-                                                    <GoStoneIcon color="white" className="h-4 w-4 sm:h-5 sm:w-5" />
-                                                    <span className="text-[11px] font-bold tracking-wide text-slate-50 sm:text-xs">{i18n.t("game:white")}</span>
+                                                <div className="flex items-center justify-center">
+                                                    <GoStoneIcon color="white" className="h-5 w-5 sm:h-6 sm:w-6" />
                                                 </div>
                                             </div>
                                         </th>
@@ -1334,7 +1338,7 @@ const MatchPlayersRoster: React.FC<{
 
     if (pairTeams) {
         const teamAvatarSize = mobileCompactRoster ? Math.round(34 * mobileImageScale) : avatarPx;
-        const renderTeam = (label: string, team: NonNullable<typeof pairTeams>['black'], dark: boolean) => (
+        const renderTeam = (color: 'black' | 'white', team: NonNullable<typeof pairTeams>['black'], dark: boolean) => (
             <div
                 className={`relative overflow-hidden rounded-xl border px-2 py-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
                     dark
@@ -1342,8 +1346,8 @@ const MatchPlayersRoster: React.FC<{
                         : 'border-slate-400/25 bg-gradient-to-br from-slate-900/98 via-[#17161f] to-[#0b0a10] ring-1 ring-slate-400/18'
                 }`}
             >
-                <div className={`text-xs font-black tracking-[0.2em] ${dark ? 'text-stone-200' : 'text-slate-100'}`}>
-                    {label}
+                <div className="flex justify-center">
+                    <ResultModalStoneLabel color={color} className="h-5 w-5" />
                 </div>
                 <div className="mt-2 flex justify-center -space-x-2">
                     {team.map((seat) => (
@@ -1379,15 +1383,14 @@ const MatchPlayersRoster: React.FC<{
         );
         return (
             <div className={`${mobileCompactRoster ? 'mb-1.5 gap-1.5' : 'mb-2 gap-2 sm:gap-2.5'} grid w-full grid-cols-2`}>
-                {renderTeam(gs('blackTeam'), pairTeams.black, true)}
-                {renderTeam(gs('whiteTeam'), pairTeams.white, false)}
+                {renderTeam('black', pairTeams.black, true)}
+                {renderTeam('white', pairTeams.white, false)}
             </div>
         );
     }
 
     if (mobileCompactRoster) {
         const nickRowHuman = (nickname: string, stone: 'black' | 'white', lv: number) => {
-            const stoneLabel = stone === 'black' ? i18n.t('game:black') : i18n.t('game:white');
             return (
             <div className="min-w-0 max-w-full">
                 <div
@@ -1398,8 +1401,9 @@ const MatchPlayersRoster: React.FC<{
                         {nickname}
                     </span>
                 </div>
-                <span className="mt-0.5 inline-block text-xs font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${mx.emptyState * mobileTextScale}px` }}>
-                    {stoneLabel} · Lv.{lv}
+                <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${mx.emptyState * mobileTextScale}px` }}>
+                    <ResultModalStoneLabel color={stone} className="h-3.5 w-3.5" />
+                    <span>Lv.{lv}</span>
                 </span>
             </div>
         );
@@ -1415,8 +1419,9 @@ const MatchPlayersRoster: React.FC<{
                             {adventureMonster.name}
                         </span>
                     </div>
-                    <span className="mt-0.5 inline-block text-xs font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${mx.emptyState * mobileTextScale}px` }}>
-                        {stone} · Lv.{adventureMonster.level}
+                    <span className="mt-0.5 inline-flex items-center gap-1 text-xs font-semibold text-slate-500 whitespace-nowrap" style={{ fontSize: `${mx.emptyState * mobileTextScale}px` }}>
+                        <ResultModalStoneLabel color={stone} className="h-3.5 w-3.5" />
+                        <span>Lv.{adventureMonster.level}</span>
                     </span>
                 </div>
             ) : null;
@@ -1535,12 +1540,10 @@ const MatchPlayersRoster: React.FC<{
                         )}
                     </div>
                     <div className="min-w-0 flex-1">
-                        <span
-                            className="inline-flex rounded-md border border-stone-500/45 bg-black/50 px-1 py-px font-bold uppercase tracking-[0.12em] text-stone-200/90"
-                            style={{ fontSize: isMobile ? mobPx(dx.badge) : deskPx(dx.badge) }}
-                        >
-                            {i18n.t('game:black')}
-                        </span>
+                        <ResultModalStoneLabel
+                            color="black"
+                            className={isMobile ? 'h-4 w-4' : 'h-5 w-5'}
+                        />
                         <p
                             className={`mt-0.5 min-w-0 font-bold leading-snug text-white ${isMobile ? 'truncate' : 'break-words'}`}
                             style={{
@@ -1596,12 +1599,10 @@ const MatchPlayersRoster: React.FC<{
                         )}
                     </div>
                     <div className="min-w-0 flex-1">
-                        <span
-                            className="inline-flex rounded-md border border-slate-400/40 bg-white/[0.06] px-1 py-px font-bold uppercase tracking-[0.12em] text-slate-100/95"
-                            style={{ fontSize: isMobile ? mobPx(dx.badge) : deskPx(dx.badge) }}
-                        >
-                            {i18n.t('game:white')}
-                        </span>
+                        <ResultModalStoneLabel
+                            color="white"
+                            className={isMobile ? 'h-4 w-4' : 'h-5 w-5'}
+                        />
                         <p
                             className={`mt-0.5 min-w-0 font-bold leading-snug text-white ${isMobile ? 'truncate' : 'break-words'}`}
                             style={{
@@ -2246,13 +2247,13 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         return (
             <div className="mx-auto flex w-full max-w-md flex-col gap-2 sm:gap-3">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 min-[1024px]:gap-3">
-                    <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center">
-                        <span className="text-gray-300" style={contentMetaStyle}>{i18n.t('game:black')}</span>
-                        <span className="font-semibold" style={contentMetaStyle}>{blackPlayer.nickname}</span>
+                    <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center gap-2">
+                        <ResultModalStoneLabel color="black" className="h-4 w-4 shrink-0" />
+                        <span className="font-semibold truncate" style={contentMetaStyle}>{blackPlayer.nickname}</span>
                     </div>
-                    <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center">
-                        <span className="text-gray-300" style={contentMetaStyle}>{i18n.t('game:white')}</span>
-                        <span className="font-semibold" style={contentMetaStyle}>{whitePlayer.nickname}</span>
+                    <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center gap-2">
+                        <ResultModalStoneLabel color="white" className="h-4 w-4 shrink-0" />
+                        <span className="font-semibold truncate" style={contentMetaStyle}>{whitePlayer.nickname}</span>
                     </div>
                     <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center">
                         <span className="text-gray-300" style={contentMetaStyle}>{t('summary.totalMoves')}</span>

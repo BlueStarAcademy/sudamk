@@ -32,7 +32,8 @@ import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
 
 type SaleCurrency = 'gold' | 'diamonds';
 type InstantDirection = 'gold_to_diamonds' | 'diamonds_to_gold';
-type MarketListTab = InstantDirection;
+type MarketListTab = 'all' | InstantDirection;
+type MobileCurrencySectionTab = 'market' | 'instant' | 'register';
 
 const GOLD_ICON = '/images/icon/Gold.webp';
 const DIAMOND_ICON = '/images/icon/Zem.webp';
@@ -146,7 +147,8 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
     const { t } = useTranslation('exchange');
     const { t: tCommon } = useTranslation('common');
 
-    const [marketListTab, setMarketListTab] = useState<MarketListTab>('gold_to_diamonds');
+    const [marketListTab, setMarketListTab] = useState<MarketListTab>('all');
+    const [mobileSectionTab, setMobileSectionTab] = useState<MobileCurrencySectionTab>('market');
     const [instantDirection, setInstantDirection] = useState<InstantDirection>('gold_to_diamonds');
     const [instantAmount, setInstantAmount] = useState('0');
     const [orderFromCurrency, setOrderFromCurrency] = useState<SaleCurrency>('gold');
@@ -419,16 +421,16 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
         return Array.from(merged.values()).sort((a, b) => Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0));
     }, [marketOrders, myOpenOrders]);
 
-    const filteredMarketOrders = useMemo(
-        () =>
-            visibleMarketOrders.filter((o) =>
-                marketListTab === 'gold_to_diamonds' ? o.fromCurrency === 'gold' : o.fromCurrency === 'diamonds',
-            ),
-        [visibleMarketOrders, marketListTab],
-    );
+    const filteredMarketOrders = useMemo(() => {
+        if (marketListTab === 'all') return visibleMarketOrders;
+        return visibleMarketOrders.filter((o) =>
+            marketListTab === 'gold_to_diamonds' ? o.fromCurrency === 'gold' : o.fromCurrency === 'diamonds',
+        );
+    }, [visibleMarketOrders, marketListTab]);
 
     const marketTabCounts = useMemo(
         () => ({
+            all: visibleMarketOrders.length,
             goldToDiamonds: visibleMarketOrders.filter((o) => o.fromCurrency === 'gold').length,
             diamondsToGold: visibleMarketOrders.filter((o) => o.fromCurrency === 'diamonds').length,
         }),
@@ -479,6 +481,12 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
     const cancelOrderBtnClass = mobileExchange
         ? '!mx-0 !w-full !max-w-[9.5rem] !min-h-0 !rounded-lg !border !border-rose-400/30 !bg-gradient-to-b !from-rose-950/70 !via-slate-950/90 !to-rose-950/80 !px-3 !py-1.5 !text-xs !font-bold !tracking-wide !text-rose-100 !shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_-12px_rgba(244,63,94,0.45)] transition hover:!border-rose-300/45 hover:!brightness-110 active:scale-[0.98]'
         : '!mx-0 !w-full !max-w-[9.5rem] !min-h-0 !rounded-lg !border !border-rose-400/30 !bg-gradient-to-b !from-rose-950/70 !via-slate-950/90 !to-rose-950/80 !px-3 !py-1.5 !text-sm !font-bold !tracking-wide !text-rose-100 !shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_0_22px_-12px_rgba(244,63,94,0.45)] transition hover:!border-rose-300/45 hover:!brightness-110 active:scale-[0.98]';
+    const mobileSectionTabButtonBase =
+        'rounded-md border px-1.5 py-1.5 text-[11px] font-semibold leading-tight tracking-wide transition-all duration-150';
+    const mobileSectionTabButtonActive =
+        'border-cyan-300/70 bg-gradient-to-b from-cyan-500/70 to-blue-700/80 text-white shadow-[0_10px_20px_-12px_rgba(56,189,248,0.9)]';
+    const mobileSectionTabButtonIdle =
+        'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100';
 
     const instantInputCurrency: SaleCurrency = instantDirection === 'gold_to_diamonds' ? 'gold' : 'diamonds';
 
@@ -545,10 +553,34 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
             ) : null}
 
             <div
-                className={`flex h-full min-h-0 flex-col gap-2 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS} ${mobileExchange ? '' : 'gap-3 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:overflow-hidden'}`}
+                className={`flex h-full min-h-0 flex-col gap-2 ${mobileExchange ? 'overflow-hidden' : `overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS} gap-3 lg:grid lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:overflow-hidden`}`}
             >
+                {mobileExchange ? (
+                    <div className="grid shrink-0 grid-cols-3 gap-1 rounded-lg border border-slate-700/60 bg-slate-900/70 p-1">
+                        {(
+                            [
+                                { id: 'market' as const, label: t('currency.marketOrders') },
+                                { id: 'instant' as const, label: t('currency.instantTitle') },
+                                { id: 'register' as const, label: t('currency.postOrderTitle') },
+                            ] as const
+                        ).map((tab) => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setMobileSectionTab(tab.id)}
+                                className={`${mobileSectionTabButtonBase} ${
+                                    mobileSectionTab === tab.id ? mobileSectionTabButtonActive : mobileSectionTabButtonIdle
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
+                    </div>
+                ) : null}
+
                 {/* 좌측: 환전 요청 목록 */}
-                <div className={`flex h-full min-h-0 flex-col ${mobileExchange ? '' : 'lg:overflow-hidden lg:pr-1'}`}>
+                {(!mobileExchange || mobileSectionTab === 'market') ? (
+                <div className={`flex h-full min-h-0 flex-col ${mobileExchange ? 'min-h-0 flex-1 overflow-hidden' : 'lg:overflow-hidden lg:pr-1'}`}>
                     <div className={`${listPanelClass} h-full`}>
                         <SectionHeader
                             title={t('currency.marketOrders')}
@@ -566,6 +598,23 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                             }
                         />
                         <div className="mb-3 flex gap-1.5 rounded-xl border border-white/[0.05] bg-black/20 p-1">
+                            <button
+                                type="button"
+                                onClick={() => setMarketListTab('all')}
+                                aria-label={t('currency.marketTabAll')}
+                                className={`${directionBtnBase} ${
+                                    marketListTab === 'all'
+                                        ? 'border-cyan-400/50 bg-gradient-to-b from-cyan-500/20 via-cyan-900/35 to-slate-950 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]'
+                                        : directionBtnIdle
+                                }`}
+                            >
+                                <span>{t('currency.marketTabAll')}</span>
+                                {marketTabCounts.all > 0 ? (
+                                    <span className={`ml-0.5 min-w-[1.125rem] rounded-full bg-black/40 px-1 text-xs font-bold tabular-nums text-slate-200`}>
+                                        {marketTabCounts.all}
+                                    </span>
+                                ) : null}
+                            </button>
                             <button
                                 type="button"
                                 onClick={() => setMarketListTab('gold_to_diamonds')}
@@ -609,7 +658,13 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                             ) : filteredMarketOrders.length === 0 ? (
                                 <div className="flex flex-col items-center justify-center gap-2 py-12 text-center">
                                     <div className="flex items-center gap-2 opacity-40">
-                                        {marketListTab === 'gold_to_diamonds' ? (
+                                        {marketListTab === 'all' ? (
+                                            <>
+                                                <CurrencyIcon currency="gold" className="h-7 w-7" />
+                                                <span className="text-slate-500">↔</span>
+                                                <CurrencyIcon currency="diamonds" className="h-7 w-7" />
+                                            </>
+                                        ) : marketListTab === 'gold_to_diamonds' ? (
                                             <>
                                                 <CurrencyIcon currency="gold" className="h-8 w-8" />
                                                 <span className="text-slate-500">→</span>
@@ -731,11 +786,14 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                         </div>
                     </div>
                 </div>
+                ) : null}
 
                 {/* 우측: 바로환전 → 환전 요청 등록 */}
+                {(!mobileExchange || mobileSectionTab === 'instant' || mobileSectionTab === 'register') ? (
                 <div
-                    className={`flex h-full min-h-0 flex-col gap-2 overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS} ${mobileExchange ? '' : 'lg:pl-0.5'}`}
+                    className={`flex h-full min-h-0 flex-col gap-2 ${mobileExchange ? 'min-h-0 flex-1 overflow-y-auto' : `overflow-y-auto ${BAG_SCROLLBAR_Y_CLASS}`} ${mobileExchange ? '' : 'lg:pl-0.5'}`}
                 >
+                    {(!mobileExchange || mobileSectionTab === 'instant') ? (
                     <div className={instantPanelClass}>
                         <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-cyan-400/10 blur-2xl" aria-hidden />
                         <SectionHeader title={t('currency.instantTitle')} accent="cyan" titleClassName={exchTy.sectionTitle} />
@@ -894,7 +952,9 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                             </div>
                         </div>
                     </div>
+                    ) : null}
 
+                    {(!mobileExchange || mobileSectionTab === 'register') ? (
                     <div className={sidePanelClass}>
                         <SectionHeader title={t('currency.postOrderTitle')} accent="amber" titleClassName={exchTy.sectionTitle} />
 
@@ -1082,7 +1142,9 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                             </div>
                         </div>
                     </div>
+                    ) : null}
                 </div>
+                ) : null}
             </div>
         </>
     );

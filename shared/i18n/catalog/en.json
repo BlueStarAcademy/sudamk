@@ -5223,6 +5223,7 @@
       "myOpenOrders": "My open requests",
       "cancelOrder": "Cancel",
       "marketOrders": "Convert requests",
+      "marketTabAll": "All",
       "marketTabBuyGold": "Buy gold",
       "marketTabBuyDiamonds": "Buy diamonds",
       "marketListColQuantity": "Qty",

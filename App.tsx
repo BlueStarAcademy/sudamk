@@ -303,7 +303,9 @@ const AppContent: React.FC = () => {
      */
     const profileTab = ((currentRoute.params?.tab as string | undefined) ?? 'home');
     const isContentView = Boolean(
-        (currentRoute.view === 'profile' && profileTab === 'home' && currentUser) ||
+        (currentRoute.view === 'profile' &&
+            ['home', 'arena'].includes(profileTab) &&
+            currentUser) ||
         currentRoute.view === 'help' ||
         (currentUser && (
             currentRoute.view === 'singleplayer' ||

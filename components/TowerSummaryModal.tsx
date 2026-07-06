@@ -17,6 +17,7 @@ import {
 import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
 import { getTowerSessionFloor, isTowerHumanWinnerFromSession } from '../utils/towerPreGameDisplay.js';
 import { formatScoreDetailNumber, hasRenderableScoreDetails } from '../shared/utils/scoreDetailsGuards.js';
+import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
@@ -123,7 +124,6 @@ const ScoreDetailsComponent: React.FC<{
 
     const narrow2col = Boolean(isMobile && compactSideBySideMobile);
     const rowFs = `${(isMobile ? mx.dataRow : 13) * (isMobile ? mobileTextScale : desktopTextScale)}px`;
-    const headFs = `${(isMobile ? mx.columnHead : 15) * (isMobile ? mobileTextScale : desktopTextScale)}px`;
     const totalFs = `${(isMobile ? mx.totalRow : 16) * (isMobile ? mobileTextScale : desktopTextScale)}px`;
     const outerPad = narrow2col ? 'p-1 space-y-1' : isMobile ? 'p-1.5 space-y-1.5' : 'p-2 space-y-1.5';
     const innerPad = narrow2col ? 'p-0.5' : isMobile ? 'p-1' : 'p-1.5';
@@ -133,14 +133,18 @@ const ScoreDetailsComponent: React.FC<{
         <div className={`${outerPad} ${SP_SUMMARY_INSET_CLASS} ${!isMobile ? 'text-base min-[1024px]:text-lg' : 'text-zinc-100'}`}>
             <div className={`grid ${narrow2col ? 'grid-cols-2' : 'grid-cols-1 sm:grid-cols-2'} ${gridGap}`}>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
-                    <h3 className="mb-0.5 text-center font-bold text-zinc-50" style={{ fontSize: headFs }}>{t('black')}</h3>
+                    <div className="mb-0.5 flex justify-center">
+                        <GoStoneIcon color="black" className={narrow2col ? 'h-3.5 w-3.5' : isMobile ? 'h-4 w-4' : 'h-5 w-5'} />
+                    </div>
                     <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.territory')}</span> <span className="tabular-nums font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.black.territory, 0)}</span></div>
                     <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.captures')}</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.black.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.deadStones')}</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.black.deadStones ?? 0}</span></div>
                     <div className="mt-0.5 flex justify-between gap-0.5 border-t border-amber-500/20 pt-0.5 font-bold text-zinc-50" style={{ fontSize: totalFs }}><span>{t('summary.total')}</span> <span className="text-amber-200 tabular-nums">{formatScoreDetailNumber(scoreDetails.black.total, 1)}</span></div>
                 </div>
                 <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} ${innerPad}`}>
-                    <h3 className="mb-0.5 text-center font-bold text-zinc-50" style={{ fontSize: headFs }}>{t('white')}</h3>
+                    <div className="mb-0.5 flex justify-center">
+                        <GoStoneIcon color="white" className={narrow2col ? 'h-3.5 w-3.5' : isMobile ? 'h-4 w-4' : 'h-5 w-5'} />
+                    </div>
                     <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.territory')}</span> <span className="tabular-nums font-medium text-zinc-50">{formatScoreDetailNumber(scoreDetails.white.territory, 0)}</span></div>
                     <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.captures')}</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.white.liveCaptures ?? 0}</span></div>
                     <div className="flex justify-between gap-0.5 text-zinc-200" style={{ fontSize: rowFs }}><span className="min-w-0 shrink text-zinc-300">{t('summary.deadStones')}</span> <span className="tabular-nums font-medium text-zinc-50">{scoreDetails.white.deadStones ?? 0}</span></div>
