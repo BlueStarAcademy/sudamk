@@ -5593,7 +5593,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     /** handlers.handleAction 참조가 바뀔 때마다 ENTER effect cleanup이 돌면 SAVE가 무한 반복된다 → ref로 고정 */
     const onActionRef = useRef(onAction);
     onActionRef.current = onAction;
-    const finalizeChampionshipDungeonMatchStartRef = useRef<(() => Promise<void>) | null>(null);
+    const finalizeChampionshipDungeonMatchStartRef = useRef<((options?: { silentPrefetch?: boolean }) => Promise<void>) | null>(null);
     const initialMatchPlayersSetRef = useRef(false);
     const [nextRoundTrigger, setNextRoundTrigger] = useState(0);
     const p1ProfileRef = useRef<HTMLDivElement>(null);
@@ -5624,6 +5624,21 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const championshipMatchStartRequestSentRef = useRef(false);
     /** 나가기 버튼으로 의도적 퇴장 시 unmount cleanup·지연 redirect가 재입장시키지 않도록 */
     const userInitiatedArenaExitRef = useRef(false);
+
+    const clearDungeonAutoNextCountdownState = useCallback(() => {
+        if (autoNextTimerRef.current) {
+            clearInterval(autoNextTimerRef.current);
+            autoNextTimerRef.current = null;
+        }
+        setAutoNextCountdown(null);
+        countdownRef.current = 0;
+        autoStartTimeRef.current = null;
+        savedStartTimeRef.current = null;
+        hasTriggeredStartForTimeRef.current = null;
+        prefetchTriggeredForStartTimeRef.current = null;
+        countdownExtendCountRef.current = 0;
+        dungeonAutoNextResultReviewRef.current = false;
+    }, []);
 
     const isChampionshipDungeonVenueForPotion = tournament?.currentStageAttempt != null;
     const canUseConditionPotion = useMemo(() => {
@@ -6074,13 +6089,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         // bracket_ready 상태일 때는 카운트다운 타이머가 nextRoundStartTime 전용 effect에서만 관리됨.
         // 이 effect에서는 타이머를 정리하지 않음 (currentRoundRobinRound/safeRounds 변경 시 cleanup이
         // 호출되어 카운트다운이 5에서 멈추는 버그 방지).
-        // round_in_progress / complete / eliminated 로 바뀐 경우에만 타이머 정리
-        if (status === 'round_in_progress' || status === 'complete' || status === 'eliminated') {
-            if (autoNextTimerRef.current) {
-                clearInterval(autoNextTimerRef.current);
-                autoNextTimerRef.current = null;
-            }
-            setAutoNextCountdown(null);
+        // complete / eliminated 로 바뀐 경우, 또는 실제 경기 시작(카운트다운 종료)일 때만 타이머 정리.
+        // 던전 2회차 이후는 카운트다운 중 다음 경기 기보를 선생성하면서 서버 상태가 round_in_progress로
+        // 먼저 들어올 수 있다. 이때 타이머를 지우면 직전 결과 화면이 사라지고 다음 보드가 바로 노출된다.
+        const preservingDungeonAutoNextReview =
+            status === 'round_in_progress' &&
+            tournament.currentStageAttempt != null &&
+            dungeonAutoNextResultReviewRef.current &&
+            savedStartTimeRef.current != null &&
+            Date.now() < savedStartTimeRef.current;
+        if (status === 'complete' || status === 'eliminated' || (status === 'round_in_progress' && !preservingDungeonAutoNextReview)) {
+            clearDungeonAutoNextCountdownState();
         }
 
         if (status === 'round_in_progress' && prevStatus !== 'round_in_progress') {
@@ -6093,7 +6112,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         // cleanup에서 타이머를 건드리지 않음 (카운트다운은 nextRoundStartTime effect에서만 관리)
         // deps에 onAction/onStartNextRound/safeRounds를 넣지 않음 — handlers 참조 변경 시 effect·로그 폭주 방지
         return () => {};
-    }, [tournament?.status, tournament?.type, tournament?.currentRoundRobinRound]);
+    }, [tournament?.status, tournament?.type, tournament?.currentRoundRobinRound, clearDungeonAutoNextCountdownState]);
     
     // tournament ref 업데이트 - 항상 최신 상태 유지
     useEffect(() => {
@@ -6108,6 +6127,28 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     useEffect(() => {
         const nextRoundStartTime = tournament?.nextRoundStartTime;
         const status = tournament?.status;
+        const roundsForCountdown = tournament?.rounds ?? [];
+        const hasNextUserMatch = !!findNextUnfinishedUserMatch(
+            roundsForCountdown,
+            tournament?.type ?? 'neighborhood',
+            tournament?.currentRoundRobinRound,
+        );
+        const canKeepPrefetchCountdown =
+            status === 'round_in_progress' &&
+            tournament?.currentStageAttempt != null &&
+            dungeonAutoNextResultReviewRef.current &&
+            savedStartTimeRef.current != null &&
+            Date.now() < savedStartTimeRef.current;
+
+        if (
+            status === 'complete' ||
+            status === 'eliminated' ||
+            !hasNextUserMatch ||
+            (status !== 'bracket_ready' && status !== 'round_complete' && !canKeepPrefetchCountdown)
+        ) {
+            clearDungeonAutoNextCountdownState();
+            return;
+        }
         
         // nextRoundStartTime이 없을 때: 이미 카운트다운이 진행 중이면 유지(잠깐 undefined 오는 경우 대비)
         if (!nextRoundStartTime) {
@@ -6115,18 +6156,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             if (saved != null && Date.now() < saved && autoNextTimerRef.current) {
                 return; // 이미 동일 회차 카운트다운 진행 중 → 타이머 유지
             }
-            setAutoNextCountdown(null);
-            if (autoNextTimerRef.current) {
-                clearInterval(autoNextTimerRef.current);
-                autoNextTimerRef.current = null;
-            }
-            countdownRef.current = 0;
-            autoStartTimeRef.current = null;
-            savedStartTimeRef.current = null;
-            hasTriggeredStartForTimeRef.current = null;
-            prefetchTriggeredForStartTimeRef.current = null;
-            countdownExtendCountRef.current = 0;
-            dungeonAutoNextResultReviewRef.current = false;
+            clearDungeonAutoNextCountdownState();
             return;
         }
 
@@ -6302,7 +6332,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             // cleanup: nextRoundStartTime이 변경될 때만 타이머 정리
             // 하지만 savedStartTimeRef를 사용하므로 타이머는 계속 실행됨
         };
-    }, [tournament?.nextRoundStartTime]); // nextRoundStartTime만 의존성으로 사용하여 타이머가 중단되지 않도록 함
+    }, [tournament?.nextRoundStartTime, clearDungeonAutoNextCountdownState]); // nextRoundStartTime만 의존성으로 사용하여 타이머가 중단되지 않도록 함
 
     // 다음 회차 탭 전환 후 시합 자동 시작 (동네: 기보 선생성 완료 시 START 생략)
     useEffect(() => {
@@ -9408,7 +9438,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                     const modalActionFb = '!text-sm !py-2.5 w-full';
                                     const modalPrimaryAction = renderChampionshipIntermediateResultFooterActions(
                                         modalActionFb,
-                                        dismissMobileChampionshipResultModal,
+                                        { onAfterClick: dismissMobileChampionshipResultModal },
                                     );
                                     if (modalPrimaryAction) {
                                         return (
