@@ -13270,3 +13270,15 @@ reportAnalysisWinratesAs = BLACK
 
 2026-06-24 18:28:56+0900: Analysis Engine starting...
 2026-06-24 18:28:56+0900: KataGo v1.16.3
+2026-06-27 13:11:21+0900: Running with following config:
+analysisPVLen = 10
+homeDataDir = C:/project/SUDAMR/server/katago_home
+logFile = ./katago_analysis_log.txt
+maxVisits = 1000
+nnMaxBatchSize = 16
+numAnalysisThreads = 4
+numSearchThreads = 8
+reportAnalysisWinratesAs = BLACK
+
+2026-06-27 13:11:21+0900: Analysis Engine starting...
+2026-06-27 13:11:21+0900: KataGo v1.16.3

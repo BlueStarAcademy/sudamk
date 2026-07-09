@@ -286,6 +286,11 @@ const reconnectPrisma = async (): Promise<boolean> => {
         }
       }
       console.warn('[Prisma] Reconnect: $connect ok but probe failed (DB may be sleeping or unreachable)');
+      consecutiveConnectionFailures++;
+      if (consecutiveConnectionFailures >= MAX_CONSECUTIVE_FAILURES) {
+        console.error('[Prisma] CRITICAL: Multiple probe failures after reconnect. Database may be unavailable.');
+        process.stderr.write(`[CRITICAL] Prisma reconnect probe failed ${consecutiveConnectionFailures} times\n`);
+      }
       return false;
     } catch (error: any) {
       consecutiveConnectionFailures++;

@@ -146,6 +146,129 @@ const IS_RAILWAY_HOSTED_RUNTIME = !!process.env.RAILWAY_DEPLOYMENT_ID;
 const MEMORY_FORCE_EXIT_ON_RSS = process.env.MEMORY_FORCE_EXIT_ON_RSS === '1';
 /** 메모리 한계로 종료 시도 중복 방지 */
 let pendingMemoryCriticalExit = false;
+let recoveryWatchdogStarted = false;
+let recoveryWatchdogInFlight = false;
+let recoveryWatchdogDbFailures = 0;
+let lastRecoveryWatchdogLocalSkipLogAt = 0;
+const RECOVERY_WATCHDOG_INTERVAL_MS = Math.max(
+    15_000,
+    parseInt(process.env.SERVER_RECOVERY_WATCHDOG_INTERVAL_MS || '60000', 10) || 60_000,
+);
+const RECOVERY_WATCHDOG_DB_FAILURES_BEFORE_EXIT = Math.max(
+    2,
+    parseInt(process.env.SERVER_RECOVERY_WATCHDOG_DB_FAILURES_BEFORE_EXIT || '6', 10) || 6,
+);
+
+const getRssExitThresholdMb = (): number => {
+    if (_replicaLimitMb > 4000) return Math.floor(_replicaLimitMb * 0.25);
+    return MEMORY_EXIT_RSS_MB_SMALL;
+};
+
+const canRecoveryWatchdogExit = (): boolean => IS_RAILWAY_HOSTED_RUNTIME || MEMORY_FORCE_EXIT_ON_RSS;
+
+const requestRecoveryRestart = (reason: string, detail: string): void => {
+    if (pendingMemoryCriticalExit) return;
+    if (!canRecoveryWatchdogExit()) {
+        const now = Date.now();
+        if (now - lastRecoveryWatchdogLocalSkipLogAt > 300_000) {
+            lastRecoveryWatchdogLocalSkipLogAt = now;
+            console.warn(
+                `[RecoveryWatchdog] ${reason}: ${detail}. Automatic restart skipped outside Railway hosted runtime. ` +
+                    'Set MEMORY_FORCE_EXIT_ON_RSS=1 to test restart behavior.',
+            );
+        }
+        return;
+    }
+
+    pendingMemoryCriticalExit = true;
+    console.error(`[RecoveryWatchdog] CRITICAL: ${reason}. ${detail}. Scheduling restart.`);
+    process.stderr.write(`[CRASH_REASON] recovery_watchdog reason=${reason} ${detail}\n`, () => {});
+    void (async () => {
+        try {
+            const { broadcastServerRestarting } = await import('./socket.js');
+            broadcastServerRestarting('memory');
+        } catch (e) {
+            console.warn('[RecoveryWatchdog] broadcastServerRestarting failed:', (e as Error)?.message);
+        }
+        await new Promise((r) => setTimeout(r, 2800));
+        try {
+            if (global.gc) global.gc();
+        } catch {
+            /* ignore */
+        }
+        process.exit(1);
+    })();
+};
+
+const startRecoveryWatchdog = (): void => {
+    if (recoveryWatchdogStarted) return;
+    if (!process.env.RAILWAY_ENVIRONMENT && !MEMORY_FORCE_EXIT_ON_RSS) return;
+    recoveryWatchdogStarted = true;
+
+    const interval = setInterval(() => {
+        if (recoveryWatchdogInFlight) return;
+        recoveryWatchdogInFlight = true;
+        void (async () => {
+            try {
+                const memUsage = process.memoryUsage();
+                const rssMb = Math.round(memUsage.rss / 1024 / 1024);
+                const heapMb = Math.round(memUsage.heapUsed / 1024 / 1024);
+                const rssExitThresholdMb = getRssExitThresholdMb();
+
+                if (rssMb > rssExitThresholdMb) {
+                    requestRecoveryRestart(
+                        'rss_threshold_exceeded',
+                        `rss=${rssMb}MB threshold=${rssExitThresholdMb}MB heap=${heapMb}MB`,
+                    );
+                    return;
+                }
+
+                const dbOk = await db.isDatabaseConnected();
+                if (dbOk) {
+                    if (recoveryWatchdogDbFailures > 0) {
+                        console.log(
+                            `[RecoveryWatchdog] Database probe recovered after ${recoveryWatchdogDbFailures} failed checks.`,
+                        );
+                    }
+                    recoveryWatchdogDbFailures = 0;
+                    return;
+                }
+
+                recoveryWatchdogDbFailures++;
+                console.warn(
+                    `[RecoveryWatchdog] Database probe failed (${recoveryWatchdogDbFailures}/${RECOVERY_WATCHDOG_DB_FAILURES_BEFORE_EXIT}); ` +
+                        `rss=${rssMb}MB heap=${heapMb}MB`,
+                );
+                if (recoveryWatchdogDbFailures >= RECOVERY_WATCHDOG_DB_FAILURES_BEFORE_EXIT) {
+                    requestRecoveryRestart(
+                        'db_probe_failed',
+                        `failures=${recoveryWatchdogDbFailures} rss=${rssMb}MB heap=${heapMb}MB`,
+                    );
+                }
+            } catch (error: any) {
+                recoveryWatchdogDbFailures++;
+                console.warn(
+                    `[RecoveryWatchdog] Probe threw (${recoveryWatchdogDbFailures}/${RECOVERY_WATCHDOG_DB_FAILURES_BEFORE_EXIT}):`,
+                    error?.message || error,
+                );
+                if (recoveryWatchdogDbFailures >= RECOVERY_WATCHDOG_DB_FAILURES_BEFORE_EXIT) {
+                    requestRecoveryRestart(
+                        'watchdog_probe_exception',
+                        `failures=${recoveryWatchdogDbFailures} message=${JSON.stringify(error?.message || String(error))}`,
+                    );
+                }
+            } finally {
+                recoveryWatchdogInFlight = false;
+            }
+        })();
+    }, RECOVERY_WATCHDOG_INTERVAL_MS);
+
+    interval.unref?.();
+    console.log(
+        `[RecoveryWatchdog] Started: interval=${RECOVERY_WATCHDOG_INTERVAL_MS}ms, ` +
+            `dbFailureExitCount=${RECOVERY_WATCHDOG_DB_FAILURES_BEFORE_EXIT}, rssExitThreshold=${getRssExitThresholdMb()}MB`,
+    );
+};
 
 // 고아 게임 정리: 온라인 0명일 때만 실행 (접속자가 없을 때 DB에 남은 AI/오류 대국 삭제)
 let lastOrphanedGameCleanupAt = 0;
@@ -1097,6 +1220,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // WebSocket 서버 생성 실패해도 HTTP 서버는 계속 실행
         }
         startServerLoadMonitoring();
+        startRecoveryWatchdog();
         
         // 무거운 초기화 작업은 비동기로 처리 (서버 리스닝 후)
         // NOTE: Railway 멀티서비스 구조에서는 KataGo를 별도 서비스로 운영하므로
