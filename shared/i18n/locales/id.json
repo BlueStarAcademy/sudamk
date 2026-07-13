@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Informasi pemain tidak dapat dimuat.",
     "loadingTournament": "Memuat informasi turnamen...",
     "loadingUserInfo": "Memuat informasi pengguna...",
-    "nextMatchPreparing": "Mempersiapkan pertandingan berikutnya... {{countdown}}",
+    "nextMatchPreparing": "Mempersiapkan pertandingan berikutnya...",
     "movingToNextMatch": "Kami pindah ke tempat duduk kami untuk pertandingan berikutnya.",
     "defaultPlayer": "pemain",
     "me": "Saya",

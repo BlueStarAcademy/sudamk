@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "खिलाड़ी की जानकारी लोड नहीं की जा सकी.",
     "loadingTournament": "टूर्नामेंट की जानकारी लोड हो रही है...",
     "loadingUserInfo": "उपयोगकर्ता जानकारी लोड हो रही है...",
-    "nextMatchPreparing": "अगले मैच की तैयारी... {{उल्टी गिनती}}",
+    "nextMatchPreparing": "अगले मैच की तैयारी...",
     "movingToNextMatch": "हम अगले गेम के लिए अपनी सीटों पर जा रहे हैं।",
     "defaultPlayer": "खिलाड़ी",
     "me": "मुझे",

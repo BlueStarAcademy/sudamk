@@ -74,8 +74,9 @@ export function consumeConditionPotionInventory(
     const itemIndex = findConditionPotionInInventory(next, potionType);
     if (itemIndex === -1) return null;
     const row = next[itemIndex]!;
-    if (row.quantity && row.quantity > 1) {
-        next[itemIndex] = { ...row, quantity: row.quantity - 1 };
+    const qty = typeof row.quantity === 'number' && Number.isFinite(row.quantity) ? Math.floor(row.quantity) : 1;
+    if (qty > 1) {
+        next[itemIndex] = { ...row, quantity: qty - 1 };
     } else {
         next.splice(itemIndex, 1);
     }

@@ -65,7 +65,17 @@ describe('conditionPotionWsMergePolicy', () => {
         expect(stripped.inventory).toBeUndefined();
     });
 
-    it('guard window constant is at least 10 seconds', () => {
-        expect(CONDITION_POTION_USE_GUARD_MS).toBeGreaterThanOrEqual(10_000);
+    it('keeps authoritative USE_CONDITION_POTION-http inventory even when count drops', () => {
+        const prev = [potion('컨디션회복제(소)', 2)];
+        const patch = { inventory: [potion('컨디션회복제(소)', 1)], gold: 400 };
+        const kept = sanitizeConditionPotionUserUpdatePatch(patch, {
+            lastHttpActionType: 'USE_CONDITION_POTION',
+            useInFlight: false,
+            prevInventory: prev,
+            useCommittedAt: Date.now(),
+            updateSource: 'USE_CONDITION_POTION-http',
+        });
+        expect(kept.inventory).toEqual(patch.inventory);
+        expect(kept.gold).toBe(400);
     });
 });

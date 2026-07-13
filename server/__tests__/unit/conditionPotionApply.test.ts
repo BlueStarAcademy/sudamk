@@ -33,6 +33,20 @@ describe('conditionPotion apply', () => {
         });
     });
 
+    it('consumeConditionPotionInventory decrements quantity and removes last unit', () => {
+        const stacked = consumeConditionPotionInventory(
+            [{ id: 'p1', name: '컨디션 회복제(소)', type: 'consumable', quantity: 3 }],
+            'small',
+        );
+        expect(stacked?.[0]?.quantity).toBe(2);
+
+        const last = consumeConditionPotionInventory(
+            [{ id: 'p1', name: '컨디션 회복제(소)', type: 'consumable', quantity: 1 }],
+            'small',
+        );
+        expect(last).toEqual([]);
+    });
+
     it('consumeConditionPotionInventory matches spaced item names', () => {
         const next = consumeConditionPotionInventory(
             [{ id: 'p1', name: '컨디션 회복제(소)', type: 'consumable', quantity: 1 }],

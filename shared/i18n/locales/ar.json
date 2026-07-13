@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "لا يمكن تحميل معلومات اللاعب.",
     "loadingTournament": "جارٍ تحميل معلومات البطولة...",
     "loadingUserInfo": "جارٍ تحميل معلومات المستخدم...",
-    "nextMatchPreparing": "التحضير للمباراة القادمة... {{countdown}}",
+    "nextMatchPreparing": "التحضير للمباراة القادمة...",
     "movingToNextMatch": "نحن ننتقل إلى مقاعدنا للمباراة القادمة.",
     "defaultPlayer": "لاعب",
     "me": "أنا",

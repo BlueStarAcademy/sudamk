@@ -6543,7 +6543,8 @@ export const useApp = () => {
                         res.status === 400 &&
                         (action.type === 'CLAIM_QUEST_REWARD' ||
                             action.type === 'CLAIM_ACTIVITY_MILESTONE' ||
-                            action.type === 'CLAIM_ACHIEVEMENT_REWARD') &&
+                            action.type === 'CLAIM_ACHIEVEMENT_REWARD' ||
+                            action.type === 'START_TOURNAMENT_MATCH') &&
                         errorData?.updatedUser
                     ) {
                         applyUserUpdate(errorData.updatedUser, `${action.type}-error-sync`);

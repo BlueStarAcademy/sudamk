@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "選手情報を呼び出せません。",
     "loadingTournament": "トーナメント情報を読み込んでいます...",
     "loadingUserInfo": "ユーザー情報を読み込んでいます...",
-    "nextMatchPreparing": "次の試合の準備中... {{countdown}}",
+    "nextMatchPreparing": "次の試合の準備中...",
     "movingToNextMatch": "次の試合のために席を移動しています。",
     "defaultPlayer": "選手",
     "me": "私",

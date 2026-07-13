@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Oyuncu bilgileri yüklenemedi.",
     "loadingTournament": "Turnuva bilgileri yükleniyor...",
     "loadingUserInfo": "Kullanıcı bilgileri yükleniyor...",
-    "nextMatchPreparing": "Bir sonraki maça hazırlanıyoruz... {{geri sayım}}",
+    "nextMatchPreparing": "Bir sonraki maça hazırlanıyoruz...",
     "movingToNextMatch": "Bir sonraki maç için yerlerimize geçiyoruz.",
     "defaultPlayer": "oyuncu",
     "me": "Ben",

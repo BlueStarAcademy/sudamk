@@ -776,19 +776,30 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
         console.error(`[endGame] applyGuildWarBoardAfterGame failed for ${game.id}:`, e?.message);
     }
 
-    await db.saveGame(game);
-    
+    // 모험/길드전·히든 계가 경합에서 revision만 앞선 스냅샷이 정산본 저장을 가로채지 않도록 강제 저장
+    await db.saveGame(game, true);
+
     // summary가 설정된 후 최신 게임 상태를 다시 가져와서 브로드캐스트
     let freshGame = await db.getLiveGame(game.id);
     if (!freshGame) {
         // PVE/타워 등: DB 지연·직렬화 이슈 시에도 메모리 세션으로 계가(analysisResult) 전달
         console.warn(`[endGame] getLiveGame missed ${game.id} after save; broadcasting in-memory session (category=${game.gameCategory})`);
         freshGame = game;
+    } else {
+        const freshHasAllHumanSummaries = humanSummaryIds.every((id) => !!freshGame!.summary?.[id]);
+        const memoryHasAllHumanSummaries = humanSummaryIds.every((id) => !!game.summary?.[id]);
+        if (!freshHasAllHumanSummaries && memoryHasAllHumanSummaries) {
+            console.warn(
+                `[endGame] DB session missing human summary for ${game.id}; broadcasting in-memory settled session`,
+            );
+            freshGame = game;
+        }
     }
 
     try {
         const { updateGameCache } = await import('./gameCache.js');
-        updateGameCache(freshGame);
+        // 정산 summary가 있는 세션을 캐시에 우선 반영 (revision만 앞선 계가 스냅샷에 밀리지 않게)
+        updateGameCache(summariesComplete ? game : freshGame);
     } catch {
         /* 캐시 갱신 실패는 무시 — 브로드캐스트는 계속 */
     }
@@ -2826,5 +2837,5 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             `humanIds=${JSON.stringify(humanParticipantIds)}, summaryKeys=${JSON.stringify(Object.keys(game.summary || {}))}`
         );
     }
-    await db.saveGame(game);
+    await db.saveGame(game, true);
 };

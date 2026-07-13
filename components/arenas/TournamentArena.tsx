@@ -75,18 +75,12 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
             pending && isChampionshipDungeonTournamentFromToday(pending, snapDay);
 
         if (pendingFromToday && contextFromToday) {
+            // 입장 직후 컨텍스트보다 최신 pending만 우선. 같은 시각이면 서버/컨텍스트를 신뢰한다.
+            // (기권·완료된 context를 낡은 pending bracket_ready가 가리면 START 400 + 심호흡 루프가 난다)
             if ((pending.lastPlayedDate || 0) > (fromContext.lastPlayedDate || 0)) {
                 return pending;
             }
-            const contextTerminal =
-                fromContext.status === 'complete' || fromContext.status === 'eliminated';
-            const pendingPlayable =
-                pending.status === 'bracket_ready' ||
-                pending.status === 'round_in_progress' ||
-                pending.status === 'round_complete';
-            if (contextTerminal && pendingPlayable) {
-                return pending;
-            }
+            return fromContext;
         }
 
         if (contextFromToday) return fromContext;
@@ -174,8 +168,9 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         if (!tournamentState || !isChampionshipDungeon) return;
         if (!tournamentState.autoAdvanceEnabled && tournamentState.status === 'bracket_ready' && 
             tournamentState.players?.some((p: PlayerForTournament) => {
+                // assignChampionshipCondition은 1~100. 40 미만도 정상 컨디션이므로 재부여/START 반복 금지.
                 const hasValidCondition = p.condition !== undefined && p.condition !== null && 
-                    p.condition !== 1000 && p.condition >= 40 && p.condition <= 100;
+                    p.condition !== 1000 && p.condition >= 1 && p.condition <= 100;
                 return !hasValidCondition;
             })) {
             handlersRef.current.handleAction({ type: 'START_TOURNAMENT_ROUND', payload: { type } });

@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "无法加载玩家信息。",
     "loadingTournament": "正在加载比赛信息...",
     "loadingUserInfo": "正在加载用户信息...",
-    "nextMatchPreparing": "正在为下一场比赛做准备...{{countdown}}",
+    "nextMatchPreparing": "正在为下一场比赛做准备...",
     "movingToNextMatch": "我们正在前往座位准备下一场比赛。",
     "defaultPlayer": "玩家",
     "me": "我",

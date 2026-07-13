@@ -30,9 +30,22 @@ function isPastBaseClientFlowGameStatus(st: string | undefined): boolean {
     return !isServerBaseClientPrePlayStatus(st);
 }
 
+function countSummaryKeys(summary: LiveGameSession['summary']): number {
+    if (!summary || typeof summary !== 'object') return 0;
+    return Object.keys(summary as object).length;
+}
+
+function isSettledWithStats(session: LiveGameSession): boolean {
+    return (
+        (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') &&
+        !!session.statsUpdated
+    );
+}
+
 /**
- * PVE·메인루프 캐시 병합: 수순·본대국 진행·serverRevision으로 더 앞선 세션을 고른다.
+ * PVE·메인루프 캐시 병합: 수순·본대국 진행·정산 summary·serverRevision으로 더 앞선 세션을 고른다.
  * DB 저장 지연으로 `base_placement`가 남아 본대국 `playing`을 덮으면 흑백 좌석·AI 턴이 깨진다.
+ * 동일 수순에서 revision만 앞선 계가/히든공개 스냅샷이 정산 summary를 덮지 않게 한다.
  */
 export function compareLiveSessionProgressForPveMerge(a: LiveGameSession, b: LiveGameSession): number {
     const ma = countPlacedMovesInHistory(a.moveHistory);
@@ -41,6 +54,12 @@ export function compareLiveSessionProgressForPveMerge(a: LiveGameSession, b: Liv
     const aPast = isPastBaseClientFlowGameStatus(a.gameStatus);
     const bPast = isPastBaseClientFlowGameStatus(b.gameStatus);
     if (aPast !== bPast) return aPast ? 1 : -1;
+    const aSummary = countSummaryKeys(a.summary);
+    const bSummary = countSummaryKeys(b.summary);
+    if (aSummary !== bSummary) return aSummary - bSummary;
+    const aSettled = isSettledWithStats(a);
+    const bSettled = isSettledWithStats(b);
+    if (aSettled !== bSettled) return aSettled ? 1 : -1;
     const ra = a.serverRevision ?? 0;
     const rb = b.serverRevision ?? 0;
     if (ra !== rb) return ra - rb;

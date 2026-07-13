@@ -239,7 +239,7 @@ export async function applyChampionshipVersusConditionPotion(
     const { updateUserCache } = await import('./gameCache.js');
     try {
         updateUserCache(user);
-        await db.updateUser(user);
+        await db.updateUser(user, { allowInventoryEquipmentClear: true });
         const { broadcastUserUpdate } = await import('./socket.js');
         broadcastUserUpdate(user, [...CONDITION_POTION_USE_BROADCAST_FIELDS]);
         return { user };

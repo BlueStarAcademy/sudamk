@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Spelarinformation kunde inte laddas.",
     "loadingTournament": "Laddar turneringsinformation...",
     "loadingUserInfo": "Laddar användarinformation...",
-    "nextMatchPreparing": "Förbereder för nästa match... {{countdown}}",
+    "nextMatchPreparing": "Förbereder för nästa match...",
     "defaultPlayer": "spelare",
     "me": "mig",
     "opponent": "motståndare",

@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "ไม่สามารถโหลดข้อมูลผู้เล่นได้",
     "loadingTournament": "กำลังโหลดข้อมูลการแข่งขัน...",
     "loadingUserInfo": "กำลังโหลดข้อมูลผู้ใช้...",
-    "nextMatchPreparing": "เตรียมความพร้อมสำหรับนัดต่อไป... {{countdown}}",
+    "nextMatchPreparing": "เตรียมความพร้อมสำหรับนัดต่อไป...",
     "movingToNextMatch": "เรากำลังย้ายไปยังที่นั่งของเราสำหรับเกมถัดไป",
     "defaultPlayer": "ผู้เล่น",
     "me": "ฉัน",

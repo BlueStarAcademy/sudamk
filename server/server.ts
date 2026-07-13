@@ -2848,8 +2848,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     if (!game.isSinglePlayer && (isPlayful || isStrategic) && (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') && !game.statsUpdated) {
                         try {
                             await processGameSummary(game);
-                            game.statsUpdated = true;
-                            await db.saveGame(game);
+                            // processGameSummary가 human summary 완비 여부로 statsUpdated를 설정한다.
+                            // 무조건 true로 덮으면 summary 누락 시 재시도가 막힌다.
+                            await db.saveGame(game, true);
                             summaryGamesToBroadcast[game.id] = game;
                         } catch (summaryError: any) {
                             console.error(`[MainLoop] Error processing game summary for ${game.id}:`, summaryError?.message);

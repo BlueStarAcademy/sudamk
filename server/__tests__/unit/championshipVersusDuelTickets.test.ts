@@ -13,11 +13,11 @@ describe('championshipVersusDuelTickets', () => {
     it('does not show full tickets when only one regen interval elapsed', () => {
         const now = 1_000_000;
         const user = {
-            championshipVersusDuelTicketsByVenue: { pvp: 2 },
+            championshipVersusDuelTicketsByVenue: { pvp: 1 },
             championshipVersusDuelTicketNextAtByVenue: { pvp: now - 1 },
         };
         const ui = getChampionshipVersusDuelTicketsForVenueUi(user, 'pvp', now);
-        expect(ui).toBe(3);
+        expect(ui).toBe(2);
         expect(ui).not.toBe(CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX);
     });
 
@@ -32,7 +32,7 @@ describe('championshipVersusDuelTickets', () => {
 
     it('does not mirror PVP legacy count onto pet venue', () => {
         const user = {
-            championshipVersusDuelTickets: 5,
+            championshipVersusDuelTickets: CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX,
             championshipVersusDuelTicketNextAt: Date.now(),
         };
         expect(getChampionshipVersusDuelTicketsForVenue(user, 'pet')).toBe(0);
@@ -41,9 +41,9 @@ describe('championshipVersusDuelTickets', () => {
 
     it('uses per-venue persisted counts when present', () => {
         const user = {
-            championshipVersusDuelTicketsByVenue: { pvp: 1, pet: 4, petpair: 2 },
+            championshipVersusDuelTicketsByVenue: { pvp: 1, pet: 2, petpair: 0 },
             championshipVersusDuelTicketNextAtByVenue: { pvp: Date.now() + 60_000 },
         };
-        expect(getChampionshipVersusDuelTicketsForVenue(user, 'pet')).toBe(4);
+        expect(getChampionshipVersusDuelTicketsForVenue(user, 'pet')).toBe(2);
     });
 });

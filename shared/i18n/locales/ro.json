@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Informațiile despre jucător nu au putut fi încărcate.",
     "loadingTournament": "Se încarcă informațiile despre turneu...",
     "loadingUserInfo": "Se încarcă informații despre utilizator...",
-    "nextMatchPreparing": "Pregătesc pentru următorul meci... {{countdown}}",
+    "nextMatchPreparing": "Pregătesc pentru următorul meci...",
     "defaultPlayer": "player",
     "me": "eu",
     "opponent": "adversar",

@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Não foi possível carregar as informações do jogador.",
     "loadingTournament": "Carregando informações do torneio...",
     "loadingUserInfo": "Carregando informações do usuário...",
-    "nextMatchPreparing": "Preparando-se para a próxima partida... {{countdown}}",
+    "nextMatchPreparing": "Preparando-se para a próxima partida...",
     "movingToNextMatch": "Estamos nos mudando para nossos lugares para o próximo jogo.",
     "defaultPlayer": "jogador",
     "me": "meu",

@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Informace o přehrávači nelze načíst.",
     "loadingTournament": "Načítání informací o turnaji...",
     "loadingUserInfo": "Načítání informací o uživateli...",
-    "nextMatchPreparing": "Příprava na další zápas... {{countdown}}",
+    "nextMatchPreparing": "Příprava na další zápas...",
     "defaultPlayer": "hráč",
     "me": "mě",
     "opponent": "oponent",

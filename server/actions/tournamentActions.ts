@@ -871,7 +871,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 applyConditionPotionPatchInPlace,
                 CONDITION_POTION_USE_BROADCAST_FIELDS,
                 canAffordConditionPotionUse,
-                consumeConditionPotionInventory,
             } = await import('../../shared/conditionPotion/apply.js');
 
             if (!isConditionPotionType(rawPayload.potionType)) {
@@ -893,7 +892,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 applyConditionPotionPatchInPlace(user, result.patch);
                 try {
                     updateUserCache(user);
-                    await db.updateUser(user);
+                    await db.updateUser(user, { allowInventoryEquipmentClear: true });
                 } catch (error: any) {
                     console.error(`[USE_CONDITION_POTION] Error updating user ${user.id}:`, error);
                     return { error: '데이터 저장 중 오류가 발생했습니다.' };
@@ -916,8 +915,12 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
 
             const def = getConditionPotionDefinition(potionType);
-            if (!consumeConditionPotionInventory(user.inventory ?? [], potionType)) {
-                return { error: `${def.name}이(가) 없습니다.` };
+            // 캐시에 인벤이 비어 있으면(경량 조회 잔재) DB에서 다시 읽어 소모가 스킵되지 않게 한다.
+            if (!Array.isArray(user.inventory) || user.inventory.length === 0) {
+                const freshInvUser = await db.getUser(user.id, { includeEquipment: true, includeInventory: true });
+                if (freshInvUser?.inventory) {
+                    user.inventory = freshInvUser.inventory;
+                }
             }
             if (!canAffordConditionPotionUse(user, potionType)) {
                 return { error: `골드가 부족합니다. (필요: ${def.shopGold} 골드)` };
@@ -988,9 +991,18 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             if (!result.ok) return { error: result.error };
             applyConditionPotionPatchInPlace(user, result.patch);
 
+            // volatile 세션과 DB last*Tournament 조건 불일치 방지
+            const patchedTournament = (user as any)[stateKey] as TournamentState | null;
+            if (
+                patchedTournament &&
+                volatileState.activeTournaments?.[user.id]?.type === tournamentType
+            ) {
+                volatileState.activeTournaments[user.id] = patchedTournament;
+            }
+
             try {
                 updateUserCache(user);
-                await db.updateUser(user);
+                await db.updateUser(user, { allowInventoryEquipmentClear: true });
             } catch (error: any) {
                 console.error(`[USE_CONDITION_POTION] Error updating user ${user.id}:`, error);
                 console.error(`[USE_CONDITION_POTION] Error stack:`, error.stack);
@@ -1003,7 +1015,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             return {
                 clientResponse: {
                     updatedUser: user,
-                    redirectToTournament: tournamentType,
                 },
             };
         }
@@ -1059,7 +1070,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 // rounds 배열에서 name이 "1회차", "2회차" 등인 라운드 찾기
                 const currentRoundObj = tournamentState.rounds.find(r => r.name === `${currentRound}회차`);
                 if (!currentRoundObj) {
-                    return { error: `현재 회차(${currentRound}회차)의 라운드를 찾을 수 없습니다.` };
+                    return {
+                        error: `현재 회차(${currentRound}회차)의 라운드를 찾을 수 없습니다.`,
+                        clientResponse: { updatedUser: freshUser },
+                    };
                 }
                 const match = currentRoundObj.matches.find(m => m.isUserMatch && !m.isFinished);
                 if (match) {
@@ -1083,7 +1097,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
 
             if (!userMatch) {
-                return { error: '시작할 유저 경기를 찾을 수 없습니다.' };
+                return {
+                    error: '시작할 유저 경기를 찾을 수 없습니다.',
+                    clientResponse: { updatedUser: freshUser },
+                };
             }
 
             const generationKey = championshipMatchGenerationKey(freshUser.id, type, userMatch.id);
@@ -1110,7 +1127,10 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 경기 시작 전 상태인지 확인 (bracket_ready 또는 round_complete 상태에서 시작 가능)
             // 단, 유저 매치가 있는 경우에만 허용
             if (tournamentState.status !== 'bracket_ready' && tournamentState.status !== 'round_complete') {
-                return { error: `경기를 시작할 수 있는 상태가 아닙니다. (현재 상태: ${tournamentState.status})` };
+                return {
+                    error: `경기를 시작할 수 있는 상태가 아닙니다. (현재 상태: ${tournamentState.status})`,
+                    clientResponse: { updatedUser: freshUser },
+                };
             }
             if (roundIndex === -1 || matchIndex === -1) {
                 return { error: `경기 인덱스를 찾을 수 없습니다. (roundIndex: ${roundIndex}, matchIndex: ${matchIndex})` };
@@ -1724,15 +1744,22 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
 
             // 동네바둑리그의 경우 유저의 모든 경기가 완료되었는지 확인 (6명이 각각 5경기)
-            const allUserMatchesFinished = tournamentState.type === 'neighborhood' 
-                ? tournamentState.rounds.every(round => 
-                    round.matches.every(match => !match.isUserMatch || match.isFinished)
-                )
-                : false;
-            
-            // 모든 경기가 완료되었는지 확인
-            const allMatchesFinished = tournamentState.rounds.every(r => r.matches.every(m => m.isFinished));
-            
+            const hasAnyUserMatch = tournamentState.rounds.some((round) =>
+                round.matches.some((match) => match.isUserMatch),
+            );
+            const allUserMatchesFinished =
+                tournamentState.type === 'neighborhood' && hasAnyUserMatch
+                    ? tournamentState.rounds.every((round) =>
+                          round.matches.every((match) => !match.isUserMatch || match.isFinished),
+                      )
+                    : false;
+
+            // 모든 경기가 완료되었는지 확인 ([] .every 공집합 → true 방지)
+            const { areAllChampionshipMatchesFinished } = await import(
+                '../../shared/utils/championshipSessionFinished.js'
+            );
+            const allMatchesFinished = areAllChampionshipMatchesFinished(tournamentState);
+
             // 동네바둑리그에서 유저의 모든 경기가 완료되었거나, 모든 경기가 완료되었으면 complete 상태로 설정
             if (allUserMatchesFinished || allMatchesFinished) {
                 // 탈락 상태는 보존 (보상·순위 UI). 그 외에는 complete로 종료
@@ -1849,53 +1876,30 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             return {};
 
         case 'LEAVE_TOURNAMENT_VIEW': {
+            // 뷰 unmount/이탈만으로는 절대 몰수하지 않는다.
+            // (START 직후 Strict Mode·리마운트 LEAVE가 round_in_progress를 통째로 기권 처리하던 버그 방지)
+            // 진행 중 이탈 시 스냅샷만 보존하고, 명시적 FORFEIT_TOURNAMENT / LOGOUT 에서만 몰수한다.
             const volatileTs = volatileState.activeTournaments?.[user.id];
-            if (volatileTs) {
-                let neighborhoodForfeited = false;
-                if (
-                    volatileTs.type === 'neighborhood' &&
-                    volatileTs.currentStageAttempt != null &&
-                    volatileTs.status !== 'complete' &&
-                    volatileTs.status !== 'eliminated'
-                ) {
-                    const hasUnfinishedUserMatch = volatileTs.rounds?.some((round) =>
-                        round.matches?.some((match) => match.isUserMatch && !match.isFinished),
-                    );
-                    if (hasUnfinishedUserMatch || volatileTs.status === 'round_in_progress') {
-                        await tournamentService.forfeitRemainingNeighborhoodLeagueMatches(volatileTs, user);
-                        neighborhoodForfeited = true;
-                    }
+            if (volatileTs?.status === 'round_in_progress') {
+                let sk: keyof User;
+                switch (volatileTs.type) {
+                    case 'neighborhood':
+                        sk = 'lastNeighborhoodTournament';
+                        break;
+                    case 'national':
+                        sk = 'lastNationalTournament';
+                        break;
+                    case 'world':
+                        sk = 'lastWorldTournament';
+                        break;
+                    default:
+                        return {};
                 }
-
-                const shouldPersist =
-                    volatileTs.status === 'round_in_progress' ||
-                    (neighborhoodForfeited && volatileTs.status === 'complete');
-                if (shouldPersist) {
-                    let sk: keyof User;
-                    switch (volatileTs.type) {
-                        case 'neighborhood':
-                            sk = 'lastNeighborhoodTournament';
-                            break;
-                        case 'national':
-                            sk = 'lastNationalTournament';
-                            break;
-                        case 'world':
-                            sk = 'lastWorldTournament';
-                            break;
-                        default:
-                            return {};
-                    }
-                    (user as any)[sk] = JSON.parse(JSON.stringify(volatileTs)) as types.TournamentState;
-                    updateUserCache(user);
-                    const persist = neighborhoodForfeited
-                        ? db.updateUser(user)
-                        : db.updateUser(user).catch((err) => {
-                              console.error(`[LEAVE_TOURNAMENT_VIEW] Failed to save user ${user.id}:`, err);
-                          });
-                    if (neighborhoodForfeited) {
-                        await persist;
-                    }
-                }
+                (user as any)[sk] = JSON.parse(JSON.stringify(volatileTs)) as types.TournamentState;
+                updateUserCache(user);
+                db.updateUser(user).catch((err) => {
+                    console.error(`[LEAVE_TOURNAMENT_VIEW] Failed to save user ${user.id}:`, err);
+                });
             }
             return {};
         }
@@ -2102,7 +2106,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 오늘 최초 입장 시에만 컨디션 스냅샷 저장 + 시도 횟수 증가 (재입장 시 같은 컨디션 유지, 시도 횟수 중복 차감 방지)
             if (!hasSnapshotToday) {
                 const userCondition = dungeonState.players.find(p => p.id === freshUser.id)?.condition;
-                if (userCondition !== undefined && userCondition >= 40 && userCondition <= 100) {
+                if (userCondition !== undefined && userCondition >= 1 && userCondition <= 100) {
                     if (!freshUser.dungeonConditionSnapshot) freshUser.dungeonConditionSnapshot = {};
                     freshUser.dungeonConditionSnapshot[dungeonType] = { condition: userCondition, dateStartOfDayKST: today };
                 }
@@ -2193,10 +2197,20 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             // 토너먼트가 완료되었는지 확인
             // 드물게 마지막 경기 직후 상태 반영이 늦어 bracket_ready/round_complete로 남는 경우가 있어
             // 실제 경기 완료 여부를 한 번 더 검사해 안전하게 완료 처리한다.
-            const allMatchesFinished = dungeonState.rounds?.every((round) => round.matches?.every((match) => match.isFinished)) ?? false;
+            // 단 [].every → true 공집합 함정으로 빈 rounds를 complete로 올리지 않는다.
+            const { areAllChampionshipMatchesFinished, isChampionshipSessionFinished } = await import(
+                '../../shared/utils/championshipSessionFinished.js'
+            );
+            const allMatchesFinished = areAllChampionshipMatchesFinished(dungeonState);
+            const userMatchRounds = dungeonState.rounds ?? [];
+            const hasAnyUserMatch = userMatchRounds.some((round) =>
+                round.matches?.some((match) => match.isUserMatch),
+            );
             const allUserMatchesFinished =
-                dungeonType === 'neighborhood'
-                    ? (dungeonState.rounds?.every((round) => round.matches?.every((match) => !match.isUserMatch || match.isFinished)) ?? false)
+                dungeonType === 'neighborhood' && hasAnyUserMatch
+                    ? userMatchRounds.every((round) =>
+                          (round.matches ?? []).every((match) => !match.isUserMatch || match.isFinished),
+                      )
                     : false;
             if (
                 (dungeonState.status !== 'complete' && dungeonState.status !== 'eliminated') &&
@@ -2208,7 +2222,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                     `[COMPLETE_DUNGEON_STAGE] Auto-fixed stale status to complete for ${dungeonType} (allMatchesFinished=${allMatchesFinished}, allUserMatchesFinished=${allUserMatchesFinished})`
                 );
             }
-            const isTournamentComplete = dungeonState.status === 'complete' || dungeonState.status === 'eliminated';
+            const isTournamentComplete = isChampionshipSessionFinished(dungeonState);
             if (!isTournamentComplete) {
                 return { error: '토너먼트가 아직 완료되지 않았습니다.' };
             }

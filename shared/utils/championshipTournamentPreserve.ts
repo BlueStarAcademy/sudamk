@@ -279,7 +279,7 @@ export function mergeChampionshipTournamentPreserveLostRealGame(
     return patch;
 }
 
-/** 챔피언십 던전 2회차~: 결과 모달·10초 연출 중 이전 회차 보드를 유지할지 판단 */
+/** 챔피언십 던전 2회차~: 결과·다음 경기 준비 스피너 중 이전 회차 보드를 유지할지 판단 */
 export function isDungeonAutoNextResultReviewActive(params: {
     finishedUserMatchCount: number;
     hasLastFinishedUserMatch: boolean;
@@ -298,4 +298,149 @@ export function isDungeonAutoNextResultReviewActive(params: {
     const now = params.now ?? Date.now();
     if (startTime != null && now < startTime) return true;
     return false;
+}
+
+/**
+ * 토너먼트 complete/eliminated 스냅샷이 로컬 계가 연출 보드를 덮어쓰지 않도록
+ * 직전 실대국 기보·판면을 유지한 rounds를 만든다.
+ */
+export function mergeTerminalTournamentPreserveScoringBoard(
+    prev: TournamentState,
+    terminal: TournamentState,
+): TournamentState['rounds'] {
+    const sim = prev.currentSimulatingMatch;
+    if (!sim) return terminal.rounds;
+    const { roundIndex: ri, matchIndex: mi } = sim;
+    const prevMatch = prev.rounds[ri]?.matches[mi];
+    const prevGame = prevMatch?.championshipRealGame;
+    if (!prevGame?.moves?.length) return terminal.rounds;
+
+    return terminal.rounds.map((round, rIdx) => {
+        if (rIdx !== ri) return round;
+        return {
+            ...round,
+            matches: round.matches.map((m, mIdx) => {
+                if (mIdx !== mi || !m) return m;
+                const resolvedGame = m.championshipRealGame;
+                const moveCount = prevGame.moves.length;
+                return {
+                    ...m,
+                    championshipRealGame: {
+                        ...(resolvedGame ?? prevGame),
+                        moves: prevGame.moves,
+                        boardState: prevGame.boardState ?? resolvedGame?.boardState,
+                        boardSize: prevGame.boardSize ?? resolvedGame?.boardSize,
+                        currentPly: Math.max(
+                            prevGame.currentPly ?? 0,
+                            resolvedGame?.currentPly ?? 0,
+                            moveCount,
+                        ),
+                        lastMove: prevGame.lastMove ?? resolvedGame?.lastMove,
+                        status: 'scoring',
+                        winnerId: resolvedGame?.winnerId ?? prevGame.winnerId,
+                        finalScore: resolvedGame?.finalScore ?? prevGame.finalScore,
+                        scoringAnalysis: prevGame.scoringAnalysis ?? resolvedGame?.scoringAnalysis,
+                        blackPlayerId: prevGame.blackPlayerId ?? resolvedGame?.blackPlayerId,
+                        whitePlayerId: prevGame.whitePlayerId ?? resolvedGame?.whitePlayerId,
+                        maxPly: prevGame.maxPly ?? resolvedGame?.maxPly,
+                        timeMetrics: {
+                            ...(resolvedGame?.timeMetrics ?? {}),
+                            ...(prevGame.timeMetrics ?? {}),
+                            scoringStartedAt:
+                                prevGame.timeMetrics?.scoringStartedAt ??
+                                resolvedGame?.timeMetrics?.scoringStartedAt ??
+                                Date.now(),
+                        },
+                    },
+                };
+            }),
+        };
+    });
+}
+
+/** complete 적용 시 서버 기보가 빈약하면 로컬 finished 보드를 유지 */
+export function mergeTerminalTournamentPreserveFinishedBoard(
+    prev: TournamentState,
+    terminal: TournamentState,
+): TournamentState['rounds'] {
+    const findLastUserReal = (t: TournamentState) =>
+        [...(t.rounds ?? [])]
+            .reverse()
+            .flatMap((r) => r.matches)
+            .find((m) => m.isUserMatch && m.championshipRealGame?.moves?.length);
+
+    const prevMatch = findLastUserReal(prev);
+    const prevGame = prevMatch?.championshipRealGame;
+    if (!prevGame?.moves?.length || !prevMatch) return terminal.rounds;
+
+    return terminal.rounds.map((round) => ({
+        ...round,
+        matches: round.matches.map((m) => {
+            if (!m || m.id !== prevMatch.id) return m;
+            const resolvedGame = m.championshipRealGame;
+            if (resolvedGame?.moves?.length && resolvedGame.boardState) {
+                return {
+                    ...m,
+                    championshipRealGame: {
+                        ...resolvedGame,
+                        boardState: resolvedGame.boardState,
+                        moves: resolvedGame.moves,
+                        currentPly: Math.max(
+                            resolvedGame.currentPly ?? 0,
+                            resolvedGame.moves.length,
+                        ),
+                        scoringAnalysis: resolvedGame.scoringAnalysis ?? prevGame.scoringAnalysis,
+                        status: 'finished' as const,
+                    },
+                };
+            }
+            return {
+                ...m,
+                championshipRealGame: {
+                    ...prevGame,
+                    ...(resolvedGame ?? {}),
+                    moves: prevGame.moves,
+                    boardState: prevGame.boardState ?? resolvedGame?.boardState,
+                    currentPly: Math.max(
+                        prevGame.currentPly ?? 0,
+                        resolvedGame?.currentPly ?? 0,
+                        prevGame.moves.length,
+                    ),
+                    status: 'finished' as const,
+                    winnerId: resolvedGame?.winnerId ?? prevGame.winnerId,
+                    finalScore: resolvedGame?.finalScore ?? prevGame.finalScore,
+                    scoringAnalysis: resolvedGame?.scoringAnalysis ?? prevGame.scoringAnalysis,
+                },
+            };
+        }),
+    }));
+}
+
+/** 탈락 후 "나머지 경기 진행" 연출 중: 로컬은 round_in_progress로 두고 직전 유저 경기는 finished 보드 유지 */
+export function buildEliminationRemainingMatchesHoldState(
+    prev: TournamentState,
+    terminal: TournamentState,
+): TournamentState {
+    const rounds = mergeTerminalTournamentPreserveFinishedBoard(prev, terminal);
+    const sim = prev.currentSimulatingMatch;
+    return {
+        ...terminal,
+        status: 'round_in_progress',
+        currentSimulatingMatch: sim,
+        rounds,
+        timeElapsed: prev.timeElapsed,
+        currentMatchScores: prev.currentMatchScores,
+        currentMatchCommentary: prev.currentMatchCommentary,
+        lastScoreIncrement: prev.lastScoreIncrement,
+        nextRoundStartTime: null,
+    };
+}
+
+/** 전국/월드 탈락 시 남은 브라켓 즉시 완료에 대한 클라이언트 연출 대상인지 */
+export function isChampionshipEliminationRemainingMatchesPath(
+    tournament: Pick<TournamentState, 'type' | 'status'> | null | undefined,
+): boolean {
+    if (!tournament) return false;
+    if (tournament.status !== 'eliminated') return false;
+    return tournament.type === 'national' || tournament.type === 'world';
 }

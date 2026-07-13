@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Không thể tải thông tin người chơi.",
     "loadingTournament": "Đang tải thông tin giải đấu...",
     "loadingUserInfo": "Đang tải thông tin người dùng...",
-    "nextMatchPreparing": "Đang chuẩn bị cho trận đấu tiếp theo... {{countdown}}",
+    "nextMatchPreparing": "Đang chuẩn bị cho trận đấu tiếp theo...",
     "movingToNextMatch": "Chúng tôi đang di chuyển đến chỗ ngồi của mình cho trận đấu tiếp theo.",
     "defaultPlayer": "người chơi",
     "me": "Tôi",

@@ -6,6 +6,10 @@ import {
     isSameActiveSimulatingMatchSlot,
     mergeChampionshipTournamentPreserveLostRealGame,
     mergeResolvedRoundsPreserveChampionshipPlayback,
+    mergeTerminalTournamentPreserveFinishedBoard,
+    mergeTerminalTournamentPreserveScoringBoard,
+    buildEliminationRemainingMatchesHoldState,
+    isChampionshipEliminationRemainingMatchesPath,
     repairTournamentSimulatingPointer,
     recoverStuckChampionshipRoundInProgress,
     prepareTournamentStateForMatchStart,
@@ -387,5 +391,192 @@ describe('championshipTournamentPreserve', () => {
                 tournamentStatus: 'eliminated',
             }),
         ).toBe(false);
+    });
+
+    it('mergeTerminalTournamentPreserveScoringBoard keeps local board during complete', () => {
+        const boardState = [
+            [Player.Black, Player.None],
+            [Player.None, Player.White],
+        ];
+        const moves = [
+            { x: 0, y: 0, player: Player.Black },
+            { x: 1, y: 1, player: Player.White },
+        ];
+        const prev = mkState(
+            [
+                {
+                    id: 1,
+                    name: '결승',
+                    matches: [
+                        mkMatch('final', {
+                            championshipRealGame: {
+                                moves,
+                                boardState,
+                                boardSize: 2,
+                                currentPly: 2,
+                                status: 'scoring',
+                                winnerId: 'u1',
+                                blackPlayerId: 'u1',
+                                whitePlayerId: 'b1',
+                                maxPly: 2,
+                                timeMetrics: { scoringStartedAt: Date.now() },
+                            } as any,
+                        }),
+                    ],
+                },
+            ],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+        const terminal = {
+            ...prev,
+            status: 'complete' as const,
+            currentSimulatingMatch: null,
+            rounds: [
+                {
+                    id: 1,
+                    name: '결승',
+                    matches: [
+                        mkMatch('final', {
+                            isFinished: true,
+                            winner: { id: 'u1' } as any,
+                            championshipRealGame: {
+                                moves: [],
+                                boardSize: 2,
+                                currentPly: 0,
+                                status: 'finished',
+                                winnerId: 'u1',
+                            } as any,
+                        }),
+                    ],
+                },
+            ],
+        };
+        const merged = mergeTerminalTournamentPreserveScoringBoard(prev, terminal);
+        const game = merged[0]!.matches[0]!.championshipRealGame!;
+        expect(game.status).toBe('scoring');
+        expect(game.moves).toHaveLength(2);
+        expect(game.boardState).toEqual(boardState);
+        expect(game.currentPly).toBe(2);
+    });
+
+    it('mergeTerminalTournamentPreserveFinishedBoard restores local stones when server board missing', () => {
+        const boardState = [
+            [Player.Black, Player.None],
+            [Player.None, Player.White],
+        ];
+        const moves = [
+            { x: 0, y: 0, player: Player.Black },
+            { x: 1, y: 1, player: Player.White },
+        ];
+        const prev = mkState(
+            [
+                {
+                    id: 1,
+                    name: '결승',
+                    matches: [
+                        mkMatch('final', {
+                            isFinished: true,
+                            championshipRealGame: {
+                                moves,
+                                boardState,
+                                boardSize: 2,
+                                currentPly: 2,
+                                status: 'scoring',
+                                winnerId: 'u1',
+                            } as any,
+                        }),
+                    ],
+                },
+            ],
+            null,
+        );
+        const terminal = {
+            ...prev,
+            status: 'complete' as const,
+            rounds: [
+                {
+                    id: 1,
+                    name: '결승',
+                    matches: [
+                        mkMatch('final', {
+                            isFinished: true,
+                            championshipRealGame: {
+                                moves: [],
+                                boardSize: 2,
+                                currentPly: 2,
+                                status: 'finished',
+                                winnerId: 'u1',
+                            } as any,
+                        }),
+                    ],
+                },
+            ],
+        };
+        const merged = mergeTerminalTournamentPreserveFinishedBoard(prev, terminal);
+        const game = merged[0]!.matches[0]!.championshipRealGame!;
+        expect(game.status).toBe('finished');
+        expect(game.moves).toHaveLength(2);
+        expect(game.boardState).toEqual(boardState);
+    });
+
+    it('isChampionshipEliminationRemainingMatchesPath only for national/world eliminated', () => {
+        expect(isChampionshipEliminationRemainingMatchesPath({ type: 'national', status: 'eliminated' })).toBe(true);
+        expect(isChampionshipEliminationRemainingMatchesPath({ type: 'world', status: 'eliminated' })).toBe(true);
+        expect(isChampionshipEliminationRemainingMatchesPath({ type: 'neighborhood', status: 'eliminated' })).toBe(false);
+        expect(isChampionshipEliminationRemainingMatchesPath({ type: 'national', status: 'complete' })).toBe(false);
+    });
+
+    it('buildEliminationRemainingMatchesHoldState keeps round_in_progress with finished board', () => {
+        const moves = [{ x: 0, y: 0, player: Player.Black }];
+        const prev = mkState(
+            [
+                {
+                    id: 1,
+                    name: '8강',
+                    matches: [
+                        mkMatch('m1', {
+                            championshipRealGame: {
+                                moves,
+                                boardState: [[Player.Black]],
+                                boardSize: 1,
+                                currentPly: 1,
+                                status: 'scoring',
+                                winnerId: 'bot',
+                            } as any,
+                        }),
+                    ],
+                },
+            ],
+            { roundIndex: 0, matchIndex: 0 },
+        );
+        const terminal = {
+            ...prev,
+            status: 'eliminated' as const,
+            currentSimulatingMatch: null,
+            rounds: [
+                {
+                    id: 1,
+                    name: '8강',
+                    matches: [
+                        mkMatch('m1', {
+                            isFinished: true,
+                            winner: { id: 'bot' } as any,
+                            championshipRealGame: {
+                                moves,
+                                boardState: [[Player.Black]],
+                                boardSize: 1,
+                                currentPly: 1,
+                                status: 'finished',
+                                winnerId: 'bot',
+                            } as any,
+                        }),
+                    ],
+                },
+            ],
+        };
+        const held = buildEliminationRemainingMatchesHoldState(prev, terminal);
+        expect(held.status).toBe('round_in_progress');
+        expect(held.currentSimulatingMatch).toEqual({ roundIndex: 0, matchIndex: 0 });
+        expect(held.rounds[0]!.matches[0]!.championshipRealGame?.status).toBe('finished');
     });
 });

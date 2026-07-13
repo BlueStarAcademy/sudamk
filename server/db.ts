@@ -649,15 +649,19 @@ export const updateUser = async (
 
     if (existing && !opts?.allowInventoryEquipmentClear) {
         const prevInventoryCount = Array.isArray(existing.inventory) ? existing.inventory.length : 0;
-        const nextInventoryCount = Array.isArray(user.inventory) ? user.inventory.length : 0;
         const prevEquipmentCount = existing.equipment ? Object.keys(existing.equipment).length : 0;
         const nextEquipmentCount = user.equipment ? Object.keys(user.equipment).length : 0;
 
-        if (prevInventoryCount > 0 && nextInventoryCount === 0) {
-            console.error(`[DB] CRITICAL: updateUser would clear inventory for ${user.id}. Restoring previous inventory snapshot.`);
+        // inventory를 아예 안 실은 채 저장하면(undefined) 가방이 통째로 날아갈 수 있어 복구한다.
+        // 단, 마지막 아이템 소모로 명시적으로 [] 가 된 경우는 복구하면 안 된다(회복제 수량 유지 버그).
+        if (user.inventory === undefined && prevInventoryCount > 0) {
+            console.error(`[DB] CRITICAL: updateUser omitted inventory for ${user.id}. Restoring previous inventory snapshot.`);
             user.inventory = deepClone(existing.inventory);
         }
-        if (prevEquipmentCount > 0 && nextEquipmentCount === 0) {
+        if (user.equipment === undefined && prevEquipmentCount > 0) {
+            console.error(`[DB] CRITICAL: updateUser omitted equipment for ${user.id}. Restoring previous equipment snapshot.`);
+            user.equipment = deepClone(existing.equipment);
+        } else if (prevEquipmentCount > 0 && nextEquipmentCount === 0) {
             console.error(`[DB] CRITICAL: updateUser would clear equipment for ${user.id}. Restoring previous equipment snapshot.`);
             user.equipment = deepClone(existing.equipment);
         }
@@ -791,14 +795,25 @@ export const saveGame = async (game: LiveGameSession, forceSave: boolean = false
 
     const isAdventureLike =
         game.gameCategory === 'adventure' || game.gameCategory === 'guildwar';
-    if (isAdventureLike && !forceSave) {
+    const isTerminalStatus = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';
+    const incomingSummaryKeyCount =
+        game.summary && typeof game.summary === 'object' ? Object.keys(game.summary as object).length : 0;
+    // 종료·정산본은 revision만 앞선 캐시 스냅샷 때문에 DB에 안 남는 일을 막는다 (모험 히든 계가 경합).
+    if (isAdventureLike && !forceSave && !isTerminalStatus) {
         try {
             const { getStaleCachedGame, compareLiveSessionProgressForPveMerge } = await import(
                 './gameCache.js'
             );
             const cached = getStaleCachedGame(game.id);
-            if (cached && compareLiveSessionProgressForPveMerge(cached, game) > 0) {
-                return;
+            if (cached) {
+                const cachedSummaryKeyCount =
+                    cached.summary && typeof cached.summary === 'object'
+                        ? Object.keys(cached.summary as object).length
+                        : 0;
+                const incomingBringsSummary = incomingSummaryKeyCount > 0 && cachedSummaryKeyCount === 0;
+                if (!incomingBringsSummary && compareLiveSessionProgressForPveMerge(cached, game) > 0) {
+                    return;
+                }
             }
         } catch {
             // stale guard 실패 시 저장은 계속 진행

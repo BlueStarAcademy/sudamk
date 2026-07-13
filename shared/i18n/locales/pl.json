@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Nie można załadować informacji o graczu.",
     "loadingTournament": "Ładowanie informacji o turnieju...",
     "loadingUserInfo": "Ładowanie informacji o użytkowniku...",
-    "nextMatchPreparing": "Przygotowania do następnego meczu... {{countdown}}",
+    "nextMatchPreparing": "Przygotowania do następnego meczu...",
     "defaultPlayer": "odtwarzacz",
     "me": "Ja",
     "opponent": "przeciwnik",

@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Не удалось загрузить информацию об игроке.",
     "loadingTournament": "Загрузка информации о турнире...",
     "loadingUserInfo": "Загрузка информации о пользователе...",
-    "nextMatchPreparing": "Подготовка к следующему матчу... {{countdown}}",
+    "nextMatchPreparing": "Подготовка к следующему матчу...",
     "movingToNextMatch": "Мы занимаем свои места для следующей игры.",
     "defaultPlayer": "игрок",
     "me": "мне",

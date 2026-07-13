@@ -2,13 +2,12 @@
 import { TournamentDefinition, TournamentType, QuestReward } from '../types/index.js';
 import { LeagueTier } from '../types/enums.js';
 
-/** PVE 챔피언십 던전: 유저 경기 종료 후 다음 경기 자동 시작까지 대기(초) */
-export const DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_SECONDS = 10;
-export const DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_MS =
-    DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_SECONDS * 1000;
-/** 기보 선생성이 카운트다운 내에 끝나지 않을 때 연출을 이 간격만큼 연장(최대 횟수까지) */
-export const DUNGEON_AUTO_NEXT_COUNTDOWN_EXTEND_MS = 2500;
-export const DUNGEON_AUTO_NEXT_COUNTDOWN_MAX_EXTENDS = 30;
+/** PVE 챔피언십 던전: 결과 화면을 최소로 보여주는 시간(이후에는 기보 준비까지 스피너 대기) */
+export const DUNGEON_AUTO_NEXT_MIN_RESULT_REVIEW_MS = 2500;
+/** 서버 nextRoundStartTime 초기값(= 최소 결과 연출). 이후 시작은 클라이언트에서 기보 준비 완료까지 대기 */
+export const DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_MS = DUNGEON_AUTO_NEXT_MIN_RESULT_REVIEW_MS;
+/** 전국/월드: 탈락 후 서버가 남은 브라켓을 즉시 시뮬해도, 결과 화면에서 이 시간만큼 "나머지 경기 진행" 연출 */
+export const DUNGEON_ELIMINATION_REMAINING_MATCHES_MS = 5000;
 
 export const TOURNAMENT_DEFINITIONS: Record<TournamentType, TournamentDefinition> = {
     neighborhood: { id: 'neighborhood', name: '동네바둑리그', description: '6인 풀리그 방식으로 진행됩니다. 가장 많은 승리를 거두세요!', format: 'round-robin', players: 6, image: '/images/championship/Champ1.webp' },

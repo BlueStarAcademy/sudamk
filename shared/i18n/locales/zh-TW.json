@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "無法載入玩家資訊。",
     "loadingTournament": "正在加載比賽資訊...",
     "loadingUserInfo": "正在載入用戶資訊...",
-    "nextMatchPreparing": "準備下一場比賽... {{倒數}}",
+    "nextMatchPreparing": "準備下一場比賽...",
     "movingToNextMatch": "我們正在前往座位準備下一場比賽。",
     "defaultPlayer": "玩家",
     "me": "我",

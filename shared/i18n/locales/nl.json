@@ -5036,7 +5036,7 @@
     "playerLoadFailed": "Spelerinformatie kan niet worden geladen.",
     "loadingTournament": "Toernooi-informatie laden...",
     "loadingUserInfo": "Gebruikersinformatie laden...",
-    "nextMatchPreparing": "Voorbereiden op de volgende wedstrijd... {{countdown}}",
+    "nextMatchPreparing": "Voorbereiden op de volgende wedstrijd...",
     "defaultPlayer": "speler",
     "me": "mij",
     "opponent": "tegenstander",

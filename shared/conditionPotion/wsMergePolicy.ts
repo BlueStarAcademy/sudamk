@@ -18,22 +18,29 @@ export type ConditionPotionWsMergeContext = {
     updateSource?: string;
 };
 
+function shouldStripFewerConditionPotions(ctx: ConditionPotionWsMergeContext): boolean {
+    const source = ctx.updateSource ?? '';
+    if (
+        source.includes('USE_CONDITION_POTION-optimistic') ||
+        source.includes('USE_CONDITION_POTION-revert') ||
+        source.includes('USE_CONDITION_POTION-http')
+    ) {
+        return false;
+    }
+    if (ctx.lastHttpActionType === 'BUY_CONDITION_POTION') return true;
+    return !shouldStripMoreConditionPotions(ctx);
+}
+
 function shouldStripMoreConditionPotions(ctx: ConditionPotionWsMergeContext): boolean {
+    const source = ctx.updateSource ?? '';
+    // 서버 HTTP 응답은 권위값 — 사용 직후 인벤 차감을 절대 버리지 않는다.
+    if (source.includes('USE_CONDITION_POTION-http')) return false;
     if (ctx.useInFlight) return true;
     if (ctx.lastHttpActionType === 'USE_CONDITION_POTION') return true;
     if (ctx.useCommittedAt != null && Date.now() - ctx.useCommittedAt < CONDITION_POTION_USE_GUARD_MS) {
         return true;
     }
     return false;
-}
-
-function shouldStripFewerConditionPotions(ctx: ConditionPotionWsMergeContext): boolean {
-    const source = ctx.updateSource ?? '';
-    if (source.includes('USE_CONDITION_POTION-optimistic') || source.includes('USE_CONDITION_POTION-revert')) {
-        return false;
-    }
-    if (ctx.lastHttpActionType === 'BUY_CONDITION_POTION') return true;
-    return !shouldStripMoreConditionPotions(ctx);
 }
 
 export function isConditionPotionUseSyncWs(

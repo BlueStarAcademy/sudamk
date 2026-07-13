@@ -27,31 +27,6 @@ function countFinishedUserMatches(rounds: Round[]): number {
     return rounds.flatMap((r) => r.matches ?? []).filter((m) => m.isUserMatch && m.isFinished).length;
 }
 
-/** bracket_ready·round_complete·빈 bracket 등에서 '오늘 경기 종료'로 오판하지 않도록 */
-function isChampionshipSessionFinished(tournament: TournamentState): boolean {
-    if (tournament.status === 'complete' || tournament.status === 'eliminated') {
-        return true;
-    }
-    if (
-        tournament.status === 'bracket_ready' ||
-        tournament.status === 'round_in_progress' ||
-        tournament.status === 'round_complete'
-    ) {
-        return false;
-    }
-    const rounds = Array.isArray(tournament.rounds) ? tournament.rounds : [];
-    const hasUserMatches = rounds.some(
-        (r) => Array.isArray(r.matches) && r.matches.some((m) => m.isUserMatch),
-    );
-    if (!hasUserMatches) return false;
-    return rounds.every(
-        (r) =>
-            Array.isArray(r.matches) &&
-            r.matches.length > 0 &&
-            r.matches.every((m) => m.isFinished),
-    );
-}
-
 function findNextUnfinishedUserMatch(
     rounds: Round[],
     tournamentType: TournamentType,
@@ -116,7 +91,8 @@ import {
     type ChampionshipPlaybackSpeed,
 } from '../hooks/useTournamentSimulation.js';
 import { useChampionshipReplayPlaceStoneSound } from '../hooks/useChampionshipReplayPlaceStoneSound.js';
-import { findActiveChampionshipUserMatch, isDungeonAutoNextResultReviewActive } from '../shared/utils/championshipTournamentPreserve.js';
+import { findActiveChampionshipUserMatch, isDungeonAutoNextResultReviewActive, isChampionshipEliminationRemainingMatchesPath } from '../shared/utils/championshipTournamentPreserve.js';
+import { isChampionshipSessionFinished } from '../shared/utils/championshipSessionFinished.js';
 import {
     resolveChampionshipDisplayCondition,
     shouldShowChampionshipConditionRecoveryButton,
@@ -136,9 +112,6 @@ import {
 import {
     DUNGEON_STAGE_MATERIAL_ROLLS,
     DUNGEON_STAGE_EQUIPMENT_DROP,
-    DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_SECONDS,
-    DUNGEON_AUTO_NEXT_COUNTDOWN_EXTEND_MS,
-    DUNGEON_AUTO_NEXT_COUNTDOWN_MAX_EXTENDS,
     getDungeonBasicRewardRangeGold,
     getDungeonRankRewardForDisplay,
     getDungeonRankRewardRangeForDisplay,
@@ -409,7 +382,7 @@ export const ChampionshipRealGoBoard: React.FC<{
     dungeonPlayersEnteringHint?: string;
     /** 던전: 다음 경기 기보 준비 중 바둑판 전체 오버레이 */
     dungeonMatchPreparingOverlay?: boolean;
-    /** 던전: 경기 종료 후 다음 경기 자동 진행 카운트다운(결과·막대·안내 문구) */
+    /** 던전: 경기 종료 후 다음 경기 자동 진행 대기(결과·스피너·안내 문구) */
     dungeonAutoNextCenterOverlay?: React.ReactNode;
     /** @deprecated 오버레이 제거됨 — 장내 PVP 등 호환용 no-op */
     suppressFinishedResultCard?: boolean;
@@ -514,13 +487,8 @@ export const ChampionshipRealGoBoard: React.FC<{
             );
         }
         if (tournamentFinished) {
-            return (
-                <ChampionshipBoardCenterNotice>
-                    <span className={`${CHAMPIONSHIP_BOARD_CENTER_NOTICE_TEXT} text-amber-100`}>
-                        {t('allMatchesEnded')}
-                    </span>
-                </ChampionshipBoardCenterNotice>
-            );
+            // 종료 안내 문구만 띄우지 않음 — 마지막 경기 보드·결과 오버레이가 담당
+            return <div className="h-full w-full bg-transparent" aria-hidden />;
         }
         /** 경기 시작 전·기보 없음: 입장 안내는 `players_entering`(시작 클릭 후)에만 표시 */
         return <div className="h-full w-full bg-transparent" aria-hidden />;
@@ -585,41 +553,52 @@ export const ChampionshipRealGoBoard: React.FC<{
     );
 };
 
-/** 던전: 경기 종료 후 화면 중앙 결과 + 10초 카운트다운 막대 */
+/** 던전: 경기 종료 후 화면 중앙 결과 (+ 다음 경기 준비 스피너, 또는 최종 결과) */
 const ChampionshipDungeonAutoNextOverlay: React.FC<{
-    secondsLeft: number;
-    totalSeconds: number;
-    movingLabel: string;
+    movingLabel?: string;
+    preparingLabel?: string;
     match: Match;
     currentUser: UserWithStatus;
     tournamentForResult: TournamentState;
-}> = ({ secondsLeft, totalSeconds, movingLabel, match, currentUser, tournamentForResult }) => {
-    const progressPct = Math.max(0, Math.min(100, (secondsLeft / totalSeconds) * 100));
+    tournamentFinished?: boolean;
+    finalStandings?: ChampionshipDungeonStandingRow[] | null;
+}> = ({
+    movingLabel,
+    preparingLabel,
+    match,
+    currentUser,
+    tournamentForResult,
+    tournamentFinished = false,
+    finalStandings = null,
+}) => {
     return (
         <div className="pointer-events-none absolute inset-0 z-40 flex items-center justify-center bg-black/70 p-2 backdrop-blur-[3px] sm:p-4">
-            <div className="flex w-full max-w-md flex-col gap-2.5 sm:gap-3">
+            <div
+                className={`flex w-full max-w-md flex-col gap-2.5 sm:gap-3 ${
+                    tournamentFinished ? 'pointer-events-auto' : ''
+                }`}
+            >
                 <ChampionshipMatchResultPanel
                     match={match}
                     currentUser={currentUser}
                     tournamentForResult={tournamentForResult}
+                    tournamentFinished={tournamentFinished}
+                    finalStandings={finalStandings}
                     compact
                 />
-                <p className="text-center text-xs font-bold leading-snug text-cyan-100 sm:text-sm">
-                    {movingLabel}
-                </p>
-                <div className="w-full px-1">
-                    <div className="mb-1 flex items-center justify-between text-[10px] font-black tabular-nums text-amber-200 sm:text-xs">
-                        <span>{secondsLeft}</span>
-                        <span className="text-cyan-100/90">{tt('nextMatchPreparing', { countdown: secondsLeft })}</span>
-                        <span>{totalSeconds}</span>
-                    </div>
-                    <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-900/95 ring-1 ring-amber-400/35 sm:h-3">
-                        <div
-                            className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-300 to-amber-200 transition-[width] duration-100 ease-linear shadow-[0_0_12px_rgba(251,191,36,0.45)]"
-                            style={{ width: `${progressPct}%` }}
-                        />
-                    </div>
-                </div>
+                {movingLabel ? (
+                    <p className="text-center text-xs font-bold leading-snug text-cyan-100 sm:text-sm">
+                        {movingLabel}
+                    </p>
+                ) : null}
+                {preparingLabel ? (
+                    <InlineLoadingSpinner
+                        size="md"
+                        label={preparingLabel}
+                        className="py-1"
+                        labelClassName="text-[11px] font-bold text-amber-100/95 sm:text-xs"
+                    />
+                ) : null}
             </div>
         </div>
     );
@@ -709,7 +688,9 @@ export const ChampionshipMatchResultPanel: React.FC<{
         </ul>
     ) : null;
 
-    const panelToggleButton = canToggleFinalStandings ? (
+    const showStackedFinalStandings = canToggleFinalStandings;
+    const panelToggleButton =
+        canToggleFinalStandings && !showStackedFinalStandings ? (
         <button
             type="button"
             onClick={() => setPanelView((v) => (v === 'match' ? 'standings' : 'match'))}
@@ -732,6 +713,103 @@ export const ChampionshipMatchResultPanel: React.FC<{
                     compact ? 'px-3 py-2' : 'px-4 py-3 sm:px-5 sm:py-3.5'
                 }`}
             >
+                {showStackedFinalStandings ? (
+                    <div className="flex w-full flex-col gap-2">
+                        <div>
+                            {roundLabel ? (
+                                <div className="flex items-center justify-center">
+                                    <span
+                                        className={`rounded-full border border-amber-300/65 bg-amber-500/15 font-black tracking-wider text-amber-100 ${
+                                            compact ? 'px-1.5 py-0.5 text-[9px]' : 'px-2 py-0.5 text-[10px]'
+                                        }`}
+                                    >
+                                        {roundLabel}
+                                    </span>
+                                </div>
+                            ) : null}
+                            <div
+                                className={`flex items-center justify-center ${roundLabel ? (compact ? 'mt-1.5 gap-1.5' : 'mt-2 gap-2') : compact ? 'gap-1.5' : 'gap-2 sm:gap-3'}`}
+                            >
+                                <div className={`flex flex-col items-center ${compact ? 'w-[4.5rem]' : 'w-[5rem] sm:w-[5.6rem]'}`}>
+                                    <div
+                                        className={`shrink-0 rounded-full ${
+                                            userWonThisMatch
+                                                ? 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
+                                                : 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
+                                        }`}
+                                    >
+                                        <Avatar
+                                            userId={userInMatch?.id ?? currentUser.id}
+                                            userName={userInMatch?.nickname ?? tt('me')}
+                                            avatarUrl={userAvatarUrl}
+                                            borderUrl={userBorderUrl}
+                                            size={compact ? 40 : 48}
+                                        />
+                                    </div>
+                                    <div
+                                        className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
+                                    >
+                                        {userInMatch?.nickname ?? tt('me')}
+                                    </div>
+                                    <div
+                                        className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}
+                                    >
+                                        {tt('tournamentRecord', { wins: userRecord.wins, losses: userRecord.losses })}
+                                    </div>
+                                </div>
+                                <div className="flex flex-col items-center justify-center">
+                                    <div
+                                        className={`font-black leading-tight ${compact ? 'text-base' : 'text-lg sm:text-xl'} ${userWonThisMatch ? 'text-emerald-200' : 'text-rose-200'}`}
+                                    >
+                                        {userWonThisMatch ? tt('victory') : tt('defeat')}
+                                    </div>
+                                    <div
+                                        className={`mt-0.5 font-bold text-slate-300 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-xs'}`}
+                                    >
+                                        {finishedScoreLeadAbs > 0 ? tt('scoreLead', { points: finishedScoreLeadAbs.toFixed(1) }) : tt('jigo')}
+                                    </div>
+                                </div>
+                                <div className={`flex flex-col items-center ${compact ? 'w-[4.5rem]' : 'w-[5rem] sm:w-[5.6rem]'}`}>
+                                    <div
+                                        className={`shrink-0 rounded-full ${
+                                            userWonThisMatch
+                                                ? 'ring-2 ring-rose-400/90 ring-offset-1 ring-offset-slate-950'
+                                                : 'ring-2 ring-emerald-400/90 ring-offset-1 ring-offset-slate-950'
+                                        }`}
+                                    >
+                                        <Avatar
+                                            userId={opponentInMatch?.id ?? 'opponent'}
+                                            userName={opponentInMatch?.nickname ?? tt('opponent')}
+                                            avatarUrl={opponentAvatarUrl}
+                                            borderUrl={opponentBorderUrl}
+                                            size={compact ? 40 : 48}
+                                        />
+                                    </div>
+                                    <div
+                                        className={`mt-0.5 max-w-full truncate font-bold text-slate-100 ${compact ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
+                                    >
+                                        {opponentInMatch?.nickname ?? tt('opponent')}
+                                    </div>
+                                    <div
+                                        className={`font-semibold text-emerald-200/85 ${compact ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'}`}
+                                    >
+                                        {tt('tournamentRecord', { wins: opponentRecord.wins, losses: opponentRecord.losses })}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div className="w-full border-t border-amber-300/25 pt-2 text-left">
+                            <div
+                                className={`mb-1 text-center font-black tracking-wide text-amber-100 ${
+                                    compact ? 'text-[10px]' : 'text-[11px] sm:text-xs'
+                                }`}
+                            >
+                                {tt('finalResult')}
+                            </div>
+                            {finalStandingsList}
+                        </div>
+                    </div>
+                ) : (
                 <div className="grid [&>*]:col-start-1 [&>*]:row-start-1">
                     <div className={panelView === 'standings' ? 'invisible' : 'visible'}>
                         {roundLabel ? (
@@ -826,6 +904,7 @@ export const ChampionshipMatchResultPanel: React.FC<{
                         </div>
                     ) : null}
                 </div>
+                )}
             </div>
             {panelToggleButton ? (
                 <div className={`w-full shrink-0 ${compact ? 'mt-1.5' : 'mt-2'}`}>{panelToggleButton}</div>
@@ -3623,16 +3702,13 @@ const FinalRewardPanel: React.FC<{
     /** 획득 보상 타일만 서버 기준으로 고정 (시뮬레이션 로컬 상태와 분리) */
     const rs = rewardsSourceTournament ?? tournamentState;
     
-    // 모든 경기가 완료되었는지 확인
-    const allMatchesFinished = rounds.every(r => r.matches.every(m => m.isFinished));
     /** 월드 등: 예상 변경권 칩은 최소 1경기 종료 후에만 표시 (경기 전 단계 테이블 값 노출 방지) */
     const hasAnyFinishedMatch = (Array.isArray(rounds) ? rounds : []).some((r) =>
         (r.matches ?? []).some((m) => m.isFinished),
     );
     
-    // 토너먼트가 완전히 완료되었는지 확인 (status가 complete이거나, 모든 경기가 완료된 경우)
-    const isTournamentFullyComplete = tournamentState.status === 'complete' || (allMatchesFinished && tournamentState.status !== 'round_in_progress');
-    const isUserEliminated = tournamentState.status === 'eliminated';
+    // 빈 rounds.every → true 함정 방지: 배너·보상받기와 동일하게 세션 종료 헬퍼 사용
+    const isTournamentFullyComplete = isChampionshipSessionFinished(tournamentState);
     const isInProgress = tournamentState.status === 'round_in_progress' || tournamentState.status === 'bracket_ready';
     const isRoundComplete = tournamentState.status === 'round_complete';
     // 동네바둑리그: 회차별·누적 골드(서버 rs, 수령 모달과 동일 출처)
@@ -3669,7 +3745,7 @@ const FinalRewardPanel: React.FC<{
     const rewardClaimedKey = `${type}RewardClaimed` as keyof User;
     const isClaimed = !!currentUser[rewardClaimedKey];
     const treatAsClaimed = isClaimed || !!dungeonRewardAlreadyRequested;
-    const canClaimReward = (isTournamentFullyComplete || isUserEliminated) && !isClaimed && !dungeonRewardAlreadyRequested;
+    const canClaimReward = isTournamentFullyComplete && !isClaimed && !dungeonRewardAlreadyRequested;
     
     // 중복 클릭 방지를 위한 상태
     const [isClaiming, setIsClaiming] = useState(false);
@@ -3740,7 +3816,7 @@ const FinalRewardPanel: React.FC<{
     }, [finalUserRank, effectiveStageAttempt, type, claimedRewardSummary]);
 
     const showSideActionsColumn = !isMobileTabLayout && !suppressBottomActions && !suppressSideActionButtons;
-    const canShowExpectedRewardPreview = isDungeonMode && !isTournamentFullyComplete && !isUserEliminated;
+    const canShowExpectedRewardPreview = isDungeonMode && !isTournamentFullyComplete;
     const useSplitRewardLayout = canShowExpectedRewardPreview && suppressSideActionButtons;
     const exitActionButton = onExitToLobby ? (
         <button
@@ -4003,7 +4079,7 @@ const FinalRewardPanel: React.FC<{
     })() : null;
 
     const sideActionButtons = !suppressBottomActions ? (
-        (isTournamentFullyComplete || isUserEliminated) && treatAsClaimed ? (
+        isTournamentFullyComplete && treatAsClaimed ? (
             <>
                 {!suppressClaimActions && isDungeonMode && onCompleteDungeon && !isClaimed ? (
                     <button
@@ -4023,7 +4099,7 @@ const FinalRewardPanel: React.FC<{
             </>
         ) : !treatAsClaimed ? (
             <>
-                {!suppressClaimActions && (isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt ? (
+                {!suppressClaimActions && isTournamentFullyComplete && effectiveStageAttempt ? (
                     <button
                         onClick={handleClaim}
                         disabled={!canClaimReward || isClaiming}
@@ -4037,10 +4113,10 @@ const FinalRewardPanel: React.FC<{
                     </button>
                 ) : null}
                 {expectedRewardActionButton}
-                {(isTournamentFullyComplete || isUserEliminated) ? exitActionButton : null}
+                {isTournamentFullyComplete ? exitActionButton : null}
                 {!suppressClaimActions &&
                 (isInProgress || isRoundComplete) &&
-                !((isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt) ? (
+                !(isTournamentFullyComplete && effectiveStageAttempt) ? (
                     <div className="w-full rounded-lg border border-sky-500/35 bg-sky-950/55 px-2 py-1.5 text-center text-[10.5px] font-bold leading-tight text-sky-200">
                         모든 경기 완료 후 보상수령
                     </div>
@@ -4050,7 +4126,7 @@ const FinalRewardPanel: React.FC<{
     ) : null;
 
     const acquiredRewardsClaimMessage =
-        (isTournamentFullyComplete || isUserEliminated) && treatAsClaimed ? (
+        isTournamentFullyComplete && treatAsClaimed ? (
             <div className="mb-1 w-full rounded-lg border border-green-700/50 bg-green-900/30 px-1.5 py-1">
                 <p className="text-center text-xs font-semibold text-green-400">{tt('rewardClaimed')}</p>
             </div>
@@ -4115,7 +4191,7 @@ const FinalRewardPanel: React.FC<{
                 const canPreviewChampCoins =
                     isDungeonMode &&
                     effectiveStageAttempt >= 1 &&
-                    (isTournamentFullyComplete || isUserEliminated) &&
+                    isTournamentFullyComplete &&
                     !treatAsClaimed;
                 const champCoinPreviewLabel = canPreviewChampCoins
                     ? formatDungeonChampCoinRewardPreviewLabel(effectiveStageAttempt, dungeonUserWinsForChampCoins)
@@ -5555,11 +5631,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const [championshipSidebarTab, setChampionshipSidebarTab] = useState<'commentary' | 'bracket'>('bracket');
     const [isRightSidebarCollapsed, setIsRightSidebarCollapsed] = useState(false);
     const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(
-        () =>
-            isMobile &&
-            (tournament.status === 'complete' ||
-                tournament.status === 'eliminated' ||
-                tournament.rounds.every((r) => r.matches.every((m) => m.isFinished))),
+        () => isMobile && isChampionshipSessionFinished(tournament),
     );
     const [dungeonStageSummaryData, setDungeonStageSummaryData] = useState<{
         dungeonType: TournamentType;
@@ -5598,21 +5670,23 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const [nextRoundTrigger, setNextRoundTrigger] = useState(0);
     const p1ProfileRef = useRef<HTMLDivElement>(null);
     const p2ProfileRef = useRef<HTMLDivElement>(null);
-    const [autoNextCountdown, setAutoNextCountdown] = useState<number | null>(null); // 자동 다음 경기 카운트다운
+    /** null이 아니면 다음 경기 준비 대기(스피너). 숫자 값은 UI에 쓰지 않음 */
+    const [autoNextCountdown, setAutoNextCountdown] = useState<number | null>(null);
     const autoNextTimerRef = useRef<NodeJS.Timeout | null>(null);
     const nextRoundStartTimeCheckRef = useRef<NodeJS.Timeout | null>(null);
-    const countdownRef = useRef<number>(0); // 카운트다운 값을 저장하는 ref
     const hasAutoStartedRef = useRef(false); // 오늘 처음 입장했는지 확인
     const tournamentRef = useRef<TournamentState | undefined>(tournament); // 최신 tournament 상태를 ref로 저장
-    const autoStartTimeRef = useRef<number | null>(null); // 카운트다운 시작 시간을 저장하는 ref
+    const autoStartTimeRef = useRef<number | null>(null); // 최소 결과 연출 종료 시각(nextRoundStartTime)
     const savedStartTimeRef = useRef<number | null>(null); // nextRoundStartTime을 저장하는 ref
     /** 동일 nextRoundStartTime에 대해 START_TOURNAMENT_MATCH를 한 번만 보내기 (무한 재요청 방지) */
     const hasTriggeredStartForTimeRef = useRef<number | null>(null);
-    /** 카운트다운 시작 시점에 기보 선생성(2회차~) 요청을 한 번만 보냄 */
+    /** 대기 시작 시점에 기보 선생성(2회차~) 요청을 한 번만 보냄 */
     const prefetchTriggeredForStartTimeRef = useRef<number | null>(null);
-    /** 기보 미준비 시 카운트다운 연장 횟수 */
-    const countdownExtendCountRef = useRef(0);
-    /** 2회차~ 자동 전환: 결과·막대 연출 중에는 기보 선생성 UI가 보드를 가리지 않게 */
+    /** 기보 미준비 시 START/prefetch 재시도 시각 */
+    const lastNextMatchPrefetchRetryAtRef = useRef(0);
+    /** 이번 자동 다음 경기 대기 시작 시각(기보 생성 지연 판별) */
+    const nextMatchWaitStartedAtRef = useRef(0);
+    /** 2회차~ 자동 전환: 결과·스피너 중에는 기보 선생성 UI가 보드를 가리지 않게 */
     const dungeonAutoNextResultReviewRef = useRef(false);
     /** 카운트다운 0 시 먼저 다음 회차 탭으로 전환한 뒤 시합 시작 (순서: 대진표 탭 이동 → 대국자 표시 → 시합 시작) */
     const [pendingRoundSwitchTo, setPendingRoundSwitchTo] = useState<number | null>(null);
@@ -5631,12 +5705,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             autoNextTimerRef.current = null;
         }
         setAutoNextCountdown(null);
-        countdownRef.current = 0;
         autoStartTimeRef.current = null;
         savedStartTimeRef.current = null;
         hasTriggeredStartForTimeRef.current = null;
         prefetchTriggeredForStartTimeRef.current = null;
-        countdownExtendCountRef.current = 0;
+        lastNextMatchPrefetchRetryAtRef.current = 0;
+        nextMatchWaitStartedAtRef.current = 0;
         dungeonAutoNextResultReviewRef.current = false;
     }, []);
 
@@ -6086,18 +6160,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
         
         // 서버에서 자동으로 다음 경기를 시작하므로 클라이언트는 단순히 상태 변경을 감지
-        // bracket_ready 상태일 때는 카운트다운 타이머가 nextRoundStartTime 전용 effect에서만 관리됨.
+        // bracket_ready 상태일 때는 대기 타이머가 nextRoundStartTime 전용 effect에서만 관리됨.
         // 이 effect에서는 타이머를 정리하지 않음 (currentRoundRobinRound/safeRounds 변경 시 cleanup이
-        // 호출되어 카운트다운이 5에서 멈추는 버그 방지).
-        // complete / eliminated 로 바뀐 경우, 또는 실제 경기 시작(카운트다운 종료)일 때만 타이머 정리.
-        // 던전 2회차 이후는 카운트다운 중 다음 경기 기보를 선생성하면서 서버 상태가 round_in_progress로
+        // 호출되어 대기가 끊기는 버그 방지).
+        // complete / eliminated 로 바뀐 경우, 또는 실제 경기 시작(대기 종료)일 때만 타이머 정리.
+        // 던전 2회차 이후는 대기 중 다음 경기 기보를 선생성하면서 서버 상태가 round_in_progress로
         // 먼저 들어올 수 있다. 이때 타이머를 지우면 직전 결과 화면이 사라지고 다음 보드가 바로 노출된다.
         const preservingDungeonAutoNextReview =
             status === 'round_in_progress' &&
             tournament.currentStageAttempt != null &&
             dungeonAutoNextResultReviewRef.current &&
-            savedStartTimeRef.current != null &&
-            Date.now() < savedStartTimeRef.current;
+            savedStartTimeRef.current != null;
         if (status === 'complete' || status === 'eliminated' || (status === 'round_in_progress' && !preservingDungeonAutoNextReview)) {
             clearDungeonAutoNextCountdownState();
         }
@@ -6123,7 +6196,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
     }, [tournament]);
 
-    // nextRoundStartTime 체크: 10초 카운트다운 후 자동으로 경기 시작
+    // nextRoundStartTime: 최소 결과 연출 후, 다음 경기 기보가 준비될 때까지 스피너로 대기하다 자동 시작
     useEffect(() => {
         const nextRoundStartTime = tournament?.nextRoundStartTime;
         const status = tournament?.status;
@@ -6133,28 +6206,27 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             tournament?.type ?? 'neighborhood',
             tournament?.currentRoundRobinRound,
         );
-        const canKeepPrefetchCountdown =
+        const canKeepPrefetchWait =
             status === 'round_in_progress' &&
             tournament?.currentStageAttempt != null &&
             dungeonAutoNextResultReviewRef.current &&
-            savedStartTimeRef.current != null &&
-            Date.now() < savedStartTimeRef.current;
+            savedStartTimeRef.current != null;
 
         if (
             status === 'complete' ||
             status === 'eliminated' ||
             !hasNextUserMatch ||
-            (status !== 'bracket_ready' && status !== 'round_complete' && !canKeepPrefetchCountdown)
+            (status !== 'bracket_ready' && status !== 'round_complete' && !canKeepPrefetchWait)
         ) {
             clearDungeonAutoNextCountdownState();
             return;
         }
         
-        // nextRoundStartTime이 없을 때: 이미 카운트다운이 진행 중이면 유지(잠깐 undefined 오는 경우 대비)
+        // nextRoundStartTime이 없을 때: 이미 대기 중이면 유지(잠깐 undefined 오는 경우 대비)
         if (!nextRoundStartTime) {
             const saved = savedStartTimeRef.current;
-            if (saved != null && Date.now() < saved && autoNextTimerRef.current) {
-                return; // 이미 동일 회차 카운트다운 진행 중 → 타이머 유지
+            if (saved != null && autoNextTimerRef.current) {
+                return;
             }
             clearDungeonAutoNextCountdownState();
             return;
@@ -6175,17 +6247,17 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         savedStartTimeRef.current = nextRoundStartTime;
         autoStartTimeRef.current = nextRoundStartTime;
         hasTriggeredStartForTimeRef.current = null;
-        countdownExtendCountRef.current = 0;
+        lastNextMatchPrefetchRetryAtRef.current = 0;
+        nextMatchWaitStartedAtRef.current = Date.now();
         const savedTournamentType = tournament?.type;
         const savedCurrentRound = tournament?.currentRoundRobinRound;
+        // 대기 플래그(숫자 UI는 쓰지 않음). null이 아니면 오버레이/스피너 표시
+        setAutoNextCountdown(0);
 
-        const updateCountdown = () => {
-            // savedStartTimeRef를 사용하여 타이머가 중단되지 않도록 함
+        const tryStartWhenReady = () => {
             const startTime = savedStartTimeRef.current;
             if (!startTime) {
-                // startTime이 없으면 타이머 정리
                 setAutoNextCountdown(null);
-                countdownRef.current = 0;
                 if (autoNextTimerRef.current) {
                     clearInterval(autoNextTimerRef.current);
                     autoNextTimerRef.current = null;
@@ -6194,139 +6266,137 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             }
 
             const now = Date.now();
-            const timeUntilStart = startTime - now;
-            const secondsLeft = Math.max(0, Math.ceil(timeUntilStart / 1000));
-
-            // 항상 카운트다운 업데이트 (0까지 표시)
-            setAutoNextCountdown(secondsLeft);
-
-            // 디버깅: 매 초마다 로그 출력 (초가 변경될 때만)
-            if (countdownRef.current !== secondsLeft) {
-                countdownRef.current = secondsLeft;
-                if (secondsLeft > 0) {
-                    console.log(`[TournamentBracket] Countdown: ${secondsLeft}s left (startTime: ${startTime}, now: ${now}, diff: ${timeUntilStart}ms)`);
-                } else {
-                    console.log(`[TournamentBracket] Countdown reached 0, starting match...`);
-                }
+            const minReviewRemaining = startTime - now;
+            // 최소 결과 연출이 끝나기 전에는 시작하지 않음
+            if (minReviewRemaining > 0) {
+                return;
             }
 
-            // 시간이 지났거나 0에 도달했을 때 경기 시작(2회차~: 기보 선생성 완료 시 즉시, 미완료 시 연출 연장)
-            if (timeUntilStart <= 0) {
-                const currentTournament = tournamentRef.current;
-                const rounds = currentTournament?.rounds || [];
-                const tournamentType = currentTournament?.type || savedTournamentType;
-                const currentRound = currentTournament?.currentRoundRobinRound || savedCurrentRound;
+            const currentTournament = tournamentRef.current;
+            const rounds = currentTournament?.rounds || [];
+            const tournamentType = currentTournament?.type || savedTournamentType;
+            const currentRound = currentTournament?.currentRoundRobinRound || savedCurrentRound;
 
-                const located = findNextUnfinishedUserMatch(
-                    rounds,
-                    tournamentType ?? 'neighborhood',
-                    currentRound,
-                );
-                const nextMatch = located?.match;
-                const roundNumForTab = located?.roundNumForTab ?? currentRound ?? null;
+            const located = findNextUnfinishedUserMatch(
+                rounds,
+                tournamentType ?? 'neighborhood',
+                currentRound,
+            );
+            const nextMatch = located?.match;
+            const roundNumForTab = located?.roundNumForTab ?? currentRound ?? null;
 
-                const finishedUserMatchCount = countFinishedUserMatches(rounds);
-                const isSubsequentMatch = finishedUserMatchCount >= 1;
-                const liveNextMatch = nextMatch ? findMatchInRounds(rounds, nextMatch.id) : undefined;
-                const recordReady = isChampionshipRealGameRecordReady(liveNextMatch ?? nextMatch);
+            const finishedUserMatchCount = countFinishedUserMatches(rounds);
+            const isSubsequentMatch = finishedUserMatchCount >= 1;
+            const liveNextMatch = nextMatch ? findMatchInRounds(rounds, nextMatch.id) : undefined;
+            const recordReady = isChampionshipRealGameRecordReady(liveNextMatch ?? nextMatch);
 
-                if (isSubsequentMatch && !recordReady) {
-                    if (countdownExtendCountRef.current < DUNGEON_AUTO_NEXT_COUNTDOWN_MAX_EXTENDS) {
-                        countdownExtendCountRef.current += 1;
-                        const newStart = Date.now() + DUNGEON_AUTO_NEXT_COUNTDOWN_EXTEND_MS;
-                        savedStartTimeRef.current = newStart;
-                        setAutoNextCountdown(Math.ceil(DUNGEON_AUTO_NEXT_COUNTDOWN_EXTEND_MS / 1000));
-                        return;
+            // 2회차~: 기보가 준비될 때까지 스피너로 대기. 선생성 실패/미시작이면 주기적으로 START 재시도
+            if (isSubsequentMatch && !recordReady) {
+                const retryEveryMs = 12_000;
+                const hungGenerationMs = 90_000;
+                const st = currentTournament?.status;
+                const generatingId = currentTournament?.championshipMatchGeneratingMatchId;
+                const waitedMs = now - (nextMatchWaitStartedAtRef.current || now);
+                const generationLooksHung =
+                    st === 'round_in_progress' && !!generatingId && waitedMs >= hungGenerationMs;
+                const canRetryStart =
+                    st === 'bracket_ready' ||
+                    st === 'round_complete' ||
+                    (st === 'round_in_progress' && !generatingId) ||
+                    generationLooksHung;
+                if (canRetryStart && now - lastNextMatchPrefetchRetryAtRef.current >= retryEveryMs) {
+                    lastNextMatchPrefetchRetryAtRef.current = now;
+                    championshipMatchStartRequestSentRef.current = false;
+                    championshipMatchStartLockRef.current = false;
+                    console.warn(
+                        '[TournamentBracket] Next-match record not ready — retrying silent START prefetch',
+                        { nextMatchId: nextMatch?.id, status: st, generatingId, generationLooksHung },
+                    );
+                    void finalizeChampionshipDungeonMatchStartRef.current?.({ silentPrefetch: true });
+                }
+                return;
+            }
+
+            if (hasTriggeredStartForTimeRef.current === startTime) {
+                return;
+            }
+            hasTriggeredStartForTimeRef.current = startTime;
+
+            setAutoNextCountdown(null);
+            if (autoNextTimerRef.current) {
+                clearInterval(autoNextTimerRef.current);
+                autoNextTimerRef.current = null;
+            }
+            autoStartTimeRef.current = null;
+            savedStartTimeRef.current = null;
+            dungeonAutoNextResultReviewRef.current = false;
+
+            const skipStartRequest =
+                recordReady && currentTournament?.status === 'round_in_progress';
+
+            if (nextMatch) {
+                console.log('[TournamentBracket] Auto-starting match after next-match ready', {
+                    nextMatch: nextMatch.id,
+                    status: currentTournament?.status,
+                    type: tournamentType,
+                    roundNumForTab,
+                    skipStartRequest,
+                    recordReady,
+                });
+                if (tournamentType === 'neighborhood' && roundNumForTab != null) {
+                    setPendingRoundSwitchTo(roundNumForTab);
+                    pendingMatchStartRef.current = skipStartRequest
+                        ? null
+                        : { type: 'neighborhood' as TournamentType };
+                    setLastUserMatchSgfIndex(null);
+                    const players = currentTournament?.players;
+                    if (Array.isArray(players)) {
+                        const p1 = players.find((p: PlayerForTournament) => p.id === nextMatch!.players[0]?.id) || null;
+                        const p2 = players.find((p: PlayerForTournament) => p.id === nextMatch!.players[1]?.id) || null;
+                        const createPlayerCopy = (player: PlayerForTournament): PlayerForTournament => ({
+                            ...player,
+                            stats: (player.originalStats || player.stats) ? { ...(player.originalStats || player.stats)! } : player.stats,
+                            originalStats: player.originalStats ? { ...player.originalStats } : (player.stats ? { ...player.stats } : undefined)
+                        });
+                        setInitialMatchPlayers({
+                            p1: p1 ? createPlayerCopy(p1) : null,
+                            p2: p2 ? createPlayerCopy(p2) : null,
+                        });
+                        initialMatchPlayersSetRef.current = true;
                     }
+                } else if (!skipStartRequest) {
+                    triggerDungeonAutoMatchStart();
                 }
-
-                if (hasTriggeredStartForTimeRef.current === startTime) {
-                    return;
-                }
-                hasTriggeredStartForTimeRef.current = startTime;
-
-                setAutoNextCountdown(null);
-                countdownRef.current = 0;
-                if (autoNextTimerRef.current) {
-                    clearInterval(autoNextTimerRef.current);
-                    autoNextTimerRef.current = null;
-                }
-                autoStartTimeRef.current = null;
-                savedStartTimeRef.current = null;
-                dungeonAutoNextResultReviewRef.current = false;
-
-                const skipStartRequest =
-                    recordReady && currentTournament?.status === 'round_in_progress';
-
-                if (nextMatch) {
-                    console.log('[TournamentBracket] Auto-starting match after countdown', {
-                        nextMatch: nextMatch.id,
-                        status: currentTournament?.status,
-                        type: tournamentType,
-                        roundNumForTab,
-                        skipStartRequest,
-                        recordReady,
-                    });
-                    if (tournamentType === 'neighborhood' && roundNumForTab != null) {
-                        setPendingRoundSwitchTo(roundNumForTab);
-                        pendingMatchStartRef.current = skipStartRequest
-                            ? null
-                            : { type: 'neighborhood' as TournamentType };
-                        setLastUserMatchSgfIndex(null);
-                        const players = currentTournament?.players;
-                        if (Array.isArray(players)) {
-                            const p1 = players.find((p: PlayerForTournament) => p.id === nextMatch!.players[0]?.id) || null;
-                            const p2 = players.find((p: PlayerForTournament) => p.id === nextMatch!.players[1]?.id) || null;
-                            const createPlayerCopy = (player: PlayerForTournament): PlayerForTournament => ({
-                                ...player,
-                                stats: (player.originalStats || player.stats) ? { ...(player.originalStats || player.stats)! } : player.stats,
-                                originalStats: player.originalStats ? { ...player.originalStats } : (player.stats ? { ...player.stats } : undefined)
-                            });
-                            setInitialMatchPlayers({
-                                p1: p1 ? createPlayerCopy(p1) : null,
-                                p2: p2 ? createPlayerCopy(p2) : null,
-                            });
-                            initialMatchPlayersSetRef.current = true;
-                        }
-                    } else if (!skipStartRequest) {
-                        triggerDungeonAutoMatchStart();
-                    }
-                } else {
-                    console.warn('[TournamentBracket] Cannot auto-start match: no next match found', {
-                        status: currentTournament?.status,
-                        type: tournamentType,
-                        roundNumForTab,
-                        roundsCount: rounds.length
-                    });
-                }
+            } else {
+                console.warn('[TournamentBracket] Cannot auto-start match: no next match found', {
+                    status: currentTournament?.status,
+                    type: tournamentType,
+                    roundNumForTab,
+                    roundsCount: rounds.length
+                });
             }
         };
 
-        // 즉시 한 번 실행하고 타이머 시작
-        const timeUntilStart = savedStartTimeRef.current - Date.now();
-        console.log(`[TournamentBracket] nextRoundStartTime detected: ${savedStartTimeRef.current}, current time: ${Date.now()}, time until start: ${timeUntilStart}ms, status: ${status}`);
+        console.log(`[TournamentBracket] nextRoundStartTime detected: ${savedStartTimeRef.current}, status: ${status}`);
 
-        updateCountdown();
-
-        // 2회차 이후: 결과·막대 연출이 보이는 동안 백그라운드로 다음 경기 기보 선생성
+        // 2회차 이후: 결과·스피너가 보이는 동안 백그라운드로 다음 경기 기보 선생성
         const snapshotRounds = tournament?.rounds ?? [];
         const finishedUserMatchCount = countFinishedUserMatches(snapshotRounds);
         if (finishedUserMatchCount >= 1 && tournament?.currentStageAttempt != null) {
             dungeonAutoNextResultReviewRef.current = true;
+            // 대기 시작 직후 바로 재시도 타이머가 돌지 않도록 기준시각 기록
+            lastNextMatchPrefetchRetryAtRef.current = Date.now();
+            nextMatchWaitStartedAtRef.current = Date.now();
             if (prefetchTriggeredForStartTimeRef.current !== nextRoundStartTime) {
                 prefetchTriggeredForStartTimeRef.current = nextRoundStartTime;
+                championshipMatchStartRequestSentRef.current = false;
+                championshipMatchStartLockRef.current = false;
                 void finalizeChampionshipDungeonMatchStartRef.current?.({ silentPrefetch: true });
             }
         }
-        
-        // 이미 시간이 지나간 경우 즉시 시작
-        if (timeUntilStart <= 0) {
-            console.log(`[TournamentBracket] nextRoundStartTime already passed, starting match immediately`);
-            updateCountdown(); // 이 함수 내에서 자동 시작 처리
-        } else {
-            // 100ms마다 업데이트하여 정확한 카운트다운 유지
-            autoNextTimerRef.current = setInterval(updateCountdown, 100);
-        }
+
+        tryStartWhenReady();
+        autoNextTimerRef.current = setInterval(tryStartWhenReady, 100);
 
         return () => {
             // cleanup: nextRoundStartTime이 변경될 때만 타이머 정리
@@ -6788,10 +6858,23 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             ?? null
         : null;
 
+    const lastFinishedUserMatchFromDisplay = useMemo(() => {
+        const rounds = Array.isArray(displayTournament?.rounds) ? displayTournament.rounds : [];
+        return [...rounds].reverse().flatMap(r => r.matches).find(m => m.isUserMatch && m.isFinished);
+    }, [displayTournament?.rounds]);
+
     // 경기 종료 화면 유지 로직
     const matchForDisplay = useMemo(() => {
         // 다음 경기 카운트다운·기보 선생성 중에는 직전 경기 결과 화면을 유지한다.
         if (dungeonAutoNextResultReviewActive && lastFinishedUserMatch) {
+            const fromDisplay = lastFinishedUserMatchFromDisplay;
+            if (
+                fromDisplay?.id === lastFinishedUserMatch.id &&
+                (fromDisplay.championshipRealGame?.moves?.length ?? 0) >
+                    (lastFinishedUserMatch.championshipRealGame?.moves?.length ?? 0)
+            ) {
+                return fromDisplay;
+            }
             return lastFinishedUserMatch;
         }
 
@@ -6802,11 +6885,23 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             const upcomingMatch = safeRounds.flatMap(r => r.matches).find(m => m.isUserMatch && !m.isFinished);
             if (upcomingMatch) return upcomingMatch;
         }
+
+        // 토너먼트 종료(마지막 경기): 시뮬 훅이 보존한 기보·판면을 우선 표시
+        if (terminalTournamentStatus) {
+            if (currentSimMatch?.championshipRealGame?.moves?.length) return currentSimMatch;
+            if (lastFinishedUserMatchFromDisplay?.championshipRealGame?.moves?.length) {
+                return lastFinishedUserMatchFromDisplay;
+            }
+            if (lastFinishedUserMatch) return lastFinishedUserMatch;
+        }
         
         // round_complete 상태일 때는 마지막 완료된 경기 화면을 그대로 유지
         // (전국바둑대회, 월드챔피언십, 동네바둑리그 모두 동일하게 처리)
         if (tournament.status === 'round_complete') {
             // lastFinishedUserMatch가 있으면 우선적으로 사용
+            if (lastFinishedUserMatchFromDisplay?.championshipRealGame?.moves?.length) {
+                return lastFinishedUserMatchFromDisplay;
+            }
             if (lastFinishedUserMatch) {
                 return lastFinishedUserMatch;
             }
@@ -6830,8 +6925,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                 tournament.nextRoundStartTime != null && Date.now() < tournament.nextRoundStartTime;
             // 카운트다운 중이거나, 카운트다운이 없어도 직전에 끝난 유저 경기가 있으면 그 결과 화면을 계속 보여준다.
             // 챔피언십 던전: 매 경기 종료 후 유저가 "다음 경기" 버튼을 눌러야 다음 경기로 넘어간다.
-            if (lastFinishedUserMatch && (countdownInProgress || lastFinishedUserMatch.championshipRealGame?.status === 'finished')) {
-                return lastFinishedUserMatch;
+            const finishedForBracket =
+                lastFinishedUserMatchFromDisplay?.championshipRealGame?.moves?.length
+                    ? lastFinishedUserMatchFromDisplay
+                    : lastFinishedUserMatch;
+            if (finishedForBracket && (countdownInProgress || finishedForBracket.championshipRealGame?.status === 'finished' || finishedForBracket.championshipRealGame?.status === 'scoring')) {
+                return finishedForBracket;
             }
             if (!countdownInProgress) {
                 if (tournament.type === 'neighborhood') {
@@ -6846,7 +6945,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                     if (nextMatch) return nextMatch;
                 }
             }
-            if (lastFinishedUserMatch) return lastFinishedUserMatch;
+            if (finishedForBracket) return finishedForBracket;
             const finishedMatch = [...safeRounds].reverse().flatMap(r => r.matches).find(m => m.isUserMatch && m.isFinished);
             if (finishedMatch) return finishedMatch;
         }
@@ -6855,6 +6954,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const nextMatch = safeRounds.flatMap(r => r.matches).find(m => m.isUserMatch && !m.isFinished);
         if (nextMatch) {
             return nextMatch;
+        }
+        if (lastFinishedUserMatchFromDisplay?.championshipRealGame?.moves?.length) {
+            return lastFinishedUserMatchFromDisplay;
         }
         if (lastFinishedUserMatch) {
             return lastFinishedUserMatch;
@@ -6868,7 +6970,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             return anyUserMatch;
         }
         return safeRounds[0]?.matches[0] || null;
-    }, [isSimulating, currentSimMatch, displayTournament, currentUser?.id, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, pendingRoundSwitchTo, autoNextCountdown, dungeonAutoNextResultReviewActive]);
+    }, [isSimulating, currentSimMatch, displayTournament, currentUser?.id, tournament.status, tournament.nextRoundStartTime, tournament.type, safeRounds, lastFinishedUserMatch, lastFinishedUserMatchFromDisplay, pendingRoundSwitchTo, autoNextCountdown, dungeonAutoNextResultReviewActive, terminalTournamentStatus]);
 
     useChampionshipReplayPlaceStoneSound(
         matchForDisplay?.championshipRealGame?.currentPly,
@@ -7178,6 +7280,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     };
 
     const isDungeonChampionshipVenue = tournament.currentStageAttempt != null;
+    const championshipFinished = isChampionshipSessionFinished(displayTournament);
 
     const showChampionshipMatchResultPanel = useMemo(() => {
         if (!isDungeonChampionshipVenue) return false;
@@ -7201,8 +7304,28 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const showDungeonAutoNextTransitionOverlay =
         isDungeonChampionshipVenue && autoNextCountdown !== null && showChampionshipMatchResultPanel;
 
+    /** 전국/월드 탈락: 서버는 이미 eliminated지만 클라가 결과+나머지 경기 연출 중인 구간 */
+    const showDungeonEliminationRemainingOverlay =
+        isDungeonChampionshipVenue &&
+        isChampionshipEliminationRemainingMatchesPath(tournament) &&
+        displayTournament.status === 'round_in_progress' &&
+        showChampionshipMatchResultPanel &&
+        matchForDisplay?.championshipRealGame?.status === 'finished' &&
+        !showDungeonAutoNextTransitionOverlay;
+
+    /** 마지막 경기(우승 등): 다음 경기 대기가 없어도 바둑판 중앙에 결과 표시 */
+    const showDungeonFinalResultCenterOverlay =
+        isDungeonChampionshipVenue &&
+        championshipFinished &&
+        showChampionshipMatchResultPanel &&
+        !showDungeonAutoNextTransitionOverlay &&
+        !showDungeonEliminationRemainingOverlay;
+
     const showChampionshipMatchResultInSidebar =
-        showChampionshipMatchResultPanel && !showDungeonAutoNextTransitionOverlay;
+        showChampionshipMatchResultPanel &&
+        !showDungeonAutoNextTransitionOverlay &&
+        !showDungeonFinalResultCenterOverlay &&
+        !showDungeonEliminationRemainingOverlay;
 
     const renderFooterButton = () => {
         if (!tournament) return null;
@@ -7236,7 +7359,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             autoNextCountdown !== null ||
             pendingRoundSwitchTo != null;
 
-        // 챔피언십 던전: 첫 경기만 수동 시작, 이후는 서버 10초 카운트다운 후 자동 진행
+        // 챔피언십 던전: 첫 경기만 수동 시작, 이후는 결과 연출 후 기보 준비되면 자동 진행
         const isDungeonChampionship = !!tournament.currentStageAttempt;
         const isFirstRoundBeforeStart = tournament.type !== 'neighborhood' || (tournament.currentRoundRobinRound === 1);
         const hasJustFinishedUserMatch = !!lastFinishedUserMatch;
@@ -7336,14 +7459,12 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (!isDungeonChampionshipVenue) return null;
 
         const ts = displayTournament;
-        const isUserEliminated = ts.status === 'eliminated';
-        const allMatchesDone = ts.rounds.every((r) => r.matches.every((m) => m.isFinished));
-        const isFullyComplete = ts.status === 'complete' || (allMatchesDone && ts.status !== 'round_in_progress');
+        const isFullyComplete = isChampionshipSessionFinished(ts);
         const stageAttempt = resolveDungeonStageAttempt(ts, currentUser, ts.type);
         const rewardClaimedKey = `${ts.type}RewardClaimed` as keyof User;
         const isRewardClaimed = !!currentUser[rewardClaimedKey];
         const canClaimRewardOnResult =
-            (isFullyComplete || isUserEliminated) &&
+            isFullyComplete &&
             !isRewardClaimed &&
             !dungeonStageRewardRequested &&
             stageAttempt >= 1;
@@ -7367,7 +7488,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         }
 
         const treatAsClaimedOnResult = isRewardClaimed || dungeonStageRewardRequested;
-        if ((isFullyComplete || isUserEliminated) && treatAsClaimedOnResult && stageAttempt >= 1) {
+        if (isFullyComplete && treatAsClaimedOnResult && stageAttempt >= 1) {
             if (!isRewardClaimed) {
                 return (
                     <div className="flex flex-col items-center gap-0.5">
@@ -7528,7 +7649,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     
     const isChampionshipMatchInProgress = tournament?.status === 'round_in_progress';
 
-    // 자동 다음 경기 카운트다운 표시 (경기 진행 중은 경기 결과 패널에서 표시)
+    // 자동 다음 경기 준비 대기 표시 (경기 진행 중은 경기 결과 패널에서 표시)
     const countdownDisplay = championshipAwaitingKataLoad && !dungeonAutoNextResultReviewActive ? (
         <div
             className={`flex items-center justify-center font-bold text-cyan-300 ${isMobile ? 'gap-1 text-center text-xs leading-tight' : 'gap-2 text-lg'}`}
@@ -7537,11 +7658,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         </div>
     ) : autoNextCountdown !== null ? (
         <div
-            className={`flex items-center justify-center font-bold text-yellow-400 ${isMobile ? 'gap-1 text-center text-xs leading-tight' : 'gap-2 text-lg'}`}
+            className={`flex items-center justify-center gap-2 font-bold text-yellow-400 ${isMobile ? 'text-center text-xs leading-tight' : 'text-lg'}`}
         >
-            <span>
-                {tt('nextMatchPreparing', { countdown: autoNextCountdown })}
-            </span>
+            <InlineLoadingSpinner size="sm" className="!flex-row !gap-2 !py-0" labelClassName="hidden" />
+            <span>{tt('nextMatchPreparing')}</span>
         </div>
     ) : null;
 
@@ -7559,8 +7679,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     };
 
     const desktopSkipSlot = !isMobile ? renderChampionshipSkipOrClaimSlot('!text-sm !py-2 !px-4') : null;
-
-    const championshipFinished = isChampionshipSessionFinished(displayTournament);
 
     useEffect(() => {
         if (!championshipFinished) return;
@@ -7589,6 +7707,11 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         dungeonAutoNextResultReviewActive,
     ]);
 
+    const championshipFinalStandingsRows = useMemo(() => {
+        if (!championshipFinished) return null;
+        return buildChampionshipDungeonStandings(displayTournament);
+    }, [championshipFinished, displayTournament]);
+
     const championshipDungeonBoardProps = {
         dungeonBoardCenterMode: championshipDungeonBoardCenterMode,
         dungeonPlayersEnteringHint: championshipAwaitingKataLoad ? tt('matchPreparing') : undefined,
@@ -7598,21 +7721,34 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             showDungeonAutoNextTransitionOverlay && matchForDisplay
                 ? (
                       <ChampionshipDungeonAutoNextOverlay
-                          secondsLeft={autoNextCountdown ?? DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_SECONDS}
-                          totalSeconds={DUNGEON_AUTO_NEXT_MATCH_COUNTDOWN_SECONDS}
                           movingLabel={tt('movingToNextMatch')}
+                          preparingLabel={tt('nextMatchPreparing')}
                           match={matchForDisplay}
                           currentUser={currentUser}
                           tournamentForResult={displayTournament}
                       />
                   )
+                : showDungeonEliminationRemainingOverlay && matchForDisplay
+                ? (
+                      <ChampionshipDungeonAutoNextOverlay
+                          preparingLabel={tt('remainingMatchesInProgress')}
+                          match={matchForDisplay}
+                          currentUser={currentUser}
+                          tournamentForResult={displayTournament}
+                      />
+                  )
+                : showDungeonFinalResultCenterOverlay && matchForDisplay
+                ? (
+                      <ChampionshipDungeonAutoNextOverlay
+                          match={matchForDisplay}
+                          currentUser={currentUser}
+                          tournamentForResult={displayTournament}
+                          tournamentFinished
+                          finalStandings={championshipFinalStandingsRows}
+                      />
+                  )
                 : null,
     };
-
-    const championshipFinalStandingsRows = useMemo(() => {
-        if (!championshipFinished) return null;
-        return buildChampionshipDungeonStandings(displayTournament);
-    }, [championshipFinished, displayTournament]);
 
     const championshipResultPanelActionSlot =
         !isMobile || isDungeonChampionshipVenue
@@ -7643,9 +7779,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                   if (autoNextCountdown !== null) {
                       return (
                           <div
-                              className={`flex w-full items-center justify-center font-bold text-yellow-400 ${isMobile ? 'text-center text-xs leading-tight' : 'text-sm'}`}
+                              className={`flex w-full items-center justify-center gap-2 font-bold text-yellow-400 ${isMobile ? 'text-center text-xs leading-tight' : 'text-sm'}`}
                           >
-                              {tt('nextMatchPreparing', { countdown: autoNextCountdown })}
+                              <InlineLoadingSpinner size="sm" className="!flex-row !gap-2 !py-0" labelClassName="hidden" />
+                              <span>{tt('nextMatchPreparing')}</span>
                           </div>
                       );
                   }
@@ -7663,9 +7800,10 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         if (tournament.status === 'round_in_progress' || championshipAwaitingKataLoad) return null;
         if (autoNextCountdown !== null) {
             return (
-                <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-yellow-400">
-                    {tt('nextMatchPreparing', { countdown: autoNextCountdown })}
-                </p>
+                <div className="mb-1.5 flex items-center justify-center gap-1.5 text-center text-[10px] font-bold leading-snug text-yellow-400">
+                    <InlineLoadingSpinner size="sm" className="!flex-row !gap-0 !py-0 scale-75" labelClassName="hidden" />
+                    <span>{tt('nextMatchPreparing')}</span>
+                </div>
             );
         }
         return null;
@@ -7864,9 +8002,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             >
                 {championshipFinished ? (
                     <>
-                        <div className={`text-center font-bold text-emerald-200 ${isMobile ? 'text-xs' : 'text-sm'}`}>
-                            {tt('allMatchesEnded')}
-                        </div>
                         <div className={`flex w-full items-stretch gap-1.5 ${isMobile ? 'flex-nowrap' : 'flex-wrap justify-center gap-2'}`}>
                             {isMobile ? mobileNextMatchSlot : desktopNextMatchSlot}
                             {isMobile ? mobileChampionshipSkipSlot : desktopSkipSlot}
@@ -7914,20 +8049,14 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         const stageAttempt = resolveDungeonStageAttempt(displayTournament, currentUser, displayTournament.type);
         const rewardClaimedKey = `${displayTournament.type}RewardClaimed` as keyof User;
         const isRewardClaimed = !!currentUser[rewardClaimedKey];
-        const isUserEliminatedForReward = displayTournament.status === 'eliminated';
-        const allDungeonMatchesDone = displayTournament.rounds.every((r) =>
-            r.matches.every((m) => m.isFinished),
-        );
-        const isDungeonFullyCompleteForReward =
-            displayTournament.status === 'complete' ||
-            (allDungeonMatchesDone && displayTournament.status !== 'round_in_progress');
+        const isDungeonFullyCompleteForReward = isChampionshipSessionFinished(displayTournament);
         const canClaimDungeonReward =
-            (isDungeonFullyCompleteForReward || isUserEliminatedForReward) &&
+            isDungeonFullyCompleteForReward &&
             !isRewardClaimed &&
             !dungeonStageRewardRequested &&
             stageAttempt >= 1;
         const showDungeonRewardClaimedSlot =
-            (isDungeonFullyCompleteForReward || isUserEliminatedForReward) &&
+            isDungeonFullyCompleteForReward &&
             (isRewardClaimed || dungeonStageRewardRequested) &&
             stageAttempt >= 1;
 
@@ -8049,11 +8178,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
         return (
             <section className="w-full shrink-0 rounded-xl border border-cyan-400/30 bg-[#0c1018]/95 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
-                {championshipFinished ? (
-                    <p className="mb-1.5 text-center text-[10px] font-bold leading-snug text-emerald-200">
-                        {tt('allMatchesEnded')}
-                    </p>
-                ) : null}
                 {isMobile ? mobileDungeonFooterStatusMessage : null}
                 {!inDesktopSidebar && !inMobileSidebar && dungeonStartOrNextMatchAction ? (
                     <div className="mb-1.5 w-full">{dungeonStartOrNextMatchAction}</div>
@@ -8098,10 +8222,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     const championshipMobileStickyBar = isMobile
         ? (() => {
               const ts = displayTournament;
-              const allMatchesFinished = ts.rounds.every((r) => r.matches.every((m) => m.isFinished));
-              const isTournamentFullyComplete =
-                  ts.status === 'complete' || (allMatchesFinished && ts.status !== 'round_in_progress');
-              const isUserEliminated = ts.status === 'eliminated';
+              const isTournamentFullyComplete = isChampionshipSessionFinished(ts);
               const isInProgress = ts.status === 'round_in_progress' || ts.status === 'bracket_ready';
               const isRoundComplete = ts.status === 'round_complete';
               const effectiveStageAttempt = resolveDungeonStageAttempt(ts, currentUser, ts.type);
@@ -8110,7 +8231,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
               const isRewardClaimed = !!currentUser[rewardClaimedKey];
               const treatAsClaimed = isRewardClaimed || dungeonStageRewardRequested;
               const canClaimReward =
-                  (isTournamentFullyComplete || isUserEliminated) && !isRewardClaimed && !dungeonStageRewardRequested;
+                  isTournamentFullyComplete && !isRewardClaimed && !dungeonStageRewardRequested;
               const claimedRewardSummary = ts.claimedRewardSummary || null;
 
               const handleMobileRewardClaim = () => {
@@ -8123,7 +8244,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
               return (
                   <div className="flex w-full shrink-0 flex-col gap-1.5 border-t border-cyan-500/35 bg-slate-950/92 px-2 pt-2 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))]">
-                      {!isDungeonModeFooter && (isTournamentFullyComplete || isUserEliminated) && treatAsClaimed && (
+                      {!isDungeonModeFooter && isTournamentFullyComplete && treatAsClaimed && (
                           <div className="flex w-full flex-row flex-wrap items-stretch gap-2">
                               <div className="min-w-0 flex-1 basis-[calc(50%-0.25rem)]">
                                   { !isRewardClaimed ? (
@@ -8152,7 +8273,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                       )}
                       {!isDungeonModeFooter && !treatAsClaimed && (
                           <div className="flex w-full flex-row flex-wrap items-stretch gap-2">
-                              {(isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt ? (
+                              {isTournamentFullyComplete && effectiveStageAttempt ? (
                                   <button
                                       type="button"
                                       onClick={handleMobileRewardClaim}
@@ -8170,7 +8291,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                             : tt('claimAfterMatchEnd')}
                                   </button>
                               ) : null}
-                              {(isTournamentFullyComplete || isUserEliminated) ? (
+                              {isTournamentFullyComplete ? (
                                   <button
                                       type="button"
                                       onClick={handleChampionshipArenaExitClick}
@@ -8180,7 +8301,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                                   </button>
                               ) : null}
                               {(isInProgress || isRoundComplete) &&
-                              !((isTournamentFullyComplete || isUserEliminated) && effectiveStageAttempt) ? (
+                              !(isTournamentFullyComplete && effectiveStageAttempt) ? (
                                   <div className="min-w-0 flex-1 rounded-lg border border-blue-700/50 bg-blue-900/30 px-2 py-1.5 text-center text-xs font-semibold leading-snug text-blue-300">
                                       모든 경기 완료 후 보상수령
                                   </div>
@@ -8189,7 +8310,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
                       )}
                       {isDungeonModeFooter ? (
                           <div className="flex w-full flex-row flex-wrap items-stretch gap-2">
-                              {!(isTournamentFullyComplete || isUserEliminated) ? (
+                              {!isTournamentFullyComplete ? (
                                   <button
                                       type="button"
                                       onClick={() => setMobileChampionshipTab('rewards')}
