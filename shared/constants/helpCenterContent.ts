@@ -4,7 +4,7 @@ import { GUILD_BOSS_MAX_ATTEMPTS } from './guildConstants.js';
 import { ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP, ADVENTURE_STAGES } from '../../constants/adventureConstants.js';
 import { ADVENTURE_REGIONAL_BUFF_ACTION_GOLD } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import { PAIR_GO_GAME_MODES } from '../utils/pairGameTurn.js';
-import { PAIR_EGG_DISPLAY_IMAGE } from './petLobby.js';
+import { PAIR_EGG_DISPLAY_IMAGE, PAIR_WELCOME_EGG_DISPLAY_IMAGE } from './petLobby.js';
 import { AVATAR_POOL, BORDER_POOL } from './ui.js';
 
 /** 프로필 편집 안내 — `ProfileEditModal`과 동일한 아바타·테두리 에셋 */
@@ -460,6 +460,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             images: [
                                 { src: PET_SAMPLE_IMAGE, alt: 'AI 펫', caption: 'AI 펫' },
                                 { src: PAIR_EGG_DISPLAY_IMAGE, alt: '신비로운알', caption: '신비로운알' },
+                                { src: PAIR_WELCOME_EGG_DISPLAY_IMAGE, alt: '(특)신비로운 알', caption: '(특)신비로운 알' },
                             ],
                         },
                     ],
@@ -534,6 +535,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             images: [
                                 { src: PET_SAMPLE_IMAGE, alt: '펫', caption: 'AI 펫' },
                                 { src: PAIR_EGG_DISPLAY_IMAGE, alt: '알', caption: '신비로운알' },
+                                { src: PAIR_WELCOME_EGG_DISPLAY_IMAGE, alt: '(특)알', caption: '(특)신비로운 알' },
                                 { src: '/images/pets/soulstone1.webp', alt: '영혼석', caption: '영혼석' },
                             ],
                         },

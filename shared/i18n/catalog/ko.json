@@ -4917,6 +4917,10 @@
         "name": "신비로운알",
         "description": "부화장에서 사용하면 무작위 AI 펫을 획득합니다."
       },
+      "pet_egg-special": {
+        "name": "(특)신비로운 알",
+        "description": "특별한 금빛 장식의 알로, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 10 AI 펫이 나옵니다."
+      },
       "pet_soulstone1": {
         "name": "새싹영혼석",
         "description": "일반 등급 펫을 고급 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.10 이상부터 사용할 수 있습니다."
@@ -7426,6 +7430,10 @@
       "activeSkill": "액티브",
       "passiveSkill": "패시브",
       "researchSkills": "연구소 스킬",
+      "supportSkills": "지원 연구",
+      "tabInfo": "정보",
+      "tabBattle": "전투",
+      "engage": "전투 개시",
       "researchSkillEffects": "연구소 스킬 효과",
       "damageTop3": "누적 피해 Top 3",
       "damageRankingTop3": "누적 피해 랭킹 Top 3",

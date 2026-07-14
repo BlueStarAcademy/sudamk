@@ -333,13 +333,19 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             mobileViewportMaxHeightCss="min(96dvh, calc(100dvh - 8px))"
             mobileViewportMaxHeightVh={96}
         >
-            <div className="flex h-full min-h-0 flex-col bg-gradient-to-b from-stone-950 via-neutral-900 to-stone-950 rounded-b-lg border-t border-amber-500/30">
-                <div className="mb-2 flex-shrink-0 pt-1 text-center sm:mb-4 sm:pt-2">
-                    <h2 className="mb-1 break-words px-1 text-lg font-bold bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 bg-clip-text text-transparent sm:mb-2 sm:text-2xl" style={{ textShadow: '0 0 20px rgba(251,191,36,0.3)' }}>
+            <div className="guild-boss-result-shell relative flex h-full min-h-0 flex-col overflow-hidden rounded-b-lg border-t border-amber-500/30 bg-gradient-to-b from-stone-950 via-neutral-900 to-stone-950">
+                <div className="guild-boss-result-veil pointer-events-none absolute inset-0" aria-hidden />
+                <div className="guild-boss-result-header relative mb-2 flex-shrink-0 pt-1 text-center sm:mb-4 sm:pt-2">
+                    <p className="guild-boss-result-eyebrow mb-0.5 text-[10px] font-bold uppercase tracking-[0.22em] text-amber-200/70 sm:text-xs">
+                        {t('boss.battleResultTitle')}
+                    </p>
+                    <h2 className="guild-boss-result-title mb-1 break-words px-1 text-lg font-bold bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 bg-clip-text text-transparent sm:mb-2 sm:text-2xl">
                         {t('boss.battleResultHeading', { bossName: result.bossName })}
                     </h2>
                     <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3">
-                        <div className={`rounded-full border border-amber-400/40 bg-gradient-to-r px-2.5 py-0.5 text-xs font-bold text-white shadow-lg sm:px-4 sm:py-1.5 sm:text-lg ${getTierColor(tier)}`}>
+                        <div
+                            className={`guild-boss-result-tier rounded-full border border-amber-400/40 bg-gradient-to-r px-2.5 py-0.5 text-xs font-bold text-white shadow-lg sm:px-4 sm:py-1.5 sm:text-lg ${getTierColor(tier)}`}
+                        >
                             {getTierName(tier)}
                         </div>
                         <span className="text-xs text-amber-100/90 sm:text-sm">{t('boss.totalDamageDealt', { damage: result.damageDealt.toLocaleString() })}</span>

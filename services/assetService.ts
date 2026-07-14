@@ -150,6 +150,9 @@ export const ENTRY_GUILD_SURFACE_IMAGE_URLS = dedupePaths([
     '/images/guild/tokken.webp',
     '/images/guild/button/guildmission.webp',
     '/images/guild/button/guildlab.webp',
+    '/images/guild/button/guildstore.webp',
+    '/images/guild/button/guildmanage.webp',
+    '/images/guild/button/bossraid1.webp',
     '/images/guild/guildwar/clearstar.webp',
     '/images/icon/Zem.webp',
 ]);

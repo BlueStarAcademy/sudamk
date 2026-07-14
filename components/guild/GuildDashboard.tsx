@@ -14,7 +14,6 @@ import MobileModalTitleBar from '../mobile/MobileModalTitleBar.js';
 import { useMobileModalChrome } from '../../hooks/useMobileModalChrome.js';
 import GuildResearchPanel from './GuildResearchPanel.js';
 import GuildMissionsPanel from './GuildMissionsPanel.js';
-import GuildMissionIcon from './GuildMissionIcon.js';
 import GuildShopModal from './GuildShopModal.js';
 import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
 import HelpModal from '../HelpModal.js';
@@ -692,7 +691,7 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
         { id: 'missions', name: t('dashboard.missions'), icon: '/images/guild/button/guildmission.webp', action: onOpenMissions, notification: missionNotification },
         { id: 'research', name: t('dashboard.research'), icon: '/images/guild/button/guildlab.webp', action: onOpenResearch },
         { id: 'shop', name: t('dashboard.shop'), icon: '/images/guild/button/guildstore.webp', action: onOpenShop },
-        { id: 'management', name: t('dashboard.management'), icon: '/images/guild/button/guildmission.webp', action: onOpenGuildAdmin },
+        { id: 'management', name: t('dashboard.management'), icon: '/images/guild/button/guildmanage.webp', action: onOpenGuildAdmin },
     ];
     return (
         <div className="flex-shrink-0 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg">
@@ -708,11 +707,7 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
                         className={`flex flex-col items-center gap-2 p-3 rounded-xl bg-gradient-to-br from-stone-800/50 to-stone-700/30 border border-stone-600/40 transition-all hover:brightness-110 hover:shadow-lg relative group flex-1 min-w-0`}
                     >
                         <div className="h-16 w-16 bg-gradient-to-br from-stone-700/60 to-stone-800/50 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-xl transition-shadow border border-stone-600/40 flex-shrink-0">
-                            {act.id === 'missions' ? (
-                                <GuildMissionIcon size="3xl" frame="none" />
-                            ) : (
-                                <img src={act.icon} alt={act.name} className="h-14 w-14 drop-shadow-lg object-contain" />
-                            )}
+                            <img src={act.icon} alt={act.name} className="h-14 w-14 drop-shadow-lg object-contain" />
                         </div>
                         <span className="text-sm font-semibold text-highlight text-center leading-tight">{act.name}</span>
                         {act.notification && (
@@ -753,11 +748,7 @@ const GuildActivityRailStrip: React.FC<{
                     className="relative flex w-full flex-col items-center gap-1 rounded-lg border border-stone-600/50 bg-gradient-to-br from-stone-800/85 to-stone-900/80 py-2 px-0.5 transition-all hover:brightness-110 active:scale-[0.98]"
                 >
                     <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-stone-600/40 bg-stone-700/50">
-                        {act.id === 'missions' ? (
-                            <GuildMissionIcon size="xl" frame="none" />
-                        ) : (
-                            <img src={act.icon} alt="" className="h-9 w-9 object-contain drop-shadow-md" />
-                        )}
+                        <img src={act.icon} alt="" className="h-9 w-9 object-contain drop-shadow-md" />
                     </div>
                     <span className="max-w-full break-keep px-0.5 text-center text-[8px] font-semibold leading-tight text-highlight">
                         {act.name}
@@ -2791,7 +2782,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
         { key: 'mission', name: t('dashboard.missions'), icon: '/images/guild/button/guildmission.webp', action: () => setIsMissionsOpen(true), notification: missionTabNotification },
         { key: 'research', name: t('dashboard.research'), icon: '/images/guild/button/guildlab.webp', action: () => setIsResearchOpen(true), notification: false },
         { key: 'shop', name: t('dashboard.shop'), icon: '/images/guild/button/guildstore.webp', action: () => setIsShopOpen(true), notification: false },
-        { key: 'guildAdmin', name: t('dashboard.management'), icon: '/images/guild/button/guildmission.webp', action: () => setIsGuildAdminOpen(true), notification: false },
+        { key: 'guildAdmin', name: t('dashboard.management'), icon: '/images/guild/button/guildmanage.webp', action: () => setIsGuildAdminOpen(true), notification: false },
     ] as const;
 
     return (
@@ -2999,11 +2990,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                                     className="relative flex min-h-0 flex-col items-center justify-center gap-1 rounded-lg border border-stone-600/50 bg-gradient-to-br from-stone-800/85 to-stone-900/80 px-1 py-1.5 transition-all hover:brightness-110 active:scale-[0.98]"
                                 >
                                     <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-stone-600/40 bg-stone-700/50">
-                                        {act.key === 'mission' ? (
-                                            <GuildMissionIcon size="lg" frame="none" />
-                                        ) : (
-                                            <img src={act.icon} alt="" className="h-8 w-8 object-contain drop-shadow-md" />
-                                        )}
+                                        <img src={act.icon} alt="" className="h-8 w-8 object-contain drop-shadow-md" />
                                     </div>
                                     <span className="max-w-full break-keep px-0.5 text-center text-[10px] font-semibold leading-tight text-highlight">
                                         {act.name}

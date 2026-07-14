@@ -38,6 +38,8 @@ interface SgfViewerProps {
     onHalfBoardNavForward?: () => void;
     /** 놓아보기로 추가한 수 (기보 수 위에 반투명 표시) */
     reviewMoves?: SgfMove[];
+    /** 길드 보스 연출용: 돌 그림자·하이라이트로 입체감 강화 */
+    atmosphereStones?: boolean;
 }
 
 const parseSgfCoord = (coords: string): Point => ({
@@ -88,6 +90,7 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
     onHalfBoardNavBack,
     onHalfBoardNavForward,
     reviewMoves = [],
+    atmosphereStones = false,
 }) => {
     const { t } = useTranslation('game');
     const [sgfData, setSgfData] = useState<SgfData | null>(null);
@@ -317,43 +320,106 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                             const isReviewStone = reviewStoneSet.has(`${x},${y}`) && moveIndex === -1;
                             const isLastReplayMove = moveIndex === currentMoveIndex - 1 && !isReviewStone;
 
+                            const stoneR = atmosphereStones ? stoneRadius * 1.08 : stoneRadius;
+
                             return (
                                 <g
                                     key={`${x}-${y}`}
+                                    className={atmosphereStones ? 'sgf-atmosphere-stone' : undefined}
                                     transform={isRotated ? `rotate(180 ${cx} ${cy})` : undefined}
                                 >
+                                    {atmosphereStones ? (
+                                        <>
+                                            <ellipse
+                                                cx={cx + stoneR * 0.08}
+                                                cy={cy + stoneR * 0.42}
+                                                rx={stoneR * 0.95}
+                                                ry={stoneR * 0.42}
+                                                fill="rgba(0, 0, 0, 0.48)"
+                                            />
+                                            <ellipse
+                                                cx={cx}
+                                                cy={cy + stoneR * 0.12}
+                                                rx={stoneR * 0.98}
+                                                ry={stoneR * 0.72}
+                                                fill={
+                                                    player === Player.Black
+                                                        ? 'rgba(15, 23, 42, 0.55)'
+                                                        : 'rgba(15, 23, 42, 0.18)'
+                                                }
+                                            />
+                                        </>
+                                    ) : null}
                                     <GoStoneSvgLayers
                                         player={player}
                                         cx={cx}
-                                        cy={cy}
-                                        radius={stoneRadius}
+                                        cy={cy - (atmosphereStones ? stoneR * 0.08 : 0)}
+                                        radius={stoneR}
                                         ids={stoneSvgIds}
-                                        stroke={isReviewStone ? '#38bdf8' : undefined}
-                                        strokeWidth={isReviewStone ? cellSize * 0.08 : 0}
+                                        stroke={
+                                            isReviewStone
+                                                ? '#38bdf8'
+                                                : atmosphereStones
+                                                  ? player === Player.Black
+                                                      ? 'rgba(255,255,255,0.14)'
+                                                      : 'rgba(15,23,42,0.22)'
+                                                  : undefined
+                                        }
+                                        strokeWidth={
+                                            isReviewStone
+                                                ? cellSize * 0.08
+                                                : atmosphereStones
+                                                  ? Math.max(0.8, stoneR * 0.05)
+                                                  : 0
+                                        }
                                         opacity={isReviewStone ? 0.92 : 1}
                                     />
+                                    {atmosphereStones ? (
+                                        <ellipse
+                                            cx={cx - stoneR * 0.22}
+                                            cy={cy - stoneR * 0.28}
+                                            rx={stoneR * 0.38}
+                                            ry={stoneR * 0.22}
+                                            fill={
+                                                player === Player.Black
+                                                    ? 'rgba(255, 255, 255, 0.22)'
+                                                    : 'rgba(255, 255, 255, 0.55)'
+                                            }
+                                            opacity={0.85}
+                                        />
+                                    ) : null}
                                     {showMoveNumbers && moveIndex !== -1 && (
                                         <text
                                             x={cx}
                                             y={cy}
                                             textAnchor="middle"
                                             dy=".35em"
-                                            fontSize={stoneRadius * 1.1}
+                                            fontSize={stoneR * 1.1}
                                             fontWeight="bold"
                                             fill={player === Player.Black ? 'white' : 'black'}
                                             stroke={player === Player.Black ? '#111827' : '#f5f2e8'}
-                                            strokeWidth={stoneRadius * 0.12}
+                                            strokeWidth={stoneR * 0.12}
                                             paintOrder="stroke"
                                         >
                                             {moveIndex + 1}
                                         </text>
                                     )}
-                                    {isLastReplayMove && !showMoveNumbers && (
+                                    {isLastReplayMove && !showMoveNumbers && !atmosphereStones && (
                                         <circle
                                             cx={cx}
                                             cy={cy}
-                                            r={stoneRadius * 0.35}
+                                            r={stoneR * 0.35}
                                             fill="rgba(239, 68, 68, 0.85)"
+                                            className="animate-pulse"
+                                        />
+                                    )}
+                                    {isLastReplayMove && !showMoveNumbers && atmosphereStones && (
+                                        <ellipse
+                                            cx={cx}
+                                            cy={cy - stoneR * 0.08}
+                                            rx={stoneR * 0.38}
+                                            ry={stoneR * 0.26}
+                                            fill="rgba(253, 224, 71, 0.75)"
                                             className="animate-pulse"
                                         />
                                     )}

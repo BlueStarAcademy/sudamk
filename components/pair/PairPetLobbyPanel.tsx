@@ -115,6 +115,7 @@ import {
     PAIR_SOULSTONE_NAMES,
     PAIR_EGG_DISPLAY_IMAGE,
     PAIR_EGG_MATERIAL_NAME,
+    PAIR_WELCOME_EGG_DISPLAY_IMAGE,
     PAIR_WELCOME_EGG_MATERIAL_NAME,
     PAIR_WELCOME_EGG_TEMPLATE_ID,
     PAIR_SOULSTONE_TEMPLATE_IDS,
@@ -186,6 +187,7 @@ type PairExpandCategory = 'pet';
 
 function pairPetShopSkuImage(sku: PairPetShopSku): string {
     if (sku.materialName === PAIR_EGG_MATERIAL_NAME) return PAIR_EGG_DISPLAY_IMAGE;
+    if (sku.materialName === PAIR_WELCOME_EGG_MATERIAL_NAME) return PAIR_WELCOME_EGG_DISPLAY_IMAGE;
     const mat = MATERIAL_ITEMS[sku.materialName as keyof typeof MATERIAL_ITEMS];
     return (mat?.image as string | undefined) ?? PAIR_EGG_DISPLAY_IMAGE;
 }
@@ -1208,8 +1210,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             ) : (
                 hatcheryLevelOutcomeLine(def)
             );
-            const eggImgForSlot =
-                MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ?? PAIR_EGG_DISPLAY_IMAGE;
+            const eggImgForSlot = hatchUsesWelcomeEgg
+                ? (MATERIAL_ITEMS[PAIR_WELCOME_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ??
+                  PAIR_WELCOME_EGG_DISPLAY_IMAGE)
+                : (MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ?? PAIR_EGG_DISPLAY_IMAGE);
 
             const effectiveDurationMs = session
                 ? getPairHatcheryDurationMs(slotIndex, session, currentUser)
@@ -3033,8 +3037,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                     {hatcheryLevelOutcomeLine(d)}
                                 </div>
                             ) : null;
-                        const eggImg =
-                            MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ?? PAIR_EGG_DISPLAY_IMAGE;
+                        const eggImg = startWelcome
+                            ? (MATERIAL_ITEMS[PAIR_WELCOME_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ??
+                              PAIR_WELCOME_EGG_DISPLAY_IMAGE)
+                            : (MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ??
+                              PAIR_EGG_DISPLAY_IMAGE);
                         const confirmDurMs =
                             startWelcome && d ? 60_000 : d ? d.durationMs : 0;
                         const eggTitle = startWelcome ? `${PAIR_WELCOME_EGG_MATERIAL_NAME} ×1` : t('hatchery.mysteriousEgg');
@@ -3139,9 +3146,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         const hasEnoughM =
                             Boolean(currentUser.isAdmin) || (currentUser.diamonds ?? 0) >= costM;
                         const petInvFullModal = isPairLobbyPetInventoryFull(currentUser);
-                        const eggImgModal =
-                            MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ??
-                            PAIR_EGG_DISPLAY_IMAGE;
+                        const instantWelcome =
+                            Boolean(sessionM && sessionM.eggTemplateId === PAIR_WELCOME_EGG_TEMPLATE_ID);
+                        const eggImgModal = instantWelcome
+                            ? (MATERIAL_ITEMS[PAIR_WELCOME_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ??
+                              PAIR_WELCOME_EGG_DISPLAY_IMAGE)
+                            : (MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ??
+                              PAIR_EGG_DISPLAY_IMAGE);
 
                         return (
                             <div className="relative overflow-hidden">

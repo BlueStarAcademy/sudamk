@@ -277,7 +277,8 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 else if (successfulDuels === 1) damageRange = [2640, 3520];
                 else damageRange = [4400, 7040];
                 turnBossDamage = getRandom(Math.round(damageRange[0] * statMult), Math.round(damageRange[1] * statMult));
-                duelResultMessage = `방어 ${successfulDuels} / 3회 성공`;
+                // Boss-attack log: count how many checks the boss pushed through
+                duelResultMessage = `공격 ${3 - successfulDuels} / 3회 성공`;
                 duelOutcome = resolveDuelOutcome(successfulDuels, 3, 'partial');
             } else if (bossSkill.id === '백광_천벌의일격') {
                 let damageRange: [number, number];
@@ -285,12 +286,13 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 else if (successfulDuels === 1) damageRange = [3520, 4400];
                 else damageRange = [5280, 8800];
                 turnBossDamage = getRandom(Math.round(damageRange[0] * statMult), Math.round(damageRange[1] * statMult));
-                duelResultMessage = `방어 ${successfulDuels} / 2회 성공`;
+                duelResultMessage = `공격 ${2 - successfulDuels} / 2회 성공`;
                 duelOutcome = resolveDuelOutcome(successfulDuels, 2, 'partial');
             } else {
                 const duelSuccess = successfulDuels === statsToCheck.length;
                 const skillEffectsToApply = duelSuccess ? bossSkill.onSuccess : bossSkill.onFailure;
-                duelResultMessage = duelSuccess ? '방어 성공' : '방어 실패';
+                // Boss POV: user full resist → 공격 실패, otherwise 공격 성공
+                duelResultMessage = duelSuccess ? '공격 실패' : '공격 성공';
                 duelOutcome = resolveDuelOutcome(successfulDuels, statsToCheck.length, 'binary');
 
                 for (const effect of skillEffectsToApply) {

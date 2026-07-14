@@ -98,7 +98,7 @@ export function isPairLobbyPetInventoryFull(user: {
 
 export const PAIR_EGG_TEMPLATE_ID = 'pair-egg-mystery';
 
-/** 환영 우편 등: 신비로운알과 동일 이미지, 부화 시 슬롯 무관 1분·레벨 10 펫 */
+/** 환영 우편 등: 전용 이미지, 부화 시 슬롯 무관 1분·레벨 10 펫 */
 export const PAIR_WELCOME_EGG_TEMPLATE_ID = 'pair-egg-welcome';
 export const PAIR_WELCOME_EGG_HATCH_LEVEL = 10;
 
@@ -108,8 +108,11 @@ export const PAIR_EGG_MATERIAL_NAME = '신비로운알';
 /** `(특)신비로운 알` — MATERIAL_ITEMS 객체 키·표기명과 동일 */
 export const PAIR_WELCOME_EGG_MATERIAL_NAME = '(특)신비로운 알';
 
-/** 알 썸네일(상점 카드·부화장 등 공통) */
+/** 일반 신비로운알 썸네일(상점 카드·부화장 등) */
 export const PAIR_EGG_DISPLAY_IMAGE = '/images/pets/egg.webp';
+
+/** (특)신비로운 알 전용 썸네일 */
+export const PAIR_WELCOME_EGG_DISPLAY_IMAGE = '/images/pets/egg-special.webp';
 
 /** 페어 로비·상점 표기용 영혼석 이름 (등급 순) */
 export const PAIR_SOULSTONE_NAMES = ['새싹영혼석', '파동영혼석', '심연영혼석', '화염영혼석', '천광영혼석'] as const;
@@ -201,9 +204,9 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         materialName: PAIR_WELCOME_EGG_MATERIAL_NAME,
         quantity: 1,
         dailyLimit: 1,
-        image: PAIR_EGG_DISPLAY_IMAGE,
+        image: PAIR_WELCOME_EGG_DISPLAY_IMAGE,
         description:
-            '신비로운 알과 같은 모습이지만, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 10 AI 펫이 나옵니다.',
+            '특별한 금빛 장식의 알로, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 10 AI 펫이 나옵니다.',
         shortDescription: '10레벨 펫이 1분만에 부화하는 알',
     },
     {

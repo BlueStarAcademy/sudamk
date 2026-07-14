@@ -9,7 +9,7 @@ interface GuildMissionIconProps {
     className?: string;
 }
 
-const QUEST_IMAGE = '/images/quest.webp';
+const GUILD_MISSION_IMAGE = '/images/guild/button/guildmission.webp';
 
 const IMAGE_SIZE: Record<GuildMissionIconSize, string> = {
     xs: 'h-5 w-5',
@@ -19,16 +19,6 @@ const IMAGE_SIZE: Record<GuildMissionIconSize, string> = {
     xl: 'h-9 w-9',
     '2xl': 'h-10 w-10 sm:h-11 sm:w-11',
     '3xl': 'h-14 w-14',
-};
-
-const MARKER_SIZE: Record<GuildMissionIconSize, string> = {
-    xs: 'text-[4px] px-0.5 py-px tracking-tighter',
-    sm: 'text-[5px] px-0.5 py-px tracking-tighter',
-    md: 'text-[6px] px-0.5 py-px tracking-tight',
-    lg: 'text-[6px] px-0.5 py-px tracking-tight',
-    xl: 'text-[7px] px-1 py-px tracking-tight',
-    '2xl': 'text-[7px] px-1 py-0.5 tracking-wide',
-    '3xl': 'text-[8px] px-1 py-0.5 tracking-wide',
 };
 
 const FRAME_SIZE: Record<GuildMissionIconSize, string> = {
@@ -50,13 +40,7 @@ const FRAME_CLASS: Record<Exclude<GuildMissionIconFrame, 'none'>, string> = {
 const GuildMissionIcon: React.FC<GuildMissionIconProps> = ({ size = 'md', frame = 'guild', className = '' }) => {
     const icon = (
         <div className={`relative flex shrink-0 items-center justify-center ${IMAGE_SIZE[size]}`}>
-            <img src={QUEST_IMAGE} alt="" className="h-full w-full object-contain opacity-95" />
-            <span
-                className={`pointer-events-none absolute left-1/2 top-1/2 z-[1] -translate-x-1/2 -translate-y-1/2 whitespace-nowrap rounded border border-amber-400/55 bg-slate-950/88 font-black uppercase leading-none text-amber-100 shadow-[0_1px_4px_rgba(0,0,0,0.75)] ${MARKER_SIZE[size]}`}
-                aria-hidden
-            >
-                GUILD
-            </span>
+            <img src={GUILD_MISSION_IMAGE} alt="" className="h-full w-full object-contain drop-shadow-md opacity-95" />
         </div>
     );
 

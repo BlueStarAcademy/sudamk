@@ -21,12 +21,7 @@ import {
     type GuildBossBattleSubmitContext,
 } from '../../utils/guildBossBattlePersistence.js';
 import { getCurrentGuildBossStage, scaleGuildBossForStage } from '../../utils/guildBossStageUtils.js';
-import {
-    computeGuildBossUserMaxHp,
-    computeGuildBossResearchDamagePercent,
-    computeGuildBossResearchEvasionPercent,
-    computeGuildBossResearchHitDamageReductionPercent,
-} from '../../shared/constants/guildBossBalance.js';
+import { computeGuildBossUserMaxHp } from '../../shared/constants/guildBossBalance.js';
 import type { BattleLogEntry, GuildBossBattleResult } from '../../types/index.js';
 import { calculateTotalStats } from '../../utils/statUtils.js';
 import Avatar from '../Avatar.js';
@@ -38,18 +33,27 @@ import {
     gradeSlotBorderOverlayClass,
     itemSlotIconStyleForGrade,
 } from '../../shared/constants/itemSlotIconLayout.js';
-import { GUILD_ATTACK_ICON, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_REGEN_IMG } from '../../assets.js';
 import HomeNativeMergedEquipmentAbilityPanel from '../HomeNativeMergedEquipmentAbilityPanel.js';
 import { BADUK_ABILITY_STAT_CAP, BADUK_ABILITY_TOTAL_CAP } from '../CoreStatsHexagonChart.js';
 import GuildBossBattleResultModal from './GuildBossBattleResultModal.js';
-import GuildBossBattleArena, { type GuildBossCombatFxState } from './GuildBossBattleArena.js';
+import GuildBossBattleArena, {
+    ResearchSkillTile,
+    getBossResearchEffectDisplay,
+} from './GuildBossBattleArena.js';
 import PcLobbyThreeColumnShell from '../shell/PcLobbyThreeColumnShell.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { useTranslation } from 'react-i18next';
 import { translateGuildBossName } from '../../shared/utils/translateGuildBossName.js';
 import GuildBossPortrait from './GuildBossPortrait.js';
-import type { TFunction } from 'i18next';
-import { resolveGuildBossCombatFx } from '../../utils/guildBossBattleFx.js';
+import { resolveGuildBossCombatFx, type GuildBossCombatFxState } from '../../utils/guildBossBattleFx.js';
+import {
+    GUILD_BOSS_ENGAGE_MS,
+    GUILD_BOSS_ENGAGE_STONE_COUNT,
+    GUILD_BOSS_FINALE_MS,
+    GUILD_BOSS_OPENING_HP_BUFF_MS,
+    GUILD_BOSS_SUPPORT_RESEARCH_IDS,
+    type GuildBossPresentationPhase,
+} from '../../utils/guildBossBattleBoards.js';
 import {
     PC_HOME_LEFT_COLUMN_CLASS,
     PC_LOBBY_DESKTOP_SHELL_PADDING_CLASS,
@@ -66,7 +70,7 @@ const GuildBossTopRankBadge: React.FC<{ place: 1 | 2 | 3; compact?: boolean }> =
     return (
     <span
         className={`inline-flex shrink-0 items-center justify-center rounded-full font-black tabular-nums ${
-            compact ? 'h-6 w-6 text-[11px]' : 'h-8 w-8 text-sm'
+            compact ? 'h-5 w-5 text-[10px]' : 'h-8 w-8 text-sm'
         } ${GUILD_BOSS_TOP_RANK_BADGE_CLASS[place]}`}
         aria-label={t('boss.placeAria', { place })}
     >
@@ -74,68 +78,6 @@ const GuildBossTopRankBadge: React.FC<{ place: 1 | 2 | 3; compact?: boolean }> =
     </span>
     );
 };
-
-const getResearchSkillDisplay = (researchId: GuildResearchId, level: number, t: TFunction): { chance?: number; description: string; } | null => {
-    if (level === 0) return null;
-    const project = GUILD_RESEARCH_PROJECTS[researchId];
-    if (!project) return null;
-
-    const totalEffect = project.baseEffect * level;
-
-    switch (researchId) {
-        case GuildResearchId.boss_hp_increase:
-            return { description: t('research.bossHpIncrease', { value: totalEffect }) };
-        case GuildResearchId.boss_damage_increase: {
-            const damagePercent = computeGuildBossResearchDamagePercent(level);
-            return { description: t('research.bossDamageIncrease', { value: damagePercent }) };
-        }
-        case GuildResearchId.boss_attack_evasion: {
-            const evasionPercent = computeGuildBossResearchEvasionPercent(level);
-            return {
-                chance: evasionPercent,
-                description: t('boss.researchAttackEvasionDesc'),
-            };
-        }
-        case GuildResearchId.boss_hit_damage_reduction: {
-            const reductionPercent = computeGuildBossResearchHitDamageReductionPercent(level);
-            return { description: t('boss.researchHitDamageReductionDesc', { value: reductionPercent }) };
-        }
-        case GuildResearchId.boss_skill_heal_block: {
-            const chance = 10 + (15 * level);
-            const reduction = 10 * level;
-            return { chance, description: t('boss.researchHealBlockDesc', { reduction }) };
-        }
-        case GuildResearchId.boss_skill_regen: {
-            const chance = 10 + (15 * level);
-            const increase = 10 * level;
-            return { chance, description: t('boss.researchRegenDesc', { increase }) };
-        }
-        case GuildResearchId.boss_skill_ignite: {
-            const chance = 10 + (15 * level);
-            const increasePercent = level * 10;
-            return { chance, description: t('boss.researchIgniteDesc', { damage: increasePercent }) };
-        }
-        case GuildResearchId.ap_regen_boost: {
-            const sec = project.baseEffect * level;
-            return { description: t('research.apRegenEffect', { sec }) };
-        }
-        case GuildResearchId.stat_concentration:
-            return { description: t('research.statConcentration', { value: totalEffect }) };
-        case GuildResearchId.stat_thinking_speed:
-            return { description: t('research.statThinkingSpeed', { value: totalEffect }) };
-        case GuildResearchId.stat_judgment:
-            return { description: t('research.statJudgment', { value: totalEffect }) };
-        case GuildResearchId.stat_calculation:
-            return { description: t('research.statCalculation', { value: totalEffect }) };
-        case GuildResearchId.stat_combat_power:
-            return { description: t('research.statCombatPower', { value: totalEffect }) };
-        case GuildResearchId.stat_stability:
-            return { description: t('research.statStability', { value: totalEffect }) };
-        default:
-            return null;
-    }
-};
-
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
     normal: '/images/equipments/normalbgi.webp',
@@ -182,58 +124,112 @@ export const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: Invent
     }
 };
 
-const GuildBossResearchSkillsList: React.FC<{ guild: GuildType | null; compact?: boolean }> = ({ guild, compact = false }) => {
+const GuildBossSupportSkillsPanel: React.FC<{
+    guild: GuildType | null;
+    combatFx: GuildBossCombatFxState | null;
+    showOpeningHpBuff?: boolean;
+    engageWave?: boolean;
+    compact?: boolean;
+    /** 모바일 하단 한 줄 바 */
+    denseBar?: boolean;
+}> = ({
+    guild,
+    combatFx,
+    showOpeningHpBuff = false,
+    engageWave = false,
+    compact = false,
+    denseBar = false,
+}) => {
     const { t } = useTranslation('guild');
-    const allBossResearch = useMemo(() => {
-        if (!guild) return [];
-        return Object.entries(GUILD_RESEARCH_PROJECTS)
-            .filter(([, project]) => project.category === 'boss')
-            .map(([id, project]) => {
-                const currentLevel = guild.research?.[id as GuildResearchId]?.level || 0;
-                return { ...project, id: id as GuildResearchId, currentLevel };
-            });
+
+    const supportProjects = useMemo(() => {
+        return GUILD_BOSS_SUPPORT_RESEARCH_IDS.map((id) => {
+            const project = GUILD_RESEARCH_PROJECTS[id];
+            const currentLevel = guild?.research?.[id]?.level || 0;
+            return { ...project, id, currentLevel };
+        });
     }, [guild]);
 
-    const simpleNameMap: Partial<Record<GuildResearchId, string>> = useMemo(() => ({
-        boss_hp_increase: t('boss.researchHpIncrease'),
-        boss_damage_increase: t('boss.researchDamageIncrease'),
-        boss_attack_evasion: t('boss.researchAttackEvasion'),
-        boss_hit_damage_reduction: t('boss.researchHitDamageReduction'),
-        boss_skill_heal_block: t('boss.researchHealBlock'),
-        boss_skill_regen: t('boss.researchRegen'),
-        boss_skill_ignite: t('boss.researchIgnite'),
-    }), [t]);
+    const nameMap: Partial<Record<GuildResearchId, string>> = useMemo(
+        () => ({
+            boss_hp_increase: t('boss.researchHpIncrease'),
+            boss_damage_increase: t('boss.researchDamageIncrease'),
+            boss_attack_evasion: t('boss.researchAttackEvasion'),
+            boss_hit_damage_reduction: t('boss.researchHitDamageReduction'),
+        }),
+        [t],
+    );
+
+    if (denseBar) {
+        return (
+            <div
+                className={`flex items-center gap-1.5 rounded-lg border border-amber-400/25 bg-black/45 px-1.5 py-1 ${
+                    engageWave ? 'guild-boss-skill-strip--engage' : ''
+                }`}
+            >
+                <span className="shrink-0 text-[9px] font-bold tracking-wide text-amber-200/85">
+                    {t('boss.supportSkills')}
+                </span>
+                <div className="flex min-w-0 flex-1 flex-row items-center justify-end gap-0.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                    {supportProjects.map((project) => {
+                        const effect = getBossResearchEffectDisplay(project.id, project.currentLevel, t);
+                        const proc =
+                            combatFx?.researchId === project.id ||
+                            (showOpeningHpBuff && project.id === GuildResearchId.boss_hp_increase);
+                        return (
+                            <ResearchSkillTile
+                                key={project.id}
+                                name={nameMap[project.id] || project.name}
+                                description={project.description}
+                                image={project.image}
+                                level={project.currentLevel}
+                                effect={effect}
+                                proc={proc}
+                                compact
+                                dense
+                                inactiveLabel={t('boss.inactive')}
+                            />
+                        );
+                    })}
+                </div>
+            </div>
+        );
+    }
 
     return (
-        <div className={`${compact ? 'space-y-1.5 text-xs' : 'space-y-1 text-xs'}`}>
-            {allBossResearch.map((project) => {
-                const currentLevel = guild?.research?.[project.id]?.level || 0;
-                const displayInfo = getResearchSkillDisplay(project.id, currentLevel, t);
-                const displayName = simpleNameMap[project.id] || project.name;
-
-                return (
-                    <div
-                        key={project.id}
-                        className={`flex items-center rounded-md bg-tertiary/50 ${!displayInfo ? 'opacity-60' : ''} ${compact ? 'gap-1.5 p-1.5' : 'gap-2 p-1'}`}
-                        title={project.description}
-                    >
-                        <div className={`flex shrink-0 items-center ${compact ? 'min-w-0 w-[6.25rem] gap-1.5' : 'w-28 gap-2'}`}>
-                            <img src={project.image} alt={displayName} className={compact ? 'h-10 w-10 shrink-0' : 'h-12 w-12'} />
-                            <span className={`font-semibold leading-tight text-primary ${compact ? 'text-xs' : 'text-sm'}`}>{displayName}</span>
-                        </div>
-                        <div className="min-w-0 flex-1 text-right">
-                            {displayInfo ? (
-                                <p className={`font-mono font-bold leading-snug text-yellow-400 ${compact ? 'text-sm' : 'text-sm sm:text-base'}`}>
-                                    {displayInfo.chance !== undefined ? `[${displayInfo.chance}%] ` : ''}
-                                    {displayInfo.description}
-                                </p>
-                            ) : (
-                                <p className={`text-tertiary ${compact ? 'text-xs' : 'text-[10px]'}`}>{t('boss.inactive')}</p>
-                            )}
-                        </div>
-                    </div>
-                );
-            })}
+        <div
+            className={`rounded-lg border border-amber-400/25 bg-black/40 [box-shadow:inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                compact ? 'p-1.5' : 'p-2'
+            } ${engageWave ? 'guild-boss-skill-strip--engage' : ''}`}
+        >
+            <h3
+                className={`mb-1 text-center font-bold tracking-wide text-amber-200/90 ${
+                    compact ? 'text-[10px]' : 'text-xs'
+                }`}
+            >
+                {t('boss.supportSkills')}
+            </h3>
+            <div className="flex flex-row flex-wrap items-center justify-center gap-1">
+                {supportProjects.map((project) => {
+                    const effect = getBossResearchEffectDisplay(project.id, project.currentLevel, t);
+                    const proc =
+                        combatFx?.researchId === project.id ||
+                        (showOpeningHpBuff && project.id === GuildResearchId.boss_hp_increase);
+                    return (
+                        <ResearchSkillTile
+                            key={project.id}
+                            name={nameMap[project.id] || project.name}
+                            description={project.description}
+                            image={project.image}
+                            level={project.currentLevel}
+                            effect={effect}
+                            proc={proc}
+                            compact={compact}
+                            inactiveLabel={t('boss.inactive')}
+                        />
+                    );
+                })}
+            </div>
         </div>
     );
 };
@@ -394,7 +390,7 @@ const UserStatsPanel: React.FC<UserStatsPanelProps> = ({
                 <div className={`flex min-h-0 flex-1 flex-col border-t border-color ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
                     <h4 className={`flex-shrink-0 text-center font-semibold text-secondary ${compact ? 'mb-1 text-xs' : 'mb-1 text-sm'}`}>{t('boss.researchSkillEffects')}</h4>
                     <div className="min-h-0 flex-1 overflow-y-auto pr-1">
-                        <GuildBossResearchSkillsList guild={guild} compact={compact} />
+                        <GuildBossSupportSkillsPanel guild={guild} combatFx={null} compact={compact} />
                     </div>
                 </div>
             ) : null}
@@ -699,7 +695,7 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
     const myRankUser = myRankData ? allUsers?.find((u) => u.id === myRankData.userId) : undefined;
 
     const rowClass = compact
-        ? 'h-[2.15rem] px-1 text-sm'
+        ? 'h-[1.7rem] px-1 text-[11px] leading-tight'
         : desktopTightTop3
           ? 'h-[2.4rem] px-1.5 text-[15px] leading-tight'
           : 'h-[2.35rem] px-1.5 text-[15px] leading-tight';
@@ -709,12 +705,12 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
     return (
         <div
             className={`bg-panel border border-color flex min-h-0 flex-col rounded-lg ${
-                compact ? 'h-full p-2' : desktopTightTop3 ? 'shrink-0 p-2.5' : 'h-full p-2.5'
+                compact ? 'h-full p-1.5' : desktopTightTop3 ? 'shrink-0 p-2.5' : 'h-full p-2.5'
             }`}
         >
             <h4
                 className={`flex-shrink-0 text-center font-bold text-yellow-300 ${
-                    compact ? 'mb-1 text-base' : desktopTightTop3 ? 'mb-1.5 text-base' : 'mb-1.5 text-base'
+                    compact ? 'mb-0.5 text-xs' : desktopTightTop3 ? 'mb-1.5 text-base' : 'mb-1.5 text-base'
                 }`}
             >
                 {compact
@@ -751,7 +747,7 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
                                     ) : (
                                         <span
                                             className={`inline-flex shrink-0 items-center justify-center rounded-full bg-tertiary font-bold tabular-nums text-secondary ${
-                                                compact ? 'h-6 w-6 text-[11px]' : 'h-8 w-8 text-sm'
+                                                compact ? 'h-5 w-5 text-[10px]' : 'h-8 w-8 text-sm'
                                             }`}
                                         >
                                             {place}
@@ -784,11 +780,11 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
                 )}
             </div>
             {myRankData && !amIInTop3 && !showFullRanking && (
-                <div className={`border-t border-color/50 flex-shrink-0 ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
-                    <div className={`${rankingGridClass} rounded-md bg-blue-900/40 ${compact ? 'p-1.5 text-xs' : 'p-1.5 text-xs'}`}>
+                <div className={`border-t border-color/50 flex-shrink-0 ${compact ? 'mt-0.5 pt-0.5' : 'mt-2 pt-2'}`}>
+                    <div className={`${rankingGridClass} rounded-md bg-blue-900/40 ${compact ? 'p-1 text-[11px]' : 'p-1.5 text-xs'}`}>
                         <span
                             className={`${DAMAGE_RANKING_RANK_COL_CLASS} font-bold tabular-nums ${
-                                compact ? 'h-6 w-6 text-[11px]' : 'h-8 w-8 text-sm'
+                                compact ? 'h-5 w-5 text-[10px]' : 'h-8 w-8 text-sm'
                             }`}
                         >
                             {myRankData.rank}
@@ -810,8 +806,8 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
                     </div>
                 </div>
             )}
-            <div className={`flex-shrink-0 border-t border-color/50 ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
-                <p className={`${rankingGridClass} ${compact ? 'text-xs' : 'text-sm'}`}>
+            <div className={`flex-shrink-0 border-t border-color/50 ${compact ? 'mt-0.5 pt-0.5' : 'mt-2 pt-2'}`}>
+                <p className={`${rankingGridClass} ${compact ? 'text-[11px]' : 'text-sm'}`}>
                     <span aria-hidden />
                     <span className={`${nickColClass} text-secondary`}>
                         {compact ? t('boss.battleDamage') : t('boss.battleDamageFull')}
@@ -831,6 +827,7 @@ const GuildBoss: React.FC = () => {
     const { isNativeMobile } = useNativeMobileShell();
 
     const [isSimulating, setIsSimulating] = useState(false);
+    const [mobileTab, setMobileTab] = useState<'info' | 'battle'>('info');
     const simulationInFlight = useRef(false);
     const handleActionRef = useRef(handlers.handleAction);
     handleActionRef.current = handlers.handleAction;
@@ -861,6 +858,10 @@ const GuildBoss: React.FC = () => {
     const [battleDisplayDamageLog, setBattleDisplayDamageLog] = useState<Record<string, number> | null>(null);
     const [combatFx, setCombatFx] = useState<GuildBossCombatFxState | null>(null);
     const [showOpeningHpBuff, setShowOpeningHpBuff] = useState(false);
+    const [presentationPhase, setPresentationPhase] = useState<GuildBossPresentationPhase>('idle');
+    const [engageComplete, setEngageComplete] = useState(false);
+    const [combatBoardMoveCount, setCombatBoardMoveCount] = useState(0);
+    const engageTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
     const userLogContainerRef = useRef<HTMLDivElement>(null);
     const bossLogContainerRef = useRef<HTMLDivElement>(null);
@@ -920,7 +921,7 @@ const GuildBoss: React.FC = () => {
         const hpResearch = myGuild.research?.[GuildResearchId.boss_hp_increase]?.level || 0;
         if (hpResearch <= 0) return;
         setShowOpeningHpBuff(true);
-        const timer = setTimeout(() => setShowOpeningHpBuff(false), 1200);
+        const timer = setTimeout(() => setShowOpeningHpBuff(false), GUILD_BOSS_OPENING_HP_BUFF_MS);
         return () => clearTimeout(timer);
     }, [myGuild?.id, currentBoss.id, isSimulating]);
 
@@ -980,6 +981,7 @@ const GuildBoss: React.FC = () => {
     }, []);
 
     const finishBattlePlayback = useCallback((modalResult: GuildBossBattleModalResult) => {
+        setPresentationPhase('result');
         setBattleResult(modalResult);
         setShowResultModal(true);
         clearPendingGuildBossBattle();
@@ -990,6 +992,8 @@ const GuildBoss: React.FC = () => {
         setIsSimulating(false);
         setSimulationResult(null);
         setActiveDebuffs({});
+        setCombatFx(null);
+        setEngageComplete(false);
         simulationInFlight.current = false;
     }, []);
     finishBattlePlaybackRef.current = finishBattlePlayback;
@@ -1004,6 +1008,10 @@ const GuildBoss: React.FC = () => {
 
         simulationInFlight.current = true;
         battleStartedAtRef.current = Date.now();
+        setMobileTab('battle');
+        setPresentationPhase('engage');
+        setEngageComplete(false);
+        setCombatBoardMoveCount(0);
         setIsSimulating(true);
         setBattleLog([]);
         setLogIndex(0);
@@ -1014,6 +1022,11 @@ const GuildBoss: React.FC = () => {
         setActiveDebuffs({});
         setCombatFx(null);
         setShowOpeningHpBuff(false);
+        if (engageTimerRef.current) clearTimeout(engageTimerRef.current);
+        engageTimerRef.current = setTimeout(() => {
+            engageTimerRef.current = null;
+            setEngageComplete(true);
+        }, GUILD_BOSS_ENGAGE_MS);
         const preGuildHp = myGuild.guildBossState?.currentBossHp;
         const battleStartHp =
             preGuildHp != null && preGuildHp > 0 ? preGuildHp : scaledBoss.maxHp;
@@ -1095,9 +1108,16 @@ const GuildBoss: React.FC = () => {
             confirmedBattleResultRef.current = null;
             setBattleDisplayDamageLog(null);
             setIsSimulating(false);
+            setPresentationPhase('idle');
+            setEngageComplete(false);
+            setCombatBoardMoveCount(0);
+            if (engageTimerRef.current) {
+                clearTimeout(engageTimerRef.current);
+                engageTimerRef.current = null;
+            }
             simulationInFlight.current = false;
         }
-    }, [currentUserWithStatus, myGuild, scaledBoss, currentBoss, persistPendingBattle]);
+    }, [currentUserWithStatus, myGuild, scaledBoss, currentBoss, persistPendingBattle, t]);
 
     useEffect(() => {
         if (battleRecoveryAttemptedRef.current || !currentUserWithStatus?.id || !myGuild?.id) return;
@@ -1124,7 +1144,11 @@ const GuildBoss: React.FC = () => {
         setMaxUserHp(pending.simulationResult.maxUserHp);
         setCurrentBattleDamage(pending.currentBattleDamage);
         setSimulatedBossHp(pending.simulatedBossHp);
+        setMobileTab('battle');
         setIsSimulating(true);
+        setPresentationPhase('combat');
+        setEngageComplete(true);
+        setCombatBoardMoveCount(pending.logIndex);
 
         const rankUserId = pending.submitContext.rankUserId;
         const damageDealt =
@@ -1142,10 +1166,24 @@ const GuildBoss: React.FC = () => {
         }
     }, [currentUserWithStatus?.id, myGuild?.id, currentBoss.id]);
 
+    // Engage intro gate: wait for engage timer + server simulation before combat playback
+    useEffect(() => {
+        if (!isSimulating || presentationPhase !== 'engage') return;
+        if (!engageComplete || !simulationResult) return;
+        // Keep engage stones on the board; combat logs continue placing from here
+        setCombatBoardMoveCount((prev) => Math.max(prev, GUILD_BOSS_ENGAGE_STONE_COUNT));
+        setPresentationPhase('combat');
+    }, [isSimulating, presentationPhase, engageComplete, simulationResult]);
+
     useEffect(() => {
         if (!isSimulating || !simulationResult) return;
+        if (presentationPhase !== 'combat' && presentationPhase !== 'finale') return;
 
         if (logIndex >= simulationResult.battleLog.length) {
+            if (presentationPhase === 'combat') {
+                setPresentationPhase('finale');
+                return;
+            }
             const timer = setTimeout(() => {
                 const modalResult = confirmedBattleResultRef.current;
                 if (modalResult) {
@@ -1156,9 +1194,11 @@ const GuildBoss: React.FC = () => {
                         bossName: battleSubmitContextRef.current?.bossName ?? '',
                     });
                 }
-            }, GUILD_BOSS_LOG_PLAYBACK_MS);
+            }, GUILD_BOSS_FINALE_MS);
             return () => clearTimeout(timer);
         }
+
+        if (presentationPhase !== 'combat') return;
 
         const HIT_DELAY_MS = 350;
         let hitTimer: ReturnType<typeof setTimeout> | undefined;
@@ -1173,6 +1213,8 @@ const GuildBoss: React.FC = () => {
                 fxKey: Date.now() + Math.random(),
                 missProjectile: resolved.fxKind === 'dodge',
             });
+            // Each combat log places one more stone (continues after engage intro)
+            setCombatBoardMoveCount((prev) => prev + 1);
 
             if (logIndex > 0 && simulationResult.battleLog[logIndex - 1].turn !== newEntry.turn) {
                 setActiveDebuffs((prev) => {
@@ -1287,7 +1329,15 @@ const GuildBoss: React.FC = () => {
             clearTimeout(stepTimer);
             if (hitTimer) clearTimeout(hitTimer);
         };
-    }, [isSimulating, simulationResult, logIndex, maxUserHp, persistPendingBattle, currentBoss.id]);
+    }, [
+        isSimulating,
+        simulationResult,
+        logIndex,
+        maxUserHp,
+        persistPendingBattle,
+        currentBoss.id,
+        presentationPhase,
+    ]);
 
     const { fullDamageRanking, myRankData } = useMemo(() => {
         const liveDamageLog = myGuild?.guildBossState?.totalDamageLog;
@@ -1333,7 +1383,11 @@ const GuildBoss: React.FC = () => {
     const attemptsLeft = GUILD_BOSS_MAX_ATTEMPTS - usedToday;
     
     const challengeButton = (
-        <div className="flex-shrink-0 rounded-lg border border-amber-400/30 bg-gradient-to-t from-[#060508] via-[#0f0d14] to-[#16131f] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)]">
+        <div
+            className={`flex-shrink-0 rounded-lg border border-amber-400/30 bg-gradient-to-t from-[#060508] via-[#0f0d14] to-[#16131f] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
+                !isSimulating && attemptsLeft > 0 ? 'guild-boss-challenge-idle' : ''
+            }`}
+        >
             <Button
                 bare
                 colorScheme="none"
@@ -1357,6 +1411,16 @@ const GuildBoss: React.FC = () => {
         </div>
     );
 
+    const supportSkillsPanel = (
+        <GuildBossSupportSkillsPanel
+            guild={myGuild}
+            combatFx={combatFx}
+            showOpeningHpBuff={showOpeningHpBuff}
+            engageWave={presentationPhase === 'engage'}
+            compact={isNativeMobile}
+        />
+    );
+
     const battleArena = (
         <GuildBossBattleArena
             boss={currentBoss}
@@ -1373,6 +1437,8 @@ const GuildBoss: React.FC = () => {
             combatFx={combatFx}
             showOpeningHpBuff={showOpeningHpBuff}
             currentBattleDamage={currentBattleDamage}
+            presentationPhase={presentationPhase}
+            combatBoardMoveCount={combatBoardMoveCount}
             compact={isNativeMobile}
             userLogContainerRef={userLogContainerRef}
             bossLogContainerRef={bossLogContainerRef}
@@ -1399,6 +1465,7 @@ const GuildBoss: React.FC = () => {
                     hideHp
                 />
             </div>
+            <div className="shrink-0">{supportSkillsPanel}</div>
             <div className="min-h-0 flex-1 overflow-hidden">
                 <DamageRankingPanel
                     fullDamageRanking={fullDamageRanking}
@@ -1418,25 +1485,79 @@ const GuildBoss: React.FC = () => {
             }`}
         >
             {isNativeMobile ? (
-                <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-hidden">
-                    <header className="relative flex shrink-0 items-center justify-center py-1">
+                <main className="flex min-h-0 min-w-0 flex-1 flex-col gap-1 overflow-hidden pb-[max(0.25rem,env(safe-area-inset-bottom,0px))]">
+                    <header className="relative flex h-9 shrink-0 items-center justify-center">
                         <div className="absolute left-0 top-1/2 -translate-y-1/2">
                             <BackButton onClick={() => { window.location.hash = '#/guild'; }} />
                         </div>
-                        <h1 className="text-xl font-bold text-white" style={{ textShadow: '2px 2px 5px black' }}>
+                        <h1 className="text-base font-bold text-white" style={{ textShadow: '2px 2px 5px black' }}>
                             {t('boss.title')}
                         </h1>
                     </header>
-                    <div className="min-h-0 flex-1 overflow-hidden">{battleArena}</div>
-                    <div className="max-h-[24%] min-h-0 shrink-0 overflow-hidden">
-                        <DamageRankingPanel
-                            fullDamageRanking={fullDamageRanking}
-                            myRankData={myRankData}
-                            myCurrentBattleDamage={currentBattleDamage}
-                            compact
-                        />
+                    <div className="flex shrink-0 rounded-lg bg-gray-900/70 p-1">
+                        {([
+                            { id: 'info' as const, label: t('boss.tabInfo') },
+                            { id: 'battle' as const, label: t('boss.tabBattle') },
+                        ]).map((tab) => (
+                            <button
+                                key={tab.id}
+                                type="button"
+                                onClick={() => setMobileTab(tab.id)}
+                                className={`flex-1 rounded-md py-1.5 text-[11px] font-semibold transition-all ${
+                                    mobileTab === tab.id ? 'bg-blue-600 text-white' : 'text-gray-400 hover:bg-gray-700/50'
+                                }`}
+                            >
+                                {tab.label}
+                            </button>
+                        ))}
                     </div>
-                    {challengeButton}
+                    <div className="relative min-h-0 flex-1 overflow-hidden">
+                        <div
+                            className={`flex h-full min-h-0 flex-col gap-1.5 overflow-hidden ${
+                                mobileTab === 'info' ? '' : 'invisible pointer-events-none absolute inset-0'
+                            }`}
+                            aria-hidden={mobileTab !== 'info'}
+                        >
+                            <div className="shrink-0">
+                                <UserStatsPanel
+                                    user={currentUserWithStatus}
+                                    guild={myGuild}
+                                    hp={userHp}
+                                    maxHp={maxUserHp}
+                                    damageNumbers={damageNumbers}
+                                    isSimulating={isSimulating}
+                                    compact
+                                    hideResearchSkills
+                                    hideHp
+                                />
+                            </div>
+                            <div className="shrink-0">
+                                <GuildBossSupportSkillsPanel
+                                    guild={myGuild}
+                                    combatFx={combatFx}
+                                    showOpeningHpBuff={showOpeningHpBuff}
+                                    engageWave={presentationPhase === 'engage'}
+                                    compact
+                                />
+                            </div>
+                            <div className="min-h-0 flex-1 overflow-hidden">
+                                <DamageRankingPanel
+                                    fullDamageRanking={fullDamageRanking}
+                                    myRankData={myRankData}
+                                    myCurrentBattleDamage={currentBattleDamage}
+                                />
+                            </div>
+                        </div>
+                        <div
+                            className={`h-full min-h-0 overflow-hidden ${
+                                mobileTab === 'battle' ? '' : 'invisible pointer-events-none absolute inset-0'
+                            }`}
+                            aria-hidden={mobileTab !== 'battle'}
+                        >
+                            {battleArena}
+                        </div>
+                    </div>
+                    <div className="shrink-0 border-t border-white/5 pt-1">{challengeButton}</div>
                 </main>
             ) : (
                 <PcLobbyThreeColumnShell
@@ -1452,6 +1573,8 @@ const GuildBoss: React.FC = () => {
                     onClose={() => {
                         setShowResultModal(false);
                         setBattleResult(null);
+                        setPresentationPhase('idle');
+                        setCombatBoardMoveCount(0);
                         void handlers.handleAction({ type: 'GET_GUILD_INFO' });
                     }}
                     isTopmost={true}

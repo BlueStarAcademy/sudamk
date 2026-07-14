@@ -4867,6 +4867,10 @@
         "name": "Mysterious Egg",
         "description": "Hatch a random AI pet in the incubator."
       },
+      "pet_egg-special": {
+        "name": "Mysterious Egg (Special)",
+        "description": "A specially adorned golden egg. Hatches in 1 minute in any hatchery slot and yields a level 10 AI pet."
+      },
       "pet_soulstone1": {
         "name": "Sprout Soul Stone",
         "description": "Soul stone material for pair pets."
@@ -7377,6 +7381,10 @@
       "activeSkill": "Active",
       "passiveSkill": "Passive",
       "researchSkills": "Lab skills",
+      "supportSkills": "Support research",
+      "tabInfo": "Info",
+      "tabBattle": "Battle",
+      "engage": "ENGAGE",
       "researchSkillEffects": "Lab skill effects",
       "damageTop3": "Top 3 damage",
       "damageRankingTop3": "Top 3 damage ranking",

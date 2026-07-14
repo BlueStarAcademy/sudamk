@@ -120,6 +120,11 @@ const CONSUMABLE_EN: Record<string, { name: string; description: string }> = {
     '스캔': { name: 'Scan', description: 'Scan item for Tower of Challenge.' },
     '배치변경': { name: 'Reposition', description: 'Reposition item for Tower of Challenge.' },
     '신비로운알': { name: 'Mysterious Egg', description: 'Hatch a random AI pet in the incubator.' },
+    '(특)신비로운 알': {
+        name: 'Mysterious Egg (Special)',
+        description:
+            'A specially adorned golden egg. Hatches in 1 minute in any hatchery slot and yields a level 10 AI pet.',
+    },
 };
 
 const MATERIAL_EN: Record<string, { name: string; description: string }> = {
@@ -135,6 +140,11 @@ const MATERIAL_EN: Record<string, { name: string; description: string }> = {
     '심연영혼석': { name: 'Abyss Soul Stone', description: 'Soul stone material for pair pets.' },
     '화염영혼석': { name: 'Flame Soul Stone', description: 'Soul stone material for pair pets.' },
     '천광영혼석': { name: 'Celestial Soul Stone', description: 'Soul stone material for pair pets.' },
+    '(특)신비로운 알': {
+        name: 'Mysterious Egg (Special)',
+        description:
+            'A specially adorned golden egg. Hatches in 1 minute in any hatchery slot and yields a level 10 AI pet.',
+    },
 };
 
 function loadJson(file: string): Record<string, unknown> {

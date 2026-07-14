@@ -32,7 +32,7 @@ describe('guildBossBattleFx skill mapping', () => {
         const resolved = resolveGuildBossCombatFx(
             {
                 turn: 1,
-                message: '[청해]의 물결의 압박! (방어 실패) | 유저 HP -1000',
+                message: '[청해]의 물결의 압박! (공격 성공) | 유저 HP -1000',
                 isUserAction: false,
                 damageTaken: 1000,
                 fxKind: 'wave',

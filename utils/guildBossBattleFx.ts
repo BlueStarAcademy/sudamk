@@ -55,6 +55,13 @@ export type ResolvedGuildBossCombatFx = {
     targetHit: 'user' | 'boss' | null;
 };
 
+/** Client playback state layered on top of resolved combat FX */
+export type GuildBossCombatFxState = ResolvedGuildBossCombatFx & {
+    spectacle?: GuildBossFxSpectacle;
+    fxKey: number;
+    missProjectile?: boolean;
+};
+
 type SkillFxMapEntry = { fxKind: GuildBossFxKind; spectacle: GuildBossFxSpectacle };
 
 const SKILL_FX_MAP: Record<string, SkillFxMapEntry> = {
@@ -148,12 +155,25 @@ export function fxKindToSpectacle(fxKind: GuildBossFxKind, skillId?: string): Gu
 }
 
 export function parseDuelOutcomeFromMessage(message: string): GuildBossDuelOutcome {
+    // Boss POV (current): 공격 실패 = fully resisted by user, 공격 성공 = boss got through
+    if (message.includes('공격 실패') && !message.includes('/')) return 'full_success';
+    if (message.includes('공격 성공') && !message.includes('/')) return 'fail';
+    const partialBoss = message.match(/공격\s*(\d+)\s*\/\s*(\d+)/);
+    if (partialBoss) {
+        const bossHits = Number(partialBoss[1]);
+        const total = Number(partialBoss[2]);
+        const userResists = total - bossHits;
+        if (userResists >= total && total > 0) return 'full_success';
+        if (userResists > 0) return 'partial';
+        return 'fail';
+    }
+    // Legacy user-POV phrasing (pending battle recovery / older logs)
     if (message.includes('방어 성공') && !message.includes('/')) return 'full_success';
     if (message.includes('방어 실패')) return 'fail';
-    const partial = message.match(/방어\s*(\d+)\s*\/\s*(\d+)/);
-    if (partial) {
-        const ok = Number(partial[1]);
-        const total = Number(partial[2]);
+    const partialUser = message.match(/방어\s*(\d+)\s*\/\s*(\d+)/);
+    if (partialUser) {
+        const ok = Number(partialUser[1]);
+        const total = Number(partialUser[2]);
         if (ok >= total && total > 0) return 'full_success';
         if (ok > 0) return 'partial';
         return 'fail';
