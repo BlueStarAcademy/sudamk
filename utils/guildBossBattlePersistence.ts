@@ -1,6 +1,6 @@
 import type { BattleLogEntry, GuildBossBattleResult } from '../types/index.js';
 
-export const GUILD_BOSS_LOG_PLAYBACK_MS = 1000;
+export const GUILD_BOSS_LOG_PLAYBACK_MS = 1600;
 
 const STORAGE_KEY = 'sudamr_pendingGuildBossBattle';
 const PENDING_TTL_MS = 60 * 60 * 1000;

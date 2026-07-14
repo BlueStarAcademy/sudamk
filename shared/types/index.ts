@@ -17,4 +17,4 @@ export { ItemGrade, GuildMemberRole, GuildResearchId, CoreStat, SpecialStat, Myt
 // Re-export enum from entities
 export { GuildResearchCategory } from './entities.js';
 // Re-export interface and type-only exports
-export type { GuildResearchProject, GuildBossInfo, GuildBossSkill, GuildBossActiveSkill, GuildBossPassiveSkill, GuildBossSkillEffect, GuildBossSkillSubEffect, GuildMission, BattleLogEntry, GuildBossBattleResult, MannerEffects } from './entities.js';
+export type { GuildResearchProject, GuildBossInfo, GuildBossSkill, GuildBossActiveSkill, GuildBossPassiveSkill, GuildBossSkillEffect, GuildBossSkillSubEffect, GuildMission, BattleLogEntry, GuildBossBattleResult, GuildBossFxKind, GuildBossDuelOutcome, MannerEffects } from './entities.js';

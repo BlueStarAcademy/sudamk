@@ -2724,3 +2724,323 @@ input[type="range"]::-moz-range-thumb {
     transform: none;
   }
 }
+
+/* ===== Guild Boss battle VFX ===== */
+@keyframes guild-boss-hit-shake {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  20% { transform: translate3d(-6px, 2px, 0); }
+  40% { transform: translate3d(5px, -2px, 0); }
+  60% { transform: translate3d(-4px, 1px, 0); }
+  80% { transform: translate3d(3px, -1px, 0); }
+}
+@keyframes guild-boss-hit-shake-soft {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  30% { transform: translate3d(-3px, 1px, 0); }
+  60% { transform: translate3d(2px, -1px, 0); }
+}
+@keyframes guild-boss-lunge-right {
+  0%, 100% { transform: translateX(0); }
+  40% { transform: translateX(14px) scale(1.03); }
+}
+@keyframes guild-boss-lunge-left {
+  0%, 100% { transform: translateX(0); }
+  40% { transform: translateX(-14px) scale(1.03); }
+}
+@keyframes guild-boss-dodge-slide {
+  0%, 100% { transform: translateX(0); opacity: 1; }
+  35% { transform: translateX(18px); opacity: 0.85; }
+  55% { transform: translateX(22px); opacity: 0.7; }
+}
+@keyframes guild-boss-fx-fade {
+  0% { opacity: 0; transform: scale(0.55); }
+  25% { opacity: 1; transform: scale(1.12); }
+  100% { opacity: 0; transform: scale(1.35); }
+}
+@keyframes guild-boss-fx-ring {
+  0% { opacity: 0.9; transform: scale(0.35); }
+  100% { opacity: 0; transform: scale(1.55); }
+}
+@keyframes guild-boss-projectile-to-boss {
+  0% { left: 18%; top: 42%; opacity: 0; transform: scale(0.6) rotate(-12deg); }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: 72%; top: 38%; opacity: 0; transform: scale(1.15) rotate(18deg); }
+}
+@keyframes guild-boss-projectile-to-user {
+  0% { left: 72%; top: 38%; opacity: 0; transform: scale(0.6) rotate(12deg); }
+  15% { opacity: 1; }
+  85% { opacity: 1; }
+  100% { left: 18%; top: 42%; opacity: 0; transform: scale(1.15) rotate(-18deg); }
+}
+@keyframes guild-boss-projectile-miss {
+  0% { opacity: 0; }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: translate(28px, -36px) rotate(40deg) scale(0.7); }
+}
+@keyframes guild-boss-icon-proc {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0); transform: scale(1); }
+  40% { box-shadow: 0 0 14px 3px rgba(251, 191, 36, 0.65); transform: scale(1.12); }
+}
+
+.guild-boss-actor-shake { animation: guild-boss-hit-shake 0.45s ease-in-out; }
+.guild-boss-actor-shake-soft { animation: guild-boss-hit-shake-soft 0.4s ease-in-out; }
+.guild-boss-actor-lunge-right { animation: guild-boss-lunge-right 0.4s ease-out; }
+.guild-boss-actor-lunge-left { animation: guild-boss-lunge-left 0.4s ease-out; }
+.guild-boss-actor-dodge { animation: guild-boss-dodge-slide 0.55s ease-out; }
+.guild-boss-research-icon-proc { animation: guild-boss-icon-proc 0.7s ease-out; }
+
+.guild-boss-fx-projectile {
+  position: absolute;
+  width: 2.75rem;
+  height: 2.75rem;
+  object-fit: contain;
+  z-index: 40;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.55));
+  pointer-events: none;
+}
+.guild-boss-fx-projectile--to-boss { animation: guild-boss-projectile-to-boss 0.55s ease-in forwards; }
+.guild-boss-fx-projectile--to-user { animation: guild-boss-projectile-to-user 0.55s ease-in forwards; }
+.guild-boss-fx-projectile--miss { animation: guild-boss-projectile-miss 0.55s ease-out forwards !important; }
+
+.guild-boss-fx-label {
+  position: absolute;
+  top: 18%;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 45;
+  font-size: 0.85rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  color: #fef3c7;
+  text-shadow: 0 0 8px rgba(251, 191, 36, 0.9), 1px 1px 2px #000;
+  animation: guild-boss-fx-fade 0.9s ease-out forwards;
+  white-space: nowrap;
+}
+
+.guild-boss-fx-slash,
+.guild-boss-fx-wave,
+.guild-boss-fx-burn,
+.guild-boss-fx-nature,
+.guild-boss-fx-heal,
+.guild-boss-fx-mystery,
+.guild-boss-fx-radiance,
+.guild-boss-fx-crush,
+.guild-boss-fx-debuff,
+.guild-boss-fx-dodge,
+.guild-boss-fx-guard,
+.guild-boss-fx-block,
+.guild-boss-fx-dmg-buff,
+.guild-boss-fx-hp-buff,
+.guild-boss-fx-extra {
+  position: absolute;
+  inset: 18% 22%;
+  border-radius: 9999px;
+  animation: guild-boss-fx-fade 0.85s ease-out forwards;
+  pointer-events: none;
+}
+.guild-boss-fx--strong { inset: 12% 16%; filter: brightness(1.25); }
+
+.guild-boss-fx-slash {
+  background: linear-gradient(135deg, transparent 42%, rgba(255,255,255,0.95) 50%, transparent 58%);
+  box-shadow: 0 0 18px rgba(255,255,255,0.55);
+}
+.guild-boss-fx-wave {
+  border: 3px solid rgba(56, 189, 248, 0.85);
+  box-shadow: 0 0 22px rgba(14, 165, 233, 0.7);
+  animation: guild-boss-fx-ring 0.9s ease-out forwards;
+  background: radial-gradient(circle, rgba(56,189,248,0.35), transparent 65%);
+}
+.guild-boss-fx-burn {
+  background: radial-gradient(circle, rgba(251,146,60,0.85) 0%, rgba(220,38,38,0.45) 45%, transparent 70%);
+  box-shadow: 0 0 28px rgba(249, 115, 22, 0.75);
+}
+.guild-boss-fx-nature {
+  background:
+    radial-gradient(circle at 30% 40%, rgba(74,222,128,0.8) 0 8%, transparent 9%),
+    radial-gradient(circle at 65% 55%, rgba(34,197,94,0.75) 0 7%, transparent 8%),
+    radial-gradient(circle at 50% 30%, rgba(163,230,53,0.7) 0 6%, transparent 7%),
+    radial-gradient(circle, rgba(22,163,74,0.25), transparent 70%);
+}
+.guild-boss-fx-heal {
+  background: radial-gradient(circle, rgba(74,222,128,0.65) 0%, transparent 60%);
+  box-shadow: 0 0 24px rgba(74, 222, 128, 0.55);
+}
+.guild-boss-fx-mystery {
+  background: conic-gradient(from 90deg, rgba(168,85,247,0.7), transparent, rgba(99,102,241,0.65), transparent, rgba(168,85,247,0.7));
+  filter: blur(0.3px);
+}
+.guild-boss-fx-radiance {
+  background:
+    linear-gradient(0deg, transparent 46%, rgba(253,224,71,0.9) 50%, transparent 54%),
+    linear-gradient(90deg, transparent 46%, rgba(254,249,195,0.9) 50%, transparent 54%),
+    radial-gradient(circle, rgba(253,224,71,0.35), transparent 65%);
+}
+.guild-boss-fx-crush {
+  border: 4px solid rgba(248,113,113,0.75);
+  animation: guild-boss-fx-ring 0.75s ease-out forwards;
+  background: radial-gradient(circle, rgba(127,29,29,0.45), transparent 70%);
+}
+.guild-boss-fx-debuff {
+  background: radial-gradient(circle, rgba(30,27,45,0.75) 0%, rgba(88,28,135,0.4) 50%, transparent 70%);
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.6);
+}
+.guild-boss-fx-dodge {
+  border: 2px dashed rgba(253,224,71,0.85);
+  animation: guild-boss-fx-ring 0.7s ease-out forwards;
+  background: radial-gradient(circle, rgba(253,224,71,0.2), transparent 65%);
+}
+.guild-boss-fx-guard {
+  border: 3px solid rgba(147,197,253,0.85);
+  box-shadow: 0 0 20px rgba(59,130,246,0.55);
+  background: radial-gradient(circle, rgba(59,130,246,0.28), transparent 65%);
+}
+.guild-boss-fx-block {
+  background:
+    linear-gradient(45deg, transparent 46%, rgba(248,113,113,0.95) 50%, transparent 54%),
+    linear-gradient(-45deg, transparent 46%, rgba(248,113,113,0.95) 50%, transparent 54%);
+}
+.guild-boss-fx-block--soft { opacity: 0.7; }
+.guild-boss-fx-dmg-buff {
+  background: radial-gradient(circle, rgba(251,146,60,0.55), transparent 65%);
+  box-shadow: 0 0 18px rgba(251, 146, 60, 0.55);
+}
+.guild-boss-fx-hp-buff {
+  border: 3px solid rgba(52,211,153,0.8);
+  animation: guild-boss-fx-ring 1s ease-out forwards;
+  background: radial-gradient(circle, rgba(16,185,129,0.3), transparent 65%);
+}
+.guild-boss-fx-extra {
+  background: radial-gradient(circle, rgba(125,211,252,0.65), transparent 60%);
+  box-shadow: 0 0 22px rgba(56, 189, 248, 0.6);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .guild-boss-actor-shake,
+  .guild-boss-actor-shake-soft,
+  .guild-boss-actor-lunge-right,
+  .guild-boss-actor-lunge-left,
+  .guild-boss-actor-dodge,
+  .guild-boss-research-icon-proc,
+  .guild-boss-fx-projectile,
+  .guild-boss-fx-slash,
+  .guild-boss-fx-wave,
+  .guild-boss-fx-burn,
+  .guild-boss-fx-nature,
+  .guild-boss-fx-heal,
+  .guild-boss-fx-mystery,
+  .guild-boss-fx-radiance,
+  .guild-boss-fx-crush,
+  .guild-boss-fx-debuff,
+  .guild-boss-fx-dodge,
+  .guild-boss-fx-guard,
+  .guild-boss-fx-block,
+  .guild-boss-fx-dmg-buff,
+  .guild-boss-fx-hp-buff,
+  .guild-boss-fx-extra,
+  .guild-boss-fx-label {
+    animation: none !important;
+  }
+}
+
+/* Guild Boss VS badge */
+.guild-boss-vs-badge {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  filter: drop-shadow(0 6px 16px rgba(0, 0, 0, 0.65));
+}
+.guild-boss-vs-badge__core {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 3.6rem;
+  min-height: 3.6rem;
+  padding: 0.35rem 0.7rem;
+  border-radius: 9999px;
+  border: 2px solid rgba(251, 191, 36, 0.75);
+  background:
+    radial-gradient(circle at 35% 28%, rgba(254, 243, 199, 0.35), transparent 45%),
+    linear-gradient(160deg, #1c1408 0%, #0a0a0c 55%, #1a1206 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 0 0 3px rgba(0, 0, 0, 0.45),
+    0 0 22px rgba(245, 158, 11, 0.35);
+  transform: rotate(-8deg);
+}
+.guild-boss-vs-badge__text {
+  font-weight: 900;
+  font-size: 1.35rem;
+  letter-spacing: 0.22em;
+  line-height: 1;
+  color: #fde68a;
+  text-shadow:
+    0 0 10px rgba(251, 191, 36, 0.75),
+    1px 1px 0 #000,
+    -1px 0 0 rgba(180, 83, 9, 0.55);
+  transform: translateX(0.08em);
+}
+.guild-boss-vs-badge__wing {
+  width: 1.65rem;
+  height: 2px;
+  border-radius: 9999px;
+  background: linear-gradient(90deg, transparent, rgba(251, 191, 36, 0.95), transparent);
+  box-shadow: 0 0 8px rgba(251, 191, 36, 0.55);
+}
+.guild-boss-vs-badge__wing--l {
+  background: linear-gradient(90deg, transparent, rgba(248, 113, 113, 0.2), rgba(251, 191, 36, 0.95));
+}
+.guild-boss-vs-badge__wing--r {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.95), rgba(52, 211, 153, 0.25), transparent);
+}
+.guild-boss-vs-badge--compact .guild-boss-vs-badge__core {
+  min-width: 2.6rem;
+  min-height: 2.6rem;
+  padding: 0.2rem 0.45rem;
+}
+.guild-boss-vs-badge--compact .guild-boss-vs-badge__text {
+  font-size: 0.95rem;
+  letter-spacing: 0.16em;
+}
+.guild-boss-vs-badge--compact .guild-boss-vs-badge__wing {
+  width: 1rem;
+}
+
+.guild-boss-vs-damage {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.1rem;
+  min-width: 7.5rem;
+  padding: 0.3rem 0.7rem 0.4rem;
+  border-radius: 0.7rem;
+  border: 1px solid rgba(251, 191, 36, 0.35);
+  background: linear-gradient(180deg, rgba(12, 10, 8, 0.88), rgba(0, 0, 0, 0.72));
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.guild-boss-vs-damage__label {
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: rgba(253, 230, 138, 0.78);
+  text-transform: uppercase;
+}
+.guild-boss-vs-damage__value {
+  font-size: 1.05rem;
+  font-weight: 900;
+  line-height: 1.1;
+  color: #fef3c7;
+  text-shadow: 0 0 10px rgba(251, 191, 36, 0.45), 1px 1px 2px #000;
+}
+.guild-boss-vs-damage--compact {
+  min-width: 5.75rem;
+  padding: 0.2rem 0.45rem 0.3rem;
+}
+.guild-boss-vs-damage--compact .guild-boss-vs-damage__label {
+  font-size: 0.55rem;
+}
+.guild-boss-vs-damage--compact .guild-boss-vs-damage__value {
+  font-size: 0.85rem;
+}

@@ -366,10 +366,14 @@ export function normalizeGuildWarBoardModes(war: { boards?: Record<string, any> 
 export const GUILD_WAR_MIN_PARTICIPANTS = 5;
 export const GUILD_WAR_MAX_PARTICIPANTS = 10;
 
-/** 길드전 1인당 전쟁당 도전 가능 횟수 */
+/** 길드전 1인당 일일(KST) 도전 가능 횟수 */
 export const GUILD_WAR_PERSONAL_DAILY_ATTEMPTS = 2;
-/** 길드전 1인당 월간 출전 가능 횟수 (KST 기준 월) */
-export const GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT = 5;
+/** 주간 전쟁(6일) 기준 1인당 최대 도전 횟수 */
+export const GUILD_WAR_PERSONAL_WAR_MAX_ATTEMPTS = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS * 6;
+/** AI 봇 길드: 전쟁 일차당 연출용 도전 횟수 */
+export const GUILD_WAR_BOT_ATTEMPTS_PER_DAY = 12;
+/** AI 봇 길드: 전쟁 기간(6일) 총 연출 도전 횟수 */
+export const GUILD_WAR_BOT_ATTEMPTS_WAR_TOTAL = GUILD_WAR_BOT_ATTEMPTS_PER_DAY * 6;
 
 /** 승리 시 별(따내기): 한 수에서 얻은 포획 점수 합 최대값 기준(일반 1점·문양 2점·배치 5점) */
 export const GUILD_WAR_STAR_CAPTURE_TIER2_MIN = 3;
@@ -513,6 +517,9 @@ export const GUILD_RESEARCH_PROJECTS: Record<GuildResearchId, GuildResearchProje
     // FIX: Replaced string literals with GuildResearchCategory enum members.
     [GuildResearchId.member_limit_increase]: { image: '/images/guild/lab/guildskill.webp', category: GuildResearchCategory.development, name: '길드원 확장', description: '길드 최대 인원 수를 증가시킵니다.', maxLevel: 7, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '명', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(7) },
     [GuildResearchId.boss_hp_increase]: { image: '/images/guild/lab/bosslab1.webp', category: GuildResearchCategory.boss, name: '길드보스전 HP 증가', description: '길드 보스전에서 유저의 최대 체력을 증가시킵니다.', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
+    [GuildResearchId.boss_damage_increase]: { image: '/images/guild/lab/bosslab5.webp', category: GuildResearchCategory.boss, name: '길드보스전 데미지 증가', description: '길드 보스전에서 유저가 입히는 피해가 증가합니다. 1레벨 0%에서 시작하며 레벨업마다 5%씩 증가합니다.', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
+    [GuildResearchId.boss_attack_evasion]: { image: '/images/guild/skill/boss-evasion.webp', category: GuildResearchCategory.boss, name: '길드보스전 공격 회피', description: '길드 보스전에서 보스 공격을 일정 확률로 회피합니다. 1레벨 0%에서 시작하며 레벨업마다 3%씩 증가합니다.', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 3, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
+    [GuildResearchId.boss_hit_damage_reduction]: { image: '/images/guild/skill/boss-hit-reduction.webp', category: GuildResearchCategory.boss, name: '길드보스전 피격데미지 감소', description: '길드 보스전에서 받는 피해가 감소합니다. 1레벨 0%에서 시작하며 레벨업마다 5%씩 증가합니다.', maxLevel: 10, baseCost: 30000, costMultiplier: 1.2, baseEffect: 5, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(10) },
     [GuildResearchId.boss_skill_heal_block]: { image: '/images/guild/lab/bosslab2.webp', category: GuildResearchCategory.boss, name: '길드보스전 [회복 불가]', description: '일정 확률로 보스의 회복을 막거나 회복량을 감소시킵니다.', maxLevel: 7, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(7) },
     [GuildResearchId.boss_skill_regen]: { image: '/images/guild/skill/userskill3.webp', category: GuildResearchCategory.boss, name: '길드보스전 [회복]', description: '일정 확률로 자신의 체력을 지속적으로 회복합니다.', maxLevel: 7, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(7) },
     [GuildResearchId.boss_skill_ignite]: { image: '/images/guild/lab/bosslab4.webp', category: GuildResearchCategory.boss, name: '길드보스전 [점화]', description: '일정 확률로 보스에게 지속적인 점화 피해를 입힙니다.', maxLevel: 7, baseCost: 30000, costMultiplier: 1.2, baseEffect: 10, effectUnit: '%', baseTimeHours: 3, timeIncrementHours: 0, requiredGuildLevel: generateRequiredLevels(7) },

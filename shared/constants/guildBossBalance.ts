@@ -39,9 +39,43 @@ export const GUILD_BOSS_REGEN_STABILITY_FACTOR = 0.65;
 /** 난이도 단계당 유저 피해 +5% (1단계 = 1.0) */
 export const GUILD_BOSS_USER_DAMAGE_STAGE_BONUS_PER_LEVEL = 0.05;
 
+/** 길드연구소 보스 데미지 증가: 1레벨 0%, 이후 레벨업마다 +5% (최대 10강 → 45%) */
+export const GUILD_BOSS_RESEARCH_DAMAGE_PER_LEVEL_PERCENT = 5;
+
+/** 길드연구소 보스 공격 회피: 1레벨 0%, 이후 레벨업마다 +3% (최대 10강 → 27%) */
+export const GUILD_BOSS_RESEARCH_EVASION_PER_LEVEL_PERCENT = 3;
+
+/** 길드연구소 보스 피격데미지 감소: 1레벨 0%, 이후 레벨업마다 +5% (최대 10강 → 45%) */
+export const GUILD_BOSS_RESEARCH_HIT_DAMAGE_REDUCTION_PER_LEVEL_PERCENT = 5;
+
 export function guildBossUserDamageStageMultiplier(stage: number): number {
     const st = Math.min(10, Math.max(1, Math.floor(stage) || 1));
     return 1 + GUILD_BOSS_USER_DAMAGE_STAGE_BONUS_PER_LEVEL * (st - 1);
+}
+
+/** 1레벨 0% 출발 연구: (level - 1) * perLevel */
+function computeGuildBossResearchPercentFromLevel1Zero(level: number, perLevelPercent: number): number {
+    const lv = Math.max(0, Math.floor(level) || 0);
+    if (lv <= 1) return 0;
+    return perLevelPercent * (lv - 1);
+}
+
+/** 연구 레벨에 따른 길드 보스전 유저 피해 증가율(%) */
+export function computeGuildBossResearchDamagePercent(level: number): number {
+    return computeGuildBossResearchPercentFromLevel1Zero(level, GUILD_BOSS_RESEARCH_DAMAGE_PER_LEVEL_PERCENT);
+}
+
+/** 연구 레벨에 따른 보스 공격 회피 확률(%) */
+export function computeGuildBossResearchEvasionPercent(level: number): number {
+    return computeGuildBossResearchPercentFromLevel1Zero(level, GUILD_BOSS_RESEARCH_EVASION_PER_LEVEL_PERCENT);
+}
+
+/** 연구 레벨에 따른 보스 피격 피해 감소율(%) */
+export function computeGuildBossResearchHitDamageReductionPercent(level: number): number {
+    return computeGuildBossResearchPercentFromLevel1Zero(
+        level,
+        GUILD_BOSS_RESEARCH_HIT_DAMAGE_REDUCTION_PER_LEVEL_PERCENT,
+    );
 }
 
 export function computeGuildBossStabilityMitigation(stability: number): number {

@@ -39,7 +39,7 @@ async function main() {
         process.env.GUILD_WAR_MATCH_TEST_MODE = '1';
         const { runGuildWarMatchingTestCycle } = await import('../scheduledTasks.js');
         const wt = process.env.GUILD_WAR_MATCH_TEST_WAR_TYPE;
-        const warType = wt === 'tue_wed' || wt === 'fri_sun' ? wt : 'fri_sun';
+        const warType = wt === 'weekly' || wt === 'tue_wed' || wt === 'fri_sun' ? wt : 'weekly';
         await runGuildWarMatchingTestCycle({ warType });
         console.log(`[guild-war:open-now] Ran full guild war match test cycle (${warType})`);
     }

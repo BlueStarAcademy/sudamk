@@ -367,6 +367,22 @@ export const mergeResearchLevels = (
     return out;
 };
 
+/** Match create-guild defaults: every research id starts at level 1 when missing. */
+export const ensureDefaultResearchLevels = (guild: Guild): boolean => {
+    let dirty = false;
+    if (!guild.research) {
+        guild.research = {} as Guild['research'];
+        dirty = true;
+    }
+    for (const id of Object.values(GuildResearchId) as GuildResearchId[]) {
+        if (!guild.research[id]) {
+            guild.research[id] = { level: 1 };
+            dirty = true;
+        }
+    }
+    return dirty;
+};
+
 /**
  * When the research timer has elapsed, increment the research level, clear the task,
  * and return the completed research id. Effects are derived from `guild.research[id].level`.
@@ -406,7 +422,10 @@ export const applyCompletedResearchAll = (
 ): boolean => {
     let dirty = false;
     for (const guild of Object.values(guilds)) {
+        // Complete first so a 0→1 finish for a brand-new research id is not skipped
+        // by filling the missing entry to level 1 beforehand.
         if (checkCompletedResearch(guild, now)) dirty = true;
+        if (ensureDefaultResearchLevels(guild)) dirty = true;
     }
     return dirty;
 };

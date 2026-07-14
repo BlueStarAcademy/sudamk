@@ -5,6 +5,11 @@ import { GuildMemberRole } from '../../types/enums.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Button from '../Button.js';
 import { GUILD_RESEARCH_PROJECTS, ADMIN_USER_ID } from '../../constants/index.js';
+import {
+    computeGuildBossResearchDamagePercent,
+    computeGuildBossResearchEvasionPercent,
+    computeGuildBossResearchHitDamageReductionPercent,
+} from '../../shared/constants/guildBossBalance.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
@@ -55,6 +60,18 @@ const getResearchSkillDisplay = (
     switch (researchId) {
         case GuildResearchId.boss_hp_increase:
             return { description: t('research.bossHpIncrease', { value: totalEffect }) };
+        case GuildResearchId.boss_damage_increase: {
+            const damagePercent = computeGuildBossResearchDamagePercent(level);
+            return { description: t('research.bossDamageIncrease', { value: damagePercent }) };
+        }
+        case GuildResearchId.boss_attack_evasion: {
+            const evasionPercent = computeGuildBossResearchEvasionPercent(level);
+            return { description: t('research.bossAttackEvasion', { value: evasionPercent }) };
+        }
+        case GuildResearchId.boss_hit_damage_reduction: {
+            const reductionPercent = computeGuildBossResearchHitDamageReductionPercent(level);
+            return { description: t('research.bossHitDamageReduction', { value: reductionPercent }) };
+        }
         case GuildResearchId.boss_skill_heal_block: {
             const chance = 10 + (15 * level);
             const reduction = 10 * level;

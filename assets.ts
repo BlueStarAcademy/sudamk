@@ -77,3 +77,5 @@ export const GUILD_ATTACK_ICON = "/images/guild/skill/attack.webp";
 export const GUILD_RESEARCH_HEAL_BLOCK_IMG = "/images/guild/lab/bosslab2.webp";
 export const GUILD_RESEARCH_IGNITE_IMG = "/images/guild/lab/bosslab4.webp";
 export const GUILD_RESEARCH_REGEN_IMG = "/images/guild/skill/userskill3.webp";
+export const GUILD_RESEARCH_EVASION_IMG = "/images/guild/skill/boss-evasion.webp";
+export const GUILD_RESEARCH_HIT_DAMAGE_REDUCTION_IMG = "/images/guild/skill/boss-hit-reduction.webp";

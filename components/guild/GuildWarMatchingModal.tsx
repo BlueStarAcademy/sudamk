@@ -52,7 +52,10 @@ const GuildWarMatchingModal: React.FC<GuildWarMatchingModalProps> = ({
             ? (() => {
                   const type = getGuildWarTypeFromMatchTime(warStartTime);
                   const warEndTime = warStartTime + GUILD_WAR_DURATION_MS_BY_TYPE[type];
-                  const periodLabel = type === 'tue_wed' ? t('war.periodTueWed') : t('war.periodFriSun');
+                  const periodLabel =
+                      type === 'weekly' || type === 'tue_wed'
+                          ? t('war.periodWeekly')
+                          : t('war.periodFriSun');
                   return { start: warStartTime, end: warEndTime, periodLabel };
               })()
             : null;

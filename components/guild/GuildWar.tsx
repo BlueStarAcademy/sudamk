@@ -559,9 +559,10 @@ const GuildWar = () => {
                 
                 const uid =
                     currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : (currentUserWithStatus?.id ?? currentUser?.id ?? '');
+                const todayKST = getTodayKSTDateString();
                 const myAttempts = currentUserWithStatus?.isAdmin
                     ? 0
-                    : (Number((war as any).userAttempts?.[uid] ?? 0) || 0);
+                    : (Number((war as any).dailyAttempts?.[uid]?.[todayKST] ?? 0) || 0);
                 setMyDailyAttempts(myAttempts);
 
                 if (guildWarTicketSummary) {
@@ -664,17 +665,25 @@ const GuildWar = () => {
         }
     }, [currentUserWithStatus?.id, currentUser?.id, effectiveGuildId]);
 
-    // 바둑판 클릭 시 도전
+    const getMyBoardChallengeGameId = (boardId: string): string => {
+        const uid = currentUserWithStatus?.id ?? currentUser?.id;
+        if (!uid || !activeWar?.boards) return '';
+        const row = (activeWar.boards as Record<string, any>)[boardId]?.challenging?.[uid];
+        const gameId = row?.gameId != null ? String(row.gameId) : '';
+        return gameId;
+    };
+
+    // 도전하기 / 진행 중 대국 재접속 (맵 선택·입장은 도전권과 무관)
     const handleBoardClick = async (board: Board) => {
         if (!activeWar || !effectiveGuildId) return;
         if ((activeWar as any).status !== 'active') {
             alert(t('war.endedWarNoChallenge'));
             return;
         }
-        
-        // 데모 모드에서는 도전 횟수 제한 없음
-        if (!isDemoMode && !currentUserWithStatus?.isAdmin) {
-            // 하루 도전 횟수 확인 (관리자는 테스트용 무제한)
+
+        const resuming = !!getMyBoardChallengeGameId(board.id);
+        // 신규 도전만 일일 한도 적용 (재접속·맵 입장은 소모 없음)
+        if (!isDemoMode && !currentUserWithStatus?.isAdmin && !resuming) {
             if (myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) {
                 alert(t('war.dailyLimitReached', { limit: GUILD_WAR_PERSONAL_DAILY_LIMIT }));
                 return;
@@ -1317,29 +1326,39 @@ const GuildWar = () => {
                                     </div>
                                 </div>
 
-                                {myTicketsMax != null && myTicketsLeft != null && (
+                                {myTicketsMax != null && myTicketsLeft != null && (() => {
+                                    const resumeGameId = board ? getMyBoardChallengeGameId(board.id) : '';
+                                    const ticketsExhausted =
+                                        !isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT;
+                                    const challengeBlocked = ticketsExhausted && !resumeGameId;
+                                    return (
                                     <button
                                         type="button"
                                         onClick={() => handleBoardClick(board)}
-                                        disabled={!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT}
+                                        disabled={challengeBlocked}
                                         className={`mt-0.5 w-[78%] max-w-[14rem] self-center shrink-0 rounded-lg px-2 py-2 text-sm font-semibold transition-all sm:py-2.5 sm:text-base flex items-center justify-center gap-2 flex-wrap ${
-                                            (!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT)
+                                            challengeBlocked
                                                 ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                                                 : 'bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white shadow-lg shadow-emerald-500/30 hover:shadow-xl hover:shadow-emerald-500/40 hover:scale-[1.02] active:scale-[0.98]'
                                         }`}
                                     >
                                         <span className="flex items-center gap-1 shrink-0">
                                             <img src={GUILD_WAR_TICKET_IMG} alt="" className="w-6 h-6 object-contain drop-shadow" />
-                                            <span className={`tabular-nums font-bold ${(!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) ? 'text-gray-300' : 'text-amber-100'}`}>
+                                            <span className={`tabular-nums font-bold ${challengeBlocked ? 'text-gray-300' : 'text-amber-100'}`}>
                                                 {myTicketsLeft}/{myTicketsMax}
                                             </span>
                                         </span>
                                         <span className="opacity-80 hidden min-[380px]:inline" aria-hidden>·</span>
                                         <span className="leading-tight text-center">
-                                            {(!isDemoMode && myDailyAttempts >= GUILD_WAR_PERSONAL_DAILY_LIMIT) ? t('war.attemptsExhausted') : t('war.challenge')}
+                                            {resumeGameId
+                                                ? t('war.resumeChallenge')
+                                                : challengeBlocked
+                                                  ? t('war.attemptsExhausted')
+                                                  : t('war.challenge')}
                                         </span>
                                     </button>
-                                )}
+                                    );
+                                })()}
                             </div>
                         ) : null}
                     </div>

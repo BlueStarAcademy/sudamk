@@ -27,6 +27,8 @@ interface GuildWarRewardModalProps {
     onClose: () => void;
     warResult: GuildWarRewardModalWarResult;
     rewards: GuildWarRewardModalRewards;
+    participationAttempts?: number;
+    participationRewardPercent?: number;
 }
 
 type RewardCardDef = {
@@ -69,7 +71,13 @@ const GuildWarRewardCard: React.FC<{
     </div>
 );
 
-const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warResult, rewards }) => {
+const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({
+    onClose,
+    warResult,
+    rewards,
+    participationAttempts,
+    participationRewardPercent,
+}) => {
     const { t } = useTranslation(['guild', 'common']);
     const useMobileChrome = useMobileModalChrome();
     const isWinner = warResult.isWinner;
@@ -216,6 +224,14 @@ const GuildWarRewardModal: React.FC<GuildWarRewardModalProps> = ({ onClose, warR
                             {isWinner ? t('war.victory') : t('war.defeat')}
                         </h2>
                         <p className="mt-1 text-xs text-white/55 sm:text-sm">{t('war.rewardPaid')}</p>
+                        {participationAttempts != null && participationRewardPercent != null ? (
+                            <p className="mt-1.5 text-[11px] text-amber-200/85 sm:text-xs">
+                                {t('war.participationRewardHint', {
+                                    attempts: participationAttempts,
+                                    percent: participationRewardPercent,
+                                })}
+                            </p>
+                        ) : null}
                     </div>
 
                     <div className="mb-4 rounded-2xl border border-white/10 bg-gradient-to-b from-stone-900/75 to-stone-950/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:mb-5">

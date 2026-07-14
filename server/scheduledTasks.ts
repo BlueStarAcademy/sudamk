@@ -29,8 +29,9 @@ import { clearChampionshipDungeonDailyEntryFields } from '../shared/utils/champi
 import { clearChampionshipDungeonDailyEntryRecords } from '../shared/utils/championshipDungeonDailyEntry.js';
 import { DEMO_GUILD_WAR, GUILD_WAR_BOT_GUILD_ID } from '../shared/constants/auth.js';
 import {
-    GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT,
     GUILD_WAR_MIN_PARTICIPANTS,
+    GUILD_WAR_BOT_ATTEMPTS_PER_DAY,
+    GUILD_WAR_BOT_ATTEMPTS_WAR_TOTAL,
     buildGuildWarBoardsRecordForNewWar,
 } from '../shared/constants/index.js';
 import { resetAndGenerateQuests } from './gameActions.js';
@@ -50,6 +51,8 @@ import {
     resolveGuildWarStartEndTimes,
     isGuildWarPrimeMatchWindowKst,
     isGuildWarCatchUpMatchWindowKst,
+    formatGuildWarWeekIdFromStartMs,
+    GUILD_WAR_SETTLEMENT_MS,
     type GuildWarRoundType,
 } from '../shared/utils/guildWarSchedule.js';
 import { aggregateGuildWarBoardTotals } from '../shared/utils/guildWarBoardOwner.js';
@@ -215,26 +218,15 @@ async function bulkAutoEnrollGuildsForScheduledWar(
     return { guilds, matchingQueue, addedToQueueCount, diagnostics };
 }
 
-async function increaseGuildWarMonthlyParticipationCounts(userIds: string[], now: number): Promise<void> {
-    if (!Array.isArray(userIds) || userIds.length === 0) return;
-    const monthKey = `${getKSTFullYear(now)}-${String(getKSTMonth(now) + 1).padStart(2, '0')}`;
-    const uniq = [...new Set(userIds.filter((id) => typeof id === 'string' && id.length > 0))];
-    if (uniq.length === 0) return;
-    const { broadcastUserUpdate } = await import('./socket.js');
-    for (const id of uniq) {
-        const u = await db.getUser(id, { includeEquipment: false, includeInventory: false }) as any;
-        if (!u) continue;
-        if (!u.guildWarMonthlyParticipations || typeof u.guildWarMonthlyParticipations !== 'object') {
-            u.guildWarMonthlyParticipations = {};
-        }
-        const current = Number(u.guildWarMonthlyParticipations[monthKey] ?? 0) || 0;
-        u.guildWarMonthlyParticipations[monthKey] = Math.min(
-            GUILD_WAR_MONTHLY_PARTICIPATION_LIMIT,
-            current + 1
-        );
-        await db.updateUser(u);
-        broadcastUserUpdate(u, ['guildWarMonthlyParticipations']);
-    }
+function buildGuildWarBotAttemptPlan(): {
+    botAttemptScript: { perDay: number[] };
+    botPlannedTotalAttempts: number;
+} {
+    const perDay = Array.from({ length: 6 }, () => GUILD_WAR_BOT_ATTEMPTS_PER_DAY);
+    return {
+        botAttemptScript: { perDay },
+        botPlannedTotalAttempts: GUILD_WAR_BOT_ATTEMPTS_WAR_TOTAL,
+    };
 }
 
 /** @deprecated 경쟁상대 시스템 - 던전으로 대체됨. 호환용 확장 타입 */
@@ -2480,14 +2472,14 @@ export async function processTowerRankingRewards(): Promise<void> {
     console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users (settlementYm=${settlementYm})`);
 }
 
-// 길드전 매칭: 월·목 23:00~23:59 KST 연출·짝 매칭 + 화·금 0:00~0:59 캐치업. 전쟁 개시·참여는 화·금 0:00 KST. 월·목 0:00~23:59 KST는 준비(입장 불가).
+// 길드전 매칭: 월 23:00~23:59 KST 연출·짝 매칭 + 화요일 캐치업. 전쟁 개시·참여는 화 0:00 KST. 월요일은 정산/휴식/매칭(입장 불가).
 // 예약 시간 외 매칭 큐가 있으면 매 분(메인 루프)에서 동일 규칙으로 처리(짝·미매칭 봇). 데모만 큐 전체를 봇과 즉시 매칭.
 /** `processGuildWarMatching` 두 번째 인자 — `GUILD_WAR_MATCH_TEST_MODE=1` 일 때만 test 옵션이 적용된다. */
 export type ProcessGuildWarMatchingOptions = {
-    /** 전 길드 자동 큐 등록(월·목·화·금 시각을 기다리지 않고 통합 테스트) */
+    /** 전 길드 자동 큐 등록(월·화 시각을 기다리지 않고 통합 테스트) */
     testBulkEnrollAll?: boolean;
     /** testBulkEnrollAll 과 함께: warType 강제 */
-    testWarTypeOverride?: 'tue_wed' | 'fri_sun';
+    testWarTypeOverride?: GuildWarRoundType;
 };
 
 export async function processGuildWarMatching(
@@ -2650,8 +2642,7 @@ export async function processGuildWarMatching(
             delete (g as any).guildWarPendingParticipantIds;
             const dbWar = await createGuildWar(guildId, botGuildId);
             const boards = buildGuildWarBoardsRecordForNewWar();
-            const botDay1Used = 15 + Math.floor(Math.random() * 6);
-            const botDay2Used = 5 + Math.floor(Math.random() * 11);
+            const botPlan = buildGuildWarBotAttemptPlan();
             const war: any = {
                 id: dbWar.id,
                 guild1Id: guildId,
@@ -2660,6 +2651,7 @@ export async function processGuildWarMatching(
                 startTime: scheduledStartTime,
                 endTime: scheduledEndTime,
                 warType,
+                warWeekId: formatGuildWarWeekIdFromStartMs(scheduledStartTime),
                 maxAttemptsPerGuild,
                 guild1TotalAttempts: 0,
                 guild2TotalAttempts: 0,
@@ -2670,8 +2662,7 @@ export async function processGuildWarMatching(
                 result: undefined,
                 boards,
                 isBotGuild: true,
-                botAttemptScript: { day1Used: botDay1Used, day2Used: botDay2Used },
-                botPlannedTotalAttempts: botDay1Used + botDay2Used,
+                ...botPlan,
                 createdAt: now,
                 updatedAt: now,
             };
@@ -2735,6 +2726,7 @@ export async function processGuildWarMatching(
                 startTime: scheduledStartTime,
                 endTime: scheduledEndTime,
                 warType,
+                warWeekId: formatGuildWarWeekIdFromStartMs(scheduledStartTime),
                 maxAttemptsPerGuild,
                 guild1TotalAttempts: 0,
                 guild2TotalAttempts: 0,
@@ -2796,8 +2788,7 @@ export async function processGuildWarMatching(
                     }
                     const dbWar = await createGuildWar(remainingGuildId, botGuildId);
                     const boards = buildGuildWarBoardsRecordForNewWar();
-                    const botDay1Used = 15 + Math.floor(Math.random() * 6);
-                    const botDay2Used = 5 + Math.floor(Math.random() * 11);
+                    const botPlan = buildGuildWarBotAttemptPlan();
 
                     const war: any = {
                         id: dbWar.id,
@@ -2807,6 +2798,7 @@ export async function processGuildWarMatching(
                         startTime: scheduledStartTime,
                         endTime: scheduledEndTime,
                         warType,
+                        warWeekId: formatGuildWarWeekIdFromStartMs(scheduledStartTime),
                         maxAttemptsPerGuild,
                         guild1TotalAttempts: 0,
                         guild2TotalAttempts: 0,
@@ -2817,8 +2809,7 @@ export async function processGuildWarMatching(
                         result: undefined,
                         boards: boards,
                         isBotGuild: true,
-                        botAttemptScript: { day1Used: botDay1Used, day2Used: botDay2Used },
-                        botPlannedTotalAttempts: botDay1Used + botDay2Used,
+                        ...botPlan,
                         createdAt: now,
                         updatedAt: now,
                     };
@@ -2864,7 +2855,7 @@ export async function processGuildWarMatching(
  * 반드시 `GUILD_WAR_MATCH_TEST_MODE=1` 일 때만 동작. 로컬/스테이징에서 `npm run guild-war:match-test` 로 실행.
  */
 export async function runGuildWarMatchingTestCycle(params?: {
-    warType?: 'tue_wed' | 'fri_sun';
+    warType?: GuildWarRoundType;
 }): Promise<void> {
     if (process.env.GUILD_WAR_MATCH_TEST_MODE !== '1') {
         throw new Error(
@@ -2917,14 +2908,13 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
     const botGuildId = await getOrCreateBotGuildForWar();
 
     const now = Date.now();
-    const warType: GuildWarRoundType = 'tue_wed';
+    const warType: GuildWarRoundType = 'weekly';
     const { startTime: scheduledStartTime, endTime: scheduledEndTime } = resolveGuildWarStartEndTimes(warType, now);
-    const maxAttemptsPerGuild = 2;
+    const maxAttemptsPerGuild = 0;
+    const botPlan = buildGuildWarBotAttemptPlan();
 
     const dbWar = await createGuildWar(guildId, botGuildId);
     const boards = buildGuildWarBoardsRecordForNewWar();
-    const botDay1Used = 15 + Math.floor(Math.random() * 6);
-    const botDay2Used = 5 + Math.floor(Math.random() * 11);
 
     const war: any = {
         id: dbWar.id,
@@ -2934,6 +2924,7 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
         startTime: scheduledStartTime,
         endTime: scheduledEndTime,
         warType,
+        warWeekId: formatGuildWarWeekIdFromStartMs(scheduledStartTime),
         maxAttemptsPerGuild,
         guild1TotalAttempts: 0,
         guild2TotalAttempts: 0,
@@ -2944,8 +2935,7 @@ export async function createAndStartDemoGuildWar(guildId: string): Promise<{ act
         result: undefined,
         boards,
         isBotGuild: true,
-        botAttemptScript: { day1Used: botDay1Used, day2Used: botDay2Used },
-        botPlannedTotalAttempts: botDay1Used + botDay2Used,
+        ...botPlan,
         createdAt: now,
         updatedAt: now,
     };
@@ -3017,9 +3007,12 @@ export async function processGuildWarEnd(): Promise<void> {
             }
         }
         
+        const scheduledEnd = guildWarEffectiveEndMs(war) || now;
         war.status = 'completed';
-        war.endTime = now;
-        war.rewardAvailableAt = now + 60 * 60 * 1000; // 전쟁 종료 1시간 후(목/월 0시)부터 보상 수령 가능
+        war.completedAt = now;
+        // 예정 종료 시각 보존 — 정산 후 보상 개방(월 01:00)이 틱 지연에 밀리지 않게 함
+        war.endTime = scheduledEnd;
+        war.rewardAvailableAt = scheduledEnd + GUILD_WAR_SETTLEMENT_MS;
         war.result = {
             winnerId: winnerId,
             guild1Score: guild1Score,
@@ -3034,7 +3027,7 @@ export async function processGuildWarEnd(): Promise<void> {
             const { updateGuildWar } = await import('./prisma/guildRepository.js');
             await updateGuildWar(war.id, {
                 status: 'completed',
-                endTime: now,
+                endTime: scheduledEnd,
                 result: war.result,
             });
         } catch (err: any) {
@@ -3131,8 +3124,7 @@ export async function ensureNamedGuildVsBotGuildWar(guildDisplayName: string): P
     const dbWar = await createGuildWar(targetGuildId, botGuildId);
 
     const boards = buildGuildWarBoardsRecordForNewWar();
-    const botDay1Used = 15 + Math.floor(Math.random() * 6);
-    const botDay2Used = 5 + Math.floor(Math.random() * 11);
+    const botPlan = buildGuildWarBotAttemptPlan();
 
     const war: any = {
         id: dbWar.id,
@@ -3142,6 +3134,7 @@ export async function ensureNamedGuildVsBotGuildWar(guildDisplayName: string): P
         startTime: scheduledStartTime,
         endTime: scheduledEndTime,
         warType,
+        warWeekId: formatGuildWarWeekIdFromStartMs(scheduledStartTime),
         maxAttemptsPerGuild,
         guild1TotalAttempts: 0,
         guild2TotalAttempts: 0,
@@ -3152,8 +3145,7 @@ export async function ensureNamedGuildVsBotGuildWar(guildDisplayName: string): P
         result: undefined,
         boards,
         isBotGuild: true,
-        botAttemptScript: { day1Used: botDay1Used, day2Used: botDay2Used },
-        botPlannedTotalAttempts: botDay1Used + botDay2Used,
+        ...botPlan,
         createdAt: now,
         updatedAt: now,
     };

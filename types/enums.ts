@@ -237,6 +237,9 @@ export enum GuildResearchId {
     
     // 보스 관련
     boss_hp_increase = 'boss_hp_increase',
+    boss_damage_increase = 'boss_damage_increase',
+    boss_attack_evasion = 'boss_attack_evasion',
+    boss_hit_damage_reduction = 'boss_hit_damage_reduction',
     boss_skill_heal_block = 'boss_skill_heal_block',
     boss_skill_regen = 'boss_skill_regen',
     boss_skill_ignite = 'boss_skill_ignite',

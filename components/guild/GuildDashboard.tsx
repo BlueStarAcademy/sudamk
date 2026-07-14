@@ -41,8 +41,10 @@ import {
     isGuildWarPrepTimeKst,
     getNextGuildWarEntryOpenDateKst,
     getGuildWarDisplayCountdownTarget,
+    getGuildWarCalendarPhaseKst,
     guildWarIsOpenForPlay,
     guildWarStartMs,
+    type GuildWarCalendarPhase,
 } from '../../shared/utils/guildWarSchedule.js';
 import { useModalStackLayer } from '../../hooks/useModalStackLayer.js';
 import { SHOP_IMAGE_DESC_POPOVER_Z } from '../shopImageDescriptionPopover.js';
@@ -1473,6 +1475,8 @@ function readGuildWarActionPayload(result: any) {
         guildWarLatestCompletedRewardClaimed: pick<boolean>('guildWarLatestCompletedRewardClaimed'),
         guildWarIsPrepTime: pick<boolean>('guildWarIsPrepTime'),
         guildWarNextEntryOpenAt: pick<number>('guildWarNextEntryOpenAt'),
+        guildWarCalendarPhase: pick<'war' | 'settlement' | 'rest' | 'matching'>('guildWarCalendarPhase'),
+        guildWarIsSettlementTime: pick<boolean>('guildWarIsSettlementTime'),
         warActionCooldown: pick<number>('warActionCooldown'),
         message: pick<string>('message'),
         cooldownUntil: pick<number>('cooldownUntil'),
@@ -1492,6 +1496,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const [rewardModalPayload, setRewardModalPayload] = React.useState<{
         warResult: GuildWarRewardModalWarResult;
         rewards: GuildWarRewardModalRewards;
+        participationAttempts?: number;
+        participationRewardPercent?: number;
     } | null>(null);
     const [isClaimingReward, setIsClaimingReward] = React.useState(false);
     const [activeWar, setActiveWar] = React.useState<any>(null);
@@ -1515,6 +1521,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     const [myRecordInCurrentWar, setMyRecordInCurrentWar] = React.useState<GuildWarDashboardMyRecord | null>(null);
     const [isUpdatingWarParticipation, setIsUpdatingWarParticipation] = React.useState(false);
     const [isWarPrepTime, setIsWarPrepTime] = React.useState(() => isGuildWarPrepTimeKst());
+    const [warCalendarPhase, setWarCalendarPhase] = React.useState<GuildWarCalendarPhase>(() => getGuildWarCalendarPhaseKst());
     const [warNextEntryOpenAt, setWarNextEntryOpenAt] = React.useState<number>(() => getNextGuildWarEntryOpenDateKst());
     
     const effectiveUserId = currentUserWithStatus?.isAdmin ? ADMIN_USER_ID : currentUserWithStatus?.id;
@@ -1557,6 +1564,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             setCanClaimReward(!!p.guildWarRewardClaimable);
             setIsClaimed(!!p.guildWarLatestCompletedRewardClaimed);
             setIsWarPrepTime(p.guildWarIsPrepTime ?? isGuildWarPrepTimeKst());
+            setWarCalendarPhase(p.guildWarCalendarPhase ?? getGuildWarCalendarPhaseKst());
             setWarNextEntryOpenAt(p.guildWarNextEntryOpenAt ?? getNextGuildWarEntryOpenDateKst());
 
             if (!war) {
@@ -1583,10 +1591,15 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                         : undefined);
                 setOpponentGuild(opponentGuildData ?? null);
                 if (effectiveUserId) {
-                    const attempts = currentUserWithStatus?.isAdmin
-                        ? 0
-                        : (Number((war as any).userAttempts?.[effectiveUserId] ?? 0) || 0);
-                    setMyWarAttempts(attempts);
+                    if (currentUserWithStatus?.isAdmin) {
+                        setMyWarAttempts(0);
+                    } else if (p.myRecordInCurrentWar && typeof p.myRecordInCurrentWar.attempts === 'number') {
+                        setMyWarAttempts(p.myRecordInCurrentWar.attempts);
+                    } else {
+                        const todayKST = getTodayKSTDateString();
+                        const dayUsed = Number((war as any).dailyAttempts?.[effectiveUserId]?.[todayKST] ?? 0) || 0;
+                        setMyWarAttempts(dayUsed);
+                    }
                 } else {
                     setMyWarAttempts(0);
                 }
@@ -1596,7 +1609,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                 setMyWarAttempts(0);
             }
         },
-        [guild.id, effectiveUserId, currentUserWithStatus?.isAdmin],
+        [guild.id, effectiveUserId, currentUserWithStatus?.isAdmin, t],
     );
     React.useEffect(() => {
         const gw = (guild as any).guildWarMatching;
@@ -1775,6 +1788,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
     React.useEffect(() => {
         const tick = () => {
             setIsWarPrepTime(isGuildWarPrepTimeKst());
+            setWarCalendarPhase(getGuildWarCalendarPhaseKst());
             setWarNextEntryOpenAt(getNextGuildWarEntryOpenDateKst());
         };
         tick();
@@ -1836,9 +1850,17 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
             } else {
                 setIsClaimed(true);
                 await handlers.handleAction({ type: 'GET_GUILD_WAR_DATA' });
-                const warResult = (result as any)?.warResult ?? result?.clientResponse?.warResult;
-                const rewards = (result as any)?.rewards ?? result?.clientResponse?.rewards;
-                return { warResult, rewards };
+                const cr = result?.clientResponse;
+                const warResult = (result as any)?.warResult ?? cr?.warResult;
+                const rewards = (result as any)?.rewards ?? cr?.rewards;
+                return {
+                    warResult,
+                    rewards,
+                    participationAttempts: (result as any)?.participationAttempts ?? cr?.participationAttempts,
+                    participationRewardPercent:
+                        (result as any)?.participationRewardPercent ?? cr?.participationRewardPercent,
+                    clientResponse: cr,
+                };
             }
         } catch (error) {
             console.error('[WarPanel] Claim reward failed:', error);
@@ -1853,9 +1875,14 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
         try {
             const data = await handleClaimReward();
             if (data?.warResult && data?.rewards) {
+                const cr = (data as any)?.clientResponse;
                 setRewardModalPayload({
                     warResult: data.warResult as GuildWarRewardModalWarResult,
                     rewards: data.rewards as GuildWarRewardModalRewards,
+                    participationAttempts:
+                        (data as any)?.participationAttempts ?? cr?.participationAttempts,
+                    participationRewardPercent:
+                        (data as any)?.participationRewardPercent ?? cr?.participationRewardPercent,
                 });
             }
         } finally {
@@ -2087,6 +2114,14 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                             <span className={`rounded-full border border-cyan-400/35 bg-cyan-950/30 px-2.5 py-0.5 font-bold text-cyan-200 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
                                                 {t('war.matchingInProgress')}
                                             </span>
+                                        ) : warCalendarPhase === 'settlement' ? (
+                                            <span className={`rounded-full border border-violet-400/35 bg-violet-950/30 px-2.5 py-0.5 font-bold text-violet-200 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                                                {t('war.settling')}
+                                            </span>
+                                        ) : warCalendarPhase === 'rest' ? (
+                                            <span className={`rounded-full border border-stone-400/35 bg-stone-900/40 px-2.5 py-0.5 font-bold text-stone-200 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
+                                                {t('war.restPeriod')}
+                                            </span>
                                         ) : (
                                             <span className={`rounded-full border border-amber-400/35 bg-amber-950/30 px-2.5 py-0.5 font-bold text-amber-200 ${isMobile ? 'text-[10px]' : 'text-xs'}`}>
                                                 {t('war.warPrep')}
@@ -2224,17 +2259,28 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                         ) : null}
                     </div>
 
-                    {/* 입장 - 하단 고정 */}
-                    <div className={`flex-shrink-0 ${isMobile || isCompact ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'} border-t border-stone-600/40 flex flex-wrap justify-center gap-2`}>
+                    {/* 입장(맵 진입)은 도전권과 무관 — 도전권은 전장에서 「도전하기」에만 소모 */}
+                    <div
+                        className={`flex-shrink-0 ${isMobile || isCompact ? 'mt-1 pt-1' : 'mt-1.5 pt-1.5'} border-t border-stone-600/40 flex flex-col items-center gap-1.5`}
+                    >
+                        <div
+                            className="inline-flex items-center gap-1.5 rounded-md border border-amber-500/25 bg-black/30 px-2 py-0.5 text-[10px] font-semibold text-amber-100/95 sm:text-xs"
+                            title={t('war.challengeTicketHint')}
+                        >
+                            <img src="/images/guild/warticket.webp" alt={t('war.warTicketAlt')} className="h-3.5 w-3.5" />
+                            <span className="tabular-nums">
+                                {Math.max(0, myWarTickets)}/{GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}
+                            </span>
+                            <span className="text-amber-200/70">{t('war.challengeTicketsToday')}</span>
+                        </div>
                         <button
                             type="button"
                             onClick={handleWarEntryClick}
+                            disabled={!canEnterWar}
                             title={warEntryDisabledTitle}
                             className={canEnterWar ? guildPanelBtn.war : guildPanelBtn.disabled}
                         >
-                            <img src="/images/guild/warticket.webp" alt={t('war.warTicketAlt')} className="w-4 h-4" />
-                            <span>{myWarTickets}/{GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}</span>
-                            <span>{t('boss.enter')}</span>
+                            <span>{t('war.enter')}</span>
                         </button>
                     </div>
                 </div>
@@ -2244,6 +2290,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                 onClose={() => setRewardModalPayload(null)}
                 warResult={rewardModalPayload.warResult}
                 rewards={rewardModalPayload.rewards}
+                participationAttempts={rewardModalPayload.participationAttempts}
+                participationRewardPercent={rewardModalPayload.participationRewardPercent}
             />
         )}
         {showMatchingModal && (

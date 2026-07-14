@@ -15,7 +15,7 @@ import GuildExpBadge from './GuildExpBadge.js';
 import { useTranslation } from 'react-i18next';
 
 interface GuildBossBattleResultModalProps {
-    result: GuildBossBattleResultType & { bossName: string; previousRank?: number; currentRank?: number };
+    result: GuildBossBattleResultType & { bossName: string; previousRank?: number | null; currentRank?: number | null };
     onClose: () => void;
     isTopmost?: boolean;
 }

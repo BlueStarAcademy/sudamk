@@ -314,6 +314,7 @@ const AppContent: React.FC = () => {
             currentRoute.view === 'ai' ||
             currentRoute.view === 'adventure' ||
             currentRoute.view === 'guild' ||
+            currentRoute.view === 'guildboss' ||
             currentRoute.view === 'tournament'
         ))
     );
@@ -361,6 +362,7 @@ const AppContent: React.FC = () => {
             currentRoute.view === 'ai' ||
             currentRoute.view === 'arena' ||
             currentRoute.view === 'guild' ||
+            currentRoute.view === 'guildboss' ||
             currentRoute.view === 'adventure' ||
             (currentRoute.view === 'tournament' && !hideNativeTopQuickStripForChampionshipArena));
 

@@ -3,6 +3,11 @@ import { useTranslation } from 'react-i18next';
 import { Guild, GuildResearchId, GuildResearchCategory } from '../../types/index.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { GUILD_RESEARCH_PROJECTS } from '../../constants/index.js';
+import {
+    computeGuildBossResearchDamagePercent,
+    computeGuildBossResearchEvasionPercent,
+    computeGuildBossResearchHitDamageReductionPercent,
+} from '../../shared/constants/guildBossBalance.js';
 
 interface GuildEffectsModalProps {
     guild: Guild;
@@ -27,7 +32,15 @@ const GuildEffectsModal: React.FC<GuildEffectsModalProps> = ({ guild, onClose, i
                 if (data && data.level > 0) {
                     const project = GUILD_RESEARCH_PROJECTS[id];
                     if (project) {
-                        const totalEffect = project.baseEffect * data.level;
+                        const totalEffect =
+                            id === GuildResearchId.boss_damage_increase
+                                ? computeGuildBossResearchDamagePercent(data.level)
+                                : id === GuildResearchId.boss_attack_evasion
+                                  ? computeGuildBossResearchEvasionPercent(data.level)
+                                  : id === GuildResearchId.boss_hit_damage_reduction
+                                    ? computeGuildBossResearchHitDamageReductionPercent(data.level)
+                                    : project.baseEffect * data.level;
+                        if (totalEffect <= 0 && id !== GuildResearchId.ap_regen_boost) continue;
                         if (id === GuildResearchId.ap_regen_boost) {
                             categories[project.category].push({
                                 name: project.name,
@@ -36,10 +49,12 @@ const GuildEffectsModal: React.FC<GuildEffectsModalProps> = ({ guild, onClose, i
                             });
                         } else {
                             const effectValue = `${totalEffect.toFixed(project.effectUnit === '%' ? 1 : 0).replace('.0', '')}${project.effectUnit}`;
+                            const isReduction = id === GuildResearchId.boss_hit_damage_reduction;
+                            const sign = isReduction ? '−' : '+';
                             categories[project.category].push({
                                 name: project.name,
-                                description: project.description.replace(/(\d+(\.\d+)?)/, `+${effectValue}`),
-                                value: `+${effectValue}`,
+                                description: project.description.replace(/(\d+(\.\d+)?)/, `${sign}${effectValue}`),
+                                value: `${sign}${effectValue}`,
                             });
                         }
                     }

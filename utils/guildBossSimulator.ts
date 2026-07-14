@@ -1,6 +1,17 @@
 
 // utils/guildBossSimulator.ts
-import type { User, Guild, GuildBossInfo, GuildBossActiveSkill, GuildBossPassiveSkill, GuildBossSkillSubEffect, BattleLogEntry, GuildBossBattleResult } from '../types/index.js';
+import type {
+    User,
+    Guild,
+    GuildBossInfo,
+    GuildBossActiveSkill,
+    GuildBossPassiveSkill,
+    GuildBossSkillSubEffect,
+    BattleLogEntry,
+    GuildBossBattleResult,
+    GuildBossDuelOutcome,
+    GuildBossFxKind,
+} from '../types/index.js';
 import { GuildResearchId, CoreStat, ItemGrade } from '../types/enums.js';
 import { GUILD_RESEARCH_PROJECTS } from '../constants/index.js';
 import {
@@ -8,6 +19,9 @@ import {
     computeGuildBossUserBaseTurnDamage,
     computeGuildBossStabilityMitigation,
     computeGuildBossHpPercentDamage,
+    computeGuildBossResearchDamagePercent,
+    computeGuildBossResearchEvasionPercent,
+    computeGuildBossResearchHitDamageReductionPercent,
     guildBossUserDamageStageMultiplier,
     GUILD_BOSS_CRIT_BASE_CHANCE,
     GUILD_BOSS_EXTRA_TURN_COEF,
@@ -18,14 +32,34 @@ import { calculateGuildBossBattleRewards, clampGuildBossStage, guildBossStatMult
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
 import { CONSUMABLE_ITEMS, EQUIPMENT_POOL } from '../constants/index.js';
-import { GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_REGEN_IMG, GUILD_ATTACK_ICON } from '../assets.js';
+import {
+    GUILD_RESEARCH_IGNITE_IMG,
+    GUILD_RESEARCH_HEAL_BLOCK_IMG,
+    GUILD_RESEARCH_REGEN_IMG,
+    GUILD_RESEARCH_EVASION_IMG,
+    GUILD_ATTACK_ICON,
+} from '../assets.js';
 import { calculateTotalStats } from './statUtils.js';
 import { aggregateSpecialOptionGearFromUser } from '../shared/utils/specialOptionGearEffects.js';
+import { skillIdToFxKind } from './guildBossBattleFx.js';
 
 const normalAttackCommentaries = ['침착한 한수로 응수합니다.', '정확하게 약점을 노립니다.', '흐름을 가져오는 일격입니다.', '단단하게 지켜냅니다.'];
 const criticalAttackCommentaries = ['사활문제를 풀어냈습니다!', '엄청난 집중력으로 좋은 한수를 둡니다.', '예리한 묘수로 허를 찌릅니다!', '신의 한수!'];
 
 const getRandom = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
+
+const resolveDuelOutcome = (
+    successfulDuels: number,
+    totalDuels: number,
+    mode: 'binary' | 'partial',
+): GuildBossDuelOutcome => {
+    if (mode === 'binary') {
+        return successfulDuels === totalDuels ? 'full_success' : 'fail';
+    }
+    if (successfulDuels >= totalDuels && totalDuels > 0) return 'full_success';
+    if (successfulDuels > 0) return 'partial';
+    return 'fail';
+};
 
 export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo, stage: number = 1): GuildBossBattleResult => {
     const st = clampGuildBossStage(stage);
@@ -34,6 +68,17 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
     const totalStats = calculateTotalStats(user, guild, 'guildBoss');
     const gear = aggregateSpecialOptionGearFromUser(user);
     const gearDamageMult = 1 + gear.guildBossDamagePercent / 100;
+    const researchLevels = guild.research;
+    const researchDamagePercent = computeGuildBossResearchDamagePercent(
+        researchLevels?.[GuildResearchId.boss_damage_increase]?.level || 0,
+    );
+    const researchDamageMult = 1 + researchDamagePercent / 100;
+    const researchEvasionPercent = computeGuildBossResearchEvasionPercent(
+        researchLevels?.[GuildResearchId.boss_attack_evasion]?.level || 0,
+    );
+    const researchHitDamageReductionPercent = computeGuildBossResearchHitDamageReductionPercent(
+        researchLevels?.[GuildResearchId.boss_hit_damage_reduction]?.level || 0,
+    );
     const BATTLE_TURNS = 30;
 
     let userHp = computeGuildBossUserMaxHp(totalStats, guild);
@@ -42,7 +87,6 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
     let totalDamageDealt = 0;
     let turnsSurvived = 0;
     const battleLog: BattleLogEntry[] = [];
-    const researchLevels = guild.research;
 
     let activeDebuffs: {
         [key in 'user_combat_power_reduction_percent' | 'user_heal_reduction_percent']: { value: number; turns: number }
@@ -51,9 +95,16 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
         user_heal_reduction_percent: { value: 0, turns: 0 },
     };
 
+    const tryResearchEvasion = (): boolean => {
+        if (researchEvasionPercent <= 0) return false;
+        return Math.random() * 100 < researchEvasionPercent;
+    };
+
     const applyBossDamageToUser = (rawDamage: number): number => {
+        if (rawDamage <= 0) return 0;
         const mitigated = computeGuildBossStabilityMitigation(totalStats[CoreStat.Stability]);
-        return Math.round(rawDamage * mitigated);
+        const afterResearch = mitigated * (1 - researchHitDamageReductionPercent / 100);
+        return Math.round(rawDamage * afterResearch);
     };
 
     const runUserTurn = (isExtra: boolean = false): boolean => {
@@ -71,7 +122,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
             userDamage *= 1 - activeDebuffs.user_combat_power_reduction_percent.value / 100;
         }
 
-        userDamage *= stageDmgMult * gearDamageMult;
+        userDamage *= stageDmgMult * gearDamageMult * researchDamageMult;
         userDamage = Math.round(userDamage);
         totalDamageDealt += userDamage;
         const overflow = totalDamageDealt - boss.hp;
@@ -82,16 +133,25 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
             ? criticalAttackCommentaries[Math.floor(Math.random() * criticalAttackCommentaries.length)]
             : normalAttackCommentaries[Math.floor(Math.random() * normalAttackCommentaries.length)];
         const extraTurnText = isExtra ? ' (추가 턴)' : '';
+        const damageBuffActive = researchDamagePercent > 0;
         battleLog.push({
             turn: turnsSurvived,
             icon: GUILD_ATTACK_ICON,
             message: `[${user.nickname}] ${commentary}${extraTurnText} | 보스 HP -${actualThisTurn.toLocaleString()}${isCrit ? ' (크리티컬!)' : ''}`,
             isUserAction: true,
             isCrit,
+            fxKind: 'slash',
+            researchId: damageBuffActive ? GuildResearchId.boss_damage_increase : undefined,
         });
 
         if (boss.hp - totalDamageDealt <= 0) {
-            battleLog.push({ turn: turnsSurvived, icon: GUILD_ATTACK_ICON, message: `[${user.nickname}]의 마지막 일격!`, isUserAction: true });
+            battleLog.push({
+                turn: turnsSurvived,
+                icon: GUILD_ATTACK_ICON,
+                message: `[${user.nickname}]의 마지막 일격!`,
+                isUserAction: true,
+                fxKind: 'slash',
+            });
             battleLog.push({ turn: turnsSurvived, message: `[${boss.name}]이 돌을 거두었습니다.`, isUserAction: false });
             return true;
         }
@@ -110,6 +170,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 message: `[추가공격] 빠르고 정확한 사고속도로 추가 턴을 획득합니다.`,
                 isUserAction: true,
                 isCrit: false,
+                fxKind: 'extra_turn',
             });
             bossDefeated = runUserTurn(true);
             if (bossDefeated) return true;
@@ -124,7 +185,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 let igniteDamage = boss.maxHp * GUILD_BOSS_IGNITE_BASE_HP_RATIO;
                 const igniteDamageIncreasePercent = damageIncreases[igniteLevel];
                 igniteDamage *= 1 + igniteDamageIncreasePercent / 100;
-                igniteDamage = Math.round(igniteDamage * stageDmgMult * gearDamageMult);
+                igniteDamage = Math.round(igniteDamage * stageDmgMult * gearDamageMult * researchDamageMult);
 
                 totalDamageDealt += igniteDamage;
                 const igniteOverflow = totalDamageDealt - boss.hp;
@@ -135,6 +196,8 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                     icon: GUILD_RESEARCH_IGNITE_IMG,
                     message: `[연구-점화] 발동! 보스 HP -${actualIgniteThisTurn.toLocaleString()}`,
                     isUserAction: true,
+                    fxKind: 'research_ignite',
+                    researchId: GuildResearchId.boss_skill_ignite,
                 });
                 if (totalDamageDealt >= boss.hp) {
                     battleLog.push({
@@ -164,6 +227,8 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                     message: `[연구-회복] 발동! HP +${healAmount.toLocaleString()}`,
                     isUserAction: true,
                     healingDone: healAmount,
+                    fxKind: 'research_regen',
+                    researchId: GuildResearchId.boss_skill_regen,
                 });
             }
         }
@@ -194,6 +259,8 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
             let turnBossDamage = 0;
             let turnBossHeal = 0;
             let duelResultMessage = '';
+            let duelOutcome: GuildBossDuelOutcome = 'none';
+            let usedHpPercent = false;
             const debuffsForLog: BattleLogEntry['debuffsApplied'] = [];
 
             if (bossSkill.id === '녹수_포자확산') {
@@ -203,6 +270,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 else damageRange = [4400, 7040];
                 turnBossDamage = getRandom(Math.round(damageRange[0] * statMult), Math.round(damageRange[1] * statMult));
                 duelResultMessage = `방어 ${successfulDuels} / 3회 성공`;
+                duelOutcome = resolveDuelOutcome(successfulDuels, 3, 'partial');
             } else if (bossSkill.id === '백광_천벌의일격') {
                 let damageRange: [number, number];
                 if (successfulDuels === 2) damageRange = [1760, 2640];
@@ -210,10 +278,12 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 else damageRange = [5280, 8800];
                 turnBossDamage = getRandom(Math.round(damageRange[0] * statMult), Math.round(damageRange[1] * statMult));
                 duelResultMessage = `방어 ${successfulDuels} / 2회 성공`;
+                duelOutcome = resolveDuelOutcome(successfulDuels, 2, 'partial');
             } else {
                 const duelSuccess = successfulDuels === statsToCheck.length;
                 const skillEffectsToApply = duelSuccess ? bossSkill.onSuccess : bossSkill.onFailure;
                 duelResultMessage = duelSuccess ? '방어 성공' : '방어 실패';
+                duelOutcome = resolveDuelOutcome(successfulDuels, statsToCheck.length, 'binary');
 
                 for (const effect of skillEffectsToApply) {
                     switch (effect.type) {
@@ -221,6 +291,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                             turnBossDamage += getRandom(effect.value![0], effect.value![1]) * (effect.hits || 1);
                             break;
                         case 'hp_percent':
+                            usedHpPercent = true;
                             turnBossDamage += computeGuildBossHpPercentDamage(
                                 maxUserHp,
                                 effect.value![0],
@@ -246,15 +317,36 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 }
             }
 
-            const finalBossDamage = applyBossDamageToUser(turnBossDamage);
+            const researchEvaded = turnBossDamage > 0 && tryResearchEvasion();
+            if (researchEvaded) {
+                battleLog.push({
+                    turn: turnsSurvived,
+                    icon: GUILD_RESEARCH_EVASION_IMG,
+                    message: `[연구-공격회피] 발동! 보스의 공격을 회피했습니다.`,
+                    isUserAction: true,
+                    fxKind: 'dodge',
+                    researchId: GuildResearchId.boss_attack_evasion,
+                });
+            }
+
+            const finalBossDamage = researchEvaded ? 0 : applyBossDamageToUser(turnBossDamage);
             userHp -= finalBossDamage;
 
             let logMessage = `[${boss.name}]의 ${bossSkill.name}! (${duelResultMessage})`;
-            if (finalBossDamage > 0) logMessage += ` | 유저 HP -${finalBossDamage.toLocaleString()}`;
+            if (researchEvaded) logMessage += ` | 회피!`;
+            else if (finalBossDamage > 0) logMessage += ` | 유저 HP -${finalBossDamage.toLocaleString()}`;
             if (turnBossHeal > 0) {
                 totalDamageDealt -= turnBossHeal;
                 logMessage += ` | 보스 HP +${turnBossHeal.toLocaleString()}`;
             }
+
+            let skillFx: GuildBossFxKind = skillIdToFxKind(bossSkill.id, boss.id, {
+                isHeal: turnBossHeal > 0 && finalBossDamage <= 0,
+                isDebuff: debuffsForLog.length > 0 && finalBossDamage <= 0,
+                isHpPercent: usedHpPercent,
+            });
+            if (duelOutcome === 'full_success' || researchEvaded) skillFx = 'dodge';
+
             battleLog.push({
                 turn: turnsSurvived,
                 icon: bossSkill.image,
@@ -263,6 +355,10 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 damageTaken: finalBossDamage,
                 bossHealingDone: turnBossHeal,
                 debuffsApplied: debuffsForLog,
+                fxKind: skillFx,
+                duelOutcome: researchEvaded ? 'full_success' : duelOutcome,
+                skillId: bossSkill.id,
+                researchId: researchEvaded ? GuildResearchId.boss_attack_evasion : undefined,
             });
         }
 
@@ -279,14 +375,33 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                             effect.value![1],
                             getRandom(effect.value![0], effect.value![1]),
                         );
-                        const pDamage = applyBossDamageToUser(rawPDamage);
+                        const researchEvaded = rawPDamage > 0 && tryResearchEvasion();
+                        if (researchEvaded) {
+                            battleLog.push({
+                                turn: turnsSurvived,
+                                icon: GUILD_RESEARCH_EVASION_IMG,
+                                message: `[연구-공격회피] 발동! 보스의 공격을 회피했습니다.`,
+                                isUserAction: true,
+                                fxKind: 'dodge',
+                                researchId: GuildResearchId.boss_attack_evasion,
+                            });
+                        }
+                        const pDamage = researchEvaded ? 0 : applyBossDamageToUser(rawPDamage);
                         userHp -= pDamage;
                         battleLog.push({
                             turn: turnsSurvived,
                             icon: pSkill.image,
-                            message: `[${boss.name}]의 ${pSkill.name} 발동! | 유저 HP -${pDamage.toLocaleString()}`,
+                            message: researchEvaded
+                                ? `[${boss.name}]의 ${pSkill.name} 발동! | 회피!`
+                                : `[${boss.name}]의 ${pSkill.name} 발동! | 유저 HP -${pDamage.toLocaleString()}`,
                             isUserAction: false,
                             damageTaken: pDamage,
+                            fxKind: researchEvaded
+                                ? 'dodge'
+                                : skillIdToFxKind(pSkill.id, boss.id, { isHpPercent: true }),
+                            skillId: pSkill.id,
+                            researchId: researchEvaded ? GuildResearchId.boss_attack_evasion : undefined,
+                            duelOutcome: researchEvaded ? 'full_success' : undefined,
                         });
                         break;
                     }
@@ -300,6 +415,9 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                             icon: pSkill.image,
                             message: `[${boss.name}]의 ${pSkill.name} 발동! 유저의 회복량이 감소합니다.`,
                             isUserAction: false,
+                            fxKind: 'debuff',
+                            skillId: pSkill.id,
+                            debuffsApplied: effect.debuffType ? [effect.debuffType] : undefined,
                         });
                         break;
                     case 'heal': {
@@ -317,6 +435,8 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                                     icon: GUILD_RESEARCH_HEAL_BLOCK_IMG,
                                     message: `[연구-회복불가] 발동! 보스의 회복이 막혔습니다.`,
                                     isUserAction: true,
+                                    fxKind: 'research_heal_block',
+                                    researchId: GuildResearchId.boss_skill_heal_block,
                                 });
                                 passiveHeal = 0;
                             } else {
@@ -329,6 +449,8 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                                         icon: GUILD_RESEARCH_HEAL_BLOCK_IMG,
                                         message: `[연구-회복감소] 발동! 보스의 회복량이 ${reducedAmount.toLocaleString()} 감소했습니다.`,
                                         isUserAction: true,
+                                        fxKind: 'research_heal_reduce',
+                                        researchId: GuildResearchId.boss_skill_heal_block,
                                     });
                                 }
                             }
@@ -342,6 +464,8 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                                 message: `[${boss.name}]의 ${pSkill.name} 발동! | 보스 HP +${passiveHeal.toLocaleString()}`,
                                 isUserAction: false,
                                 bossHealingDone: passiveHeal,
+                                fxKind: 'heal',
+                                skillId: pSkill.id,
                             });
                         }
                         break;

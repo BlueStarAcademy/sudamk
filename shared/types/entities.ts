@@ -741,7 +741,7 @@ export type User = {
   guildId?: string;
   /** 길드전 출전 의사 (미설정은 참여로 간주) */
   guildWarParticipationEnabled?: boolean;
-  /** 길드전 월간 출전 횟수 (KST 기준, key: YYYY-MM) */
+  /** @deprecated 월간 출전 한도 제거됨 — 레거시 필드 무시 */
   guildWarMonthlyParticipations?: Record<string, number>;
   blacksmithLevel: number;
   blacksmithXp: number;
@@ -2043,6 +2043,29 @@ export type GuildWarMatch = {
   updatedAt: number;
 };
 
+/** Client combat presentation kind for guild boss battle log playback */
+export type GuildBossFxKind =
+    | 'slash'
+    | 'wave'
+    | 'burn'
+    | 'nature'
+    | 'heal'
+    | 'mystery'
+    | 'radiance'
+    | 'crush'
+    | 'debuff'
+    | 'dodge'
+    | 'guard_partial'
+    | 'research_ignite'
+    | 'research_regen'
+    | 'research_heal_block'
+    | 'research_heal_reduce'
+    | 'research_damage_buff'
+    | 'research_hp_buff'
+    | 'extra_turn';
+
+export type GuildBossDuelOutcome = 'full_success' | 'partial' | 'fail' | 'none';
+
 export type BattleLogEntry = {
     turn: number;
     icon?: string;
@@ -2053,6 +2076,11 @@ export type BattleLogEntry = {
     healingDone?: number;
     debuffsApplied?: string[];
     isCrit?: boolean;
+    /** Presentation hint for battle viewer VFX */
+    fxKind?: GuildBossFxKind;
+    duelOutcome?: GuildBossDuelOutcome;
+    researchId?: string;
+    skillId?: string;
 };
 
 export type GuildBossBattleResult = {

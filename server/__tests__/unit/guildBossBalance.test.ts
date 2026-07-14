@@ -4,6 +4,9 @@ import {
     computeGuildBossUserMaxHp,
     computeGuildBossHpPercentDamage,
     computeGuildBossStabilityMitigation,
+    computeGuildBossResearchDamagePercent,
+    computeGuildBossResearchEvasionPercent,
+    computeGuildBossResearchHitDamageReductionPercent,
     guildBossUserDamageStageMultiplier,
     GUILD_BOSS_BOSS_HP_PERCENT_CAP,
 } from '../../../shared/constants/guildBossBalance.js';
@@ -103,6 +106,27 @@ describe('guildBossBalance constants', () => {
     it('stage damage multiplier scales +5% per level', () => {
         expect(guildBossUserDamageStageMultiplier(1)).toBe(1);
         expect(guildBossUserDamageStageMultiplier(3)).toBeCloseTo(1.1);
+    });
+
+    it('research damage percent: L1=0% then +5% per level up to L10=45%', () => {
+        expect(computeGuildBossResearchDamagePercent(0)).toBe(0);
+        expect(computeGuildBossResearchDamagePercent(1)).toBe(0);
+        expect(computeGuildBossResearchDamagePercent(2)).toBe(5);
+        expect(computeGuildBossResearchDamagePercent(10)).toBe(45);
+    });
+
+    it('research evasion percent: L1=0% then +3% per level up to L10=27%', () => {
+        expect(computeGuildBossResearchEvasionPercent(0)).toBe(0);
+        expect(computeGuildBossResearchEvasionPercent(1)).toBe(0);
+        expect(computeGuildBossResearchEvasionPercent(2)).toBe(3);
+        expect(computeGuildBossResearchEvasionPercent(10)).toBe(27);
+    });
+
+    it('research hit damage reduction: L1=0% then +5% per level up to L10=45%', () => {
+        expect(computeGuildBossResearchHitDamageReductionPercent(0)).toBe(0);
+        expect(computeGuildBossResearchHitDamageReductionPercent(1)).toBe(0);
+        expect(computeGuildBossResearchHitDamageReductionPercent(2)).toBe(5);
+        expect(computeGuildBossResearchHitDamageReductionPercent(10)).toBe(45);
     });
 });
 

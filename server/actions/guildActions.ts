@@ -14,7 +14,11 @@ import {
 } from '../../types/index.js';
 import { containsProfanity } from '../../profanity.js';
 import { createDefaultGuild } from '../initialData.js';
-import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId, isGuildWarBoardRuleMode, getGuildWarBaseStoneCountByBoardId } from '../../shared/constants/index.js';
+import { GUILD_CREATION_COST, GUILD_DONATION_DIAMOND_COST, GUILD_DONATION_DIAMOND_LIMIT, GUILD_DONATION_DIAMOND_REWARDS, GUILD_DONATION_GOLD_COST, GUILD_DONATION_GOLD_LIMIT, GUILD_DONATION_GOLD_REWARDS, GUILD_LEAVE_COOLDOWN_MS, GUILD_RESEARCH_PROJECTS, GUILD_CHECK_IN_MILESTONE_REWARDS, GUILD_SHOP_ITEMS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, GUILD_BOSSES, GUILD_BOSS_DAMAGE_TIERS, GUILD_BOSS_CONTRIBUTION_BY_TIER, GUILD_BOSS_PERSONAL_REWARDS_TIERS, GUILD_WAR_BOT_GUILD_ID, DEMO_GUILD_WAR, GUILD_WAR_MAIN_TIME_MINUTES, GUILD_WAR_FISCHER_INCREMENT_SECONDS, GUILD_WAR_MIN_PARTICIPANTS, GUILD_WAR_MAX_PARTICIPANTS, GUILD_WAR_PERSONAL_DAILY_ATTEMPTS, GUILD_WAR_PERSONAL_WAR_MAX_ATTEMPTS, GUILD_WAR_BOT_ATTEMPTS_PER_DAY, GUILD_WAR_BOT_ATTEMPTS_WAR_TOTAL, getGuildWarBoardMode, normalizeGuildWarBoardModes, getGuildWarCaptureInitialStones, getGuildWarBoardLineSize, getGuildWarMissileCountByBoardId, getGuildWarHiddenStoneCountByBoardId, getGuildWarScanCountByBoardId, getGuildWarAutoScoringTurnsByBoardId, getGuildWarCaptureBlackTargetByBoardId, GUILD_WAR_CAPTURE_AI_TARGET, getGuildWarCaptureTurnLimitByBoardId, isGuildWarBoardRuleMode, getGuildWarBaseStoneCountByBoardId } from '../../shared/constants/index.js';
+import {
+    getGuildWarParticipationRewardMult,
+    scaleGuildWarPersonalRewardAmount,
+} from '../../shared/utils/guildWarParticipationRewards.js';
 import { guildWarKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
 import { aggregateGuildWarBoardTotals } from '../../shared/utils/guildWarBoardOwner.js';
 import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
@@ -135,27 +139,28 @@ function dedupeCompletedGuildWars(wars: any[]): any[] {
     });
 }
 
-function getGuildWarRewardRanges(isWinner: boolean, _isFriSunWar: boolean): GuildWarRewardRangeBundle {
+/** 주 1회 길드전 — 기존(주 2회) 대비 승패 청구 보상 2배 */
+function getGuildWarRewardRanges(isWinner: boolean): GuildWarRewardRangeBundle {
     if (isWinner) {
         return {
-            guildCoins: { min: 200, max: 250 },
-            guildXp: 5000,
-            researchPoints: { min: 2000, max: 3000 },
-            gold: { min: 3000, max: 5000 },
-            diamonds: { min: 20, max: 30 },
+            guildCoins: { min: 400, max: 500 },
+            guildXp: 10000,
+            researchPoints: { min: 4000, max: 6000 },
+            gold: { min: 6000, max: 10000 },
+            diamonds: { min: 40, max: 60 },
         };
     }
     return {
-        guildCoins: { min: 100, max: 100 },
-        guildXp: 1000,
-        researchPoints: { min: 1000, max: 1000 },
-        gold: { min: 1000, max: 1000 },
-        diamonds: { min: 10, max: 10 },
+        guildCoins: { min: 200, max: 200 },
+        guildXp: 2000,
+        researchPoints: { min: 2000, max: 2000 },
+        gold: { min: 2000, max: 2000 },
+        diamonds: { min: 20, max: 20 },
     };
 }
 
-function rollGuildWarRewards(isWinner: boolean, isFriSunWar: boolean): GuildWarRewardBundle {
-    const ranges = getGuildWarRewardRanges(isWinner, isFriSunWar);
+function rollGuildWarRewards(isWinner: boolean): GuildWarRewardBundle {
+    const ranges = getGuildWarRewardRanges(isWinner);
     return {
         guildCoins: getRandomInt(ranges.guildCoins.min, ranges.guildCoins.max),
         guildXp: ranges.guildXp,
@@ -163,6 +168,11 @@ function rollGuildWarRewards(isWinner: boolean, isFriSunWar: boolean): GuildWarR
         gold: getRandomInt(ranges.gold.min, ranges.gold.max),
         diamonds: getRandomInt(ranges.diamonds.min, ranges.diamonds.max),
     };
+}
+
+function getGuildWarUserDailyAttemptsUsed(war: any, userId: string, todayKST: string): number {
+    const dayMap = war?.dailyAttempts?.[userId] as Record<string, number> | undefined;
+    return Number(dayMap?.[todayKST] ?? 0) || 0;
 }
 
 async function upsertCompletedGuildWarHistory(updatedWar: any): Promise<void> {
@@ -212,6 +222,7 @@ function mergeLatestGuildKvExceptMembers(guild: Guild, latestGuilds: Record<stri
     }
 
     guildService.checkCompletedResearch(guild);
+    guildService.ensureDefaultResearchLevels(guild);
 }
 
 function guildMemberIdSet(g: Guild | undefined): Set<string> {
@@ -466,21 +477,27 @@ function guildWarSeededHash(input: string): number {
     return h >>> 0;
 }
 
-function seededRangeByWar(warId: string, tag: string, min: number, max: number): number {
-    const h = guildWarSeededHash(`${warId}|${tag}`);
-    return min + (h % (max - min + 1));
-}
-
 function applyBotGuildWarAttemptScript(war: any, now: number = Date.now()): boolean {
     if (!war || war.status !== 'active' || !war.isBotGuild) return false;
     if (!war.startTime || !war.boards || typeof war.boards !== 'object') return false;
 
     const dayMs = 24 * 60 * 60 * 1000;
-    const elapsedDays = Math.floor(Math.max(0, now - Number(war.startTime || 0)) / dayMs);
-    const day1Used = seededRangeByWar(String(war.id), 'bot-day1', 15, 20);
-    const day2Used = seededRangeByWar(String(war.id), 'bot-day2', 5, 15);
-    const isSecondDay = elapsedDays >= 1;
-    const targetUsed = isSecondDay ? day1Used + day2Used : day1Used;
+    const startMs = Number(war.startTime || 0);
+    if (!Number.isFinite(startMs) || startMs <= 0) return false;
+    const elapsedDays = Math.min(5, Math.max(0, Math.floor(Math.max(0, now - startMs) / dayMs)));
+    const perDay: number[] = Array.from({ length: 6 }, (_, i) => {
+        const script = (war as any).botAttemptScript?.perDay;
+        if (Array.isArray(script) && Number.isFinite(Number(script[i]))) {
+            return Math.max(0, Math.floor(Number(script[i])));
+        }
+        return GUILD_WAR_BOT_ATTEMPTS_PER_DAY;
+    });
+    // 일차별 누적: day0 → 12, …, day5 → 72 (하루 만에 몰아쓰기 없음)
+    let targetUsed = 0;
+    for (let d = 0; d <= elapsedDays; d++) {
+        targetUsed += perDay[d] ?? GUILD_WAR_BOT_ATTEMPTS_PER_DAY;
+    }
+    targetUsed = Math.min(GUILD_WAR_BOT_ATTEMPTS_WAR_TOTAL, targetUsed);
 
     const opponentIsGuild2 = war.guild2Id === GUILD_WAR_BOT_GUILD_ID;
     const totalKey = opponentIsGuild2 ? 'guild2TotalAttempts' : 'guild1TotalAttempts';
@@ -488,28 +505,35 @@ function applyBotGuildWarAttemptScript(war: any, now: number = Date.now()): bool
 
     const currentUsed = Number(war[totalKey] ?? 0) || 0;
     const appliedUsed = Math.max(currentUsed, targetUsed);
-    if (appliedUsed === currentUsed && Number((war as any).botPlannedTotalAttempts ?? 0) === day1Used + day2Used) {
+    const plannedTotal = GUILD_WAR_BOT_ATTEMPTS_WAR_TOTAL;
+    if (
+        appliedUsed === currentUsed &&
+        Number((war as any).botPlannedTotalAttempts ?? 0) === plannedTotal &&
+        Array.isArray((war as any).botAttemptScript?.perDay)
+    ) {
         return false;
     }
 
     war[totalKey] = appliedUsed;
-    (war as any).botPlannedTotalAttempts = day1Used + day2Used;
-    (war as any).botAttemptScript = { day1Used, day2Used };
+    (war as any).botPlannedTotalAttempts = plannedTotal;
+    (war as any).botAttemptScript = { perDay, elapsedDays, targetUsed: appliedUsed };
 
     const boardIds = Object.keys(war.boards || {});
     if (boardIds.length === 0) return true;
 
-    const boardWeight = (boardId: string, day: 1 | 2) => {
-        // 1일차: 상단/중단 중심, 2일차: 하단 가중을 높여 추가 공격 연출
+    const boardWeight = (boardId: string, dayIndex: number) => {
+        // 초반(0–1일): 상·중단, 중반: 고르게, 후반(4–5일): 하단 가중
         let base = 10;
-        if (boardId.startsWith('top-')) base += day === 1 ? 8 : 3;
-        else if (boardId.startsWith('mid-') || boardId === 'center') base += day === 1 ? 10 : 5;
-        else base += day === 1 ? 4 : 9;
-        const jitter = guildWarSeededHash(`${war.id}|${boardId}|d${day}`) % 7;
+        const early = dayIndex <= 1;
+        const late = dayIndex >= 4;
+        if (boardId.startsWith('top-')) base += early ? 8 : late ? 3 : 5;
+        else if (boardId.startsWith('mid-') || boardId === 'center') base += early ? 10 : late ? 5 : 7;
+        else base += early ? 4 : late ? 9 : 6;
+        const jitter = guildWarSeededHash(`${war.id}|${boardId}|d${dayIndex}`) % 7;
         return base + jitter;
     };
-    const allocate = (amount: number, day: 1 | 2) => {
-        const weights = boardIds.map((id) => boardWeight(id, day));
+    const allocate = (amount: number, dayIndex: number) => {
+        const weights = boardIds.map((id) => boardWeight(id, dayIndex));
         const weightSum = weights.reduce((s, w) => s + w, 0);
         let remain = amount;
         return boardIds.map((_, idx) => {
@@ -520,9 +544,13 @@ function applyBotGuildWarAttemptScript(war: any, now: number = Date.now()): bool
             return safe;
         });
     };
-    const day1Alloc = allocate(day1Used, 1);
-    const day2Alloc = isSecondDay ? allocate(day2Used, 2) : new Array(boardIds.length).fill(0);
-    const allocated = boardIds.map((_, i) => day1Alloc[i] + day2Alloc[i]);
+    const allocated = new Array(boardIds.length).fill(0);
+    for (let d = 0; d <= elapsedDays; d++) {
+        const dayAlloc = allocate(perDay[d] ?? GUILD_WAR_BOT_ATTEMPTS_PER_DAY, d);
+        for (let i = 0; i < boardIds.length; i++) {
+            allocated[i] += dayAlloc[i];
+        }
+    }
     for (let i = 0; i < boardIds.length; i++) {
         const bid = boardIds[i];
         const b = war.boards[bid];
@@ -1822,10 +1850,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             }
             // Finish any due research before treating the slot as busy
             guildService.checkCompletedResearch(guild);
+            guildService.ensureDefaultResearchLevels(guild);
             if (guild.researchTask) return { error: '이미 진행 중인 연구가 있습니다.' };
 
             const project = GUILD_RESEARCH_PROJECTS[researchId as keyof typeof GUILD_RESEARCH_PROJECTS];
-            const currentLevel = guild.research?.[researchId as keyof typeof GUILD_RESEARCH_PROJECTS]?.level ?? 0;
+            const currentLevel = guild.research?.[researchId as keyof typeof GUILD_RESEARCH_PROJECTS]?.level ?? 1;
             if (currentLevel >= project.maxLevel) return { error: '최고 ?�벨???�달?�습?�다.' };
             
             const cost = getResearchCost(researchId as GuildResearchId, currentLevel);
@@ -2477,9 +2506,13 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 isGuildWarPrepTimeKst,
                 getNextGuildWarEntryOpenDateKst,
                 isGuildWarScheduledAutoMatchWindowKst,
+                getGuildWarCalendarPhaseKst,
+                isGuildWarSettlementTimeKst,
             } = await import('../../shared/utils/guildWarSchedule.js');
             const now = Date.now();
             const guildWarNextEntryOpenAt = getNextGuildWarEntryOpenDateKst(now);
+            const guildWarCalendarPhase = getGuildWarCalendarPhaseKst(now);
+            const guildWarIsSettlementTime = isGuildWarSettlementTimeKst(now);
 
             let activeWars = (await db.getKV<any[]>('activeGuildWars')) || [];
             let warInProgress = activeWars.find(
@@ -2689,7 +2722,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 /** 관리자: 길드전 도전권 소모 없음 — UI는 항상 잔여 최대(예: 2/2)로 표시 */
                 const attempts = user.isAdmin
                     ? 0
-                    : (Number(activeWarForUser.userAttempts?.[effectiveUserId] ?? 0) || 0);
+                    : getGuildWarUserDailyAttemptsUsed(activeWarForUser, effectiveUserId, todayKSTWar);
                 const maxAttempts = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
                 let contributedStars = 0;
                 for (const board of Object.values(activeWarForUser.boards || {})) {
@@ -2780,6 +2813,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     guildWarRewardClaimable,
                     guildWarIsPrepTime,
                     guildWarNextEntryOpenAt,
+                    guildWarCalendarPhase,
+                    guildWarIsSettlementTime,
                 },
             };
             guildWarDataCacheByUser.set(cacheKey, {
@@ -2811,7 +2846,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         myGuildWarBoardParticipation: [],
                         warId: null,
                         attemptsUsedInWar: 0,
-                        attemptsMax: GUILD_WAR_PERSONAL_DAILY_ATTEMPTS,
+                        attemptsMax: GUILD_WAR_PERSONAL_WAR_MAX_ATTEMPTS,
                     },
                 };
             }
@@ -2958,7 +2993,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     myGuildWarBoardParticipation,
                     warId: String(warInProgress.id),
                     attemptsUsedInWar,
-                    attemptsMax: GUILD_WAR_PERSONAL_DAILY_ATTEMPTS,
+                    attemptsMax: GUILD_WAR_PERSONAL_WAR_MAX_ATTEMPTS,
                 },
             };
         }
@@ -2998,7 +3033,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         guildWarIsChronologicallyActive(w, nowG)
                 );
                 if (!user.isAdmin && isGuildWarPrepTimeKst(nowG) && !activeWar) {
-                    return { error: '다음 길드전 준비시간입니다. 월·목 0시~23시59분(KST)에는 입장할 수 없습니다.' };
+                    return { error: '다음 길드전 준비시간입니다. 월요일(KST)에는 입장할 수 없습니다.' };
                 }
 
                 if (!activeWar) {
@@ -3019,11 +3054,56 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 board.boardSize = getGuildWarBoardLineSize(boardId);
                 board.initialStones = [getGuildWarCaptureInitialStones(boardId)];
 
+                // 진행 중 대국 재접속: 입장만 재개하며 도전권을 다시 소모하지 않음
+                const existingChallenge = board.challenging?.[effectiveUserId] as
+                    | { gameId?: string; userId?: string; startTime?: number }
+                    | undefined;
+                const resumeGameId =
+                    existingChallenge?.gameId != null && String(existingChallenge.gameId).length > 0
+                        ? String(existingChallenge.gameId)
+                        : '';
+                if (resumeGameId) {
+                    const liveResume = await db.getLiveGame(resumeGameId);
+                    const resumeStillLive =
+                        !!liveResume &&
+                        liveResume.winner == null &&
+                        liveResume.gameStatus !== 'ended' &&
+                        liveResume.gameStatus !== 'no_contest' &&
+                        liveResume.gameStatus !== 'rematch_pending';
+                    if (resumeStillLive && liveResume) {
+                        volatileState.userStatuses[user.id] = {
+                            status: 'in_game' as any,
+                            mode: liveResume.mode,
+                            gameId: liveResume.id,
+                        };
+                        const { broadcast } = await import('../socket.js');
+                        await broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                        let gameCopy: typeof liveResume;
+                        try {
+                            gameCopy = JSON.parse(JSON.stringify(liveResume));
+                        } catch {
+                            gameCopy = liveResume;
+                        }
+                        return { clientResponse: { gameId: liveResume.id, game: gameCopy } };
+                    }
+                    if (board.challenging) {
+                        delete board.challenging[effectiveUserId];
+                    }
+                }
+
+                // 신규 도전만 도전권 소모·한도 검사 (맵 입장 자체는 한도와 무관)
                 if (!user.isAdmin) {
-                    const usedAttempts = Number(activeWar.userAttempts?.[effectiveUserId] ?? 0) || 0;
-                    if (usedAttempts >= GUILD_WAR_PERSONAL_DAILY_ATTEMPTS) {
+                    const todayKST = getTodayKSTDateString(nowG);
+                    const dailyUsed = getGuildWarUserDailyAttemptsUsed(activeWar, effectiveUserId, todayKST);
+                    if (dailyUsed >= GUILD_WAR_PERSONAL_DAILY_ATTEMPTS) {
                         return {
-                            error: `이번 길드전 도전 가능 횟수를 모두 사용했습니다. (1인당 ${GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}회)`,
+                            error: `오늘 길드전 도전 가능 횟수를 모두 사용했습니다. (1일 ${GUILD_WAR_PERSONAL_DAILY_ATTEMPTS}회)`,
+                        };
+                    }
+                    const warUsed = Number(activeWar.userAttempts?.[effectiveUserId] ?? 0) || 0;
+                    if (warUsed >= GUILD_WAR_PERSONAL_WAR_MAX_ATTEMPTS) {
+                        return {
+                            error: `이번 길드전 도전 가능 횟수를 모두 사용했습니다. (최대 ${GUILD_WAR_PERSONAL_WAR_MAX_ATTEMPTS}회)`,
                         };
                     }
                 }
@@ -4013,16 +4093,30 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 return { error: '이미 직전 길드전 보상을 받았습니다.' };
             }
             if (now < rewardAvailableAt) {
-                return { error: '전쟁 종료 1시간 후(목요일·월요일 0시)부터 보상을 수령할 수 있습니다.' };
+                return { error: '전쟁 종료 후 정산이 끝난 뒤(월요일 1시 KST)부터 보상을 수령할 수 있습니다.' };
             }
-            if (!user.isAdmin && getGuildWarUserTicketsUsedInWar(myWar, effectiveUserId) <= 0) {
+            const participationAttempts = user.isAdmin
+                ? GUILD_WAR_PERSONAL_WAR_MAX_ATTEMPTS
+                : getGuildWarUserTicketsUsedInWar(myWar, effectiveUserId);
+            if (!user.isAdmin && participationAttempts <= 0) {
                 return { error: '길드 전쟁에 참여한 길드원만 보상을 수령할 수 있습니다.' };
             }
-            
-            const isWinner = myWar.result?.winnerId === user.guildId;
-            const isFriSunWar = (myWar as any).warType === 'fri_sun';
 
-            const rewards = rollGuildWarRewards(isWinner, isFriSunWar);
+            const isWinner = myWar.result?.winnerId === user.guildId;
+            const participationMult = user.isAdmin ? 1 : getGuildWarParticipationRewardMult(participationAttempts);
+            if (!user.isAdmin && participationMult <= 0) {
+                return { error: '길드 전쟁에 참여한 길드원만 보상을 수령할 수 있습니다.' };
+            }
+
+            const rolled = rollGuildWarRewards(isWinner);
+            const rewards = {
+                gold: scaleGuildWarPersonalRewardAmount(rolled.gold, participationMult),
+                guildCoins: scaleGuildWarPersonalRewardAmount(rolled.guildCoins, participationMult),
+                diamonds: scaleGuildWarPersonalRewardAmount(rolled.diamonds, participationMult),
+                // 길드 공유 XP·연구P는 첫 수령 시 100% (개인 참여도 미적용)
+                guildXp: rolled.guildXp,
+                researchPoints: rolled.researchPoints,
+            };
             const claimAgg =
                 myWar.boards && Object.keys(myWar.boards).length > 0
                     ? aggregateGuildWarBoardTotals(myWar)
@@ -4084,7 +4178,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         guild1Score: claimAgg.guild1Score,
                         guild2Score: claimAgg.guild2Score,
                     },
-                    rewards: rewards
+                    rewards,
+                    participationAttempts,
+                    participationRewardPercent: Math.round(participationMult * 100),
                 } 
             };
         }

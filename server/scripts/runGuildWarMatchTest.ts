@@ -1,13 +1,12 @@
 /**
- * 길드전 자동 매칭 통합 테스트 (KST 월·목 23시 / 화·금 0시를 기다리지 않음).
+ * 길드전 자동 매칭 통합 테스트 (KST 월 23시 / 화 0시를 기다리지 않음).
  *
  * 사용법:
  *   1) .env 에 GUILD_WAR_MATCH_TEST_MODE=1 추가
  *   2) npm run guild-war:match-test
  *   3) 테스트 끝나면 GUILD_WAR_MATCH_TEST_MODE 제거 (운영 서버에 두지 말 것)
  *
- * 선택: 화수 전쟁 기간만 쓰고 싶으면
- *   GUILD_WAR_MATCH_TEST_WAR_TYPE=tue_wed  또는 fri_sun
+ * 선택: GUILD_WAR_MATCH_TEST_WAR_TYPE=weekly (기본)
  */
 
 import dotenv from 'dotenv';
@@ -25,7 +24,7 @@ async function main() {
         process.exit(1);
     }
     const wt = process.env.GUILD_WAR_MATCH_TEST_WAR_TYPE;
-    const warType = wt === 'tue_wed' || wt === 'fri_sun' ? wt : undefined;
+    const warType = wt === 'weekly' || wt === 'tue_wed' || wt === 'fri_sun' ? wt : undefined;
 
     const { initializeDatabase } = await import('../db.js');
     await initializeDatabase();
