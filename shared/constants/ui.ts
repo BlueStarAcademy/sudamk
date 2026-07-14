@@ -38,6 +38,19 @@ export const AVATAR_POOL: AvatarInfo[] = [
     { id: 'profile_33', name: '기본 아바타 33', url: '/images/profiles/profile33.webp', requiredLevel: 1, type: 'any' },
     { id: 'profile_34', name: '기본 아바타 34', url: '/images/profiles/profile34.webp', requiredLevel: 1, type: 'any' },
     { id: 'profile_35', name: '기본 아바타 35', url: '/images/profiles/profile35.webp', requiredLevel: 1, type: 'any' },
+    // Zodiac Group
+    { id: 'profile_36', name: '쥐', url: '/images/profiles/profile36.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_37', name: '소', url: '/images/profiles/profile37.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_38', name: '호랑이', url: '/images/profiles/profile38.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_39', name: '토끼', url: '/images/profiles/profile39.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_40', name: '용', url: '/images/profiles/profile40.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_41', name: '뱀', url: '/images/profiles/profile41.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_42', name: '말', url: '/images/profiles/profile42.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_43', name: '양', url: '/images/profiles/profile43.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_44', name: '원숭이', url: '/images/profiles/profile44.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_45', name: '닭', url: '/images/profiles/profile45.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_46', name: '개', url: '/images/profiles/profile46.webp', requiredLevel: 1, type: 'any' },
+    { id: 'profile_47', name: '돼지', url: '/images/profiles/profile47.webp', requiredLevel: 1, type: 'any' },
 ];
 
 export const BORDER_POOL: BorderInfo[] = [

@@ -34,6 +34,8 @@ type SaleCurrency = 'gold' | 'diamonds';
 type InstantDirection = 'gold_to_diamonds' | 'diamonds_to_gold';
 type MarketListTab = 'all' | InstantDirection;
 type MobileCurrencySectionTab = 'market' | 'instant' | 'register';
+type MarketSortColumn = 'latest' | 'quantity' | 'unitPrice' | 'price';
+type SortDirection = 'asc' | 'desc';
 
 const GOLD_ICON = '/images/icon/Gold.webp';
 const DIAMOND_ICON = '/images/icon/Zem.webp';
@@ -148,6 +150,8 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
     const { t: tCommon } = useTranslation('common');
 
     const [marketListTab, setMarketListTab] = useState<MarketListTab>('all');
+    const [marketSortColumn, setMarketSortColumn] = useState<MarketSortColumn>('latest');
+    const [marketSortDirection, setMarketSortDirection] = useState<SortDirection>('desc');
     const [mobileSectionTab, setMobileSectionTab] = useState<MobileCurrencySectionTab>('market');
     const [instantDirection, setInstantDirection] = useState<InstantDirection>('gold_to_diamonds');
     const [instantAmount, setInstantAmount] = useState('0');
@@ -422,11 +426,37 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
     }, [marketOrders, myOpenOrders]);
 
     const filteredMarketOrders = useMemo(() => {
-        if (marketListTab === 'all') return visibleMarketOrders;
-        return visibleMarketOrders.filter((o) =>
-            marketListTab === 'gold_to_diamonds' ? o.fromCurrency === 'gold' : o.fromCurrency === 'diamonds',
-        );
-    }, [visibleMarketOrders, marketListTab]);
+        const filtered =
+            marketListTab === 'all'
+                ? visibleMarketOrders
+                : visibleMarketOrders.filter((o) =>
+                      marketListTab === 'gold_to_diamonds' ? o.fromCurrency === 'gold' : o.fromCurrency === 'diamonds',
+                  );
+        if (marketSortColumn === 'latest') return filtered;
+        const copied = [...filtered];
+        copied.sort((a, b) => {
+            let gap = 0;
+            if (marketSortColumn === 'quantity') {
+                gap = a.fromAmount - b.fromAmount;
+            } else if (marketSortColumn === 'unitPrice') {
+                gap = computeOrderUnitGoldPerDiamond(a) - computeOrderUnitGoldPerDiamond(b);
+            } else {
+                gap = a.toAmount - b.toAmount;
+            }
+            if (gap !== 0) return marketSortDirection === 'asc' ? gap : -gap;
+            return Number(b.createdAt ?? 0) - Number(a.createdAt ?? 0);
+        });
+        return copied;
+    }, [visibleMarketOrders, marketListTab, marketSortColumn, marketSortDirection]);
+
+    const toggleMarketSort = (column: Exclude<MarketSortColumn, 'latest'>) => {
+        if (marketSortColumn === column) {
+            setMarketSortDirection((prev) => (prev === 'asc' ? 'desc' : 'asc'));
+            return;
+        }
+        setMarketSortColumn(column);
+        setMarketSortDirection('asc');
+    };
 
     const marketTabCounts = useMemo(
         () => ({
@@ -692,9 +722,36 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                         className={`sticky top-0 z-10 mb-2 grid rounded border border-slate-600/70 bg-slate-900/95 text-slate-300 backdrop-blur-sm ${marketOrderListCols} ${mobileExchange ? 'px-1.5 py-1' : 'px-2 py-1.5'} ${marketOrderListHeaderText}`}
                                     >
                                         <div className="text-center" aria-hidden />
-                                        <div className="text-center">{t('currency.marketListColQuantity')}</div>
-                                        <div className="text-center">{t('currency.marketListColUnitPrice')}</div>
-                                        <div className="text-center">{t('currency.marketListColPrice')}</div>
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span>{t('currency.marketListColQuantity')}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleMarketSort('quantity')}
+                                                className={`leading-none ${marketSortColumn === 'quantity' ? 'text-cyan-300' : 'text-slate-500 hover:text-slate-300'}`}
+                                            >
+                                                {marketSortColumn === 'quantity' && marketSortDirection === 'asc' ? '▲' : '▼'}
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span>{t('currency.marketListColUnitPrice')}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleMarketSort('unitPrice')}
+                                                className={`leading-none ${marketSortColumn === 'unitPrice' ? 'text-cyan-300' : 'text-slate-500 hover:text-slate-300'}`}
+                                            >
+                                                {marketSortColumn === 'unitPrice' && marketSortDirection === 'asc' ? '▲' : '▼'}
+                                            </button>
+                                        </div>
+                                        <div className="flex items-center justify-center gap-1">
+                                            <span>{t('currency.marketListColPrice')}</span>
+                                            <button
+                                                type="button"
+                                                onClick={() => toggleMarketSort('price')}
+                                                className={`leading-none ${marketSortColumn === 'price' ? 'text-cyan-300' : 'text-slate-500 hover:text-slate-300'}`}
+                                            >
+                                                {marketSortColumn === 'price' && marketSortDirection === 'asc' ? '▲' : '▼'}
+                                            </button>
+                                        </div>
                                         <div className="text-center">{t('currency.marketListColAction')}</div>
                                     </div>
                                     <div className={mobileExchange ? 'space-y-1.5' : 'space-y-2'}>

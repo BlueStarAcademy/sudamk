@@ -114,6 +114,55 @@ describe('PVE item client sync', () => {
         expect(game.boardState[0][0]).toBe(Player.Black);
     });
 
+    it('keeps advancing tower capture boards from resurrecting already-captured AI stones', () => {
+        // Server is behind TOWER_CLIENT_MOVE: still has the AI stone that the client already captured.
+        const serverBoard = emptyBoard(5);
+        serverBoard[2][2] = Player.White;
+        serverBoard[1][2] = Player.Black;
+        const game: any = {
+            id: 'tower-capture-client-sync',
+            isSinglePlayer: false,
+            isAiGame: true,
+            gameCategory: 'tower',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: serverBoard,
+            moveHistory: [
+                { x: 2, y: 2, player: Player.White },
+                { x: 1, y: 2, player: Player.Black },
+            ],
+            currentPlayer: Player.White,
+            gameStatus: 'playing',
+            mode: 'standard',
+            settings: { mixedModes: [] },
+        };
+
+        // Client history coords for the AI move match; capture cleared (2,2) and advanced with a reply.
+        const clientBoard = emptyBoard(5);
+        clientBoard[1][2] = Player.Black;
+        clientBoard[2][1] = Player.Black; // capturing stone (AI stone at 2,2 removed)
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: clientBoard,
+                moveHistory: [
+                    { x: 2, y: 2, player: Player.White },
+                    { x: 1, y: 2, player: Player.Black },
+                    { x: 2, y: 1, player: Player.Black },
+                ],
+                currentPlayer: Player.White,
+                gameStatus: 'playing',
+            },
+        });
+
+        expect(game.moveHistory).toHaveLength(3);
+        expect(game.moveHistory[0]).toEqual({ x: 2, y: 2, player: Player.White });
+        expect(game.moveHistory[2]).toEqual({ x: 2, y: 1, player: Player.Black });
+        expect(game.boardState[2][2]).toBe(Player.None);
+        expect(game.boardState[2][1]).toBe(Player.Black);
+        expect(game.boardState[1][2]).toBe(Player.Black);
+    });
+
     it('does not remap captured AI moves during missile board/history reconciliation', () => {
         const board = emptyBoard(5);
         board[4][4] = Player.White;

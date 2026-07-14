@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import {
     isTowerFirstClearAttemptOnFloor,
+    shouldGrantTowerFirstClearRewards,
     towerSummaryHasGrantedRewards,
 } from '../../../utils/towerPreGameDisplay.js';
 
@@ -20,6 +21,57 @@ describe('tower monthly first-clear gate', () => {
     it('treats null/undefined monthly floor as 0', () => {
         expect(isTowerFirstClearAttemptOnFloor(undefined, 1)).toBe(true);
         expect(isTowerFirstClearAttemptOnFloor(null, 1)).toBe(true);
+    });
+});
+
+describe('shouldGrantTowerFirstClearRewards', () => {
+    it('prefers session eligible flag over monthly watermark', () => {
+        expect(
+            shouldGrantTowerFirstClearRewards({
+                userMonthlyTowerFloor: 20,
+                sessionFloor: 10,
+                towerFirstClearRewardEligible: true,
+                towerStartActionPointCost: 0,
+            }),
+        ).toBe(true);
+        expect(
+            shouldGrantTowerFirstClearRewards({
+                userMonthlyTowerFloor: 0,
+                sessionFloor: 5,
+                towerFirstClearRewardEligible: false,
+                towerStartActionPointCost: 0,
+            }),
+        ).toBe(false);
+    });
+
+    it('grants when start AP cost > 0 even if monthly watermark looks cleared', () => {
+        expect(
+            shouldGrantTowerFirstClearRewards({
+                userMonthlyTowerFloor: 15,
+                sessionFloor: 15,
+                towerFirstClearRewardEligible: false,
+                towerStartActionPointCost: 2,
+            }),
+        ).toBe(true);
+    });
+
+    it('falls back to monthly watermark for legacy sessions without the flag', () => {
+        expect(
+            shouldGrantTowerFirstClearRewards({
+                userMonthlyTowerFloor: 4,
+                sessionFloor: 5,
+                towerFirstClearRewardEligible: undefined,
+                towerStartActionPointCost: 0,
+            }),
+        ).toBe(true);
+        expect(
+            shouldGrantTowerFirstClearRewards({
+                userMonthlyTowerFloor: 5,
+                sessionFloor: 5,
+                towerFirstClearRewardEligible: undefined,
+                towerStartActionPointCost: 0,
+            }),
+        ).toBe(false);
     });
 });
 

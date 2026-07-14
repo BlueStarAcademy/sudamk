@@ -106,25 +106,16 @@ export function shouldOpenResultModalAfterScoringOverlay(params: {
 }
 
 export function shouldOpenResultModalByPolicy(params: ResultDisplayParams): boolean {
-    const { session, gameHasJustEnded, prevGameStatus, hasAnalysisResult } = params;
+    const { session } = params;
     const policy = resolveArenaSessionPolicy(session);
-    const immediateEnd =
-        gameHasJustEnded &&
-        (session.winReason === 'resign' || session.winReason === 'disconnect' || session.winReason === 'timeout');
 
-    if (policy.resultDisplayModel === 'waitScoringOverlay') {
-        const scoreEndNeedsAnalysis = session.winReason === 'score' && !hasAnalysisResult;
-        return (
-            immediateEnd ||
-            (gameHasJustEnded && !scoreEndNeedsAnalysis) ||
-            (session.gameStatus === 'ended' && hasAnalysisResult && prevGameStatus !== 'ended')
-        );
-    }
-
-    // 모험·길드전(waitSummary)과 일반·페어·대기실 AI(instantEnd)는 동일한 “언제 결과 모달 플래그를 올릴지” 규칙을 쓴다.
-    // 전략 instantEnd는 Game.tsx가 resultModalWaitSummary=true로 summary 행을 기다린다(빈 보상 깜빡임 방지).
-    // instantEnd에서 `showResultModal && ended`만 보면 플래그가 처음부터 false라 영원히 열리지 않는 버그가 있었다.
-    if (policy.resultDisplayModel === 'waitSummary' || policy.resultDisplayModel === 'instantEnd') {
+    // 학원/탑(waitScoringOverlay)·모험/길드전(waitSummary)·전략 instantEnd: summary 준비 후 오픈.
+    // Game.tsx의 resultModalWaitSummary와 짝을 이뤄 빈 “보상 정보가 없습니다.” 깜빡임을 막는다.
+    if (
+        policy.resultDisplayModel === 'waitScoringOverlay' ||
+        policy.resultDisplayModel === 'waitSummary' ||
+        policy.resultDisplayModel === 'instantEnd'
+    ) {
         return shouldOpenResultModalForSummaryLikeEnd(params);
     }
 

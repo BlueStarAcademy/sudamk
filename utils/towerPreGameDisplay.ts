@@ -80,6 +80,30 @@ export function isTowerFirstClearAttemptOnFloor(
     return clearedMax < sessionFloor;
 }
 
+/**
+ * 탑 firstClear 지급 여부.
+ * - 세션 플래그(true/false)가 있으면 START 시점 결정을 우선
+ * - 입장 AP>0 이면 워터마크가 중간에 올라가도 지급(무보상 monthly 상승 버그·레이스 복구)
+ * - 구세션(플래그 없음)은 monthlyTowerFloor 폴백
+ */
+export function shouldGrantTowerFirstClearRewards(params: {
+    userMonthlyTowerFloor: number | null | undefined;
+    sessionFloor: number;
+    towerFirstClearRewardEligible?: boolean | null;
+    towerStartActionPointCost?: number | null;
+}): boolean {
+    const {
+        userMonthlyTowerFloor,
+        sessionFloor,
+        towerFirstClearRewardEligible,
+        towerStartActionPointCost,
+    } = params;
+    if (towerFirstClearRewardEligible === true) return true;
+    if ((Number(towerStartActionPointCost) || 0) > 0) return true;
+    if (towerFirstClearRewardEligible === false) return false;
+    return isTowerFirstClearAttemptOnFloor(userMonthlyTowerFloor, sessionFloor);
+}
+
 /** 탑 결과 summary에 실제 지급분(골드·EXP·펫·아이템)이 있는지 */
 export function towerSummaryHasGrantedRewards(
     summary:

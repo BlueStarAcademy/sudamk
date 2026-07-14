@@ -2473,17 +2473,16 @@ export const useApp = () => {
         return mergedUser;
     }, [mergeUserState]);
 
-    /** 서버 END_TOWER_GAME 응답 전에 하단 "다음 단계"가 눌리면 START_TOWER_GAME 잠금 검사가 옛 towerFloor로 실패하는 레이스 방지 */
+    /** 서버 END_TOWER_GAME 응답 전에 하단 "다음 단계"가 눌리면 START_TOWER_GAME 잠금 검사가 옛 towerFloor로 실패하는 레이스 방지.
+     * monthlyTowerFloor는 서버 보상 정산 후에만 올린다(낙관적 상승 → 무보상 “이미 클리어”로 굳는 것 방지). */
     const applyOptimisticTowerClearOnBlackWin = useCallback((floor: number | undefined | null, winner: Player) => {
         if (winner !== Player.Black || floor == null || floor < 1) return;
         const prev = currentUserRef.current;
         if (!prev) return;
         const prevTf = prev.towerFloor ?? 0;
-        const prevM = prev.monthlyTowerFloor ?? 0;
         const nextTf = Math.max(prevTf, floor);
-        const nextM = Math.max(prevM, floor);
-        if (nextTf === prevTf && nextM === prevM) return;
-        applyUserUpdate({ towerFloor: nextTf, monthlyTowerFloor: nextM }, 'tower-clear-optimistic');
+        if (nextTf === prevTf) return;
+        applyUserUpdate({ towerFloor: nextTf }, 'tower-clear-optimistic');
     }, [applyUserUpdate]);
     
     // --- App Settings State ---
@@ -6729,6 +6728,52 @@ export const useApp = () => {
                     }
                     if (!baseStoneColorSubmitBenign400 && !pairTrainingClaimAlreadyClaimedBenign400) {
                         console.error(`[handleAction] ${action.type} - HTTP ${res.status} error:`, errorData);
+                    }
+                    // 탑/싱글 종료가 정산 후 후처리에서 실패해도 summary를 동기화해 결과 모달이 뜨게 함
+                    const endGameAlreadyRetried = Boolean(
+                        (action as { payload?: { __endGameRetriedAfterSync?: boolean } }).payload
+                            ?.__endGameRetriedAfterSync,
+                    );
+                    if (
+                        (action.type === 'END_TOWER_GAME' ||
+                            (action as ServerAction).type === 'END_SINGLE_PLAYER_GAME') &&
+                        res.status >= 500 &&
+                        !endGameAlreadyRetried
+                    ) {
+                        const endGid = (action as { payload?: { gameId?: string } }).payload?.gameId;
+                        if (typeof endGid === 'string' && endGid.length > 0) {
+                            try {
+                                await handleAction({
+                                    type: 'REQUEST_GAME_STATE_SYNC',
+                                    payload: { gameId: endGid },
+                                } as ServerAction);
+                                const synced =
+                                    towerGamesRef.current[endGid] ??
+                                    singlePlayerGamesRef.current[endGid];
+                                if (synced?.summary && Object.keys(synced.summary).length > 0) {
+                                    revertPvpDicePlaceSnapshot();
+                                    revertPvpPlaceStoneSnapshot();
+                                    rollbackTowerAddTurnOptimistic();
+                                    rollbackPveScanOptimistic();
+                                    revertPveResignOptimistic();
+                                    return {
+                                        clientResponse: { gameId: endGid, game: synced },
+                                    } as HandleActionResult;
+                                }
+                                return (await handleAction({
+                                    ...action,
+                                    payload: {
+                                        ...((action as { payload?: Record<string, unknown> }).payload ?? {}),
+                                        __endGameRetriedAfterSync: true,
+                                    },
+                                } as unknown as ServerAction)) as HandleActionResult;
+                            } catch (retryErr) {
+                                console.warn(
+                                    `[handleAction] ${action.type} recovery after HTTP ${res.status} failed:`,
+                                    retryErr,
+                                );
+                            }
+                        }
                     }
                 } catch (parseError) {
                     console.error(`[handleAction] ${action.type} - Failed to parse error response:`, parseError);

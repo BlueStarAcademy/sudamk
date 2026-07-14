@@ -153,6 +153,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             
             // 이번 달 이미 클리어한 층은 행동력 소모 0 (월간 재도전)
             const isCleared = floor <= userMonthlyTowerFloor;
+            // START 시점 월간 최초 클리어 자격 — 정산은 이 플래그를 우선해 monthly 레이스/워터마크 어긋남을 방지
+            const towerFirstClearRewardEligible = !isCleared;
             const towerGear = aggregateSpecialOptionGearFromUser(user);
             const apDiscount = towerApDiscountForFloor(towerGear, floor);
             const effectiveActionPointCost = isCleared ? 0 : Math.max(0, stage.actionPointCost - apDiscount);
@@ -234,6 +236,9 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 stageId: stage.id,
                 towerFloor: floor,
                 towerStartActionPointCost: effectiveActionPointCost,
+                towerFirstClearRewardEligible,
+                /** START 시점 monthly — 정산 레이스로 워터마크만 앞선 경우 firstClear 복구에 사용 */
+                towerMonthlyFloorAtStart: userMonthlyTowerFloor,
                 isAiGame: true,
                 settings: {
                     boardSize: stage.boardSize,
@@ -725,11 +730,42 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 return { error: 'Invalid winner in payload.' };
             }
 
+            // 탑은 TOWER_CLIENT_MOVE로 서버 판이 뒤처질 수 있음 — 종료 스냅샷을 먼저 반영
+            try {
+                const { applyPveItemActionClientSync } = await import('../pveItemSync.js');
+                if (payload && typeof payload === 'object' && Array.isArray((payload as any).boardState)) {
+                    applyPveItemActionClientSync(game, {
+                        clientSync: {
+                            boardState: (payload as any).boardState,
+                            moveHistory: Array.isArray((payload as any).moveHistory)
+                                ? (payload as any).moveHistory
+                                : game.moveHistory || [],
+                            currentPlayer: game.currentPlayer,
+                            gameStatus: game.gameStatus,
+                            captures: (payload as any).captures,
+                            baseStoneCaptures: (payload as any).baseStoneCaptures,
+                            hiddenStoneCaptures: (payload as any).hiddenStoneCaptures,
+                            permanentlyRevealedStones: (payload as any).permanentlyRevealedStones,
+                            blackPatternStones: (payload as any).blackPatternStones,
+                            whitePatternStones: (payload as any).whitePatternStones,
+                            hiddenMoves: (payload as any).hiddenMoves,
+                            totalTurns: (payload as any).totalTurns,
+                            lastMove: (payload as any).lastMove,
+                        },
+                    });
+                }
+            } catch (syncErr) {
+                console.warn(
+                    `[END_TOWER_GAME] client end snapshot sync failed for ${gameId}:`,
+                    (syncErr as Error)?.message ?? syncErr,
+                );
+            }
+
             const humanId = game.player1?.id;
             const existingSummary = humanId ? game.summary?.[humanId] : undefined;
             const {
                 towerSummaryHasGrantedRewards,
-                isTowerFirstClearAttemptOnFloor,
+                shouldGrantTowerFirstClearRewards,
                 getTowerSessionFloor,
             } = await import('../../utils/towerPreGameDisplay.js');
             const humanPlayerEnum: Player =
@@ -741,7 +777,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             const humanIsRequestedWinner = winner === humanPlayerEnum;
             const floor = getTowerSessionFloor(game);
 
-            // 빈 summary + 월간 최초 클리어 자격이 남아 있으면 보상 누락으로 보고 재정산
+            // 빈/무보상 summary + firstClear 자격이 있으면 보상 누락으로 보고 재정산
             let missingFirstClearReward = false;
             if (
                 humanIsRequestedWinner &&
@@ -750,7 +786,12 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             ) {
                 const settleUser = await db.getUser(game.player1.id);
                 const monthly = Number((settleUser as any)?.monthlyTowerFloor ?? 0) || 0;
-                missingFirstClearReward = isTowerFirstClearAttemptOnFloor(monthly, floor);
+                missingFirstClearReward = shouldGrantTowerFirstClearRewards({
+                    userMonthlyTowerFloor: monthly,
+                    sessionFloor: floor,
+                    towerFirstClearRewardEligible: (game as any).towerFirstClearRewardEligible,
+                    towerStartActionPointCost: (game as any).towerStartActionPointCost,
+                });
             }
 
             const alreadySettledWithOutcome =
@@ -780,6 +821,8 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 priorWinner: game.winner,
                 hadSummary: !!existingSummary,
                 statsUpdated: !!game.statsUpdated,
+                missingFirstClearReward,
+                firstClearEligible: (game as any).towerFirstClearRewardEligible,
                 currentCaptures: game.captures,
             });
             
@@ -795,7 +838,38 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             // 서버에서 endGame 호출하여 클리어 정보 저장 및 towerFloor 업데이트
             // endGame 함수가 game.gameStatus를 'ended'로 설정하고 towerFloor를 업데이트함
             const { endGame } = await import('../summaryService.js');
-            await endGame(game, winner, winReason);
+            try {
+                await endGame(game, winner, winReason);
+            } catch (endErr) {
+                console.error('[END_TOWER_GAME] endGame threw:', (endErr as Error)?.message ?? endErr);
+                // 정산(summary)이 이미 쓰였으면 HTTP 500으로 모달을 막지 말고 성공 응답
+                const settled = (await db.getLiveGame(gameId)) || game;
+                const settledSummary = humanId ? settled.summary?.[humanId] : undefined;
+                if (
+                    settled.gameStatus === 'ended' ||
+                    towerSummaryHasGrantedRewards(settledSummary) ||
+                    !!settledSummary
+                ) {
+                    const { broadcastToGameParticipants } = await import('../socket.js');
+                    broadcastToGameParticipants(
+                        settled.id,
+                        { type: 'GAME_UPDATE', payload: { [settled.id]: settled } },
+                        settled,
+                    );
+                    const updatedUser = await db.getUser(game.player1.id, {
+                        includeEquipment: true,
+                        includeInventory: true,
+                    });
+                    return {
+                        clientResponse: {
+                            gameId: settled.id,
+                            game: settled,
+                            updatedUser: updatedUser ?? undefined,
+                        },
+                    };
+                }
+                return { error: (endErr as Error)?.message || 'Failed to end tower game.' };
+            }
             
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('../socket.js');

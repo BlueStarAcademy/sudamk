@@ -1670,6 +1670,12 @@ export type LiveGameSession = {
   towerFloor?: number;  // 도전의 탑 층수
   /** 이번 탑 대국 입장 시 차감된 행동력(재도전 라벨·장비 할인 반영·클라 towerFloor stale 보정) */
   towerStartActionPointCost?: number;
+  /**
+   * START 시점의 월간 최초 클리어 자격.
+   * true면 정산 시 firstClear 보상 대상(월간 워터마크와 레이스로 어긋나도 세션 기준으로 지급).
+   * false면 이번 달 재도전. 구세션(undefined)은 monthlyTowerFloor 폴백.
+   */
+  towerFirstClearRewardEligible?: boolean;
   blackPatternStones?: Point[];
   whitePatternStones?: Point[];
   /** 특수(문양·베이스·히든) 돌이 따인 교차점(1회 소모). 같은 대국에서 해당 좌표는 일반 돌로만 표시 */

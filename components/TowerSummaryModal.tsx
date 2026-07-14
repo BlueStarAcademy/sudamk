@@ -1,8 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LiveGameSession, UserWithStatus, ServerAction, Player, AnalysisResult } from '../types.js';
-import DraggableWindow from './DraggableWindow.js';
+import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Avatar from './Avatar.js';
+import Button from './Button.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants/ui.js';
 import { AvatarInfo, BorderInfo } from '../types.js';
@@ -12,6 +13,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import {
+    PRE_GAME_MODAL_ACCENT_BTN_CLASS,
     PRE_GAME_MODAL_LAYER_CLASS,
 } from './game/PreGameDescriptionLayout.js';
 import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
@@ -570,7 +572,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             viewportPortal
             skipSavedPosition
             {...commonResultWindowProps}
-            hideFooter={isMobile}
+            hideFooter
             bodyPaddingClassName={isMobile ? 'p-2 sm:p-3' : 'p-3 sm:p-4'}
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
@@ -748,6 +750,22 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                     </GameResultModalFitContent>
                 )}
             </div>
+            {!isScoring ? (
+                <div
+                    className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex shrink-0 justify-center border-t border-amber-500/25 bg-gradient-to-t from-[#0c0a10] via-[#14111c]/95 to-transparent px-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2 sm:px-4 sm:pb-3 sm:pt-2.5`}
+                >
+                    <Button
+                        bare
+                        colorScheme="none"
+                        onClick={() => handleClose(session, onClose)}
+                        className={`w-full max-w-md px-8 ${PRE_GAME_MODAL_ACCENT_BTN_CLASS} ${
+                            isMobile ? '!min-h-[2.75rem] !text-[13px] !font-bold' : ''
+                        }`}
+                    >
+                        {t('summary.confirm')}
+                    </Button>
+                </div>
+            ) : null}
         </DraggableWindow>
     );
 };

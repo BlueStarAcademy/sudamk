@@ -1483,18 +1483,45 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     maxVisits: lim.maxVisits,
                     maxTimeSec: lim.maxTimeSec,
                 });
-                // 싱글플레이어: 계가 완료 시 서버에서 endGame 호출하여 클리어/보상 저장 (다음 스테이지 잠금 해제, 골드/경험치 지급)
-                if (arenaPolicy.kind === 'singleplayer' && game.stageId) {
+                // 싱글/탑: 계가 완료 시 서버에서 endGame 호출하여 클리어/보상 저장
+                // (탑은 클라 END_TOWER_GAME에만 의존하면 계가 경로에서 보상이 누락될 수 있음)
+                if (arenaPolicy.kind === 'singleplayer' || arenaPolicy.kind === 'tower') {
                     const blackTotal = analysis?.scoreDetails?.black?.total ?? 0;
                     const whiteTotal = analysis?.scoreDetails?.white?.total ?? 0;
-                    const winner = blackTotal > whiteTotal ? types.Player.Black : types.Player.White; // 인간 = Black
-                    const { getCachedGame } = await import('./gameCache.js');
-                    let freshGame = await getCachedGame(game.id);
-                    if (!freshGame) freshGame = await db.getLiveGame(game.id);
-                    if (freshGame && freshGame.gameStatus !== 'ended') {
-                        freshGame.finalScores = { black: blackTotal, white: whiteTotal };
-                        const { endGame } = await import('./summaryService.js');
-                        await endGame(freshGame, winner, 'score');
+                    if (blackTotal !== whiteTotal) {
+                        const winner = blackTotal > whiteTotal ? types.Player.Black : types.Player.White;
+                        const { getCachedGame } = await import('./gameCache.js');
+                        const {
+                            getTowerSessionFloor,
+                            shouldGrantTowerFirstClearRewards,
+                            towerSummaryHasGrantedRewards,
+                        } = await import('../utils/towerPreGameDisplay.js');
+                        let freshGame = await getCachedGame(game.id);
+                        if (!freshGame) freshGame = await db.getLiveGame(game.id);
+                        if (freshGame) {
+                            freshGame.finalScores = { black: blackTotal, white: whiteTotal };
+                            const hid = freshGame.player1?.id;
+                            const alreadyRewarded =
+                                !!hid && towerSummaryHasGrantedRewards(freshGame.summary?.[hid]);
+                            const isEnded =
+                                freshGame.gameStatus === 'ended' || freshGame.gameStatus === 'no_contest';
+                            let shouldSettle = !alreadyRewarded && !isEnded;
+                            if (!alreadyRewarded && isEnded && arenaPolicy.kind === 'tower' && hid) {
+                                // ended+무보상: firstClear 자격이 남은 경우만 재정산 (월간 재도전 루프 금지)
+                                const settleUser = await db.getUser(hid);
+                                shouldSettle = shouldGrantTowerFirstClearRewards({
+                                    userMonthlyTowerFloor: Number((settleUser as any)?.monthlyTowerFloor ?? 0) || 0,
+                                    sessionFloor: getTowerSessionFloor(freshGame),
+                                    towerFirstClearRewardEligible: (freshGame as any).towerFirstClearRewardEligible,
+                                    towerStartActionPointCost: (freshGame as any).towerStartActionPointCost,
+                                });
+                                if (shouldSettle) freshGame.statsUpdated = false;
+                            }
+                            if (shouldSettle) {
+                                const { endGame } = await import('./summaryService.js');
+                                await endGame(freshGame, winner, 'score');
+                            }
+                        }
                     }
                 }
                 return {

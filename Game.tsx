@@ -1197,13 +1197,15 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isTower = sessionPolicy.kind === 'tower';
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
     /**
-     * 모험·길드전(waitSummary)과 전략 instantEnd(PVP·대기실 AI)는 summary(보상·XP)가 붙은 뒤에만
-     * 결과 모달을 연다. 계가 분석이 summary보다 먼저 오면 빈 “보상 정보가 없습니다.”가 잠깐 뜨던 것을 막는다.
+     * 모험·길드전(waitSummary), 학원/탑(waitScoringOverlay), 전략 instantEnd(PVP·대기실 AI)는
+     * summary(보상·XP)가 붙은 뒤에만 결과 모달을 연다.
+     * 계가/종료가 summary보다 먼저 오면 빈 “보상 정보가 없습니다.”가 뜨던 것을 막는다.
      * 놀이바둑·관전은 기존처럼 summary를 기다리지 않는다.
      */
     const resultModalWaitSummary =
         !isSpectator &&
         (sessionPolicy.resultDisplayModel === 'waitSummary' ||
+            sessionPolicy.resultDisplayModel === 'waitScoringOverlay' ||
             (sessionPolicy.resultDisplayModel === 'instantEnd' && !isPlayfulMode));
     const hasMyGameSummary = Boolean(session.summary?.[currentUser.id]);
     const scoringResultContentReady = isScoringResultContentReady({

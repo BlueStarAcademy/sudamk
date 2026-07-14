@@ -102,7 +102,7 @@ import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.
 import { resolveLiveArenaPhaseGoldXpMultiplier } from '../shared/utils/liveArenaPhaseGoldXpMultiplier.js';
 import { effectivePvpEntryApCostForUser } from '../shared/utils/pairPetArenaApDiscount.js';
 import {
-    isTowerFirstClearAttemptOnFloor,
+    shouldGrantTowerFirstClearRewards,
     towerSummaryHasGrantedRewards,
 } from '../utils/towerPreGameDisplay.js';
 
@@ -442,134 +442,141 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         const towerApChargedOnWin = await chargeActionPointsOnPveVictory(user, game, plannedTowerApCost);
         const paidTowerAttempt = towerApChargedOnWin > 0;
 
-        // 월간 최초 클리어 여부 (층 보상은 monthlyTowerFloor 기준 — 월간 1회)
-        // towerFloor(평생)만 보면 월간 리셋 누락·구데이터에서 보상이 영구 미지급됨
-        const isFirstClearThisMonth = isTowerFirstClearAttemptOnFloor(userMonthlyTowerFloorBefore, floor);
+        // 세션 START 플래그·입장 AP·월간 워터마크(구세션 폴백). monthly만 보면 무보상 상승 후 영구 미지급됨.
+        let isFirstClearThisMonth = shouldGrantTowerFirstClearRewards({
+            userMonthlyTowerFloor: userMonthlyTowerFloorBefore,
+            sessionFloor: floor,
+            towerFirstClearRewardEligible: (game as any).towerFirstClearRewardEligible,
+            towerStartActionPointCost: plannedTowerApCost,
+        });
+        // START 당시 monthly가 층보다 낮았는데 정산 직전에 워터마크만 올라간 경우(정산 크래시 레이스) → 최초 클리어로 복구
+        const monthlyAtStart = Number((game as any).towerMonthlyFloorAtStart);
+        if (
+            !isFirstClearThisMonth &&
+            Number.isFinite(monthlyAtStart) &&
+            monthlyAtStart < floor
+        ) {
+            console.warn(
+                `[Tower Summary] Floor ${floor} - first-clear race repair (monthlyAtStart=${monthlyAtStart}, now=${userMonthlyTowerFloorBefore})`,
+            );
+            isFirstClearThisMonth = true;
+        }
         
-        // towerFloor 업데이트 (현재 층이 사용자의 최고 층수보다 높으면 업데이트)
+        // 진행도(평생): 승리 시 항상 갱신. monthly는 최초 클리어 보상 지급 성공 후에만 올림.
         if (floor > userTowerFloor) {
             user.towerFloor = floor;
             user.lastTowerClearTime = Date.now();
             console.log(`[Tower Summary] Updating towerFloor: ${userTowerFloor} -> ${floor}`);
         }
-        
-        // monthlyTowerFloor 업데이트 (현재 층이 사용자의 월간 최고 층수보다 높으면 업데이트)
-        if (floor > userMonthlyTowerFloorBefore) {
-            (user as any).monthlyTowerFloor = floor;
-            console.log(`[Tower Summary] Updating monthlyTowerFloor: ${userMonthlyTowerFloorBefore} -> ${floor}`);
-        }
-        
-        if (!isFirstClearThisMonth) {
-            // 이번 달 이미 클리어한 층 재도전 시 보상 없음
-            console.log(`[Tower Summary] Floor ${floor} - Already cleared this month (monthly=${userMonthlyTowerFloorBefore}), no reward on retry`);
-        } else {
-            // 최초 클리어 시에만 보상 지급 (경험치는 반드시 누적: 기존값 + 보상)
-            const rewards = stage.rewards.firstClear;
+
+        const grantTowerItemsToInventory = (items: InventoryItem[]): InventoryItem[] => {
+            if (!items.length) return [];
+            const { success, updatedInventory, finalItemsToAdd } = addItemsToInventory(
+                [...user.inventory],
+                user.inventorySlots,
+                items
+            );
+            if (success) {
+                user.inventory = updatedInventory;
+                return finalItemsToAdd;
+            }
+
+            // 도전의 탑 보상은 즉시 인벤토리 수령이 보장되어야 하므로 실패 시 강제 적재(기존 스택 우선).
+            const forcedInventory = [...user.inventory];
+            for (const incoming of items) {
+                const incomingQty = Math.max(1, incoming.quantity ?? 1);
+                const stack = forcedInventory.find(
+                    (it) => it.name === incoming.name && (it.source ?? null) === (incoming.source ?? null)
+                );
+                if (stack) {
+                    stack.quantity = Math.max(1, stack.quantity ?? 1) + incomingQty;
+                } else {
+                    forcedInventory.push({ ...incoming, quantity: incomingQty });
+                }
+            }
+            user.inventory = forcedInventory;
+            console.warn(
+                `[Tower Summary] addItemsToInventory failed on floor ${floor}; forced insertion applied for guaranteed tower reward.`
+            );
+            return items.map((it) => ({ ...it, quantity: Math.max(1, it.quantity ?? 1) }));
+        };
+
+        const applyTowerStageRewards = async (
+            rewards: { gold?: number; exp?: number; items?: { itemId: string; quantity: number }[] },
+            kind: 'firstClear' | 'repeatClear',
+        ) => {
             const initialXp = Number(user.userXp) || 0;
             const addedXp = Number(rewards.exp) || 0;
             user.userXp = initialXp + addedXp;
-
-            user.gold += rewards.gold;
-            summary.gold = rewards.gold;
+            const goldGain = Number(rewards.gold) || 0;
+            user.gold += goldGain;
+            summary.gold = goldGain;
             summary.xp = { initial: initialXp, change: addedXp, final: user.userXp };
 
-            const grantTowerItemsToInventory = (items: InventoryItem[]): InventoryItem[] => {
-                if (!items.length) return [];
-                const { success, updatedInventory, finalItemsToAdd } = addItemsToInventory(
-                    [...user.inventory],
-                    user.inventorySlots,
-                    items
-                );
-                if (success) {
-                    user.inventory = updatedInventory;
-                    return finalItemsToAdd;
-                }
-
-                // 도전의 탑 보상은 즉시 인벤토리 수령이 보장되어야 하므로 실패 시 강제 적재(기존 스택 우선).
-                const forcedInventory = [...user.inventory];
-                for (const incoming of items) {
-                    const incomingQty = Math.max(1, incoming.quantity ?? 1);
-                    const stack = forcedInventory.find(
-                        (it) => it.name === incoming.name && (it.source ?? null) === (incoming.source ?? null)
-                    );
-                    if (stack) {
-                        stack.quantity = Math.max(1, stack.quantity ?? 1) + incomingQty;
-                    } else {
-                        forcedInventory.push({ ...incoming, quantity: incomingQty });
-                    }
-                }
-                user.inventory = forcedInventory;
-                console.warn(
-                    `[Tower Summary] addItemsToInventory failed on floor ${floor}; forced insertion applied for guaranteed tower reward.`
-                );
-                return items.map((it) => ({ ...it, quantity: Math.max(1, it.quantity ?? 1) }));
-            };
-            
-            // 아이템 보상 처리
             if (rewards.items && rewards.items.length > 0) {
                 const itemInstances = finalizeRewardEquipmentInstances(createItemInstancesFromReward(rewards.items));
                 const grantedStageItems = grantTowerItemsToInventory(itemInstances);
                 summary.items = [...(summary.items ?? []), ...grantedStageItems];
             }
 
-            // 도전의 탑 전용 아이템 랜덤 드랍: 승리 시 행동력이 실제 차감된 경기에서만(재도전 ⚡0 등 제외)
-            if (!paidTowerAttempt) {
-                console.log(`[Tower Summary] Floor ${floor} - Skipping consumable item roll (no action point cost on this run)`);
-            }
-            // 도전의 탑 전용 아이템 랜덤 드랍: 1~19층 20%「턴 추가」 / 20~99층 히든 10%·스캔 30%·미사일 20%(나머지 40%는 없음)
-            const { countTowerLobbyInventoryQty } = await import('./modes/towerPlayerHidden.js');
-            const tryGrantRandomTowerDrop = async (
-                candidates: { name: string; weight: number; maxOwned: number }[],
-                roll: number,
-                logLabel: string
-            ) => {
-                const availableItems = candidates.filter((towerItem) => {
-                    const currentQuantity = countTowerLobbyInventoryQty(user.inventory, [towerItem.name]);
-                    return currentQuantity < towerItem.maxOwned;
-                });
-                if (availableItems.length === 0) return;
-                const totalWeight = availableItems.reduce((sum, item) => sum + item.weight, 0);
-                if (!(totalWeight > 0)) return;
-                let random = roll * totalWeight;
-                let selectedItem = availableItems[0]!;
-                for (const item of availableItems) {
-                    random -= item.weight;
-                    if (random <= 0) {
-                        selectedItem = item;
-                        break;
+            // 탑 전용 소모품 드랍은 실제 AP 차감된 최초 클리어 전투에만
+            if (kind === 'firstClear') {
+                if (!paidTowerAttempt) {
+                    console.log(`[Tower Summary] Floor ${floor} - Skipping consumable item roll (no action point cost on this run)`);
+                }
+                const { countTowerLobbyInventoryQty } = await import('./modes/towerPlayerHidden.js');
+                const tryGrantRandomTowerDrop = async (
+                    candidates: { name: string; weight: number; maxOwned: number }[],
+                    roll: number,
+                    logLabel: string
+                ) => {
+                    const availableItems = candidates.filter((towerItem) => {
+                        const currentQuantity = countTowerLobbyInventoryQty(user.inventory, [towerItem.name]);
+                        return currentQuantity < towerItem.maxOwned;
+                    });
+                    if (availableItems.length === 0) return;
+                    const totalWeight = availableItems.reduce((sum, item) => sum + item.weight, 0);
+                    if (!(totalWeight > 0)) return;
+                    let random = roll * totalWeight;
+                    let selectedItem = availableItems[0]!;
+                    for (const item of availableItems) {
+                        random -= item.weight;
+                        if (random <= 0) {
+                            selectedItem = item;
+                            break;
+                        }
                     }
-                }
-                const towerItemInstance = createConsumableItemInstance(selectedItem.name);
-                if (!towerItemInstance) return;
-                (towerItemInstance as InventoryItem & { source?: string }).source = 'tower';
-                const grantedTowerDrop = grantTowerItemsToInventory([towerItemInstance]);
-                if (grantedTowerDrop.length > 0) {
-                    summary.items = [...(summary.items ?? []), ...grantedTowerDrop];
-                    console.log(`[Tower Summary] Floor ${floor} - Tower item dropped (${logLabel}): ${selectedItem.name}`);
-                }
-            };
+                    const towerItemInstance = createConsumableItemInstance(selectedItem.name);
+                    if (!towerItemInstance) return;
+                    (towerItemInstance as InventoryItem & { source?: string }).source = 'tower';
+                    const grantedTowerDrop = grantTowerItemsToInventory([towerItemInstance]);
+                    if (grantedTowerDrop.length > 0) {
+                        summary.items = [...(summary.items ?? []), ...grantedTowerDrop];
+                        console.log(`[Tower Summary] Floor ${floor} - Tower item dropped (${logLabel}): ${selectedItem.name}`);
+                    }
+                };
 
-            if (paidTowerAttempt) {
-                const u = Math.random();
-                if (floor >= 1 && floor <= 19) {
-                    if (u < 0.2) {
-                        await tryGrantRandomTowerDrop([{ name: '턴 추가', weight: 1, maxOwned: 3 }], Math.random(), '20% turn add');
-                    }
-                } else if (floor >= 20 && floor <= 99) {
-                    if (u < 0.6) {
-                        const sub = Math.random();
-                        if (sub < 10 / 60) {
-                            await tryGrantRandomTowerDrop([{ name: '히든', weight: 1, maxOwned: 2 }], Math.random(), '10% hidden');
-                        } else if (sub < 40 / 60) {
-                            await tryGrantRandomTowerDrop([{ name: '스캔', weight: 1, maxOwned: 2 }], Math.random(), '30% scan');
-                        } else {
-                            await tryGrantRandomTowerDrop([{ name: '미사일', weight: 1, maxOwned: 2 }], Math.random(), '20% missile');
+                if (paidTowerAttempt) {
+                    const u = Math.random();
+                    if (floor >= 1 && floor <= 19) {
+                        if (u < 0.2) {
+                            await tryGrantRandomTowerDrop([{ name: '턴 추가', weight: 1, maxOwned: 3 }], Math.random(), '20% turn add');
+                        }
+                    } else if (floor >= 20 && floor <= 99) {
+                        if (u < 0.6) {
+                            const sub = Math.random();
+                            if (sub < 10 / 60) {
+                                await tryGrantRandomTowerDrop([{ name: '히든', weight: 1, maxOwned: 2 }], Math.random(), '10% hidden');
+                            } else if (sub < 40 / 60) {
+                                await tryGrantRandomTowerDrop([{ name: '스캔', weight: 1, maxOwned: 2 }], Math.random(), '30% scan');
+                            } else {
+                                await tryGrantRandomTowerDrop([{ name: '미사일', weight: 1, maxOwned: 2 }], Math.random(), '20% missile');
+                            }
                         }
                     }
                 }
             }
 
-            /** 전략 AI·싱글 클리어와 동일: 층 클리어 EXP의 50%를 장착 펫에 반영 */
             if (addedXp > 0) {
                 const petRaw = effectService.applyPairPetSpecialStatEquipmentXpMultiplier(user, Math.round(addedXp * 0.5));
                 if (petRaw > 0) {
@@ -584,7 +591,25 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
                 }
             }
 
-            console.log(`[Tower Summary] Floor ${floor} - First clear reward: gold=${rewards.gold}, exp=${rewards.exp}, items=${summary.items?.length || 0}`);
+            console.log(
+                `[Tower Summary] Floor ${floor} - ${kind} reward: gold=${goldGain}, exp=${addedXp}, items=${summary.items?.length || 0}`,
+            );
+        };
+        
+        if (isFirstClearThisMonth) {
+            await applyTowerStageRewards(stage.rewards.firstClear, 'firstClear');
+            // 보상이 summary에 반영된 뒤에만 monthly 워터마크 상승 (지급 없이 층수만 오르던 버그 방지)
+            if (floor > userMonthlyTowerFloorBefore) {
+                (user as any).monthlyTowerFloor = floor;
+                console.log(`[Tower Summary] Updating monthlyTowerFloor: ${userMonthlyTowerFloorBefore} -> ${floor}`);
+            }
+        } else {
+            // 월간 재도전: 스테이지 repeatClear 보상 지급 (빈 “보상이 없습니다” 방지)
+            const repeatRewards = stage.rewards.repeatClear ?? { gold: 0, exp: 0 };
+            console.log(
+                `[Tower Summary] Floor ${floor} - Monthly retry (monthly=${userMonthlyTowerFloorBefore}, eligible=${(game as any).towerFirstClearRewardEligible}, startAp=${plannedTowerApCost}); granting repeatClear`,
+            );
+            await applyTowerStageRewards(repeatRewards, 'repeatClear');
         }
     } else {
         // 실패 시 보상 없음
@@ -702,6 +727,10 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     const hasAllHumanSummaries = humanSummaryIds.every((id) => !!game.summary?.[id]);
     const alreadyTerminal = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';
 
+    // Penalty path below reads these after the alreadyTerminal branch — must be function-scoped.
+    let isEarlyTermination = false;
+    let badMannerPlayerId: string | null = null;
+
     if (alreadyTerminal) {
         const humanId = game.player1?.id;
         const priorSummary = humanId ? game.summary?.[humanId] : undefined;
@@ -719,59 +748,75 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
         if (!game.winReason) {
             game.winReason = winReason;
         }
-        // summary 자체가 없거나, winner가 정정된 경우에만 재정산 (월간 재도전 빈 보상은 루프 금지)
-        if (isTowerGame && (!priorSummary || (winnerCorrected && !priorHadTowerRewards))) {
+        isEarlyTermination = !!game.isEarlyTermination;
+        badMannerPlayerId = game.badMannerPlayerId ?? null;
+        const humanPlayerEnumForTower: Player | null = (() => {
+            const hid = game.player1?.id;
+            if (!hid) return null;
+            if (game.blackPlayerId === hid) return Player.Black;
+            if (game.whitePlayerId === hid) return Player.White;
+            return Player.Black;
+        })();
+        const humanIsWinnerNow =
+            isTowerGame &&
+            humanPlayerEnumForTower != null &&
+            (winner === humanPlayerEnumForTower || game.winner === humanPlayerEnumForTower);
+        const towerNeedsRewardRepair =
+            isTowerGame && humanIsWinnerNow && !priorHadTowerRewards;
+        // summary 없음·승자 정정·무보상 승리(firstClear 누락)는 재정산. 유보상 summary면 early return.
+        if (isTowerGame && (!priorSummary || winnerCorrected || towerNeedsRewardRepair)) {
             game.statsUpdated = false;
         } else if (hasAllHumanSummaries && game.statsUpdated) {
             return;
         }
     } else {
-    const now = Date.now();
-    const gameStartTime = game.gameStartTime || game.createdAt || now;
-    const gameDuration = now - gameStartTime;
-    const moveCount = game.moveHistory?.filter(m => m.x !== -1 && m.y !== -1).length || 0;
-    
-    // 조기 종료 조건 확인 (10턴 이내 또는 1분 이내 기권/접속 끊김)
-    const isEarlyTermination = (moveCount <= 10 || gameDuration < 60000) && 
-                                (winReason === 'resign' || winReason === 'disconnect');
-    
-    // 비매너 행동자 식별 (조기 종료를 한 사람)
-    let badMannerPlayerId: string | null = null;
-    if (isEarlyTermination) {
-        if (winReason === 'resign') {
-            // 기권한 사람이 비매너 행동자
-            badMannerPlayerId = winner === Player.Black ? game.whitePlayerId! : game.blackPlayerId!;
-        } else if (winReason === 'disconnect') {
-            // 접속 끊긴 사람이 비매너 행동자
-            const disconnectedPlayerId = game.lastTimeoutPlayerId || 
-                                        (winner === Player.Black ? game.whitePlayerId! : game.blackPlayerId!);
-            badMannerPlayerId = disconnectedPlayerId;
+        const now = Date.now();
+        const gameStartTime = game.gameStartTime || game.createdAt || now;
+        const gameDuration = now - gameStartTime;
+        const moveCount = game.moveHistory?.filter(m => m.x !== -1 && m.y !== -1).length || 0;
+
+        // 조기 종료 조건 확인 (10턴 이내 또는 1분 이내 기권/접속 끊김)
+        isEarlyTermination =
+            (moveCount <= 10 || gameDuration < 60000) &&
+            (winReason === 'resign' || winReason === 'disconnect');
+
+        // 비매너 행동자 식별 (조기 종료를 한 사람)
+        if (isEarlyTermination) {
+            if (winReason === 'resign') {
+                // 기권한 사람이 비매너 행동자
+                badMannerPlayerId = winner === Player.Black ? game.whitePlayerId! : game.blackPlayerId!;
+            } else if (winReason === 'disconnect') {
+                // 접속 끊긴 사람이 비매너 행동자
+                const disconnectedPlayerId =
+                    game.lastTimeoutPlayerId ||
+                    (winner === Player.Black ? game.whitePlayerId! : game.blackPlayerId!);
+                badMannerPlayerId = disconnectedPlayerId;
+            }
         }
-    }
-    
-    game.winner = winner;
-    game.winReason = winReason;
-    game.gameStatus = 'ended';
 
-    try {
-        const { stashEndedPvpGameRecordSnapshot } = await import('./gameRecordSnapshot.js');
-        const { volatileState } = await import('./state.js');
-        stashEndedPvpGameRecordSnapshot(volatileState, game);
-    } catch (stashErr) {
-        console.warn('[endGame] stashEndedPvpGameRecordSnapshot failed:', (stashErr as Error)?.message);
-    }
+        game.winner = winner;
+        game.winReason = winReason;
+        game.gameStatus = 'ended';
 
-    if (game.pairTeamResignRequest) delete game.pairTeamResignRequest;
-    if (game.pairTeamResignCooldownByTeam) delete game.pairTeamResignCooldownByTeam;
-    
-    // 게임 종료 시 disconnectionState 제거 (재접속중 화면 방지)
-    game.disconnectionState = null;
-    game.disconnectionCounts = {};
-    
-    // 디버깅: 승자 설정 로그
-    console.log(`[endGame] Game ${game.id} ended: winner=${winner === Player.Black ? 'Black' : winner === Player.White ? 'White' : 'None'}, winReason=${winReason}, finalScores=${JSON.stringify(game.finalScores)}`);
-    game.isEarlyTermination = isEarlyTermination; // 조기 종료 플래그
-    game.badMannerPlayerId = badMannerPlayerId ?? undefined; // 비매너 행동자 ID
+        try {
+            const { stashEndedPvpGameRecordSnapshot } = await import('./gameRecordSnapshot.js');
+            const { volatileState } = await import('./state.js');
+            stashEndedPvpGameRecordSnapshot(volatileState, game);
+        } catch (stashErr) {
+            console.warn('[endGame] stashEndedPvpGameRecordSnapshot failed:', (stashErr as Error)?.message);
+        }
+
+        if (game.pairTeamResignRequest) delete game.pairTeamResignRequest;
+        if (game.pairTeamResignCooldownByTeam) delete game.pairTeamResignCooldownByTeam;
+
+        // 게임 종료 시 disconnectionState 제거 (재접속중 화면 방지)
+        game.disconnectionState = null;
+        game.disconnectionCounts = {};
+
+        // 디버깅: 승자 설정 로그
+        console.log(`[endGame] Game ${game.id} ended: winner=${winner === Player.Black ? 'Black' : winner === Player.White ? 'White' : 'None'}, winReason=${winReason}, finalScores=${JSON.stringify(game.finalScores)}`);
+        game.isEarlyTermination = isEarlyTermination; // 조기 종료 플래그
+        game.badMannerPlayerId = badMannerPlayerId ?? undefined; // 비매너 행동자 ID
     }
 
     // 도전의 탑 게임 처리는 processTowerGameSummary에서만 수행 (중복 업데이트 방지)
@@ -816,6 +861,25 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     // 모험/길드전·히든 계가 경합에서 revision만 앞선 스냅샷이 정산본 저장을 가로채지 않도록 강제 저장
     await db.saveGame(game, true);
 
+    // 탑/싱글: summary 저장 직후 즉시 브로드캐스트 — 이후 패널티/정리 단계에서 실패해도
+    // 클라이언트가 결과 모달(summary 대기)과 보상을 받을 수 있게 한다.
+    if (isTowerGame || game.isSinglePlayer) {
+        try {
+            const { broadcastToGameParticipants } = await import('./socket.js');
+            const { updateGameCache } = await import('./gameCache.js');
+            updateGameCache(game);
+            console.log(
+                `[endGame] Early PVE broadcast ${game.id} with summary: ${JSON.stringify(game.summary)}`,
+            );
+            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+        } catch (earlyBroadcastErr) {
+            console.warn(
+                `[endGame] early PVE broadcast failed for ${game.id}:`,
+                (earlyBroadcastErr as Error)?.message ?? earlyBroadcastErr,
+            );
+        }
+    }
+
     // summary가 설정된 후 최신 게임 상태를 다시 가져와서 브로드캐스트
     let freshGame = await db.getLiveGame(game.id);
     if (!freshGame) {
@@ -851,14 +915,26 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     
     // 조기 종료인 경우 행동력 환불 처리 및 패널티 메일 발송
     // 도전의 탑, 싱글플레이, AI 게임, 친선전에서는 패널티 없음
-    const isNoPenaltyGame = game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame || !game.isRankedGame;
-    if (isEarlyTermination && !isNoPenaltyGame) {
-        await refundActionPointsForEarlyTermination(freshGame, badMannerPlayerId);
-        if (badMannerPlayerId) {
-            await sendBadMannerPenaltyMail(freshGame, badMannerPlayerId);
+    // (패널티 실패가 정산/브로드캐스트를 막지 않도록 분리 — 탑 결과 모달 누락 방지)
+    const isNoPenaltyGame =
+        game.isSinglePlayer || game.gameCategory === 'tower' || game.isAiGame || !game.isRankedGame;
+    const shouldApplyEarlyTerminationPenalty =
+        Boolean(isEarlyTermination || game.isEarlyTermination) && !isNoPenaltyGame;
+    if (shouldApplyEarlyTerminationPenalty) {
+        try {
+            const penaltyBadMannerId = badMannerPlayerId ?? game.badMannerPlayerId ?? null;
+            await refundActionPointsForEarlyTermination(freshGame, penaltyBadMannerId);
+            if (penaltyBadMannerId) {
+                await sendBadMannerPenaltyMail(freshGame, penaltyBadMannerId);
+            }
+        } catch (penaltyErr) {
+            console.warn(
+                `[endGame] early-termination penalty failed for ${freshGame.id}:`,
+                (penaltyErr as Error)?.message ?? penaltyErr,
+            );
         }
     }
-    
+
     // 게임 종료 및 분석 결과 브로드캐스트 (게임 참가자에게만 전송, summary 포함)
     const { broadcastToGameParticipants, broadcastLiveGameToList } = await import('./socket.js');
     console.log(`[endGame] Broadcasting game ${freshGame.id} with summary: ${JSON.stringify(freshGame.summary)}`);

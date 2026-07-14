@@ -378,7 +378,7 @@ describe('shouldOpenResultModalByPolicy', () => {
         ).toBe(false);
     });
 
-    it('opens singleplayer (waitScoringOverlay) on gameHasJustEnded', () => {
+    it('opens singleplayer (waitScoringOverlay) on gameHasJustEnded when not waiting for summary', () => {
         const s = session({
             gameCategory: GameCategory.SinglePlayer,
             isSinglePlayer: true,
@@ -393,6 +393,39 @@ describe('shouldOpenResultModalByPolicy', () => {
                 hasAnalysisResult: false,
                 resultModalWaitSummary: false,
                 hasMyGameSummary: false,
+                gameSummaryJustArrived: false,
+            }),
+        ).toBe(true);
+    });
+
+    it('defers tower (waitScoringOverlay) until summary when resultModalWaitSummary is set', () => {
+        const s = session({
+            gameCategory: GameCategory.Tower,
+            gameStatus: 'ended',
+            towerFloor: 3,
+            winReason: 'capture_limit',
+        });
+        expect(
+            shouldOpenResultModalByPolicy({
+                session: s,
+                showResultModal: false,
+                gameHasJustEnded: true,
+                prevGameStatus: 'playing',
+                hasAnalysisResult: false,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: false,
+                gameSummaryJustArrived: false,
+            }),
+        ).toBe(false);
+        expect(
+            shouldOpenResultModalByPolicy({
+                session: s,
+                showResultModal: false,
+                gameHasJustEnded: true,
+                prevGameStatus: 'playing',
+                hasAnalysisResult: false,
+                resultModalWaitSummary: true,
+                hasMyGameSummary: true,
                 gameSummaryJustArrived: false,
             }),
         ).toBe(true);
