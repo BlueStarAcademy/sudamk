@@ -1195,10 +1195,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const sessionPolicy = useMemo(() => resolveArenaSessionPolicy(session), [session]);
     const isSinglePlayer = sessionPolicy.kind === 'singleplayer';
     const isTower = sessionPolicy.kind === 'tower';
-    /** 모험·길드전만 summary 행을 기다린다. instantEnd(PVP·놀이바둑)는 종료 직후 모달을 연다. */
+    const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+    /**
+     * 모험·길드전(waitSummary)과 전략 instantEnd(PVP·대기실 AI)는 summary(보상·XP)가 붙은 뒤에만
+     * 결과 모달을 연다. 계가 분석이 summary보다 먼저 오면 빈 “보상 정보가 없습니다.”가 잠깐 뜨던 것을 막는다.
+     * 놀이바둑·관전은 기존처럼 summary를 기다리지 않는다.
+     */
     const resultModalWaitSummary =
-        sessionPolicy.resultDisplayModel === 'waitSummary' &&
-        !isSpectator;
+        !isSpectator &&
+        (sessionPolicy.resultDisplayModel === 'waitSummary' ||
+            (sessionPolicy.resultDisplayModel === 'instantEnd' && !isPlayfulMode));
     const hasMyGameSummary = Boolean(session.summary?.[currentUser.id]);
     const scoringResultContentReady = isScoringResultContentReady({
         gameStatus,
@@ -1230,7 +1236,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isAdventureGame && session.adventureStageId ? getAdventureMapWebpPath(session.adventureStageId) : null;
     const isGuildWarTowerStyleUi =
         isGuildWarGame && (mode === GameMode.Missile || mode === GameMode.Hidden);
-    const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
     const prevHasMyGameSummary = usePrevious(hasMyGameSummary) ?? false;
     const gameSummaryJustArrived =
         resultModalWaitSummary &&
@@ -2699,9 +2704,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
         // 히든 공개 애니 직후에는 클라/서버 상태 반영 타이밍 경합이 있어 AI 착수가 누락될 수 있음.
         // 애니 종료→playing 전환 순간에 1회 kick을 보내 멈춤을 방지한다.
+        // 모험·길드전은 서버 큐 전담 — clientSync REQUEST는 AI 돌 이동/이중 착수 원인이라 SYNC만 한다.
         const kickTimer = window.setTimeout(() => {
             const latestSession = sessionRefForPveAiHiddenFollowup.current;
-            if (isStrategicAiLobbyKick) {
+            if (isStrategicAiLobbyKick || isAdventureGame || isGuildWarGame) {
                 void handleActionRef.current({
                     type: 'REQUEST_GAME_STATE_SYNC',
                     payload: { gameId: latestSession.id },
@@ -2729,6 +2735,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isSinglePlayer,
         isTower,
         isGuildWarGame,
+        isAdventureGame,
         session.isAiGame,
         session.blackPlayerId,
         session.whitePlayerId,
@@ -2777,7 +2784,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (!stillAiTurn) return;
 
             pveHiddenPlacementAiKickDoneRef.current = kickKey;
-            if (isStrategicAiLobbyKick) {
+            if (isStrategicAiLobbyKick || isAdventureGame || isGuildWarGame) {
                 void handleActionRef.current({
                     type: 'REQUEST_GAME_STATE_SYNC',
                     payload: { gameId: latestSession.id },
@@ -2912,9 +2919,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.gameCategory,
     ]);
 
-    // 도전의 탑·싱글·모험: 서버 생각 연출 종료 직후 Kata 착수를 위해 REQUEST_SERVER_AI_MOVE 1회
+    // 도전의 탑·싱글: 서버 생각 연출 종료 직후 Kata 착수를 위해 REQUEST_SERVER_AI_MOVE 1회.
+    // 모험·길드전은 aiProcessingQueue가 연출 종료 후 재등록하므로 클라 REQUEST를 보내지 않는다(이중 착수 방지).
     useEffect(() => {
-        if (!isTower && !isSinglePlayer && !isAdventureGame) return;
+        if (!isTower && !isSinglePlayer) return;
         if (session.gameStatus !== 'playing') return;
         const anim = session.animation as { type?: string; startTime?: number } | undefined;
         if (anim?.type !== 'ai_thinking') return;
@@ -2946,14 +2954,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             pveAiHiddenPostAnimRequestDoneRef.current = followKey;
             lastAiMoveRef.current = null;
             const clientSync = buildPveItemActionClientSync(s);
-            if (!clientSync && !isAdventureGame) {
+            if (!clientSync) {
                 pveAiHiddenPostAnimRequestDoneRef.current = null;
                 return;
             }
             void handlers
                 .handleAction({
                     type: 'REQUEST_SERVER_AI_MOVE',
-                    payload: clientSync ? { gameId: sid, clientSync } : { gameId: sid },
+                    payload: { gameId: sid, clientSync },
                 } as ServerAction)
                 .catch((err) => {
                     console.error('[Game] PVE post ai_thinking REQUEST_SERVER_AI_MOVE failed:', err);
@@ -2964,7 +2972,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [
         isTower,
         isSinglePlayer,
-        isAdventureGame,
         session.id,
         session.gameStatus,
         session.animation?.type,
@@ -4720,7 +4727,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 shouldUseServerAiKickForStuckRecovery(latestForKick, { isPairAiTurn: w.isPairAiTurn });
             if (useServerAiKick) {
                 const latestSession = sessionRefForPveAiHiddenFollowup.current;
-                const clientSync = buildPveItemActionClientSync(latestSession);
+                const kickPolicy = resolveArenaSessionPolicy(latestSession);
+                // 모험·길드전: 서버 큐/워치독이 본경로. clientSync로 보드를 덮어쓰지 않는다.
+                const queueOnlyArena =
+                    kickPolicy.kind === 'adventure' || kickPolicy.kind === 'guildwar';
+                const clientSync = queueOnlyArena ? null : buildPveItemActionClientSync(latestSession);
                 void handleActionRef.current({
                     type: 'REQUEST_SERVER_AI_MOVE',
                     payload: clientSync
@@ -4762,7 +4773,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (!stillAi) return;
                 if (useServerAiKick || w2.useClientSideAi) {
                     const latestSession = sessionRefForPveAiHiddenFollowup.current;
-                    const clientSync = buildPveItemActionClientSync(latestSession);
+                    const kickPolicy = resolveArenaSessionPolicy(latestSession);
+                    const queueOnlyArena =
+                        kickPolicy.kind === 'adventure' || kickPolicy.kind === 'guildwar';
+                    const clientSync = queueOnlyArena ? null : buildPveItemActionClientSync(latestSession);
                     void handleActionRef.current({
                         type: 'REQUEST_SERVER_AI_MOVE',
                         payload: clientSync
@@ -4841,8 +4855,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
         
         const isTower = sessionPolicy.kind === 'tower';
-        const isGuildWarGame = sessionPolicy.kind === 'guildwar';
-        const isAdventureGame = sessionPolicy.kind === 'adventure';
         const isPlayfulAiGame = session.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === mode);
         const isPlayfulModeForAiTrigger = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
         const missileFlightAnimType = (session.animation as { type?: string } | undefined)?.type;
@@ -4853,9 +4865,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             : gameStatus === 'playing' && !STRATEGIC_ITEM_PHASE_AI_BLOCK_STATUSES.has(gameStatus);
         // 게임이 종료되었거나 일시정지되었거나 플레이 중이 아니면 AI 수를 보내지 않음
         // 놀이바둑 AI 게임도 클라이언트에서 처리
-        // 모험: 서버 큐만 기대하면 AI 턴이 영구 정지할 수 있어 타워·길드전과 같이 REQUEST_SERVER_AI_MOVE 복구 경로에 포함
+        // 모험·길드전: 서버 `schedulePveStrategicAiTurnIfNeeded` + 워치독 단일 경로.
+        // REQUEST_SERVER_AI_MOVE를 같이 쏘면 큐와 경합해 AI 돌이 옮겨지거나 한 수를 더 두는 사고가 난다.
         if (
-            !(isSinglePlayer || isTower || isGuildWarGame || isPlayfulAiGame || isAdventureGame) ||
+            !(isSinglePlayer || isTower || isPlayfulAiGame) ||
             isPaused ||
             !gameStatusAllowsAiTrigger ||
             STRATEGIC_ITEM_PHASE_AI_BLOCK_STATUSES.has(gameStatus) ||
@@ -4910,11 +4923,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 디버깅: AI 차례 판단 (베이스 선호/동색 덤 이후 흑백 좌석은 바뀔 수 있음 — 흑=유저·백=AI 가정은 하지 않음)
         if (
             import.meta.env.DEV &&
-            (isTower || isSinglePlayer || isGuildWarGame) &&
+            (isTower || isSinglePlayer) &&
             (currentPlayer === Player.Black || currentPlayer === Player.White)
         ) {
             const currentSeatId = currentPlayer === Player.Black ? session.blackPlayerId : session.whitePlayerId;
-            console.log(`[Game] ${isTower ? 'Tower' : isGuildWarGame ? 'Guild war' : 'Single player'} AI turn check:`, {
+            console.log(`[Game] ${isTower ? 'Tower' : 'Single player'} AI turn check:`, {
                 gameId: session.id,
                 gameCategory: sessionPolicy.kind,
                 currentPlayer,
@@ -4930,6 +4943,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
 
         if (isAiTurn) {
+            // 낙관적 유저 착수(PLACE_STONE in flight)와 REQUEST_SERVER_AI_MOVE가 경합하면
+            // 서버에는 AI 돌이 있는데 클라 보드만 비어 "통과"처럼 보인다.
+            if (
+                sessionPolicy.usesServerKataAi &&
+                (isMoveInFlight || strategicAiStoneLockRef.current)
+            ) {
+                if (import.meta.env.DEV) {
+                    console.log('[Game] Defer PVE server AI until human PLACE_STONE settles:', {
+                        gameId: session.id,
+                        arenaKind: sessionPolicy.kind,
+                        isMoveInFlight,
+                        strategicAiStoneLock: strategicAiStoneLockRef.current,
+                    });
+                }
+                return;
+            }
             if (hasReachedAutoScoringTurnCapForAiGuard(session, sessionPolicy.kind)) {
                 if (import.meta.env.DEV) {
                     console.log('[Game] Skip AI move: auto-scoring cap already reached', {
@@ -4941,37 +4970,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 lastAiMoveRef.current = null;
                 return;
             }
-            const moveCount = session.moveHistory?.length ?? 0;
-            const aiTurnIndex = Math.floor(moveCount / 2) + 1; // 지금 둘 차례인 백 = 1번째 AI턴(1), 2번째 AI턴(2), ...
-            const hiddenStoneCount = session.settings?.hiddenStoneCount ?? 0;
-            const aiIsPlayer1 = session.player1?.id != null && aiPlayerId === session.player1.id;
-            const aiHiddenLeft = Number(
-                (aiIsPlayer1 ? (session as any).hidden_stones_p1 : (session as any).hidden_stones_p2) ??
-                hiddenStoneCount ??
-                0
-            );
-            const maxHiddenTurns = plannedAiHiddenTurns.length || 1;
-            // 이미 사용한 히든 턴 수가 계획된 수 이상이면 더 이상 히든 연출하지 않음 (두 번째 AI 수가 히든으로 겹치는 버그 방지)
-            const hasHiddenSlotsLeft = aiHiddenItemsUsedCount < maxHiddenTurns;
-            // 유저 턴이 한 번이라도 지났으면(이미 히든 연출 실행 후) 다음 AI 수는 반드시 일반 돌
-            const neverExecutedHiddenThisGame = !aiHiddenMoveExecutedRef.current;
-            const isAiHiddenItemTurn =
-                isAiHiddenPresentationStage &&
-                aiHiddenLeft > 0 &&
-                hasHiddenSlotsLeft &&
-                neverExecutedHiddenThisGame &&
-                nextAiHiddenItemTurn != null &&
-                aiTurnIndex === nextAiHiddenItemTurn;
-            if (isAiHiddenItemTurn && aiHiddenItemEffectEndTime == null && isGuildWarGame) {
-                aiHiddenMoveExecutedRef.current = false;
-                setAiHiddenItemEffectEndTime(Date.now() + AI_HIDDEN_ITEM_THINKING_DURATION_MS);
-                return;
-            }
+            // 길드전 클라 히든 연출 타이머가 남아 있으면 REQUEST와 겹치지 않도록 대기
             if (aiHiddenItemEffectEndTime != null) return;
 
             // 게임이 이미 종료되었는지 확인
             if (gameStatus !== 'playing' && (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring')) {
-                const gameLabel = isTower ? 'Tower' : isGuildWarGame ? 'Guild war' : 'Single player';
+                const gameLabel = isTower ? 'Tower' : 'Single player';
                 console.log(`[Game] ${gameLabel} game already ended, skipping AI move:`, {
                     gameId: session.id,
                     gameStatus
@@ -5061,14 +5065,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return;
             }
 
-            // 도전의 탑·싱글플레이·길드전·모험: 서버 Kata(goAiBot) — 클라 전용 수만 반영되므로 clientSync 후 REQUEST_SERVER_AI_MOVE
+            // 도전의 탑·싱글플레이(+페어 AI): 서버 Kata — clientSync 후 REQUEST_SERVER_AI_MOVE.
+            // 모험·길드전은 서버 큐 전담(위 early-return).
             if (
                 isTower ||
-                isGuildWarGame ||
                 isSinglePlayer ||
-                isAdventureGame ||
-                isPairAiTurnForAiEffect ||
-                isSinglePlayer
+                isPairAiTurnForAiEffect
             ) {
                 const currentGameId = session.id;
                 const currentGameStatus = session.gameStatus;
@@ -5084,6 +5086,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             return;
                         }
                         const live = sessionRefForPveAiHiddenFollowup.current;
+                        if (
+                            sessionPolicy.usesServerKataAi &&
+                            (strategicAiStoneLockRef.current)
+                        ) {
+                            lastAiMoveRef.current = null;
+                            aiMoveTimeoutRef.current = null;
+                            return;
+                        }
                         const currentMoveHistoryLength = live.moveHistory?.length || 0;
                         if (
                             live.gameStatus !== 'playing' ||
@@ -5101,7 +5111,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             if (process.env.NODE_ENV === 'development') {
                                 console.warn('[Game] PVE server AI: missing clientSync', { gameId: currentGameId });
                             }
-                            if (!isTower && !isSinglePlayer && !isAdventureGame) {
+                            if (!isTower && !isSinglePlayer) {
                                 void handlers.handleAction({
                                     type: 'REQUEST_GAME_STATE_SYNC',
                                     payload: { gameId: currentGameId },
@@ -5177,6 +5187,29 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     responseAnimType === 'missile' ||
                                     responseAnimType === 'hidden_missile');
                             if (keepLockForAuthoritativeWaiting) {
+                                const responseMhLen = Array.isArray(responseGame.moveHistory)
+                                    ? responseGame.moveHistory.length
+                                    : 0;
+                                const turnAlreadyAdvanced =
+                                    responseGame.currentPlayer !== currentPlayerAtCalculation ||
+                                    responseMhLen > moveHistoryLengthAtCalculation;
+                                // AI가 이미 두고 유저 차례로 넘어온 waiting noop은 잠금을 유지하면
+                                // 보드 merge 실패 시 재요청도 막혀 돌이 영원히 안 보일 수 있다.
+                                if (turnAlreadyAdvanced) {
+                                    lastAiMoveRef.current = null;
+                                    if (process.env.NODE_ENV === 'development') {
+                                        console.log('[Game] PVE server AI waiting but turn advanced, clearing lock:', {
+                                            gameId: currentGameId,
+                                            skippedReason,
+                                            responseStatus,
+                                            serverPlayer: responseGame.currentPlayer,
+                                            clientExpectedPlayer: currentPlayerAtCalculation,
+                                            responseMhLen,
+                                            moveHistoryLengthAtCalculation,
+                                        });
+                                    }
+                                    return;
+                                }
                                 if (process.env.NODE_ENV === 'development') {
                                     console.log('[Game] PVE server AI waiting state (authoritative), keeping lock:', {
                                         gameId: currentGameId,
@@ -5256,6 +5289,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, [
         isSinglePlayer,
         sessionPolicy.kind,
+        sessionPolicy.usesServerKataAi,
         isPaused,
         gameStatus,
         currentPlayer,
@@ -5266,18 +5300,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.moveHistory?.length,
         session.settings?.aiDifficulty,
         isBoardLocked,
+        isMoveInFlight,
         session.id,
         session.gameStatus,
         handlers.handleAction,
         aiHiddenItemEffectEndTime,
-        isAiHiddenPresentationStage,
-        nextAiHiddenItemTurn,
-        (session as any).hidden_stones_p1,
-        (session as any).hidden_stones_p2,
-        session.player1?.id,
         session.animation?.type,
         (session as any).aiHiddenItemAnimationEndTime,
-        isGuildWarGame,
     ]);
     
     const globalChat = useMemo(

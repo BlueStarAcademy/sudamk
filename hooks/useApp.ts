@@ -3937,9 +3937,21 @@ export const useApp = () => {
             if (lastCallTime && (now - lastCallTime) < ACTION_DEBOUNCE_MS) {
                 if (action.type === 'GET_GUILD_INFO') {
                     const gid = currentUserRef.current?.guildId;
-                    if (gid && guilds[gid]) {
-                        return { clientResponse: { guild: guilds[gid] } };
+                    const cachedGuild = gid ? guilds[gid] : null;
+                    // Due research must hit the server — stale cache would keep researchTask stuck.
+                    const researchEndAt =
+                        cachedGuild?.researchTask?.completedAt ??
+                        cachedGuild?.researchTask?.completionTime ??
+                        null;
+                    const researchDue =
+                        typeof researchEndAt === 'number' &&
+                        Number.isFinite(researchEndAt) &&
+                        researchEndAt > 0 &&
+                        now >= researchEndAt;
+                    if (cachedGuild && !researchDue) {
+                        return { clientResponse: { guild: cachedGuild } };
                     }
+                    // researchDue (or missing cache): fall through to server
                 }
                 if (process.env.NODE_ENV === 'development') {
                     console.log(`[handleAction] Action debounced: ${action.type} (${now - lastCallTime}ms since last call)`);
@@ -7350,13 +7362,18 @@ export const useApp = () => {
                                 !Array.isArray(merged.boardState) ||
                                 merged.boardState.length === 0)
                         ) {
+                            const prevMhLen = Array.isArray(prevG.moveHistory) ? prevG.moveHistory.length : 0;
+                            const mergedMhLen = Array.isArray(merged.moveHistory) ? merged.moveHistory.length : 0;
                             merged = {
                                 ...merged,
                                 boardState: prevG.boardState,
+                                // Never replace a longer AI-advanced history with a shorter prev snapshot.
                                 moveHistory:
-                                    Array.isArray(prevG.moveHistory) && prevG.moveHistory.length > 0
-                                        ? prevG.moveHistory
-                                        : merged.moveHistory,
+                                    mergedMhLen > prevMhLen
+                                        ? merged.moveHistory
+                                        : Array.isArray(prevG.moveHistory) && prevG.moveHistory.length > 0
+                                          ? prevG.moveHistory
+                                          : merged.moveHistory,
                             };
                         }
                         const mh = merged.moveHistory;

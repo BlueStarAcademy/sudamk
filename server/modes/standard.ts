@@ -61,6 +61,7 @@ import {
     resetPairPasses,
 } from '../../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { runPerGameSerial } from '../utils/perGameSerialQueue.js';
 import { updateStrategicPveItemState } from './strategicItemAdapters.js';
 import {
     consumeOpponentPatternStoneIfAny,
@@ -959,18 +960,10 @@ export const handleStrategicGameAction = async (volatileState: types.VolatileSta
     return undefined;
 };
 
-const strategicTurnActionQueues = new Map<string, Promise<unknown>>();
-
 async function runStrategicTurnActionSerial<T>(gameId: string, task: () => Promise<T>): Promise<T> {
-    const previous = strategicTurnActionQueues.get(gameId) ?? Promise.resolve();
-    const nextTask = previous.catch(() => undefined).then(task);
-    const queueTail = nextTask.finally(() => {
-        if (strategicTurnActionQueues.get(gameId) === queueTail) {
-            strategicTurnActionQueues.delete(gameId);
-        }
-    });
-    strategicTurnActionQueues.set(gameId, queueTail);
-    return nextTask;
+    // Must share the same FIFO as REQUEST_SERVER_AI_MOVE (gameActions runGameActionSerial)
+    // so optimistic clientSync + AI cannot race human PLACE_STONE on adventure/guild PVE.
+    return runPerGameSerial(gameId, task);
 }
 
 const handleStandardAction = async (

@@ -18,9 +18,9 @@ import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from
 import {
     GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
     gradeSlotBorderOverlayClass,
-    itemSlotIconStyle,
-    ITEM_SLOT_ICON_SIZE_PCT,
+    itemSlotIconStyleForGrade,
 } from '../../shared/constants/itemSlotIconLayout.js';
+import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -39,42 +39,6 @@ function formatDisassemblyExpectedYield(min: number, max: number): string {
     return `${lo.toLocaleString()}~${hi.toLocaleString()}`;
 }
 
-/** 하단 장비 인벤토리 그리드와 동일한 별 표시 (`compact`: 44px 선택 칸용) */
-const renderStarDisplay = (stars: number, compact?: boolean) => {
-    if (stars === 0) return null;
-
-    let starImage = '';
-    let numberColor = '';
-
-    if (stars >= 10) {
-        starImage = '/images/equipments/Star4.webp';
-        numberColor = 'prism-text-effect';
-    } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.webp';
-        numberColor = 'text-purple-400';
-    } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.webp';
-        numberColor = 'text-amber-400';
-    } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.webp';
-        numberColor = 'text-white';
-    }
-
-    return (
-        <div
-            className={`absolute z-10 flex items-center rounded-bl-md bg-black/45 backdrop-blur-[2px] ${
-                compact
-                    ? 'right-0.5 top-0.5 gap-0 px-0.5 py-0'
-                    : 'right-1.5 top-0.5 gap-0.5 px-1 py-0.5'
-            }`}
-            style={{ textShadow: '1px 1px 2px black' }}
-        >
-            <img src={starImage} alt="" className={compact ? 'h-2 w-2' : 'h-3 w-3'} />
-            <span className={`font-bold leading-none ${compact ? 'text-[9px]' : 'text-xs'} ${numberColor}`}>{stars}</span>
-        </div>
-    );
-};
-
 /** 하단 대장간 장비 인벤(10열·130px 높이) 셀과 비슷하게 맞춘 고정 크기 */
 const getSelectedDisassemblyCellPx = (pcViewer: boolean) => (pcViewer ? 72 : 58);
 
@@ -87,7 +51,6 @@ const DisassemblySelectedInventoryCell: React.FC<{
     const { t } = useTranslation('blacksmith');
     const styles = gradeStyles[item.grade];
     const cellPx = getSelectedDisassemblyCellPx(pcViewer);
-    const compactStars = cellPx < 64;
     return (
         <button
             type="button"
@@ -108,14 +71,14 @@ const DisassemblySelectedInventoryCell: React.FC<{
                     src={item.image}
                     alt=""
                     className="absolute z-[1] object-contain"
-                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                    style={itemSlotIconStyleForGrade(item.grade)}
                 />
             )}
             <div
                 className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
                 aria-hidden
             />
-            {renderStarDisplay(item.stars ?? 0, compactStars)}
+            <EquipmentEnhancementBadge stars={item.stars ?? 0} />
         </button>
     );
 };

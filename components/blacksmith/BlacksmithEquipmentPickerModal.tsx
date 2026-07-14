@@ -8,7 +8,7 @@ import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../../shared/constants/pcS
 import { InventoryItem } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
-import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
+import { itemSlotIconStyleForGrade } from '../../shared/constants/itemSlotIconLayout.js';
 
 const mobilePickerTypo = getBlacksmithViewerTypography(false, { mobileWork: true });
 
@@ -72,7 +72,7 @@ const CombineSlotPreview: React.FC<{
                         src={item.image}
                         alt=""
                         className="pointer-events-none absolute object-contain"
-                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                        style={itemSlotIconStyleForGrade(item.grade)}
                     />
                 )}
             </button>

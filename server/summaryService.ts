@@ -405,6 +405,7 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     
     const floor = game.towerFloor ?? 1;
     const userTowerFloor = user.towerFloor ?? 0;
+    const userMonthlyTowerFloorBefore = Number((user as any).monthlyTowerFloor ?? 0) || 0;
     const stage = TOWER_STAGES.find(s => {
         const stageFloor = parseInt(s.id.replace('tower-', ''));
         return stageFloor === floor;
@@ -430,9 +431,9 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         const towerApChargedOnWin = await chargeActionPointsOnPveVictory(user, game, plannedTowerApCost);
         const paidTowerAttempt = towerApChargedOnWin > 0;
 
-        // 클리어한 층 재도전 여부 확인
-        const isCleared = floor <= userTowerFloor;
-        const userMonthlyTowerFloor = (user as any).monthlyTowerFloor ?? 0;
+        // 월간 최초 클리어 여부 (층 보상은 monthlyTowerFloor 기준 — 월간 1회)
+        // towerFloor만 보면 월간 리셋이 누락됐거나 monthly가 0인 구데이터에서 보상이 영구 미지급됨
+        const isClearedThisMonth = floor <= userMonthlyTowerFloorBefore;
         
         // towerFloor 업데이트 (현재 층이 사용자의 최고 층수보다 높으면 업데이트)
         if (floor > userTowerFloor) {
@@ -442,14 +443,14 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         }
         
         // monthlyTowerFloor 업데이트 (현재 층이 사용자의 월간 최고 층수보다 높으면 업데이트)
-        if (floor > userMonthlyTowerFloor) {
+        if (floor > userMonthlyTowerFloorBefore) {
             (user as any).monthlyTowerFloor = floor;
-            console.log(`[Tower Summary] Updating monthlyTowerFloor: ${userMonthlyTowerFloor} -> ${floor}`);
+            console.log(`[Tower Summary] Updating monthlyTowerFloor: ${userMonthlyTowerFloorBefore} -> ${floor}`);
         }
         
-        if (isCleared) {
-            // 클리어한 층 재도전 시 보상 없음
-            console.log(`[Tower Summary] Floor ${floor} - Already cleared, no reward on retry`);
+        if (isClearedThisMonth) {
+            // 이번 달 이미 클리어한 층 재도전 시 보상 없음
+            console.log(`[Tower Summary] Floor ${floor} - Already cleared this month (monthly=${userMonthlyTowerFloorBefore}), no reward on retry`);
         } else {
             // 최초 클리어 시에만 보상 지급 (경험치는 반드시 누적: 기존값 + 보상)
             const rewards = stage.rewards.firstClear;
@@ -601,8 +602,11 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         user.userXp = currentXp;
     }
 
-    // towerFloor 또는 monthlyTowerFloor가 업데이트되었거나, 보상이 지급된 경우 DB 저장
-    const towerFloorUpdated = isWinner && (floor > userTowerFloor || floor > ((user as any).monthlyTowerFloor ?? 0));
+    // towerFloor / monthlyTowerFloor 갱신은 업데이트 이전 값과 비교해야 함
+    const towerFloorUpdated =
+        isWinner &&
+        (Number(user.towerFloor ?? 0) > userTowerFloor ||
+            Number((user as any).monthlyTowerFloor ?? 0) > userMonthlyTowerFloorBefore);
     const hasRewards =
         (summary.gold ?? 0) > 0 ||
         summary.xp.change > 0 ||

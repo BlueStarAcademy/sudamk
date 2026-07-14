@@ -69,11 +69,14 @@ export function isTowerHumanWinnerFromSession(
 }
 
 /**
- * 해당 층에서 "최초 클리어 보상"이 있는 도전인지.
- * 서버 `processTowerGameSummary`와 동일: `user.towerFloor < floor` 일 때만 firstClear 지급.
+ * 해당 층에서 "이번 달 최초 클리어 보상"이 있는 도전인지.
+ * 서버 `processTowerGameSummary`와 동일: `user.monthlyTowerFloor < floor` 일 때만 firstClear 지급.
  */
-export function isTowerFirstClearAttemptOnFloor(userTowerFloor: number | undefined | null, sessionFloor: number): boolean {
-    const clearedMax = userTowerFloor ?? 0;
+export function isTowerFirstClearAttemptOnFloor(
+    userMonthlyTowerFloor: number | undefined | null,
+    sessionFloor: number
+): boolean {
+    const clearedMax = Number(userMonthlyTowerFloor) || 0;
     return clearedMax < sessionFloor;
 }
 

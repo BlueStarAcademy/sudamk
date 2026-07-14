@@ -240,6 +240,28 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
     const clientBoardOk = isSubstantiveBoardState(clientSnap.boardState);
     const historiesSharePrefix = moveHistoriesSharePrefix(server.moveHistory, clientSnap.moveHistory);
 
+    // Server-authoritative advance (Kata PVE AI stone): accept when histories share a prefix,
+    // or when the packet includes a real board. Divergent slim/stale longer packets still fall
+    // through so lobby AI delayed-display protection keeps the already-drawn client board.
+    if (serverMhLen > clientMhLen && (historiesSharePrefix || serverBoardOk)) {
+        const moveHistory = server.moveHistory;
+        if (serverBoardOk) {
+            return { boardState: server.boardState, moveHistory };
+        }
+        const replayed = replayStrategicBoardFromMoveHistory(
+            { ...server, moveHistory },
+            clientSnap,
+        );
+        return {
+            boardState: isSubstantiveBoardState(replayed)
+                ? replayed
+                : clientBoardOk
+                  ? clientSnap.boardState
+                  : replayed,
+            moveHistory,
+        };
+    }
+
     // 이미 화면에 확정된 수순과 prefix가 다른 패킷은 다른 분기/낡은 지연 스냅샷이다.
     // 특히 로비 AI 전략게임의 지연 AI 표시 중 이런 패킷을 재생하면 이전 AI 착점이 다른 자리로 바뀐다.
     if (!historiesSharePrefix && clientMhLen > 0 && clientBoardOk) {
@@ -263,9 +285,7 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
     }
 
     let moveHistory: LiveGameSession['moveHistory'];
-    if (serverMhLen > clientMhLen) {
-        moveHistory = server.moveHistory;
-    } else if (clientMhLen > serverMhLen) {
+    if (clientMhLen > serverMhLen) {
         moveHistory = clientSnap.moveHistory;
     } else if (serverMhLen > 0) {
         moveHistory = server.moveHistory ?? clientSnap.moveHistory;
@@ -278,17 +298,6 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
         boardState = server.boardState;
     } else if (clientBoardOk && clientMhLen > serverMhLen) {
         boardState = clientSnap.boardState;
-    } else if (serverMhLen > clientMhLen && !serverBoardOk) {
-        // 서버 수순이 앞서는데 boardState가 빠진 슬림 패킷 — 포획 반영 리플레이로 판면 복원
-        const replayed = replayStrategicBoardFromMoveHistory(
-            { ...server, moveHistory },
-            clientSnap,
-        );
-        boardState = isSubstantiveBoardState(replayed)
-            ? replayed
-            : clientBoardOk
-              ? clientSnap.boardState
-              : replayed;
     } else if (serverBoardOk) {
         boardState = server.boardState;
     } else if (clientBoardOk) {

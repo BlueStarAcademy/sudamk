@@ -7,7 +7,8 @@ import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMile
 import DraggableWindow from '../DraggableWindow';
 import { InventoryItem, ItemGrade } from '../../types';
 import ResourceActionButton from '../ui/ResourceActionButton';
-import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
+import { itemSlotIconStyleForGrade } from '../../shared/constants/itemSlotIconLayout.js';
+import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
 
 // This is the same detailed item display used in the EnhancementView
 const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
@@ -18,25 +19,6 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
     mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
-};
-
-const renderStarDisplay = (stars: number) => {
-    if (stars === 0) return null;
-    let starImage = '';
-    if (stars >= 10) starImage = '/images/equipments/Star4.webp';
-    else if (stars >= 7) starImage = '/images/equipments/Star3.webp';
-    else if (stars >= 4) starImage = '/images/equipments/Star2.webp';
-    else if (stars >= 1) starImage = '/images/equipments/Star1.webp';
-
-    return (
-        <div
-            className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
-            style={{ textShadow: '1px 1px 2px black' }}
-        >
-            <img src={starImage} alt="star" className="w-3 h-3" />
-            <span className={`font-bold text-xs leading-none`}>{stars}</span>
-        </div>
-    );
 };
 
 const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
@@ -52,10 +34,10 @@ const ItemDisplay: React.FC<{ item: InventoryItem }> = ({ item }) => {
                             src={item.image}
                             alt={item.name}
                             className="absolute object-contain"
-                            style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                            style={itemSlotIconStyleForGrade(item.grade)}
                         />
                     )}
-                    {renderStarDisplay(item.stars)}
+                    <EquipmentEnhancementBadge stars={item.stars} />
                 </div>
                 <div className="flex-grow pt-2 min-w-0">
                     <h3 className={`text-base font-bold whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>{item.name}</h3>

@@ -96,6 +96,12 @@ function isPveDeferredAutoScoringGame(game: types.LiveGameSession): boolean {
     return resolveArenaSessionPolicy(game as any).deferAutoScoringAfterAi;
 }
 
+/** PVP 대역폭 절약용 board 생략. Kata PVE는 board-less 패킷이 clientSync로 AI 돌을 지우는 원인이 되어 유지한다. */
+function shouldOmitBoardStateInBroadcast(game: types.LiveGameSession): boolean {
+    if (game.isSinglePlayer) return false;
+    return !resolveArenaSessionPolicy(game as any).usesServerKataAi;
+}
+
 function shouldAiResignWhenNoLegalBoardMove(game: types.LiveGameSession): boolean {
     const policy = resolveArenaSessionPolicy(game as any);
     return !policy.isPairGame;
@@ -190,7 +196,7 @@ async function runDeferredPveAutoScoring(gameId: string): Promise<void> {
             updateGameCache(g);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...g };
-            if (!g.isSinglePlayer) {
+            if (shouldOmitBoardStateInBroadcast(g)) {
                 delete (gameToBroadcast as any).boardState;
             }
             broadcastToGameParticipants(g.id, { type: 'GAME_UPDATE', payload: { [g.id]: gameToBroadcast } }, g);
@@ -2569,7 +2575,7 @@ export async function makeGoAiBotMove(
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
-            if (!game.isSinglePlayer) {
+            if (shouldOmitBoardStateInBroadcast(game)) {
                 delete (gameToBroadcast as any).boardState;
             }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
@@ -2606,7 +2612,7 @@ export async function makeGoAiBotMove(
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
-            if (!game.isSinglePlayer) {
+            if (shouldOmitBoardStateInBroadcast(game)) {
                 delete (gameToBroadcast as any).boardState;
             }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
@@ -3469,9 +3475,9 @@ export async function makeGoAiBotMove(
                         game.gameStatus = 'scoring';
                         await db.saveGame(game);
                         const { broadcastToGameParticipants } = await import('./socket.js');
-                        // boardState 제외하여 대역폭 절약
+                        // PVP만 boardState 생략(대역폭). Kata PVE는 보드를 유지한다.
                         const gameToBroadcast = { ...game };
-                        if (!game.isSinglePlayer) {
+                        if (shouldOmitBoardStateInBroadcast(game)) {
                             delete (gameToBroadcast as any).boardState;
                         }
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
@@ -3503,7 +3509,7 @@ export async function makeGoAiBotMove(
                         await db.saveGame(game);
                         const { broadcastToGameParticipants } = await import('./socket.js');
                         const gameToBroadcast = { ...game };
-                        if (!game.isSinglePlayer) {
+                        if (shouldOmitBoardStateInBroadcast(game)) {
                             delete (gameToBroadcast as any).boardState;
                         }
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);

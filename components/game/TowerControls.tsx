@@ -224,15 +224,19 @@ const TowerControls: React.FC<TowerControlsProps> = ({
               })
             : null;
         const userTowerFloor = currentUser.towerFloor ?? 0;
-        const effectiveClearedFloor = Math.max(userTowerFloor, isWinner ? floor : 0);
-        const isFloorCleared = floor <= effectiveClearedFloor;
+        const userMonthlyTowerFloor = Number(currentUser.monthlyTowerFloor ?? 0) || 0;
+        // 진행(다음 층): towerFloor. 재도전 ⚡0: 이번 달 클리어(monthly)
+        const progressClearedFloor = Math.max(userTowerFloor, userMonthlyTowerFloor, isWinner ? floor : 0);
+        const monthlyClearedFloor = Math.max(userMonthlyTowerFloor, isWinner ? floor : 0);
+        const isFloorClearedForProgress = floor <= progressClearedFloor;
+        const isFloorClearedThisMonth = floor <= monthlyClearedFloor;
         // TowerSummaryModal과 동일: 승리했거나 현재 층을 이미 클리어한 적 있으면 다음 층 진행 가능
-        const canTryNext = !!nextStageForEnded && (isWinner || isFloorCleared);
+        const canTryNext = !!nextStageForEnded && (isWinner || isFloorClearedForProgress);
 
         const baseRetryApCost = stage?.actionPointCost ?? 0;
         const baseNextFloorApCost = nextStageForEnded?.actionPointCost ?? 0;
-        const inferredRetryApCost = isFloorCleared || isWinner ? 0 : baseRetryApCost;
-        // 이미 클리어한 층은 재도전 무료(⚡0). 미클리어 층은 승리 시에만 행동력 차감.
+        const inferredRetryApCost = isFloorClearedThisMonth || isWinner ? 0 : baseRetryApCost;
+        // 이번 달 이미 클리어한 층은 재도전 무료(⚡0). 미클리어 층은 승리 시에만 행동력 차감.
         const effectiveRetryApCost =
             inferredRetryApCost === 0
                 ? 0
@@ -241,8 +245,8 @@ const TowerControls: React.FC<TowerControlsProps> = ({
                   : typeof session.towerStartActionPointCost === 'number'
                     ? session.towerStartActionPointCost
                     : inferredRetryApCost;
-        const isNextFloorAlreadyCleared = nextFloor != null && effectiveClearedFloor >= nextFloor;
-        const effectiveNextFloorApCost = isNextFloorAlreadyCleared ? 0 : baseNextFloorApCost;
+        const isNextFloorAlreadyClearedThisMonth = nextFloor != null && monthlyClearedFloor >= nextFloor;
+        const effectiveNextFloorApCost = isNextFloorAlreadyClearedThisMonth ? 0 : baseNextFloorApCost;
 
         const handleShowResults = () => {
             if (setShowResultModal) {
@@ -448,7 +452,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleTurnAddClick = () => {
         if (gameStatus !== 'playing') return;
         if (turnAddCount <= 0) {
-            openTowerItemShop(t('placementRefresh.turnAddTitle'));
+            openTowerItemShop('턴 추가');
             return;
         }
         setTurnAddConfirmModal(true);
@@ -476,7 +480,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleUseMissile = () => {
         if (gameStatus !== 'playing') return;
         if (missileCount <= 0) {
-            openTowerItemShop(t('controls.missile'));
+            openTowerItemShop('미사일');
             return;
         }
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn) return;
@@ -504,7 +508,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleUseHidden = () => {
         if (gameStatus !== 'playing') return;
         if (hiddenCount <= 0) {
-            openTowerItemShop(t('controls.hidden'));
+            openTowerItemShop('히든');
             return;
         }
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !isMyTurn) return;
@@ -527,7 +531,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleUseScan = () => {
         if (gameStatus !== 'playing') return;
         if (scanInventoryCount <= 0) {
-            openTowerItemShop(t('controls.scan'));
+            openTowerItemShop('스캔');
             return;
         }
         if (isMoveInFlight || isBoardLocked || hasPendingRevealResolution || !canStartScanTurn || !canScan) return;
@@ -546,7 +550,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
     const handleRefresh = () => {
         if (gameStatus !== 'playing') return;
         if (refreshCount <= 0) {
-            openTowerItemShop(t('placementRefresh.title'));
+            openTowerItemShop('배치변경');
             return;
         }
         if (!canUseRefresh) return;

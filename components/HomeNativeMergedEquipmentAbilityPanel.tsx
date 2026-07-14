@@ -5,6 +5,12 @@ import { CORE_STATS_DATA, emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquip
 import Button from './Button.js';
 import { BADUK_ABILITY_STAT_CAP, CORE_STAT_RADAR_ORDER } from './CoreStatsHexagonChart.js';
 import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
+import {
+    GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
+    GRADE_SLOT_SCRIM_CLASS,
+    gradeSlotBorderOverlayClass,
+    itemSlotIconStyleForGrade,
+} from '../shared/constants/itemSlotIconLayout.js';
 
 const gradeBackgrounds: Record<string, string> = {
     normal: '/images/equipments/normalbgi.webp',
@@ -44,7 +50,7 @@ export const HomeEquippedSlotDisplay: React.FC<{
 }> = ({ slot, item, onClick, compact = false, scaleFactor = 1 }) => {
     const { t } = useTranslation('profile');
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
-    const itemImgPct = Math.min(96, (compact ? 78 : 86) * scaleFactor);
+    void scaleFactor;
 
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
@@ -52,26 +58,25 @@ export const HomeEquippedSlotDisplay: React.FC<{
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
-                className={`relative aspect-square w-full rounded-lg border-2 border-color/50 bg-tertiary/50 p-0.5 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+                className={`relative aspect-square w-full overflow-hidden rounded-lg border-2 border-color/50 bg-tertiary/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={titleText}
                 onClick={onClick}
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 h-full w-full rounded-md object-cover" />
-                <EquipmentEnhancementBadge stars={item.stars} />
+                <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
                 {item.image && (
                     <img
                         src={item.image}
                         alt={item.name}
-                        className={`absolute object-contain ${compact ? 'p-1' : 'p-1.5'}`}
-                        style={{
-                            width: `${itemImgPct}%`,
-                            height: `${itemImgPct}%`,
-                            left: '50%',
-                            top: '50%',
-                            transform: 'translate(-50%, -50%)',
-                        }}
+                        className="absolute z-[2] object-contain"
+                        style={itemSlotIconStyleForGrade(item.grade)}
                     />
                 )}
+                <div
+                    className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                    aria-hidden
+                />
+                <EquipmentEnhancementBadge stars={item.stars} />
             </div>
         );
     }

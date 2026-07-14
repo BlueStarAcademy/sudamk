@@ -154,7 +154,7 @@ function syncEquipmentSpriteImageFromTemplate(item: InventoryItem): InventoryIte
     return item;
 }
 
-/** 구버전 초월 장비명(천룡…) → 신룡 시리즈 및 WebP 스프라이트 */
+/** 초월이 「천룡 …」으로 저장된 경우 → 신룡 세트(+ *7 스프라이트). 신화 천룡은 그대로 둠. */
 function normalizeTranscendentSinryongRename(item: InventoryItem): InventoryItem {
     if (item.type !== 'equipment' || item.grade !== ItemGrade.Transcendent) return item;
     const newName = LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW[item.name];

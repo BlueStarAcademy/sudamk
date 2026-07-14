@@ -5,6 +5,8 @@ import Button from '../Button.js';
 import { InventoryItem, ItemGrade } from '../../types.js';
 import { gradeBackgrounds, gradeStyles } from '../../constants/items';
 import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMilestones.js';
+import { itemSlotIconStyleForGrade } from '../../shared/constants/itemSlotIconLayout.js';
+import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
 
 interface EnhancementResultModalProps {
     result: {
@@ -36,7 +38,6 @@ const getStarDisplayInfo = (stars: number) => {
 };
 
 const ItemDisplay: React.FC<{ item: InventoryItem; label: string; dimmed?: boolean }> = ({ item, label, dimmed }) => {
-    const starInfo = getStarDisplayInfo(item.stars);
     return (
         <div className={`flex flex-col items-center ${dimmed ? 'opacity-90' : ''}`}>
             <span className="mb-0.5 hidden text-[8px] font-bold uppercase tracking-wider text-stone-500 sm:mb-1 sm:block sm:text-[9px]">
@@ -52,13 +53,11 @@ const ItemDisplay: React.FC<{ item: InventoryItem; label: string; dimmed?: boole
                     <img
                         src={item.image}
                         alt={item.name}
-                        className="absolute object-contain p-0.5 sm:p-1.5"
-                        style={{ width: '78%', height: '78%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                        className="absolute z-[2] object-contain"
+                        style={itemSlotIconStyleForGrade(item.grade)}
                     />
                 )}
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/85 to-transparent py-0.5 text-center sm:py-1">
-                    <span className={`text-[9px] font-bold tabular-nums sm:text-xs ${starInfo.colorClass}`}>★{item.stars}</span>
-                </div>
+                <EquipmentEnhancementBadge stars={item.stars} />
             </div>
             <p
                 className={`max-w-[3.75rem] truncate text-center text-[8px] font-bold leading-tight sm:max-w-[8.5rem] sm:text-xs md:text-sm ${gradeStyles[item.grade].color}`}

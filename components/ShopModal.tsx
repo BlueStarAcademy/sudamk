@@ -1475,11 +1475,11 @@ const ShopModal: React.FC<ShopModalProps> = ({
 
     const renderContent = () => {
         const equipmentItems = [
-            withShopItemText('equipment_box_1', { price: { gold: 500 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const }),
-            withShopItemText('equipment_box_2', { price: { gold: 1500 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const }),
-            withShopItemText('equipment_box_3', { price: { gold: 5000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const }),
-            withShopItemText('equipment_box_4', { price: { gold: 10000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const }),
-            withShopItemText('equipment_box_5', { price: { diamonds: 100 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_1', { price: { gold: 2000 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_2', { price: { gold: 5000 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_3', { price: { gold: 10000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_4', { price: { gold: 20000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_5', { price: { diamonds: 150 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const }),
             withShopItemText('equipment_box_6', { price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const }),
         ];
 
@@ -1620,15 +1620,15 @@ const ShopModal: React.FC<ShopModalProps> = ({
             case 'consumables':
             default: {
                 const baseConsumableItems = [
-                    withShopItemText('condition_potion_small', { price: { gold: 100 }, image: "/images/use/con1.webp", dailyLimit: 3, type: 'consumable' as const }),
-                    withShopItemText('condition_potion_medium', { price: { gold: 150 }, image: "/images/use/con2.webp", dailyLimit: 3, type: 'consumable' as const }),
-                    withShopItemText('condition_potion_large', { price: { gold: 200 }, image: "/images/use/con3.webp", dailyLimit: 3, type: 'consumable' as const }),
+                    withShopItemText('condition_potion_small', { price: { gold: 750 }, image: "/images/use/con1.webp", dailyLimit: 3, type: 'consumable' as const }),
+                    withShopItemText('condition_potion_medium', { price: { gold: 1000 }, image: "/images/use/con2.webp", dailyLimit: 3, type: 'consumable' as const }),
+                    withShopItemText('condition_potion_large', { price: { gold: 1500 }, image: "/images/use/con3.webp", dailyLimit: 3, type: 'consumable' as const }),
                 ];
                 // 행동력 회복제: 품목별 일일 1개, 고정 골드가 (ShopItemCard)
                 const ACTION_POINT_ITEMS = [
-                    withShopItemText('action_point_10', { dailyLimit: 1, prices: [1000], badge: '+10' }),
-                    withShopItemText('action_point_20', { dailyLimit: 1, prices: [1500], badge: '+20' }),
-                    withShopItemText('action_point_30', { dailyLimit: 1, prices: [2000], badge: '+30' }),
+                    withShopItemText('action_point_10', { dailyLimit: 1, prices: [2000], badge: '+10' }),
+                    withShopItemText('action_point_20', { dailyLimit: 1, prices: [3000], badge: '+20' }),
+                    withShopItemText('action_point_30', { dailyLimit: 1, prices: [4000], badge: '+30' }),
                 ] as const;
                 const apImageById: Record<string, string> = {
                     action_point_10: CONSUMABLE_ITEMS.find((i) => i.name === '행동력 회복제(+10)')?.image ?? '/images/use/ap_potion_10.webp',

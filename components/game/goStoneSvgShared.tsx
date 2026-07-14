@@ -22,20 +22,23 @@ export function useGoStoneSvgIds(): GoStoneSvgIds {
 /** 경기장 GoBoard와 동일한 입체형 바둑돌 SVG defs */
 export const GoStoneSvgDefs: React.FC<{ ids: GoStoneSvgIds }> = ({ ids }) => (
     <defs>
-        <radialGradient id={ids.slateHighlight} cx="35%" cy="35%" r="60%" fx="30%" fy="30%">
-            <stop offset="0%" stopColor="#6b7280" stopOpacity="0.8" />
-            <stop offset="100%" stopColor="#111827" stopOpacity="0.2" />
+        <radialGradient id={ids.slateHighlight} cx="32%" cy="30%" r="72%" fx="28%" fy="26%">
+            <stop offset="0%" stopColor="#9ca3af" stopOpacity="0.85" />
+            <stop offset="42%" stopColor="#374151" stopOpacity="0.45" />
+            <stop offset="100%" stopColor="#020617" stopOpacity="0.55" />
         </radialGradient>
-        <radialGradient id={ids.clamshellHighlight} cx="35%" cy="35%" r="60%" fx="30%" fy="30%">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#e5e7eb" stopOpacity="0.1" />
+        <radialGradient id={ids.clamshellHighlight} cx="32%" cy="28%" r="74%" fx="30%" fy="26%">
+            <stop offset="0%" stopColor="#ffffff" />
+            <stop offset="28%" stopColor="#f8f5ec" />
+            <stop offset="62%" stopColor="#d9d2c4" />
+            <stop offset="100%" stopColor="#8f8778" />
         </radialGradient>
-        <filter id={ids.clamGrainFilter}>
-            <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch" />
-            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.1 0" />
+        <filter id={ids.clamGrainFilter} x="-20%" y="-20%" width="140%" height="140%">
+            <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" />
+            <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.08 0" />
         </filter>
         <pattern id={ids.clamGrain} patternUnits="userSpaceOnUse" width="100" height="100">
-            <rect width="100" height="100" fill="#f5f2e8" />
+            <rect width="100" height="100" fill="#f5f2e8" fillOpacity="0" />
             <rect width="100" height="100" filter={`url(#${ids.clamGrainFilter})`} />
         </pattern>
     </defs>
@@ -56,22 +59,30 @@ export const GoStoneSvgLayers: React.FC<{
             cx={cx}
             cy={cy}
             r={radius}
-            fill={player === Player.Black ? '#111827' : '#f5f2e8'}
-            stroke={stroke}
-            strokeWidth={strokeWidth}
-        />
-        {player === Player.White && (
-            <circle cx={cx} cy={cy} r={radius} fill={`url(#${ids.clamGrain})`} />
-        )}
-        <circle
-            cx={cx}
-            cy={cy}
-            r={radius}
-            fill={
-                player === Player.Black
-                    ? `url(#${ids.slateHighlight})`
-                    : `url(#${ids.clamshellHighlight})`
+            fill={player === Player.Black ? '#111827' : `url(#${ids.clamshellHighlight})`}
+            stroke={
+                stroke ??
+                (player === Player.White ? 'rgba(15,23,42,0.18)' : undefined)
+            }
+            strokeWidth={
+                stroke != null
+                    ? strokeWidth
+                    : player === Player.White
+                      ? Math.max(0.6, radius * 0.04)
+                      : 0
             }
         />
+        {player === Player.White && (
+            <circle
+                cx={cx}
+                cy={cy}
+                r={radius}
+                fill={`url(#${ids.clamGrain})`}
+                opacity={0.45}
+            />
+        )}
+        {player === Player.Black && (
+            <circle cx={cx} cy={cy} r={radius} fill={`url(#${ids.slateHighlight})`} />
+        )}
     </g>
 );

@@ -1734,12 +1734,12 @@ input, textarea {
 
 @keyframes border-pulse-legendary {
   0%, 100% {
-    border-color: #fb7185;
-    box-shadow: 0 0 4px rgba(244, 63, 94, 0.22);
+    border-color: #e11d48;
+    box-shadow: 0 0 2px rgba(190, 24, 58, 0.18);
   }
   50% {
-    border-color: #e11d48;
-    box-shadow: 0 0 7px rgba(244, 63, 94, 0.32);
+    border-color: #be123c;
+    box-shadow: 0 0 3px rgba(190, 24, 58, 0.24);
   }
 }
 
@@ -1854,10 +1854,10 @@ input, textarea {
 
 @keyframes item-glow-pulse-legendary {
   0%, 100% {
-    box-shadow: 0 0 4px rgba(244, 63, 94, 0.22), 0 0 8px rgba(244, 63, 94, 0.1);
+    box-shadow: 0 0 2px rgba(190, 24, 58, 0.16);
   }
   50% {
-    box-shadow: 0 0 6px rgba(244, 63, 94, 0.32), 0 0 10px rgba(244, 63, 94, 0.16);
+    box-shadow: 0 0 3px rgba(190, 24, 58, 0.22);
   }
 }
 
@@ -1881,14 +1881,14 @@ input, textarea {
   }
 }
 
-/** 초월 등급 장비 슬롯: 얇은 청록 테두리만 (아이콘 선명도 우선) */
+/** 초월 등급 장비 슬롯: 청록 테두리 (은은한 등급색 *bgi + soft bevel과 맞춤) */
 .transcendent-grade-slot {
   position: relative;
   isolation: isolate;
-  border: 1.5px solid rgba(45, 212, 191, 0.72) !important;
+  border: 1.5px solid rgba(48, 195, 218, 0.72) !important;
   box-shadow:
-    0 0 6px rgba(34, 211, 238, 0.22),
-    inset 0 0 8px rgba(34, 211, 238, 0.06);
+    0 0 3px rgba(34, 200, 220, 0.12),
+    inset 0 0 4px rgba(20, 140, 160, 0.04);
 }
 
 .transcendent-grade-slot::after {
@@ -1900,11 +1900,12 @@ input, textarea {
   z-index: 1;
   background: linear-gradient(
     145deg,
-    rgba(6, 182, 212, 0.1) 0%,
+    rgba(6, 182, 212, 0.035) 0%,
     transparent 45%,
-    rgba(45, 212, 191, 0.05) 100%
+    rgba(45, 212, 191, 0.02) 100%
   );
-  animation: transcendent-grade-slot-shine 3.2s ease-in-out infinite;
+  opacity: 0.65;
+  /* no pulse — avoids shimmer fighting icon detail */
 }
 
 /**
@@ -1922,43 +1923,53 @@ input, textarea {
 }
 
 .transcendent-inventory-slot-overlay {
+  /* Painted bevel already carries most of the rim — keep CSS rim thin */
   box-shadow:
-    inset 0 0 0 2px rgba(45, 212, 191, 0.85),
-    inset 0 0 6px rgba(34, 211, 238, 0.06),
-    0 0 5px rgba(34, 211, 238, 0.18);
-  animation: transcendent-inventory-overlay-shine 3.2s ease-in-out infinite;
+    inset 0 0 0 1.5px rgba(48, 195, 218, 0.55),
+    inset 0 0 3px rgba(20, 160, 180, 0.04),
+    0 0 2px rgba(34, 211, 238, 0.1);
 }
 
 /**
  * 가방/인벤 슬롯: 등급 배경 img가 CSS border를 덮어도 테두리가 보이도록 inset rim.
- * 초월은 transcendent-inventory-slot-overlay 사용.
+ * 은은한 등급색 *bgi + soft bevel 팔레트와 맞춤 — 글로우는 낮게 유지해 double-rim 방지.
  */
 .grade-inventory-slot-overlay {
-  box-shadow: inset 0 0 0 2px rgba(148, 163, 184, 0.75);
+  box-shadow: inset 0 0 0 1px rgba(148, 152, 162, 0.55);
 }
 
 .grade-inventory-slot-overlay--normal {
-  box-shadow: inset 0 0 0 2px rgba(148, 163, 184, 0.88);
+  box-shadow: inset 0 0 0 1px rgba(148, 152, 162, 0.55);
 }
 
 .grade-inventory-slot-overlay--uncommon {
-  box-shadow: inset 0 0 0 2px rgba(52, 211, 153, 0.9);
+  box-shadow:
+    inset 0 0 0 1.15px rgba(52, 175, 105, 0.58),
+    0 0 1px rgba(16, 160, 100, 0.08);
 }
 
 .grade-inventory-slot-overlay--rare {
-  box-shadow: inset 0 0 0 2px rgba(56, 189, 248, 0.92);
+  box-shadow:
+    inset 0 0 0 1.25px rgba(56, 158, 230, 0.58),
+    0 0 1px rgba(30, 140, 210, 0.1);
 }
 
 .grade-inventory-slot-overlay--epic {
-  box-shadow: inset 0 0 0 2px rgba(167, 139, 250, 0.92);
+  box-shadow:
+    inset 0 0 0 1.25px rgba(158, 110, 230, 0.58),
+    0 0 1px rgba(140, 100, 220, 0.1);
 }
 
 .grade-inventory-slot-overlay--legendary {
-  box-shadow: inset 0 0 0 2px rgba(251, 113, 133, 0.92);
+  box-shadow:
+    inset 0 0 0 1.35px rgba(200, 68, 92, 0.58),
+    0 0 1px rgba(180, 50, 70, 0.12);
 }
 
 .grade-inventory-slot-overlay--mythic {
-  box-shadow: inset 0 0 0 2px rgba(251, 191, 36, 0.92);
+  box-shadow:
+    inset 0 0 0 1.5px rgba(210, 165, 48, 0.6),
+    0 0 2px rgba(220, 170, 50, 0.12);
 }
 
 @keyframes text-glow-rare {
@@ -1981,10 +1992,10 @@ input, textarea {
 
 @keyframes text-glow-legendary {
   0%, 100% {
-    text-shadow: 0 0 4px rgba(244, 63, 94, 0.55), 0 0 8px rgba(244, 63, 94, 0.28);
+    text-shadow: 0 0 2px rgba(190, 24, 58, 0.35);
   }
   50% {
-    text-shadow: 0 0 6px rgba(244, 63, 94, 0.7), 0 0 12px rgba(244, 63, 94, 0.38);
+    text-shadow: 0 0 3px rgba(190, 24, 58, 0.45);
   }
 }
 
@@ -2045,8 +2056,8 @@ input, textarea {
 
 .item-glow-transcendent {
   box-shadow:
-    0 0 6px rgba(68, 222, 244, 0.28),
-    0 0 12px rgba(20, 199, 226, 0.14);
+    0 0 3px rgba(68, 222, 244, 0.16),
+    0 0 6px rgba(20, 199, 226, 0.08);
 }
 
 
@@ -2193,9 +2204,10 @@ input[type="range"]::-moz-range-thumb {
     background-size: 100% 100%, 100% 100%, 100% 100%;
 }
 
-/* 바둑판 패널의 배경 이미지 제거 — 레이아웃 박스 고정(contain) */
+/* 바둑판 패널의 배경 이미지 제거 — layout만 contain
+   paint contain은 SVG feTurbulence/url(#paint) 입체 돌 셰이딩을 깨뜨릴 수 있음 */
 .go-board-panel {
-    contain: layout paint;
+    contain: layout;
     box-sizing: border-box;
     background-image: none !important;
     background-color: transparent !important;

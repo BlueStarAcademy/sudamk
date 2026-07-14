@@ -683,7 +683,7 @@ export function deserializeUser(prismaUser: PrismaUserWithStatus): User {
         // templateId로 아이템 정보 찾기
         let itemInfo: any = null;
         if (inv.slot) {
-          // 장비 아이템 (구버전: 초월도 templateId가 「천룡 …」인 경우 신룡 템플릿으로 조회)
+          // 장비 아이템 (레거시: 초월 templateId가 「천룡 …」인 경우 신룡 템플릿으로 조회)
           const rarityGrade = (inv.rarity as ItemGrade | undefined) ?? undefined;
           const poolName = resolveEquipmentTemplateLookupName(inv.templateId, rarityGrade) ?? inv.templateId;
           itemInfo =

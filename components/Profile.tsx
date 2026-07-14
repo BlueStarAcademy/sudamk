@@ -28,6 +28,12 @@ import GuildCreateModal from './guild/GuildCreateModal.js';
 import GuildJoinModal from './guild/GuildJoinModal.js';
 import GuildMark from './guild/GuildMark.js';
 import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
+import {
+    GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
+    GRADE_SLOT_SCRIM_CLASS,
+    gradeSlotBorderOverlayClass,
+    itemSlotIconStyleForGrade,
+} from '../shared/constants/itemSlotIconLayout.js';
 import type { Guild, ChampionshipVersusVenueKind } from '../types/entities.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { ADVENTURE_STAGES } from '../constants/adventureConstants.js';
@@ -171,7 +177,7 @@ const EquipmentSlotDisplay: React.FC<{
 }> = ({ slot, item, onClick, compact = false, scaleFactor = 1 }) => {
     const { t } = useTranslation('profile');
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
-    const itemImgPct = Math.min(96, (compact ? 78 : 86) * scaleFactor);
+    void scaleFactor;
     
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
@@ -179,27 +185,25 @@ const EquipmentSlotDisplay: React.FC<{
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
-                className={`relative w-full aspect-square rounded-lg border-2 border-color/50 bg-tertiary/50 p-0.5 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+                className={`relative w-full aspect-square overflow-hidden rounded-lg border-2 border-color/50 bg-tertiary/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={titleText}
                 onClick={onClick}
-                style={{ border: isTranscendent ? undefined : undefined }}
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
-                <EquipmentEnhancementBadge stars={item.stars} />
+                <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
                 {item.image && (
                     <img
                         src={item.image}
                         alt={item.name}
-                        className={`absolute object-contain ${compact ? 'p-1' : 'p-1.5'}`}
-                        style={{
-                            width: `${itemImgPct}%`,
-                            height: `${itemImgPct}%`,
-                            left: '50%',
-                            top: '50%',
-                            transform: 'translate(-50%, -50%)',
-                        }}
+                        className="absolute z-[2] object-contain"
+                        style={itemSlotIconStyleForGrade(item.grade)}
                     />
                 )}
+                <div
+                    className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                    aria-hidden
+                />
+                <EquipmentEnhancementBadge stars={item.stars} />
             </div>
         );
     } else {

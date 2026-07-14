@@ -8,6 +8,7 @@ import { getMailEquipmentDisplayStars, isMailAttachmentEquipment } from '../shar
 import { getItemTemplateByName } from '../utils/itemTemplateLookup.js';
 import { isActionPointConsumable } from '../constants/items.js';
 import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
+import { itemSlotIconStyleForGrade } from '../shared/constants/itemSlotIconLayout.js';
 
 function resolveItemImageSrc(path: string | undefined): string {
     if (!path) return '/images/icon/Reward.webp';
@@ -40,10 +41,10 @@ function getActionPointBadge(item: InventoryItem): string | null {
 
 export type MailRewardItemTileVariant = 'sm' | 'md' | 'lg';
 
-const sizeMap: Record<MailRewardItemTileVariant, { box: string; iconPct: string; label: string }> = {
-    sm: { box: 'h-11 w-11', iconPct: '82%', label: 'text-[10px]' },
-    md: { box: 'h-14 w-14', iconPct: '85%', label: 'text-[11px]' },
-    lg: { box: 'h-[4.5rem] w-[4.5rem]', iconPct: '86%', label: 'text-xs' },
+const sizeMap: Record<MailRewardItemTileVariant, { box: string; label: string }> = {
+    sm: { box: 'h-11 w-11', label: 'text-[10px]' },
+    md: { box: 'h-14 w-14', label: 'text-[11px]' },
+    lg: { box: 'h-[4.5rem] w-[4.5rem]', label: 'text-xs' },
 };
 
 /**
@@ -56,7 +57,7 @@ const MailRewardItemTile: React.FC<{
 }> = ({ item, variant = 'md', className = '' }) => {
     const { t } = useTranslation('mailReward');
     const localizedItemName = useLocalizedInventoryItemName();
-    const { box, iconPct, label } = sizeMap[variant];
+    const { box, label } = sizeMap[variant];
     const qty = item.quantity ?? 1;
     const stars = getMailEquipmentDisplayStars(item);
     const displayName = localizedItemName(item.name ?? (item as { itemId?: string }).itemId ?? t('defaultName'));
@@ -77,10 +78,10 @@ const MailRewardItemTile: React.FC<{
                         aria-hidden
                     />
                     <img
-                    src={resolveMailAttachmentImage(item)}
+                        src={resolveMailAttachmentImage(item)}
                         alt=""
-                        className="pointer-events-none absolute left-1/2 top-1/2 max-h-full max-w-full -translate-x-1/2 -translate-y-1/2 object-contain drop-shadow-md"
-                        style={{ width: iconPct, height: iconPct }}
+                        className="pointer-events-none absolute z-[2] object-contain drop-shadow-md"
+                        style={itemSlotIconStyleForGrade(g)}
                         aria-hidden
                     />
                     <EquipmentEnhancementBadge stars={stars} />

@@ -42,20 +42,23 @@ const ChessSetupPieceStonePreview: React.FC<ChessSetupPieceStonePreviewProps> = 
             aria-hidden
         >
             <defs>
-                <radialGradient id={`${uid}-slate`} cx="35%" cy="35%" r="60%" fx="30%" fy="30%">
-                    <stop offset="0%" stopColor="#6b7280" stopOpacity="0.8" />
-                    <stop offset="100%" stopColor="#111827" stopOpacity="0.2" />
+                <radialGradient id={`${uid}-slate`} cx="32%" cy="30%" r="72%" fx="28%" fy="26%">
+                    <stop offset="0%" stopColor="#9ca3af" stopOpacity="0.85" />
+                    <stop offset="42%" stopColor="#374151" stopOpacity="0.45" />
+                    <stop offset="100%" stopColor="#020617" stopOpacity="0.55" />
                 </radialGradient>
-                <radialGradient id={`${uid}-clam`} cx="35%" cy="35%" r="60%" fx="30%" fy="30%">
-                    <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9" />
-                    <stop offset="100%" stopColor="#e5e7eb" stopOpacity="0.1" />
+                <radialGradient id={`${uid}-clam`} cx="32%" cy="28%" r="74%" fx="30%" fy="26%">
+                    <stop offset="0%" stopColor="#ffffff" />
+                    <stop offset="28%" stopColor="#f8f5ec" />
+                    <stop offset="62%" stopColor="#d9d2c4" />
+                    <stop offset="100%" stopColor="#8f8778" />
                 </radialGradient>
-                <filter id={`${uid}-grain`}>
-                    <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch" />
-                    <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.1 0" />
+                <filter id={`${uid}-grain`} x="-20%" y="-20%" width="140%" height="140%">
+                    <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch" />
+                    <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.08 0" />
                 </filter>
                 <pattern id={`${uid}-pattern`} patternUnits="userSpaceOnUse" width="100" height="100">
-                    <rect width="100" height="100" fill="#f5f2e8" />
+                    <rect width="100" height="100" fill="#f5f2e8" fillOpacity="0" />
                     <rect width="100" height="100" filter={`url(#${uid}-grain)`} />
                 </pattern>
             </defs>
@@ -63,9 +66,9 @@ const ChessSetupPieceStonePreview: React.FC<ChessSetupPieceStonePreviewProps> = 
                 cx={cx}
                 cy={cy}
                 r={radius}
-                fill={isBlack ? '#111827' : '#f5f2e8'}
-                stroke={selected ? 'rgb(251, 191, 36)' : 'rgba(148, 163, 184, 0.28)'}
-                strokeWidth={selected ? 2.8 : 1.2}
+                fill={isBlack ? '#111827' : `url(#${uid}-clam)`}
+                stroke={selected ? 'rgb(251, 191, 36)' : isBlack ? 'rgba(148, 163, 184, 0.28)' : 'rgba(15, 23, 42, 0.18)'}
+                strokeWidth={selected ? 2.8 : isBlack ? 1.2 : Math.max(0.8, radius * 0.05)}
             />
             {selected && (
                 <circle
@@ -77,13 +80,15 @@ const ChessSetupPieceStonePreview: React.FC<ChessSetupPieceStonePreviewProps> = 
                     strokeWidth={1.5}
                 />
             )}
-            {!isBlack && <circle cx={cx} cy={cy} r={radius} fill={`url(#${uid}-pattern)`} />}
-            <circle
-                cx={cx}
-                cy={cy}
-                r={radius}
-                fill={isBlack ? `url(#${uid}-slate)` : `url(#${uid}-clam)`}
-            />
+            {!isBlack && <circle cx={cx} cy={cy} r={radius} fill={`url(#${uid}-pattern)`} opacity={0.45} />}
+            {isBlack && (
+                <circle
+                    cx={cx}
+                    cy={cy}
+                    r={radius}
+                    fill={`url(#${uid}-slate)`}
+                />
+            )}
             <text
                 x={cx}
                 y={cy}

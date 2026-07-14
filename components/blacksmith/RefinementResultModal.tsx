@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next';
 import { MythicOptionAbbrev } from '../MythicStatAbbrev.js';
 import DraggableWindow from '../DraggableWindow.js';
 import { InventoryItem, ItemGrade, ItemOption } from '../../types.js';
-import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
+import { itemSlotIconStyleForGrade } from '../../shared/constants/itemSlotIconLayout.js';
+import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -177,31 +178,6 @@ function formatDelta(before: number | null, after: number | null, isPercentage: 
     return `${sign}${rounded}${suffix}`;
 }
 
-const renderStarBadge = (stars: number) => {
-    if (stars <= 0) return null;
-    let starImage = '/images/equipments/Star1.webp';
-    let numberColor = 'text-white';
-    if (stars >= 10) {
-        starImage = '/images/equipments/Star4.webp';
-        numberColor = 'prism-text-effect';
-    } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.webp';
-        numberColor = 'text-purple-300';
-    } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.webp';
-        numberColor = 'text-amber-300';
-    }
-    return (
-        <div
-            className="flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 ring-1 ring-amber-600/40"
-            style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}
-        >
-            <img src={starImage} alt="" className="h-3.5 w-3.5" />
-            <span className={`text-[11px] font-bold tabular-nums leading-none ${numberColor}`}>{stars}</span>
-        </div>
-    );
-};
-
 interface RefinementResultModalProps {
     result: {
         message: string;
@@ -268,10 +244,10 @@ const RefinementResultModal: React.FC<RefinementResultModalProps> = ({ result, o
                                         src={after.image}
                                         alt=""
                                         className="absolute object-contain"
-                                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                                        style={itemSlotIconStyleForGrade(after.grade)}
                                     />
                                 )}
-                                <div className="absolute right-1 top-1">{renderStarBadge(after.stars || 0)}</div>
+                                <EquipmentEnhancementBadge stars={after.stars || 0} />
                             </div>
                             <div className="min-w-0 flex-1 pt-0.5">
                                 <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-amber-500/80">{t('refine.done')}</p>

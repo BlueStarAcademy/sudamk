@@ -4577,57 +4577,29 @@
       "rankHintShort": "순위 경쟁 기반 티어 (승급·잔류·강등 조건은 아래 보상표 참고)"
     },
     "items": {
-      "box_diabox1": {
-        "name": "다이아 꾸러미 I",
-        "description": "1 ~ 20 다이아 획득"
+      "eq_fan1": {
+        "name": "푸른 바람 부채",
+        "description": "가볍고 실용적인 대나무 부채입니다."
       },
-      "box_diabox2": {
-        "name": "다이아 꾸러미 II",
-        "description": "10 ~ 30 다이아 획득"
+      "eq_fan2": {
+        "name": "은결 바람 부채",
+        "description": "부드러운 비단으로 만들어져 손에 잘 감깁니다."
       },
-      "box_diabox3": {
-        "name": "다이아 꾸러미 III",
-        "description": "20 ~ 50 다이아 획득"
+      "eq_fan3": {
+        "name": "화염 바람 부채",
+        "description": "학의 날개처럼 우아하게 펼쳐지는 명인의 부채입니다."
       },
-      "box_diabox4": {
-        "name": "다이아 꾸러미 IV",
-        "description": "30 ~ 100 다이아 획득"
+      "eq_fan4": {
+        "name": "서리 바람 부채",
+        "description": "묵직한 강철로 만들어져 위급 시 무기로도 사용할 수 있습니다."
       },
-      "box_goldbox1": {
-        "name": "골드 꾸러미 I",
-        "description": "10 ~ 500 골드 획득"
+      "eq_fan5": {
+        "name": "용비 바람 부채",
+        "description": "백 개의 하얀 깃털로 만들어진 전설적인 부채입니다."
       },
-      "box_goldbox2": {
-        "name": "골드 꾸러미 II",
-        "description": "100 ~ 1,000 골드 획득"
-      },
-      "box_goldbox3": {
-        "name": "골드 꾸러미 III",
-        "description": "500 ~ 3,000 골드 획득"
-      },
-      "box_goldbox4": {
-        "name": "골드 꾸러미 IV",
-        "description": "1,000 ~ 10,000 골드 획득"
-      },
-      "btn_addturn": {
-        "name": "턴 추가",
-        "description": "도전의 탑에서 사용할 수 있는 턴 추가 아이템입니다."
-      },
-      "btn_hidden": {
-        "name": "히든",
-        "description": "도전의 탑에서 사용할 수 있는 히든 아이템입니다."
-      },
-      "btn_missile": {
-        "name": "미사일",
-        "description": "도전의 탑에서 사용할 수 있는 미사일 아이템입니다."
-      },
-      "btn_reflesh": {
-        "name": "배치변경",
-        "description": "도전의 탑에서 사용할 수 있는 배치변경 아이템입니다."
-      },
-      "btn_scan": {
-        "name": "스캔",
-        "description": "도전의 탑에서 사용할 수 있는 스캔 아이템입니다."
+      "eq_fan6": {
+        "name": "천룡 바람 부채",
+        "description": "바람을 일으켜 판세를 뒤엎는 신화 속 부채입니다."
       },
       "eq_board1": {
         "name": "새싹 바둑판",
@@ -4649,105 +4621,9 @@
         "name": "용문 바둑판",
         "description": "천 년의 세월을 간직한 금강송으로 만들어진 전설의 바둑판입니다."
       },
-      "eq_board7": {
-        "name": "신룡 바둑판",
-        "description": "별자리의 궤적이 새겨져, 한 수마다 승리의 길을 열어 주는 초월의 바둑판입니다."
-      },
-      "eq_bottom1": {
-        "name": "봄빛 도복 하의",
-        "description": "움직임이 편한 수련용 바지입니다."
-      },
-      "eq_bottom2": {
-        "name": "여름빛 도복 하의",
-        "description": "쉽게 닳지 않는 튼튼한 재질의 바지입니다."
-      },
-      "eq_bottom3": {
-        "name": "가을빛 도복 하의",
-        "description": "도포와 한 벌을 이루는 고급 비단 바지입니다."
-      },
-      "eq_bottom4": {
-        "name": "겨울빛 도복 하의",
-        "description": "어떠한 움직임에도 방해받지 않는 검객의 하의입니다."
-      },
-      "eq_bottom5": {
-        "name": "용비 도복 하의",
-        "description": "용포와 한 벌을 이루는 최고급 비단으로 만들어졌습니다."
-      },
-      "eq_bottom7": {
-        "name": "신룡 도복 하의",
-        "description": "폭풍 속에서도 균형을 잃지 않게 하는, 신룡의 의지가 깃든 초월의 도복 하의입니다."
-      },
-      "eq_fan1": {
-        "name": "푸른 바람 부채",
-        "description": "가볍고 실용적인 대나무 부채입니다."
-      },
-      "eq_fan2": {
-        "name": "은결 바람 부채",
-        "description": "부드러운 비단으로 만들어져 손에 잘 감깁니다."
-      },
-      "eq_fan3": {
-        "name": "화염 바람 부채",
-        "description": "학의 날개처럼 우아하게 펼쳐지는 명인의 부채입니다."
-      },
-      "eq_fan4": {
-        "name": "서리 바람 부채",
-        "description": "묵직한 강철로 만들어져 위급 시 무기로도 사용할 수 있습니다."
-      },
-      "eq_fan5": {
-        "name": "용비 바람 부채",
-        "description": "백 개의 하얀 깃털로 만들어진 전설적인 부채입니다."
-      },
-      "eq_fan7": {
-        "name": "신룡 바람 부채",
-        "description": "하늘을 가르는 신룡의 숨결을 담아, 전장의 흐름마저 뒤집는 초월의 부채입니다."
-      },
-      "eq_stone1": {
-        "name": "흑백 새싹돌",
-        "description": "가볍고 저렴한 플라스틱 바둑돌입니다."
-      },
-      "eq_stone2": {
-        "name": "은빛 결돌",
-        "description": "강가에서 주운 매끄러운 조약돌로 만든 바둑돌입니다."
-      },
-      "eq_stone3": {
-        "name": "홍옥 바둑돌",
-        "description": "차가운 빛을 내는 흑요석으로 정교하게 깎아 만들었습니다."
-      },
-      "eq_stone4": {
-        "name": "백옥 바둑돌",
-        "description": "영롱한 빛을 내는 청옥과 백옥으로 만들어진 바둑돌입니다."
-      },
-      "eq_stone5": {
-        "name": "용안 바둑돌",
-        "description": "해와 달, 별의 기운을 담아 벼려낸 전설적인 바둑돌입니다."
-      },
-      "eq_stone7": {
-        "name": "신룡 바둑돌",
-        "description": "새벽별의 파편을 벼려 만들어, 단 한 수로도 판세를 지배하는 초월의 바둑돌입니다."
-      },
-      "eq_stonebox1": {
-        "name": "가벼운 나무통",
-        "description": "가볍고 저렴한 플라스틱 바둑통입니다."
-      },
-      "eq_stonebox2": {
-        "name": "단단한 대나무통",
-        "description": "은은한 향이 나는 대추나무로 만든 바둑통입니다."
-      },
-      "eq_stonebox3": {
-        "name": "홍목 바둑통",
-        "description": "아름다운 붉은 빛을 띠는 장미목으로 만들어졌습니다."
-      },
-      "eq_stonebox4": {
-        "name": "흑단 바둑통",
-        "description": "기이하고 아름다운 무늬를 가진 괴목으로 만든 희귀한 바둑통입니다."
-      },
-      "eq_stonebox5": {
-        "name": "용린 바둑통",
-        "description": "용이 섬세하게 조각된 최고급 자단목 바둑통입니다."
-      },
-      "eq_stonebox7": {
-        "name": "신룡 바둑통",
-        "description": "고대 전장의 기운을 봉인해, 꺼내는 돌마다 위압을 더하는 초월의 바둑통입니다."
+      "eq_board6": {
+        "name": "천룡 바둑판",
+        "description": "밤하늘의 별들을 수놓은 듯한 신화적인 바둑판입니다."
       },
       "eq_top1": {
         "name": "봄빛 도복 상의",
@@ -4769,9 +4645,253 @@
         "name": "용비 도복 상의",
         "description": "황제의 위엄을 상징하는 용무늬가 수놓아져 있습니다."
       },
+      "eq_top6": {
+        "name": "천룡 도복 상의",
+        "description": "입는 자에게 신의 가호를 내린다는 신화 속 의상입니다."
+      },
+      "eq_bottom1": {
+        "name": "봄빛 도복 하의",
+        "description": "움직임이 편한 수련용 바지입니다."
+      },
+      "eq_bottom2": {
+        "name": "여름빛 도복 하의",
+        "description": "쉽게 닳지 않는 튼튼한 재질의 바지입니다."
+      },
+      "eq_bottom3": {
+        "name": "가을빛 도복 하의",
+        "description": "도포와 한 벌을 이루는 고급 비단 바지입니다."
+      },
+      "eq_bottom4": {
+        "name": "겨울빛 도복 하의",
+        "description": "어떠한 움직임에도 방해받지 않는 검객의 하의입니다."
+      },
+      "eq_bottom5": {
+        "name": "용비 도복 하의",
+        "description": "용포와 한 벌을 이루는 최고급 비단으로 만들어졌습니다."
+      },
+      "eq_bottom6": {
+        "name": "천룡 도복 하의",
+        "description": "구름을 엮어 만들었다다는 신화 속 하의입니다."
+      },
+      "eq_stonebox1": {
+        "name": "가벼운 나무통",
+        "description": "가볍고 저렴한 플라스틱 바둑통입니다."
+      },
+      "eq_stonebox2": {
+        "name": "단단한 대나무통",
+        "description": "은은한 향이 나는 대추나무로 만든 바둑통입니다."
+      },
+      "eq_stonebox3": {
+        "name": "홍목 바둑통",
+        "description": "아름다운 붉은 빛을 띠는 장미목으로 만들어졌습니다."
+      },
+      "eq_stonebox4": {
+        "name": "흑단 바둑통",
+        "description": "기이하고 아름다운 무늬를 가진 괴목으로 만든 희귀한 바둑통입니다."
+      },
+      "eq_stonebox5": {
+        "name": "용린 바둑통",
+        "description": "용이 섬세하게 조각된 최고급 자단목 바둑통입니다."
+      },
+      "eq_stonebox6": {
+        "name": "천룡 바둑통",
+        "description": "고대 신의 유물을 담았다고 전해지는 신비로운 함입니다."
+      },
+      "eq_stone1": {
+        "name": "흑백 새싹돌",
+        "description": "가볍고 저렴한 플라스틱 바둑돌입니다."
+      },
+      "eq_stone2": {
+        "name": "은빛 결돌",
+        "description": "강가에서 주운 매끄러운 조약돌로 만든 바둑돌입니다."
+      },
+      "eq_stone3": {
+        "name": "홍옥 바둑돌",
+        "description": "차가운 빛을 내는 흑요석으로 정교하게 깎아 만들었습니다."
+      },
+      "eq_stone4": {
+        "name": "백옥 바둑돌",
+        "description": "영롱한 빛을 내는 청옥과 백옥으로 만들어진 바둑돌입니다."
+      },
+      "eq_stone5": {
+        "name": "용안 바둑돌",
+        "description": "해와 달, 별의 기운을 담아 벼려낸 전설적인 바둑돌입니다."
+      },
+      "eq_stone6": {
+        "name": "천룡 바둑돌",
+        "description": "밤하늘의 은하수를 담아놓은 듯한 신화 속 바둑돌입니다."
+      },
+      "eq_fan7": {
+        "name": "신룡 바람 부채",
+        "description": "하늘을 가르는 신룡의 숨결을 담아, 전장의 흐름마저 뒤집는 초월의 부채입니다."
+      },
+      "eq_board7": {
+        "name": "신룡 바둑판",
+        "description": "별자리의 궤적이 새겨져, 한 수마다 승리의 길을 열어 주는 초월의 바둑판입니다."
+      },
       "eq_top7": {
         "name": "신룡 도복 상의",
         "description": "신룡의 비늘빛으로 직조되어, 흔들림 없는 집중을 부여하는 초월의 도복 상의입니다."
+      },
+      "eq_bottom7": {
+        "name": "신룡 도복 하의",
+        "description": "폭풍 속에서도 균형을 잃지 않게 하는, 신룡의 의지가 깃든 초월의 도복 하의입니다."
+      },
+      "eq_stonebox7": {
+        "name": "신룡 바둑통",
+        "description": "고대 전장의 기운을 봉인해, 꺼내는 돌마다 위압을 더하는 초월의 바둑통입니다."
+      },
+      "eq_stone7": {
+        "name": "신룡 바둑돌",
+        "description": "새벽별의 파편을 벼려 만들어, 단 한 수로도 판세를 지배하는 초월의 바둑돌입니다."
+      },
+      "box_equipmentbox1": {
+        "name": "장비 상자 I",
+        "description": "일반~희귀 등급 장비 획득"
+      },
+      "box_equipmentbox2": {
+        "name": "장비 상자 II",
+        "description": "일반~에픽 등급 장비 획득"
+      },
+      "box_equipmentbox3": {
+        "name": "장비 상자 III",
+        "description": "고급~전설 등급 장비 획득"
+      },
+      "box_equipmentbox4": {
+        "name": "장비 상자 IV",
+        "description": "희귀~신화 등급 장비 획득"
+      },
+      "box_equipmentbox5": {
+        "name": "장비 상자 V",
+        "description": "에픽~신화 등급 장비 획득"
+      },
+      "box_equipmentbox6": {
+        "name": "장비 상자 VI",
+        "description": "전설~신화 등급 장비 획득"
+      },
+      "box_resourcebox1": {
+        "name": "재료 상자 I",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "box_resourcebox2": {
+        "name": "재료 상자 II",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "box_resourcebox3": {
+        "name": "재료 상자 III",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "box_resourcebox4": {
+        "name": "재료 상자 IV",
+        "description": "중급 ~ 최상급 강화석 5개 획득"
+      },
+      "box_resourcebox5": {
+        "name": "재료 상자 V",
+        "description": "상급 ~ 신비의 강화석 5개 획득"
+      },
+      "box_resourcebox6": {
+        "name": "재료 상자 VI",
+        "description": "상급 ~ 신비의 강화석 5개 획득"
+      },
+      "box_goldbox1": {
+        "name": "골드 꾸러미 I",
+        "description": "10 ~ 500 골드 획득"
+      },
+      "box_goldbox2": {
+        "name": "골드 꾸러미 II",
+        "description": "100 ~ 1,000 골드 획득"
+      },
+      "box_goldbox3": {
+        "name": "골드 꾸러미 III",
+        "description": "500 ~ 3,000 골드 획득"
+      },
+      "box_goldbox4": {
+        "name": "골드 꾸러미 IV",
+        "description": "1,000 ~ 10,000 골드 획득"
+      },
+      "box_diabox1": {
+        "name": "다이아 꾸러미 I",
+        "description": "1 ~ 20 다이아 획득"
+      },
+      "box_diabox2": {
+        "name": "다이아 꾸러미 II",
+        "description": "10 ~ 30 다이아 획득"
+      },
+      "box_diabox3": {
+        "name": "다이아 꾸러미 III",
+        "description": "20 ~ 50 다이아 획득"
+      },
+      "box_diabox4": {
+        "name": "다이아 꾸러미 IV",
+        "description": "30 ~ 100 다이아 획득"
+      },
+      "use_con1": {
+        "name": "컨디션회복제(소)",
+        "description": "긴장감을 완화시켜주는 컨디션 회복제"
+      },
+      "use_con2": {
+        "name": "컨디션회복제(중)",
+        "description": "머리가 맑아지는 느낌의 컨디션 회복제"
+      },
+      "use_con3": {
+        "name": "컨디션회복제(대)",
+        "description": "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제"
+      },
+      "btn_addturn": {
+        "name": "턴 추가",
+        "description": "도전의 탑에서 사용할 수 있는 턴 추가 아이템입니다."
+      },
+      "btn_missile": {
+        "name": "미사일",
+        "description": "도전의 탑에서 사용할 수 있는 미사일 아이템입니다."
+      },
+      "btn_hidden": {
+        "name": "히든",
+        "description": "도전의 탑에서 사용할 수 있는 히든 아이템입니다."
+      },
+      "btn_scan": {
+        "name": "스캔",
+        "description": "도전의 탑에서 사용할 수 있는 스캔 아이템입니다."
+      },
+      "btn_reflesh": {
+        "name": "배치변경",
+        "description": "도전의 탑에서 사용할 수 있는 배치변경 아이템입니다."
+      },
+      "use_ap_potion_10": {
+        "name": "행동력 회복제(+10)",
+        "description": "뭔가 하고싶은 의욕이 생긴다."
+      },
+      "use_ap_potion_20": {
+        "name": "행동력 회복제(+20)",
+        "description": "뭔가 해야 할 것 같다."
+      },
+      "use_ap_potion_30": {
+        "name": "행동력 회복제(+30)",
+        "description": "바로 경기를 하러 가자."
+      },
+      "use_refine": {
+        "name": "제련의 부적",
+        "description": "제련이 불가능한 장비의 제련가능 횟수를 1추가"
+      },
+      "use_allowtrade": {
+        "name": "거래 등록권",
+        "description": "거래소에 판매 물품을 추가 등록할 수 있는 허가권입니다."
+      },
+      "use_belong": {
+        "name": "귀속 해제권",
+        "description": "귀속된 장비를 거래가능 상태로 변경"
+      },
+      "use_change1": {
+        "name": "옵션 종류 변경권",
+        "description": "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다."
+      },
+      "use_change2": {
+        "name": "옵션 수치 변경권",
+        "description": "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다."
+      },
+      "use_change3": {
+        "name": "스페셜 옵션 변경권",
+        "description": "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경할 수 있는 아이템입니다."
       },
       "mat_materials1": {
         "name": "하급 강화석",
@@ -4817,33 +4937,13 @@
         "name": "천광영혼석",
         "description": "전설 등급 펫을 신화 등급으로 올릴 때 필요한 재료입니다. 펫 Lv.50에서 사용할 수 있습니다."
       },
-      "shop_action_point_10": {
-        "name": "행동력 회복제(+10)",
-        "description": "뭔가 하고싶은 의욕이 생긴다."
-      },
-      "shop_action_point_20": {
-        "name": "행동력 회복제(+20)",
-        "description": "뭔가 해야 할 것 같다."
-      },
-      "shop_action_point_30": {
-        "name": "행동력 회복제(+30)",
-        "description": "바로 경기를 하러 가자."
-      },
-      "shop_condition_potion_large": {
-        "name": "컨디션회복제(대)",
-        "description": "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제"
-      },
-      "shop_condition_potion_medium": {
-        "name": "컨디션회복제(중)",
-        "description": "머리가 맑아지는 느낌의 컨디션 회복제"
-      },
-      "shop_condition_potion_small": {
-        "name": "컨디션회복제(소)",
-        "description": "긴장감을 완화시켜주는 컨디션 회복제"
-      },
       "shop_equipment_box_1": {
         "name": "장비 상자 I",
         "description": "일반~희귀 등급 장비 획득"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "스페셜 옵션 변경권",
+        "description": "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경할 수 있는 아이템입니다."
       },
       "shop_equipment_box_2": {
         "name": "장비 상자 II",
@@ -4864,10 +4964,6 @@
       "shop_equipment_box_6": {
         "name": "장비 상자 VI",
         "description": "전설~신화 등급 장비 획득"
-      },
-      "shop_equipment_unbind_ticket": {
-        "name": "귀속 해제권",
-        "description": "귀속 장비 거래가능 상태로 변경"
       },
       "shop_material_box_1": {
         "name": "재료 상자 I",
@@ -4893,9 +4989,13 @@
         "name": "재료 상자 VI",
         "description": "상급 ~ 신비의 강화석 5개 획득"
       },
-      "shop_mythic_option_change_ticket": {
-        "name": "스페셜 옵션 변경권",
-        "description": "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경할 수 있는 아이템입니다."
+      "shop_equipment_unbind_ticket": {
+        "name": "귀속 해제권",
+        "description": "귀속 장비 거래가능 상태로 변경"
+      },
+      "shop_refinement_charm": {
+        "name": "제련의 부적",
+        "description": "제련불가 장비 제련 횟수 1회 추가"
       },
       "shop_option_type_change_ticket": {
         "name": "옵션 종류 변경권",
@@ -4905,13 +5005,29 @@
         "name": "옵션 수치 변경권",
         "description": "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다."
       },
-      "shop_refinement_charm": {
-        "name": "제련의 부적",
-        "description": "제련불가 장비 제련 횟수 1회 추가"
+      "shop_condition_potion_small": {
+        "name": "컨디션회복제(소)",
+        "description": "긴장감을 완화시켜주는 컨디션 회복제"
       },
-      "use_allowtrade": {
-        "name": "거래 등록권",
-        "description": "거래소에 판매 물품을 추가 등록할 수 있는 허가권입니다."
+      "shop_condition_potion_medium": {
+        "name": "컨디션회복제(중)",
+        "description": "머리가 맑아지는 느낌의 컨디션 회복제"
+      },
+      "shop_condition_potion_large": {
+        "name": "컨디션회복제(대)",
+        "description": "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제"
+      },
+      "shop_action_point_10": {
+        "name": "행동력 회복제(+10)",
+        "description": "뭔가 하고싶은 의욕이 생긴다."
+      },
+      "shop_action_point_20": {
+        "name": "행동력 회복제(+20)",
+        "description": "뭔가 해야 할 것 같다."
+      },
+      "shop_action_point_30": {
+        "name": "행동력 회복제(+30)",
+        "description": "바로 경기를 하러 가자."
       }
     },
     "stats": {
@@ -5984,7 +6100,7 @@
       "inProgressViewerHint": "수련 중 — 좌측 뷰어에 상세 정보",
       "repPetViewerHint": "대표 펫 — 좌측 뷰어에 상세 정보",
       "tapEmptySlotFirst": "빈 수련 슬롯을 먼저 터치한 뒤 펫을 선택하세요.",
-      "repPetCannotTrain": "대표 펫은 수련에 보낼 수 없습니다.",
+      "repPetCannotTrain": "대표펫은 수련을 보낼 수 없습니다.",
       "tapSlotThenPick": "빈 슬롯 터치 후 펫 선택",
       "dropToStart": "펫을 슬롯에 놓으면 수련 시작",
       "petXpLabel": "펫",

@@ -657,9 +657,9 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 'mythic_option_change_ticket': { name: '스페셜 옵션 변경권', price: 500, dailyLimit: 10 },
                 'equipment_unbind_ticket': { name: '귀속 해제권', price: 50, dailyLimit: 10, currency: 'diamonds' },
                 'refinement_charm': { name: '제련의 부적', price: 100, dailyLimit: 1, currency: 'diamonds' },
-                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [1000] },
-                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [1500] },
-                'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [2000] },
+                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [2000] },
+                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [3000] },
+                'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [4000] },
             };
 
             const itemInfo = consumableItems[itemId];

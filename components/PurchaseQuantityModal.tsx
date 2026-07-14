@@ -430,9 +430,9 @@ const PurchaseQuantityModal: React.FC<PurchaseQuantityModalProps> = ({
                                         </span>
                                     </p>
                                     {towerRemainingOwned <= 0 ? (
-                                        <p className="leading-snug text-rose-300/95">{t('purchase.maxOwnedBuy')}</p>
+                                        <p className="leading-snug text-rose-300/95">{t('purchase.maxOwned')}</p>
                                     ) : towerRemainingDaily <= 0 ? (
-                                        <p className="leading-snug text-rose-300/95">{t('purchase.dailyLimitReached')}</p>
+                                        <p className="leading-snug text-rose-300/95">{t('purchase.dailyLimit')}</p>
                                     ) : (
                                         <p className="leading-snug text-slate-400">{t('purchase.maxPurchase', { count: maxQuantity })}</p>
                                     )}

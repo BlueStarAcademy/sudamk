@@ -33,8 +33,7 @@ import {
     resolveBagItemDetailImagePath,
 } from '../shared/utils/bagItemDetailHelpers.js';
 import {
-    ITEM_SLOT_ICON_SIZE_PCT,
-    itemSlotIconStyle,
+    itemSlotIconStyleForGrade,
     GRADE_SLOT_SCRIM_CLASS,
     GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
     gradeSlotBorderOverlayClass,
@@ -243,7 +242,7 @@ const EquipmentSlotDisplay: React.FC<{
                             src={imagePath} 
                             alt={item.name} 
                             className="absolute z-[2] object-contain" 
-                            style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                            style={itemSlotIconStyleForGrade(item.grade)}
                             onError={(e) => {
                                 console.error(`[EquipmentSlotDisplay] Failed to load image: ${imagePath} for item:`, item);
                                 (e.target as HTMLImageElement).style.display = 'none';
@@ -568,7 +567,7 @@ const LocalItemDetailDisplay: React.FC<{
                                 src={item.image}
                                 alt={item.name}
                                 className="absolute object-contain"
-                                style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                                style={itemSlotIconStyleForGrade(item.grade)}
                             />
                         )}
                         <EquipmentEnhancementBadge stars={item.stars} />
@@ -712,7 +711,7 @@ const LocalItemDetailDisplay: React.FC<{
                                     src={imagePath}
                                     alt={item.name}
                                     className="absolute object-contain"
-                                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                                    style={itemSlotIconStyleForGrade(item.grade)}
                                     onError={(e) => {
                                         console.error(`[LocalItemDetailDisplay] Failed to load image: ${imagePath} for item:`, item);
                                         (e.target as HTMLImageElement).style.display = 'none';
@@ -3114,8 +3113,10 @@ const InventoryModal: React.FC<InventoryModalProps> = ({
                                     <img
                                         src={pendingUnbindItem.image}
                                         alt={pendingUnbindItem.name}
-                                        className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.75)]"
+                                        className="absolute z-[2] object-contain drop-shadow-[0_4px_10px_rgba(0,0,0,0.75)]"
+                                        style={itemSlotIconStyleForGrade(pendingUnbindItem.grade)}
                                     />
+                                    <EquipmentEnhancementBadge stars={pendingUnbindItem.stars} />
                                 </div>
                             </div>
                             <div className="mt-3 flex items-center justify-center gap-2 text-xs font-semibold">
@@ -3303,7 +3304,7 @@ const InventoryItemCard: React.FC<{
                         src={imagePath} 
                         alt={item.name} 
                         className="absolute z-[2] object-contain" 
-                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)} 
+                        style={itemSlotIconStyleForGrade(item.grade)} 
                         onError={(e) => {
                             console.error(`[InventoryItemCard] Failed to load image: ${imagePath} for item:`, item);
                             (e.target as HTMLImageElement).style.display = 'none';

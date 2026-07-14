@@ -13,7 +13,8 @@ import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMile
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
-import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
+import { itemSlotIconStyleForGrade } from '../../shared/constants/itemSlotIconLayout.js';
+import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -28,68 +29,11 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
 const ENHANCEMENT_PROGRESS_DURATION_MS = 3000;
 const ENHANCEMENT_PROGRESS_TICK_MS = 50;
 
-const renderStarDisplay = (stars: number, previousStars?: number, isAnimating?: boolean) => {
-    if (stars === 0) return null;
-
-    let starImage = '';
-    let numberColor = '';
-
-    if (stars >= 10) {
-        starImage = '/images/equipments/Star4.webp';
-        numberColor = "prism-text-effect";
-    } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.webp';
-        numberColor = "text-purple-400";
-    } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.webp';
-        numberColor = "text-amber-400";
-    } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.webp';
-        numberColor = "text-white";
-    }
-
-    // 별 색상이 바뀌었는지 확인 (3→4, 6→7, 9→10)
-    const starTierChanged = previousStars !== undefined && (
-        (previousStars < 4 && stars >= 4) ||
+const isEnhanceTierUp = (stars: number, previousStars?: number) =>
+    previousStars !== undefined &&
+    ((previousStars < 4 && stars >= 4) ||
         (previousStars < 7 && stars >= 7) ||
-        (previousStars < 10 && stars >= 10)
-    );
-
-    return (
-        <div
-            className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
-            style={{ textShadow: '1px 1px 2px black' }}
-        >
-            <img 
-                src={starImage} 
-                alt="star" 
-                className={`w-3 h-3 transition-all duration-500 ${
-                    stars >= 10 
-                        ? 'prism-star-glow' 
-                        : ''
-                } ${
-                    starTierChanged && isAnimating 
-                        ? 'animate-pulse scale-125 drop-shadow-[0_0_15px_currentColor]' 
-                        : ''
-                }`}
-                style={stars >= 10 ? {
-                    filter: 'drop-shadow(0 0 8px rgba(255, 0, 255, 0.8)) drop-shadow(0 0 12px rgba(0, 255, 255, 0.6)) drop-shadow(0 0 16px rgba(255, 255, 0, 0.4)) brightness(1.3) saturate(1.4)'
-                } : (starTierChanged && isAnimating ? {
-                    filter: 'drop-shadow(0 0 10px currentColor) brightness(1.3)'
-                } : {})}
-            />
-            <span 
-                className={`font-bold text-xs leading-none transition-all duration-500 ${
-                    starTierChanged && isAnimating 
-                        ? 'scale-125 animate-pulse' 
-                        : ''
-                } ${numberColor}`}
-            >
-                {stars}
-            </span>
-        </div>
-    );
-};
+        (previousStars < 10 && stars >= 10));
 
 const ItemDisplay: React.FC<{
     item: InventoryItem;
@@ -123,10 +67,13 @@ const ItemDisplay: React.FC<{
                             src={item.image}
                             alt={item.name}
                             className="absolute object-contain"
-                            style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                            style={itemSlotIconStyleForGrade(item.grade)}
                         />
                     )}
-                    {renderStarDisplay(item.stars, previousStars, isAnimating)}
+                    <EquipmentEnhancementBadge
+                        stars={item.stars}
+                        emphasize={Boolean(isAnimating && isEnhanceTierUp(item.stars, previousStars))}
+                    />
                 </div>
                 <div className="min-w-0 flex-grow pt-1">
                     <h3 className={`${typo.headingLg} leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>

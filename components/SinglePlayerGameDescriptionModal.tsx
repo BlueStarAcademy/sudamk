@@ -307,7 +307,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         currentUser == null
             ? true
             : isTower
-              ? isTowerFirstClearAttemptOnFloor(currentUser.towerFloor, sessionFloorTower)
+              ? isTowerFirstClearAttemptOnFloor(currentUser.monthlyTowerFloor, sessionFloorTower)
               : !(currentUser.clearedSinglePlayerStages ?? []).includes(stage.id);
     const firstClearReward = stage.rewards?.firstClear;
     const clearReward = isEligibleForFirstClearRewards ? firstClearReward : undefined;

@@ -185,13 +185,33 @@ async function upsertCompletedGuildWarHistory(updatedWar: any): Promise<void> {
  * GET_GUILD_INFO는 요청 시작 시점의 guilds 스냅샷으로 멤버만 동기화한 뒤 저장한다.
  * 그 사이 출석 마일스톤 수령·보스전·체크인 등으로 KV가 갱신되면 오래된 객체로 덮어써
  * dailyCheckInRewardsClaimed 등이 사라져 보상을 다시 받을 수 있다. 저장 직전 KV를 읽어 병합한다.
+ *
+ * Research: concurrent writers can restore a stale active researchTask after this request
+ * already completed it. Keep higher research levels; if local already applied a level-up
+ * for the due research id, do not revive that task (avoids double level-up).
  */
 function mergeLatestGuildKvExceptMembers(guild: Guild, latestGuilds: Record<string, Guild>): void {
     const latest = latestGuilds[guild.id];
     if (!latest) return;
     const syncedMembers = guild.members;
+    const localResearch = guild.research;
+
     Object.assign(guild, latest);
     guild.members = syncedMembers;
+    guild.research = guildService.mergeResearchLevels(localResearch, guild.research);
+
+    const revivedTask = guild.researchTask;
+    const revivedId = revivedTask?.researchId;
+    if (revivedId && guildService.isResearchTaskDue(revivedTask)) {
+        const localLevel = Number(localResearch?.[revivedId]?.level) || 0;
+        const latestLevel = Number(latest.research?.[revivedId]?.level) || 0;
+        // Local already applied this completion (higher level + cleared task).
+        if (localLevel > latestLevel) {
+            guild.researchTask = null;
+        }
+    }
+
+    guildService.checkCompletedResearch(guild);
 }
 
 function guildMemberIdSet(g: Guild | undefined): Set<string> {
@@ -542,6 +562,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
     const guildRepo = await import('../prisma/guildRepository.js');
 
     // Lazy migration for chat message IDs to support deleting old messages
+    if (guildService.applyCompletedResearchAll(guilds, chatWeekNow)) {
+        needsSave = true;
+    }
     for (const guild of Object.values(guilds)) {
         // Catch up guilds whose XP bar filled before boss/war paths called level-up
         if (guildService.checkGuildLevelUp(guild)) {
@@ -1797,7 +1820,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             if (!guild || !canManageResearch) {
                 return { error: '권한이 없습니다.' };
             }
-            if (guild.researchTask) return { error: '?��? 진행 중인 ?�구가 ?�습?�다.' };
+            // Finish any due research before treating the slot as busy
+            guildService.checkCompletedResearch(guild);
+            if (guild.researchTask) return { error: '이미 진행 중인 연구가 있습니다.' };
 
             const project = GUILD_RESEARCH_PROJECTS[researchId as keyof typeof GUILD_RESEARCH_PROJECTS];
             const currentLevel = guild.research?.[researchId as keyof typeof GUILD_RESEARCH_PROJECTS]?.level ?? 0;
@@ -3447,16 +3472,30 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 }
                 
                 const latestGuildsForSave = (await db.getKV<Record<string, Guild>>('guilds')) || {};
+                const taskBeforeMerge = guild.researchTask;
                 mergeLatestGuildKvExceptMembers(guild, latestGuildsForSave);
+                // Belt-and-suspenders: finish due research even if merge path missed it
+                const completedAfterMerge =
+                    guildService.checkCompletedResearch(guild) != null ||
+                    (taskBeforeMerge != null && guild.researchTask == null);
 
                 // 업데이트된 길드 정보를 KV store에 저장
                 await db.setKV('guilds', guilds);
+                if (completedAfterMerge) {
+                    try {
+                        await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+                    } catch (broadcastErr: any) {
+                        console.warn('[GET_GUILD_INFO] GUILD_UPDATE after research complete failed:', broadcastErr?.message);
+                    }
+                }
                 
                 // 아이콘 경로 수정 및 name 필드 보장
                 const guildWithFixedIcon = {
                     ...guild,
                     name: guild.name || '이름 없는 길드', // name 필드 보장
                     members: guild.members || [],
+                    research: guild.research || {},
+                    researchTask: guild.researchTask ?? null,
                     icon: guild.icon?.startsWith('/images/guild/icon') 
                         ? guild.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
                         : (guild.icon || '/images/guild/profile/icon1.webp')

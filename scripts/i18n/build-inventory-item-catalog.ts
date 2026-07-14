@@ -29,42 +29,88 @@ const EQUIPMENT_EN: Record<string, { name: string; description: string }> = {
     '서리 바람 부채': { name: 'Frost Wind Fan', description: 'Forged from heavy steel; can serve as a weapon in a pinch.' },
     '용비 바람 부채': { name: 'Dragon Feather Fan', description: 'A legendary fan made from a hundred white feathers.' },
     '천룡 바람 부채': { name: 'Heavenly Dragon Fan', description: 'A mythical fan said to stir winds that overturn the board.' },
-    '신룡 바람 부채': { name: 'Divine Dragon Fan', description: 'A transcendent fan holding the breath of a sky-splitting dragon.' },
     '새싹 바둑판': { name: 'Sprout Board', description: 'A light paulownia board ideal for beginners.' },
     '단풍결 바둑판': { name: 'Maple Grain Board', description: 'A premium board of beautiful persimmon wood grain.' },
     '산호결 바둑판': { name: 'Coral Grain Board', description: 'A top-grade shinigi board with a clear stone placement sound.' },
     '흑단 바둑판': { name: 'Ebony Board', description: 'A volcanic stone board shaped with burning passion.' },
     '용문 바둑판': { name: 'Dragon Gate Board', description: 'A legendary board of thousand-year golden pine.' },
     '천룡 바둑판': { name: 'Heavenly Dragon Board', description: 'A mythical board inlaid like a night sky of stars.' },
-    '신룡 바둑판': { name: 'Divine Dragon Board', description: 'A transcendent board that opens a path to victory with every move.' },
     '봄빛 도복 상의': { name: 'Spring Gi Top', description: 'Comfortable top wear suited for focused training.' },
     '여름빛 도복 상의': { name: 'Summer Gi Top', description: 'Durable gi that withstands long practice sessions.' },
     '가을빛 도복 상의': { name: 'Autumn Gi Top', description: 'A scholar\'s robe with quiet dignity.' },
     '겨울빛 도복 상의': { name: 'Winter Gi Top', description: 'Attire of a swordsman crafted for sharp matches.' },
     '용비 도복 상의': { name: 'Dragon Robe Top', description: 'Embroidered with dragon motifs symbolizing imperial majesty.' },
     '천룡 도복 상의': { name: 'Heavenly Dragon Gi Top', description: 'Mythic garb said to grant divine protection to the wearer.' },
-    '신룡 도복 상의': { name: 'Divine Dragon Gi Top', description: 'Transcendent top wear woven with dragon-scale light for unwavering focus.' },
     '봄빛 도복 하의': { name: 'Spring Gi Bottom', description: 'Training pants that allow easy movement.' },
     '여름빛 도복 하의': { name: 'Summer Gi Bottom', description: 'Sturdy pants that resist wear.' },
     '가을빛 도복 하의': { name: 'Autumn Gi Bottom', description: 'Fine silk pants paired with the scholar\'s robe.' },
     '겨울빛 도복 하의': { name: 'Winter Gi Bottom', description: 'Bottom wear that never hinders a swordsman\'s movement.' },
     '용비 도복 하의': { name: 'Dragon Robe Bottom', description: 'Finest silk bottoms paired with the dragon robe.' },
     '천룡 도복 하의': { name: 'Heavenly Dragon Gi Bottom', description: 'Mythic bottoms said to be woven from clouds.' },
-    '신룡 도복 하의': { name: 'Divine Dragon Gi Bottom', description: 'Transcendent bottoms imbued with a dragon\'s will for balance in any storm.' },
     '가벼운 나무통': { name: 'Light Wood Bowl', description: 'A light, inexpensive plastic go bowl.' },
     '단단한 대나무통': { name: 'Sturdy Bamboo Bowl', description: 'A go bowl of jujube wood with a subtle fragrance.' },
     '홍목 바둑통': { name: 'Rosewood Bowl', description: 'Crafted from rosewood with a beautiful red hue.' },
     '흑단 바둑통': { name: 'Ebony Bowl', description: 'A rare bowl of exotic wood with striking patterns.' },
     '용린 바둑통': { name: 'Dragon Scale Bowl', description: 'A finest red sandalwood bowl delicately carved with dragons.' },
     '천룡 바둑통': { name: 'Heavenly Dragon Bowl', description: 'A mysterious case said to hold an ancient god\'s relic.' },
-    '신룡 바둑통': { name: 'Divine Dragon Bowl', description: 'A transcendent bowl that seals battlefield aura into every stone drawn.' },
     '흑백 새싹돌': { name: 'Sprout Stones', description: 'Light, inexpensive plastic go stones.' },
     '은빛 결돌': { name: 'Silver Grain Stones', description: 'Go stones polished from smooth river pebbles.' },
     '홍옥 바둑돌': { name: 'Ruby Go Stones', description: 'Precisely cut obsidian stones with a cold gleam.' },
     '백옥 바둑돌': { name: 'Jade Go Stones', description: 'Stones of blue and white jade with a luminous glow.' },
     '용안 바둑돌': { name: 'Dragon Eye Stones', description: 'Legendary stones forged with the energy of sun, moon, and stars.' },
     '천룡 바둑돌': { name: 'Heavenly Dragon Stones', description: 'Mythic stones like a galaxy poured into the night sky.' },
-    '신룡 바둑돌': { name: 'Divine Dragon Stones', description: 'Transcendent stones forged from dawn-star fragments to dominate the board in a single move.' },
+    '신룡 바람 부채': {
+        name: 'Divine Dragon Fan',
+        description: 'A transcendent fan holding the breath of a sky-splitting divine dragon.',
+    },
+    '신룡 바둑판': {
+        name: 'Divine Dragon Board',
+        description: 'A transcendent board that opens a path to victory with every move.',
+    },
+    '신룡 도복 상의': {
+        name: 'Divine Dragon Gi Top',
+        description: 'Transcendent top wear woven with dragon-scale light for unwavering focus.',
+    },
+    '신룡 도복 하의': {
+        name: 'Divine Dragon Gi Bottom',
+        description: "Transcendent bottoms imbued with a dragon's will for balance in any storm.",
+    },
+    '신룡 바둑통': {
+        name: 'Divine Dragon Bowl',
+        description: 'A transcendent bowl that seals battlefield aura into every stone drawn.',
+    },
+    '신룡 바둑돌': {
+        name: 'Divine Dragon Stones',
+        description: 'Transcendent stones forged from dawn-star fragments to dominate the board in a single move.',
+    },
+};
+
+/** 초월(*7) — 표시명 신룡, EN은 Divine Dragon */
+const EQUIPMENT_EN_BY_SLUG: Record<string, { name: string; description: string }> = {
+    eq_fan7: {
+        name: 'Divine Dragon Fan',
+        description: 'A transcendent fan holding the breath of a sky-splitting divine dragon.',
+    },
+    eq_board7: {
+        name: 'Divine Dragon Board',
+        description: 'A transcendent board that opens a path to victory with every move.',
+    },
+    eq_top7: {
+        name: 'Divine Dragon Gi Top',
+        description: 'Transcendent top wear woven with dragon-scale light for unwavering focus.',
+    },
+    eq_bottom7: {
+        name: 'Divine Dragon Gi Bottom',
+        description: "Transcendent bottoms imbued with a dragon's will for balance in any storm.",
+    },
+    eq_stonebox7: {
+        name: 'Divine Dragon Bowl',
+        description: 'A transcendent bowl that seals battlefield aura into every stone drawn.',
+    },
+    eq_stone7: {
+        name: 'Divine Dragon Stones',
+        description: 'Transcendent stones forged from dawn-star fragments to dominate the board in a single move.',
+    },
 };
 
 const CONSUMABLE_EN: Record<string, { name: string; description: string }> = {
@@ -112,6 +158,7 @@ function shopEnDescription(shopId: string, fallback: string): string {
 }
 
 function resolveEnText(koName: string, koDescription: string | undefined, slug: string): { name: string; description: string } {
+    if (EQUIPMENT_EN_BY_SLUG[slug]) return EQUIPMENT_EN_BY_SLUG[slug];
     if (EQUIPMENT_EN[koName]) return EQUIPMENT_EN[koName];
     if (CONSUMABLE_EN[koName]) return CONSUMABLE_EN[koName];
     if (MATERIAL_EN[koName]) return MATERIAL_EN[koName];

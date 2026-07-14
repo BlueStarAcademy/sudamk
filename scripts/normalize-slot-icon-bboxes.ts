@@ -11,19 +11,15 @@ import sharp from 'sharp';
 
 const SIZE = 512;
 /** Longest opaque side fills this fraction of the canvas. */
-const TARGET_FILL = 0.8;
+const TARGET_FILL = 0.92;
 const ALPHA_MIN = 12;
 
 const ROOTS = [
     'public/images/equipments',
-    'public/images/materials',
-    'public/images/use',
-    'public/images/Box',
-    'public/images/shop',
 ];
 
 const SKIP = /bgi(\d*)\.webp$/i;
-const SKIP_NAME = /^(Star\d|EnhanceMarker\d|moru)\.webp$/i;
+const SKIP_NAME = /^(Star\d|EnhanceMarker\d|moru|Empty|EquipStatusMarker)/i;
 
 async function listWebp(dir: string): Promise<string[]> {
     try {

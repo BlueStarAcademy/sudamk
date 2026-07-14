@@ -6,11 +6,13 @@ import {
     consumeConditionPotionInventory,
     parseConditionPotionUseContext,
 } from '../../../shared/conditionPotion/apply.js';
-import { rollConditionPotionRecovery } from '../../../shared/constants/conditionPotion.js';
+import { getConditionPotionDefinition, rollConditionPotionRecovery } from '../../../shared/constants/conditionPotion.js';
+
+const smallPotionGold = getConditionPotionDefinition('small').shopGold;
 
 const baseUser = {
     id: 'u1',
-    gold: 500,
+    gold: smallPotionGold + 250,
     inventory: [{ id: 'p1', name: '컨디션 회복제(소)', type: 'consumable', quantity: 2 }],
     dungeonConditionSnapshot: {
         neighborhood: { condition: 40, dateStartOfDayKST: 1 },
@@ -65,7 +67,7 @@ describe('conditionPotion apply', () => {
         expect(result.ok).toBe(true);
         if (!result.ok) return;
         expect(result.newCondition).toBe(50);
-        expect(result.patch.gold).toBe(400);
+        expect(result.patch.gold).toBe(250);
         expect(result.patch.inventory).toHaveLength(1);
         expect(result.patch.dungeonConditionSnapshot?.neighborhood?.condition).toBe(50);
         expect(

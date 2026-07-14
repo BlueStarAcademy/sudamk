@@ -21,7 +21,8 @@ import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
-import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
+import { itemSlotIconStyleForGrade } from '../../shared/constants/itemSlotIconLayout.js';
+import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
 
 const REFINEMENT_TICKET_DEFS: { id: 'type' | 'value' | 'mythic'; itemKey: keyof typeof MATERIAL_ITEMS }[] = [
     { id: 'type', itemKey: '옵션 종류 변경권' },
@@ -108,43 +109,6 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
-const renderStarDisplay = (stars: number) => {
-    if (stars === 0) return null;
-
-    let starImage = '';
-    let numberColor = '';
-
-    if (stars >= 10) {
-        starImage = '/images/equipments/Star4.webp';
-        numberColor = "prism-text-effect";
-    } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.webp';
-        numberColor = "text-purple-400";
-    } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.webp';
-        numberColor = "text-amber-400";
-    } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.webp';
-        numberColor = "text-white";
-    }
-
-    return (
-        <div
-            className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
-            style={{ textShadow: '1px 1px 2px black' }}
-        >
-            <img 
-                src={starImage} 
-                alt="star" 
-                className="w-3 h-3"
-            />
-            <span className={`font-bold text-xs leading-none ${numberColor}`}>
-                {stars}
-            </span>
-        </div>
-    );
-};
-
 const ItemDisplay: React.FC<{
     item: InventoryItem;
     selectedOption: { type: 'main' | 'combatSub' | 'specialSub' | 'mythicSub'; index: number } | null;
@@ -177,10 +141,10 @@ const ItemDisplay: React.FC<{
                             src={item.image}
                             alt={item.name}
                             className="absolute object-contain"
-                            style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                            style={itemSlotIconStyleForGrade(item.grade)}
                         />
                     )}
-                    {renderStarDisplay(item.stars)}
+                    <EquipmentEnhancementBadge stars={item.stars} />
                 </div>
                 <div className="min-w-0 flex-grow pt-0.5">
                     <h3 className={`${typo.headingLg} leading-snug whitespace-nowrap overflow-hidden text-ellipsis ${styles.color}`} title={item.name}>

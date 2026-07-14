@@ -1,7 +1,10 @@
-/** 장비 슬롯 강화(+N) 코너 마커 — 얇은 사각 테두리 플레이트 */
+/** 장비 슬롯 강화(+N) 코너 마커 — 단계별 별 이미지 + 중앙 숫자 */
 
-/** 슬롯 한 변 대비 마커 한 변 비율(%) — 과하지 않게 작게 */
-export const ENHANCE_MARKER_SIZE_PCT = 26;
+/**
+ * 슬롯 한 변 대비 마커 한 변 비율(%).
+ * EquipmentStatusBadge(24%)보다 살짝 작게 — 장비 아이콘을 가리지 않게.
+ */
+export const ENHANCE_MARKER_SIZE_PCT = 22;
 
 export type EnhanceMarkerTier = 1 | 2 | 3 | 4;
 
@@ -15,15 +18,15 @@ export function getEnhanceMarkerTier(stars: number): EnhanceMarkerTier | null {
 }
 
 export const ENHANCE_MARKER_IMAGES: Record<EnhanceMarkerTier, string> = {
-    1: '/images/equipments/EnhanceMarker1.webp',
-    2: '/images/equipments/EnhanceMarker2.webp',
-    3: '/images/equipments/EnhanceMarker3.webp',
-    4: '/images/equipments/EnhanceMarker4.webp',
+    1: '/images/equipments/Star1.webp',
+    2: '/images/equipments/Star2.webp',
+    3: '/images/equipments/Star3.webp',
+    4: '/images/equipments/Star4.webp',
 };
 
 export const ENHANCE_MARKER_NUMBER_CLASS: Record<EnhanceMarkerTier, string> = {
     1: 'text-white',
     2: 'text-amber-400',
     3: 'text-purple-400',
-    4: 'prism-text-effect',
+    4: 'text-white',
 };

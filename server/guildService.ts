@@ -334,19 +334,79 @@ export const resetWeeklyGuildMissions = async (guild: Guild, now: number) => {
     }
 };
 
-export const checkCompletedResearch = async (guild: Guild): Promise<GuildResearchId | null> => {
-    if (guild.researchTask && guild.researchTask.completionTime && Date.now() >= guild.researchTask.completionTime) {
-        const completedTaskId = guild.researchTask.researchId;
-        if (!guild.research) {
-            guild.research = {} as any;
-        }
-        if (!guild.research![completedTaskId]) {
-            guild.research![completedTaskId] = { level: 0 };
-        }
-        guild.research![completedTaskId]!.level += 1;
-        guild.researchTask = null;
-        
-        return completedTaskId as GuildResearchId;
-    }
+/** Research end time: start action writes both fields; accept either for older/partial data. */
+export const getResearchTaskEndAt = (
+    task: NonNullable<Guild['researchTask']> | null | undefined
+): number | null => {
+    if (!task) return null;
+    const fromCompleted = Number(task.completedAt);
+    if (Number.isFinite(fromCompleted) && fromCompleted > 0) return fromCompleted;
+    const fromCompletion = Number(task.completionTime);
+    if (Number.isFinite(fromCompletion) && fromCompletion > 0) return fromCompletion;
     return null;
+};
+
+export const isResearchTaskDue = (
+    task: NonNullable<Guild['researchTask']> | null | undefined,
+    now: number = Date.now()
+): boolean => {
+    const endAt = getResearchTaskEndAt(task);
+    return endAt != null && now >= endAt;
+};
+
+/** Keep the higher level for each research id across two research maps. */
+export const mergeResearchLevels = (
+    a: Guild['research'] | null | undefined,
+    b: Guild['research'] | null | undefined
+): Guild['research'] => {
+    const out: NonNullable<Guild['research']> = { ...(a || {}) } as NonNullable<Guild['research']>;
+    for (const [id, data] of Object.entries(b || {})) {
+        const level = Math.max(Number(out[id]?.level) || 0, Number(data?.level) || 0);
+        if (level > 0) out[id] = { level };
+    }
+    return out;
+};
+
+/**
+ * When the research timer has elapsed, increment the research level, clear the task,
+ * and return the completed research id. Effects are derived from `guild.research[id].level`.
+ */
+export const checkCompletedResearch = (
+    guild: Guild,
+    now: number = Date.now()
+): GuildResearchId | null => {
+    const task = guild.researchTask;
+    if (!task) return null;
+    if (!isResearchTaskDue(task, now)) return null;
+
+    const completedTaskId = String(task.researchId || '') as GuildResearchId;
+    if (!completedTaskId) {
+        guild.researchTask = null;
+        return null;
+    }
+    if (!guild.research) {
+        guild.research = {} as Guild['research'];
+    }
+    if (!guild.research[completedTaskId]) {
+        guild.research[completedTaskId] = { level: 0 };
+    }
+    guild.research[completedTaskId]!.level += 1;
+    guild.researchTask = null;
+
+    console.log(
+        `[GuildResearch] Completed ${completedTaskId} for guild ${guild.id || guild.name}: level → ${guild.research[completedTaskId]!.level}`
+    );
+    return completedTaskId;
+};
+
+/** Apply due research completions across all guilds. Returns true if any guild changed. */
+export const applyCompletedResearchAll = (
+    guilds: Record<string, Guild>,
+    now: number = Date.now()
+): boolean => {
+    let dirty = false;
+    for (const guild of Object.values(guilds)) {
+        if (checkCompletedResearch(guild, now)) dirty = true;
+    }
+    return dirty;
 };

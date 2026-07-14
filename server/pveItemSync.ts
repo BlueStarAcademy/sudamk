@@ -55,8 +55,9 @@ function keepServerAiMoveHistoryStable(
             syncedMove.y !== serverMove.y;
 
         if (syncedChangedAiMove) {
+            // Relocated AI stone on the client board: clear the wrong intersection when it was never
+            // a confirmed server AI move (same-length stale sync or advancing human reply after board-less merge).
             if (
-                syncDoesNotAdvanceServer &&
                 isPlayablePoint(syncedMove) &&
                 Array.isArray(serverBoardState) &&
                 Array.isArray(syncedBoardState) &&
@@ -76,10 +77,11 @@ function keepServerAiMoveHistoryStable(
             syncedMoveHistory[i] = { ...serverMove };
         }
 
-        // Stale same-length client snapshots must not erase an already confirmed AI stone.
-        // Longer snapshots may include a new user move that legitimately captured it.
+        // Confirmed AI stones still on the server board must not be erased/relocated by clientSync.
+        // Board-less GAME_UPDATE merges can leave an advancing human reply on an old board that
+        // drops the AI stone; overwriting the server then looks like a teleport + illegal second AI move.
+        // Skip only when the server itself no longer has the stone (legitimate capture already applied).
         if (
-            syncDoesNotAdvanceServer &&
             Array.isArray(serverBoardState) &&
             Array.isArray(syncedBoardState) &&
             serverBoardState[serverMove.y]?.[serverMove.x] === serverMove.player &&

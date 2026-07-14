@@ -291,11 +291,39 @@ const ResearchItemPanel: React.FC<{
 const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => void }> = ({ guild, myMemberInfo, onClose }) => {
     const { t } = useTranslation(['guild', 'common']);
     const { handlers } = useAppContext();
+    const { handleAction } = handlers;
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice();
     const [activeTab, setActiveTab] = useState<GuildResearchCategory>(GuildResearchCategory.development);
     const [pendingStart, setPendingStart] = useState<GuildResearchStartConfirmPayload | null>(null);
     const researchInProgressId = guild.researchTask?.researchId;
+    const researchEndAt =
+        guild.researchTask?.completedAt ?? guild.researchTask?.completionTime ?? null;
+
+    // When the research timer elapses, keep nudging the server until researchTask is cleared
+    // (level up applied). A single GET_GUILD_INFO can lose to debounce/races.
+    useEffect(() => {
+        if (!researchInProgressId || researchEndAt == null) return;
+        let cancelled = false;
+        let intervalId: ReturnType<typeof setInterval> | null = null;
+
+        const syncCompletion = () => {
+            if (cancelled) return;
+            void handleAction({ type: 'GET_GUILD_INFO' });
+        };
+
+        const remainingMs = Math.max(0, researchEndAt - Date.now());
+        const startTimer = setTimeout(() => {
+            syncCompletion();
+            intervalId = setInterval(syncCompletion, 2500);
+        }, remainingMs);
+
+        return () => {
+            cancelled = true;
+            clearTimeout(startTimer);
+            if (intervalId) clearInterval(intervalId);
+        };
+    }, [researchInProgressId, researchEndAt, handleAction]);
 
     const researchProjectsForTab = useMemo(() => {
         return (Object.entries(GUILD_RESEARCH_PROJECTS) as [GuildResearchId, typeof GUILD_RESEARCH_PROJECTS[GuildResearchId]][])
@@ -385,7 +413,7 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
                     onClose={() => setPendingStart(null)}
                     onConfirm={() => {
                         const researchId = pendingStart.researchId;
-                        handlers.handleAction({
+                        handleAction({
                             type: 'GUILD_START_RESEARCH',
                             payload: { guildId: guild.id, researchId },
                         });

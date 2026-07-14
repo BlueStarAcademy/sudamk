@@ -59,6 +59,44 @@ describe('preservePveAiHiddenPresentationOnMerge', () => {
         expect((merged as any).aiHiddenItemAnimationEndTime).toBe(endTime);
     });
 
+    it('keeps longer incoming moveHistory when ai_thinking slim packet omits board', () => {
+        const endTime = Date.now() + 4000;
+        const existing = minimal({
+            gameStatus: 'playing',
+            currentPlayer: Player.White,
+            animation: {
+                type: 'ai_thinking',
+                startTime: Date.now(),
+                duration: 4000,
+                playerId: 'ai-player-01',
+            } as any,
+            aiHiddenItemAnimationEndTime: endTime,
+            moveHistory: [{ x: 4, y: 4, player: Player.Black }],
+        });
+        const incoming = minimal({
+            gameStatus: 'playing',
+            currentPlayer: Player.Black,
+            animation: {
+                type: 'ai_thinking',
+                startTime: Date.now(),
+                duration: 4000,
+                playerId: 'ai-player-01',
+            } as any,
+            aiHiddenItemAnimationEndTime: endTime,
+            moveHistory: [
+                { x: 4, y: 4, player: Player.Black },
+                { x: 3, y: 3, player: Player.White },
+            ],
+        });
+        delete (incoming as any).boardState;
+
+        const merged = preservePveAiHiddenPresentationOnMerge(incoming, existing);
+        expect(merged.moveHistory).toHaveLength(2);
+        expect(merged.moveHistory?.[1]).toEqual({ x: 3, y: 3, player: Player.White });
+        expect(merged.boardState).toEqual(existing.boardState);
+        expect(merged.currentPlayer).toBe(Player.Black);
+    });
+
     it('guildwar keeps active ai_thinking when slim playing packet omits animation', () => {
         const endTime = Date.now() + 5000;
         const existing = minimal({

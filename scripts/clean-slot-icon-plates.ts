@@ -1,6 +1,7 @@
 /**
- * Strip near-black / near-magenta plate backgrounds from installed slot icons
- * so they sit cleanly on grade frames.
+ * Optional magenta fringe cleanup ONLY.
+ * Never key near-black — that punches holes through black stones / dark gear onto grade frames.
+ * Prefer: npx tsx scripts/flatten-equip-icons-on-black.ts
  * Run: npx tsx scripts/clean-slot-icon-plates.ts
  */
 import fs from 'node:fs/promises';
@@ -8,17 +9,13 @@ import path from 'node:path';
 import sharp from 'sharp';
 
 const EQ = path.resolve('public/images/equipments');
-const SKIP = /bgi\.webp$/i;
+const SKIP = /bgi(\d*)\.webp$/i;
+const SKIP_NAME =
+    /^(Empty|Star\d|EnhanceMarker\d|moru|EquipStatusMarker|Fan|Board|Top|Bottom|Stone)/i;
 
-function isPlatePixel(r: number, g: number, b: number, a: number): boolean {
+function isMagentaPlate(r: number, g: number, b: number, a: number): boolean {
     if (a < 8) return true;
-    // near black
-    if (r < 28 && g < 28 && b < 28) return true;
-    // near magenta chroma leftovers
-    if (r > 180 && b > 180 && g < 140) return true;
-    // dark gray plate
-    if (r < 45 && g < 45 && b < 45 && Math.max(r, g, b) - Math.min(r, g, b) < 12) return true;
-    return false;
+    return r > 190 && b > 190 && g < 120;
 }
 
 async function cleanFile(file: string): Promise<void> {
@@ -36,7 +33,7 @@ async function cleanFile(file: string): Promise<void> {
         const idx = y * w + x;
         if (seen[idx]) return;
         const i = idx * ch;
-        if (!isPlatePixel(out[i]!, out[i + 1]!, out[i + 2]!, out[i + 3]!)) return;
+        if (!isMagentaPlate(out[i]!, out[i + 1]!, out[i + 2]!, out[i + 3]!)) return;
         seen[idx] = 1;
         stack.push(idx);
     };
@@ -50,29 +47,13 @@ async function cleanFile(file: string): Promise<void> {
     }
     while (stack.length) {
         const idx = stack.pop()!;
-        const i = idx * ch;
-        out[i + 3] = 0;
+        out[idx * ch + 3] = 0;
         const x = idx % w;
         const y = (idx / w) | 0;
         push(x + 1, y);
         push(x - 1, y);
         push(x, y + 1);
         push(x, y - 1);
-    }
-    // fringe: near-black next to transparent
-    for (let y = 1; y < h - 1; y++) {
-        for (let x = 1; x < w - 1; x++) {
-            const idx = y * w + x;
-            const i = idx * ch;
-            if (out[i + 3]! === 0) continue;
-            const nearClear =
-                out[((y - 1) * w + x) * ch + 3]! === 0 ||
-                out[((y + 1) * w + x) * ch + 3]! === 0 ||
-                out[(y * w + x - 1) * ch + 3]! === 0 ||
-                out[(y * w + x + 1) * ch + 3]! === 0;
-            if (!nearClear) continue;
-            if (isPlatePixel(out[i]!, out[i + 1]!, out[i + 2]!, 255)) out[i + 3] = 0;
-        }
     }
     await sharp(out, { raw: { width: w, height: h, channels: 4 } })
         .webp({ nearLossless: true, quality: 92, alphaQuality: 100, effort: 5 })
@@ -83,7 +64,7 @@ async function cleanFile(file: string): Promise<void> {
 async function main() {
     const entries = await fs.readdir(EQ);
     for (const name of entries) {
-        if (!name.endsWith('.webp') || SKIP.test(name)) continue;
+        if (!name.endsWith('.webp') || SKIP.test(name) || SKIP_NAME.test(name)) continue;
         await cleanFile(path.join(EQ, name));
     }
 }

@@ -54,6 +54,7 @@ import {
 } from '../shared/utils/guildWarSchedule.js';
 import { aggregateGuildWarBoardTotals } from '../shared/utils/guildWarBoardOwner.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { applyCompletedResearchAll } from './guildService.js';
 
 let lastSeasonProcessed: SeasonInfo | null = null;
 let lastWeeklyResetTimestamp: number | null = null;
@@ -62,6 +63,24 @@ let lastDailyRankingUpdateTimestamp: number | null = null;
 let lastDailyQuestResetTimestamp: number | null = null;
 let lastTowerRankingRewardTimestamp: number | null = null;
 let lastGuildWarMatchTimestamp: number | null = null;
+
+/**
+ * Sweep all guilds for research timers that have elapsed and apply level-ups.
+ * Called from the main loop so completion does not depend on a client poll.
+ */
+export async function processDueGuildResearch(now: number = Date.now()): Promise<boolean> {
+    const guilds = (await db.getKV<Record<string, types.Guild>>('guilds')) || {};
+    if (!applyCompletedResearchAll(guilds, now)) return false;
+
+    await db.setKV('guilds', guilds);
+    try {
+        await broadcast({ type: 'GUILD_UPDATE', payload: { guilds } });
+    } catch (err: any) {
+        console.warn('[processDueGuildResearch] GUILD_UPDATE failed:', err?.message);
+    }
+    console.log(`[processDueGuildResearch] Applied due research completions`);
+    return true;
+}
 
 const KV_GUILD_WAR_BOOTSTRAP_ONCE = 'guildWarBootstrapMatchOnce';
 const KV_GUILD_WAR_PRIME_BULK_ENROLL = 'guildWarPrimeBulkEnrollMark';
@@ -2268,32 +2287,45 @@ export async function processDailyQuestReset(): Promise<void> {
     console.log(`[DailyQuestReset] Reset daily quests for ${resetCount} users, tournament states for ${tournamentResetCount} users, started tournament sessions for ${tournamentSessionStartedCount} user-tournament combinations`);
 }
 
-// 매일 0시 KST에 도전의 탑 랭킹 보상 지급
+const KV_TOWER_MONTHLY_SETTLEMENT_YM = 'towerMonthlySettlementYm';
+
+/** KST 기준 `YYYY-M` (month 0–11) — 월간 정산 완료 표기 */
+function towerSettlementYmKey(year: number, month0: number): string {
+    return `${year}-${month0}`;
+}
+
+// 매월 1일 KST에 도전의 탑 랭킹 보상 지급 + 층수 리셋
+// 기존: 0:00~0:04 5분만 + 인메모리 플래그 → 서버 재시작/다운 시 한 달 통째로 누락
+// 변경: 1일 종일 캐치업 + KV에 정산 월 영속화
 export async function processTowerRankingRewards(): Promise<void> {
     const now = Date.now();
-    const kstHours = getKSTHours(now);
-    const kstMinutes = getKSTMinutes(now);
     const kstMonth = getKSTMonth(now);
     const kstYear = getKSTFullYear(now);
-    
-    // 매월 1일 0시에만 처리
-    const isFirstDayOfMonth = kstHours === 0 && kstMinutes < 5 && getKSTDate_UTC(now) === 1;
-    
-    if (!isFirstDayOfMonth) {
+    const settlementYm = towerSettlementYmKey(kstYear, kstMonth);
+
+    // 매월 1일(KST)에만 정산 — 시각 윈도는 넓혀 누락 방지
+    if (getKSTDate_UTC(now) !== 1) {
         return;
     }
-    
-    // 이미 이번 달에 처리했는지 확인
+
+    // KV에 이미 이번 달 정산이 찍혀 있으면 스킵 (프로세스 재시작에도 안전)
+    const settledYmFromKv = await db.getKV<string>(KV_TOWER_MONTHLY_SETTLEMENT_YM);
+    if (settledYmFromKv === settlementYm) {
+        lastTowerRankingRewardTimestamp = now;
+        return;
+    }
+
+    // 인메모리 중복 방지 (같은 프로세스 내 재진입)
     if (lastTowerRankingRewardTimestamp !== null) {
         const lastMonth = getKSTMonth(lastTowerRankingRewardTimestamp);
         const lastYear = getKSTFullYear(lastTowerRankingRewardTimestamp);
-        
         if (lastYear === kstYear && lastMonth === kstMonth) {
-            return; // Already processed this month
+            await db.setKV(KV_TOWER_MONTHLY_SETTLEMENT_YM, settlementYm);
+            return;
         }
     }
     
-    console.log(`[TowerRankingReward] Processing tower monthly rewards at first day of month KST`);
+    console.log(`[TowerRankingReward] Processing tower monthly rewards at first day of month KST (ym=${settlementYm})`);
     
     const allUsers = await db.getAllUsers();
     
@@ -2444,7 +2476,8 @@ export async function processTowerRankingRewards(): Promise<void> {
     }
     
     lastTowerRankingRewardTimestamp = now;
-    console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users`);
+    await db.setKV(KV_TOWER_MONTHLY_SETTLEMENT_YM, settlementYm);
+    console.log(`[TowerRankingReward] Sent monthly rewards to ${rewardCount} users (settlementYm=${settlementYm})`);
 }
 
 // 길드전 매칭: 월·목 23:00~23:59 KST 연출·짝 매칭 + 화·금 0:00~0:59 캐치업. 전쟁 개시·참여는 화·금 0:00 KST. 월·목 0:00~23:59 KST는 준비(입장 불가).

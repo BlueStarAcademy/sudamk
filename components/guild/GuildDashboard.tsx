@@ -1125,11 +1125,11 @@ const BossPanel: React.FC<{
                                             image={currentBoss.image}
                                             alt={translatedBossName}
                                             variant="hero"
-                                            className="h-full w-full"
+                                            className="relative z-0 h-full w-full"
                                             roundedClassName="rounded-xl"
                                             imgClassName="h-auto max-h-full w-auto max-w-full"
                                         />
-                                        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/45" />
+                                        <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-t from-black/55 via-transparent to-black/45" />
                                         <div className="absolute inset-x-0 top-0 z-10 flex flex-col gap-0.5 bg-gradient-to-b from-black/88 via-black/55 to-transparent px-1 pb-2 pt-1">
                                             <div
                                                 className="text-center text-[11px] font-bold tabular-nums text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]"
@@ -1246,12 +1246,12 @@ const BossPanel: React.FC<{
                                                 image={currentBoss.image}
                                                 alt={translatedBossName}
                                                 variant="hero"
-                                                className="h-full w-full"
+                                                className="relative z-0 h-full w-full"
                                                 roundedClassName="rounded-xl"
                                                 imgClassName="h-[92%] w-[92%]"
                                             />
                                         )}
-                                        <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch gap-1 px-2 pb-2 pt-8 bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
+                                        <div className={`absolute inset-x-0 bottom-0 z-10 flex flex-col items-stretch gap-1 px-2 pb-2 pt-8 bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
                                             <div className={`text-center font-bold tabular-nums text-white text-[12px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                                                 {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
                                             </div>

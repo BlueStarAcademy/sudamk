@@ -10,7 +10,7 @@ import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
 import { MATERIAL_ITEMS } from '../constants/items';
-import { ITEM_SLOT_ICON_SIZE_PCT, itemSlotIconStyle, GRADE_SLOT_SCRIM_CLASS } from '../shared/constants/itemSlotIconLayout.js';
+import { itemSlotIconStyleForGrade, GRADE_SLOT_SCRIM_CLASS } from '../shared/constants/itemSlotIconLayout.js';
 import { RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS, RESULT_MODAL_BOX_GOLD_CLASS } from './game/ResultModalRewardSlot.js';
 import { ITEM_OBTAIN_COUNT_BADGE_CLASS } from './game/ItemObtainModalShared.js';
 import { isPairPetMaterial, isPairSoulStoneItem } from '../shared/constants/petLobby.js';
@@ -186,7 +186,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                         src={imagePath}
                                                         alt=""
                                                         className="absolute z-[1] object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
-                                                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                                                        style={itemSlotIconStyleForGrade(item.grade)}
                                                     />
                                                 ) : null}
                                                 <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>
@@ -214,7 +214,7 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                     src={imagePath}
                                                     alt=""
                                                     className="absolute z-[1] object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
-                                                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                                                    style={itemSlotIconStyleForGrade(item.grade)}
                                                 />
                                             ) : null}
                                             {!isPairPetMaterial(item) ? (

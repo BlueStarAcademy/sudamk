@@ -92,7 +92,7 @@ export const EQUIPMENT_POOL: (Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipp
     { name: '백옥 바둑돌', slot: 'stones', image: '/images/equipments/Stone4.webp', grade: ItemGrade.Epic, stars: 0, type: 'equipment', description: '영롱한 빛을 내는 청옥과 백옥으로 만들어진 바둑돌입니다.' },
     { name: '용안 바둑돌', slot: 'stones', image: '/images/equipments/Stone5.webp', grade: ItemGrade.Legendary, stars: 0, type: 'equipment', description: '해와 달, 별의 기운을 담아 벼려낸 전설적인 바둑돌입니다.' },
     { name: '천룡 바둑돌', slot: 'stones', image: '/images/equipments/Stone6.webp', grade: ItemGrade.Mythic, stars: 0, type: 'equipment', description: '밤하늘의 은하수를 담아놓은 듯한 신화 속 바둑돌입니다.' },
-    // --- 초월: 신룡 시리즈 — 신화 3개 합성 대성공 또는 우편·관리 지급 등
+    // --- 초월: 신룡 시리즈 — 신화(천룡)와 이름 구분, 스프라이트 *7 — 신화 3개 합성 대성공 또는 우편·관리 지급 등
     { name: '신룡 바람 부채', slot: 'fan', image: '/images/equipments/Fan7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '하늘을 가르는 신룡의 숨결을 담아, 전장의 흐름마저 뒤집는 초월의 부채입니다.' },
     { name: '신룡 바둑판', slot: 'board', image: '/images/equipments/Board7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '별자리의 궤적이 새겨져, 한 수마다 승리의 길을 열어 주는 초월의 바둑판입니다.' },
     { name: '신룡 도복 상의', slot: 'top', image: '/images/equipments/Top7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '신룡의 비늘빛으로 직조되어, 흔들림 없는 집중을 부여하는 초월의 도복 상의입니다.' },
@@ -101,7 +101,7 @@ export const EQUIPMENT_POOL: (Omit<InventoryItem, 'id' | 'createdAt' | 'isEquipp
     { name: '신룡 바둑돌', slot: 'stones', image: '/images/equipments/Stone7.webp', grade: ItemGrade.Transcendent, stars: 0, type: 'equipment', description: '새벽별의 파편을 벼려 만들어, 단 한 수로도 판세를 지배하는 초월의 바둑돌입니다.' },
 ];
 
-/** 구 풀: 초월 장비도 신화와 동일한 「천룡 …」 이름이었음 — DB·우편 호환 */
+/** 초월이 예전에 신화와 같은 「천룡 …」 이름으로 저장된 경우 → 신룡 세트로 (등급=초월일 때만 적용) */
 export const LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW: Readonly<Record<string, string>> = {
     '천룡 바람 부채': '신룡 바람 부채',
     '천룡 바둑판': '신룡 바둑판',
@@ -111,7 +111,7 @@ export const LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW: Readonly<Record<string, 
     '천룡 바둑돌': '신룡 바둑돌',
 };
 
-/** 우편·인벤토리 등 템플릿 조회용 표시 이름 */
+/** 우편·인벤토리 등 템플릿 조회용 표시 이름 (초월 등급의 천룡 표기 → 신룡) */
 export function resolveEquipmentTemplateLookupName(name: string | undefined, grade?: ItemGrade): string | undefined {
     if (!name) return name;
     if (grade === ItemGrade.Transcendent && LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW[name]) {

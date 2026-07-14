@@ -10,7 +10,7 @@ import DraggableWindow, {
 import { InventoryItem, ItemGrade } from '../types.js';
 import { audioService } from '../services/audioService.js';
 import { MATERIAL_ITEMS } from '../constants/items.js';
-import { ITEM_SLOT_ICON_SIZE_PCT, itemSlotIconStyle } from '../shared/constants/itemSlotIconLayout.js';
+import { itemSlotIconStyleForGrade } from '../shared/constants/itemSlotIconLayout.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 import { RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS, RESULT_MODAL_BOX_GOLD_CLASS, RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './game/ResultModalRewardSlot.js';
 import { ITEM_OBTAIN_COUNT_BADGE_CLASS, SingleItemObtainCard } from './game/ItemObtainModalShared.js';
@@ -42,7 +42,8 @@ const gradeBorderStyles: Partial<Record<ItemGrade, string>> = {
     uncommon: 'border-pulse-uncommon',
     rare: 'border-pulse-rare',
     epic: 'border-pulse-epic',
-    legendary: 'border-pulse-legendary',
+    // Legendary: static rim — animated rose glow reads as "fire" around the icon
+    legendary: 'border-rose-700/70',
     mythic: 'border-pulse-mythic',
 };
 
@@ -74,7 +75,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
         switch (grade) {
             case 'rare': return 'item-glow-rare';
             case 'epic': return 'item-glow-epic';
-            case 'legendary': return 'item-glow-legendary';
+            case 'legendary': return '';
             case 'mythic': return 'item-glow-mythic';
             case 'transcendent': return 'item-glow-transcendent';
             default: return '';
@@ -272,7 +273,7 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                         src={item.image}
                                         alt=""
                                         className="absolute object-contain"
-                                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                                        style={itemSlotIconStyleForGrade(item.grade)}
                                     />
                                 ) : null}
                                 {stackQty > 1 && !isPairPetMaterial(item) ? (

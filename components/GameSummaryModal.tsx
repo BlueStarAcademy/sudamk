@@ -346,8 +346,8 @@ const XpBar: React.FC<{
                 )}
 
                 <span
-                    className={`absolute inset-0 z-[10] flex items-center justify-center ${
-                        pcCompact ? 'text-[10px]' : 'text-xs min-[1024px]:text-sm'
+                    className={`absolute inset-0 z-[10] flex items-center justify-center whitespace-nowrap px-1 ${
+                        pcCompact ? 'text-[9px] leading-none' : 'text-[11px] leading-none min-[1024px]:text-xs'
                     } font-bold text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)]`}
                 >
                     {barCenterLabel}
@@ -355,8 +355,8 @@ const XpBar: React.FC<{
 
                 {levelUp && (
                     <span
-                        className={`absolute inset-0 z-[11] flex items-center justify-center ${
-                            pcCompact ? 'text-[10px]' : 'text-xs min-[1024px]:text-sm'
+                        className={`absolute inset-0 z-[11] flex items-center justify-center whitespace-nowrap ${
+                            pcCompact ? 'text-[9px] leading-none' : 'text-[11px] leading-none min-[1024px]:text-xs'
                         } font-bold text-white animate-pulse`}
                         style={{ textShadow: '0 0 5px black' }}
                     >
@@ -368,13 +368,13 @@ const XpBar: React.FC<{
                 <span
                     key={gainTextKey}
                     className={`${
-                        pcCompact ? 'w-[3.5rem] shrink-0 text-xs' : 'w-[4.25rem] min-[1024px]:w-20 text-sm'
-                    } inline-flex shrink-0 items-center justify-end font-bold whitespace-nowrap text-green-400 ${
+                        pcCompact ? 'min-w-[3.25rem] shrink-0 text-[11px] leading-none' : 'min-w-[4rem] shrink-0 text-sm leading-none min-[1024px]:min-w-[4.5rem]'
+                    } inline-flex items-center justify-end font-bold whitespace-nowrap text-green-400 ${
                         showGainText ? 'animate-fade-in-xp' : 'pointer-events-none opacity-0'
                     }`}
                     aria-hidden={!showGainText}
                 >
-                    +{xpGain} XP
+                    +{xpGain.toLocaleString()} XP
                 </span>
             )}
              <style>{`
@@ -1981,12 +1981,12 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             return (
                 <div className="flex w-full min-w-0 items-center gap-1.5">
                     <div className="relative flex h-3.5 w-full min-w-0 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-slate-950/80">
-                        <span className="text-[10px] font-bold text-slate-300" style={mobileMetaTextStyle}>
+                        <span className="whitespace-nowrap text-[10px] font-bold leading-none text-slate-300" style={mobileMetaTextStyle}>
                             0 XP
                         </span>
                     </div>
                     <span
-                        className="w-14 shrink-0 whitespace-nowrap text-xs font-bold text-slate-300"
+                        className="min-w-[3.25rem] shrink-0 whitespace-nowrap text-xs font-bold leading-none text-slate-300"
                         style={mobileBodyTextStyle}
                     >
                         +0 XP

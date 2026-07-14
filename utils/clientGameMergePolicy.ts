@@ -150,6 +150,7 @@ function isPveAiHiddenPresentationSession(
 /**
  * 모험·길드전 등 liveGames: goAiBot AI 히든 연출 패킷이 boardState를 생략할 때
  * 기존 판·수순·연출 종료 시각을 유지한다.
+ * 단, incoming 수순이 더 길면(AI가 이미 둔 경우) 짧은 기존 수순으로 덮지 않는다.
  */
 export function preservePveAiHiddenPresentationOnMerge(
     incoming: LiveGameSession,
@@ -167,15 +168,27 @@ export function preservePveAiHiddenPresentationOnMerge(
     let merged = incoming;
     const incomingHasBoard = boardGridHasStones(incoming.boardState);
     const existingHasBoard = boardGridHasStones(existing.boardState);
+    const incomingMhLen = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
+    const existingMhLen = Array.isArray(existing.moveHistory) ? existing.moveHistory.length : 0;
     if (!incomingHasBoard && existingHasBoard) {
-        merged = {
-            ...merged,
-            boardState: existing.boardState,
-            moveHistory:
-                Array.isArray(existing.moveHistory) && existing.moveHistory.length > 0
-                    ? existing.moveHistory
-                    : merged.moveHistory,
-        };
+        // Prefer longer authoritative history: dropping a newer AI move while keeping
+        // currentPlayer from the packet makes the turn look like a PASS with invisible stones.
+        if (incomingMhLen > existingMhLen) {
+            merged = {
+                ...merged,
+                boardState: existing.boardState,
+                moveHistory: incoming.moveHistory,
+            };
+        } else {
+            merged = {
+                ...merged,
+                boardState: existing.boardState,
+                moveHistory:
+                    Array.isArray(existing.moveHistory) && existing.moveHistory.length > 0
+                        ? existing.moveHistory
+                        : merged.moveHistory,
+            };
+        }
     }
 
     const existingEnd = (existing as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime;

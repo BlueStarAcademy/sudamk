@@ -33,6 +33,8 @@ import AlertModal from './AlertModal.js';
 import ItemObtainedModal from './ItemObtainedModal.js';
 import BulkItemObtainedModal from './BulkItemObtainedModal.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
+import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
+import { itemSlotIconStyleForGrade } from '../shared/constants/itemSlotIconLayout.js';
 import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import {
     MOBILE_EQUIPMENT_DETAIL_BODY_PADDING_CLASS,
@@ -353,14 +355,6 @@ const BAG_SCROLLBAR_Y_CLASS =
 /** 거래 이력 탭에 표시: 구매·정산·환전 */
 const getBuyListingGroupKey = (entry: Pick<ExchangeListing, 'itemName' | 'itemGrade' | 'itemStars' | 'itemSlot' | 'currency'>): string =>
     [entry.itemName, entry.itemGrade ?? ItemGrade.Normal, entry.itemStars ?? 0, entry.itemSlot ?? 'none', entry.currency].join('::');
-
-const getStarVisual = (stars: number): { image: string; color: string } | null => {
-    if (stars >= 10) return { image: '/images/equipments/Star4.webp', color: 'prism-text-effect' };
-    if (stars >= 7) return { image: '/images/equipments/Star3.webp', color: 'text-purple-400' };
-    if (stars >= 4) return { image: '/images/equipments/Star2.webp', color: 'text-amber-400' };
-    if (stars >= 1) return { image: '/images/equipments/Star1.webp', color: 'text-white' };
-    return null;
-};
 
 const ExchangeModal: React.FC<ExchangeModalProps> = ({
     currentUser,
@@ -1792,7 +1786,6 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                             const item = pendingRegistration.item;
                             const gradeKey = (item.grade ?? ItemGrade.Normal) as ItemGrade;
                             const gradeStyle = gradeStyles[gradeKey];
-                            const starVisual = getStarVisual(item.stars ?? 0);
                             const isTranscendent = gradeKey === 'transcendent';
                             return (
                         <div className="rounded-lg border border-slate-600/60 bg-slate-900/45 p-3">
@@ -1803,13 +1796,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         alt={gradeStyle?.name ?? gradeKey}
                                         className="absolute inset-0 h-full w-full object-cover"
                                     />
-                                    <img src={item.image} alt={item.name} className="absolute inset-0 m-auto h-[72%] w-[72%] object-contain" />
-                                    {starVisual ? (
-                                        <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                            <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                            <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{item.stars}</span>
-                                        </div>
-                                    ) : null}
+                                    <img src={item.image} alt={item.name} className="absolute z-[2] object-contain" style={itemSlotIconStyleForGrade(gradeKey)} />
+                                    <EquipmentEnhancementBadge stars={item.stars} />
                                 </div>
                                 <div className="min-w-0">
                                     <p className="text-sm font-semibold break-words">{item.name}</p>
@@ -1931,20 +1919,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         <img
                                             src={pendingCancelListing.itemImage}
                                             alt={pendingCancelListing.itemName}
-                                            className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain"
+                                            className="absolute z-[2] object-contain"
+                                            style={itemSlotIconStyleForGrade((pendingCancelListing.itemGrade ?? ItemGrade.Normal) as ItemGrade)}
                                         />
                                     ) : null}
-                                    {(() => {
-                                        const stars = pendingCancelListing.itemStars ?? 0;
-                                        const starVisual = getStarVisual(stars);
-                                        if (!starVisual || stars <= 0) return null;
-                                        return (
-                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                                <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                                <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{stars}</span>
-                                            </div>
-                                        );
-                                    })()}
+                                    <EquipmentEnhancementBadge stars={pendingCancelListing.itemStars ?? 0} />
                                 </div>
                             </div>
                             <p className="text-sm font-semibold text-amber-100">{pendingCancelListing.itemName}</p>
@@ -1996,20 +1975,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                         <img
                                             src={purchaseSuccessData.inventoryItem?.image ?? purchaseSuccessData.listing.itemImage}
                                             alt={purchaseSuccessData.listing.itemName}
-                                            className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain"
+                                            className="absolute z-[2] object-contain"
+                                            style={itemSlotIconStyleForGrade((purchaseSuccessData.inventoryItem?.grade ?? purchaseSuccessData.listing.itemGrade ?? ItemGrade.Normal) as ItemGrade)}
                                         />
                                     ) : null}
-                                    {(() => {
-                                        const stars = purchaseSuccessData.inventoryItem?.stars ?? purchaseSuccessData.listing.itemStars ?? 0;
-                                        const starVisual = getStarVisual(stars);
-                                        if (!starVisual || stars <= 0) return null;
-                                        return (
-                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                                <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                                <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{stars}</span>
-                                            </div>
-                                        );
-                                    })()}
+                                    <EquipmentEnhancementBadge stars={purchaseSuccessData.inventoryItem?.stars ?? purchaseSuccessData.listing.itemStars ?? 0} />
                                 </div>
                             </div>
                             <p className="text-sm font-semibold text-amber-100">{purchaseSuccessData.listing.itemName}</p>
@@ -2355,7 +2325,6 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                             const gradeKey = (listing.itemGrade ?? ItemGrade.Normal) as ItemGrade;
                                             const gradeLabel = localizedGrade(gradeKey);
                                             const gradeColor = gradeStyles[gradeKey]?.color ?? 'text-slate-200';
-                                            const starVisual = getStarVisual(listing.itemStars ?? 0);
                                             const isMyListing = listing.sellerId === currentUser.id;
                                             return (
                                             <button
@@ -2382,16 +2351,9 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                 className="absolute inset-0 h-full w-full object-cover"
                                                             />
                                                             {listing.itemImage ? (
-                                                                <img src={listing.itemImage} alt={listing.itemName} className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" />
+                                                                <img src={listing.itemImage} alt={listing.itemName} className="absolute z-[2] object-contain" style={itemSlotIconStyleForGrade(gradeKey)} />
                                                             ) : null}
-                                                            {starVisual ? (
-                                                                <div
-                                                                    className={`absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 ${mobileExchange ? 'px-0.5 py-px' : 'px-1 py-0.5'}`}
-                                                                >
-                                                                    <img src={starVisual.image} alt="" className={mobileExchange ? 'h-2.5 w-2.5' : 'h-3 w-3'} />
-                                                                    <span className={`font-bold leading-none ${mobileExchange ? 'text-[8px]' : 'text-[10px]'} ${starVisual.color}`}>{listing.itemStars}</span>
-                                                                </div>
-                                                            ) : null}
+                                                            <EquipmentEnhancementBadge stars={listing.itemStars} />
                                                         </div>
                                                         {isMyListing ? (
                                                             <span
@@ -2546,20 +2508,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                         <img
                                                                             src={slot.itemImage}
                                                                             alt={slot.itemName}
-                                                                            className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain"
+                                                                            className="absolute z-[2] object-contain"
+                                                                            style={itemSlotIconStyleForGrade(slot.itemGrade as ItemGrade)}
                                                                         />
                                                                     ) : null}
-                                                                    {(() => {
-                                                                        const stars = slot.itemStars ?? 0;
-                                                                        const starVisual = getStarVisual(stars);
-                                                                        if (!starVisual || stars <= 0) return null;
-                                                                        return (
-                                                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-0.5 py-px">
-                                                                                <img src={starVisual.image} alt="" className="h-2.5 w-2.5" />
-                                                                                <span className={`text-[8px] font-bold leading-none ${starVisual.color}`}>{stars}</span>
-                                                                            </div>
-                                                                        );
-                                                                    })()}
+                                                                    <EquipmentEnhancementBadge stars={slot.itemStars} />
                                                                 </div>
                                                                 <div className="min-w-0 text-center">
                                                                     <span className={`block text-[10px] font-semibold leading-none ${slotGradeColor}`}>[{slotGradeLabel}]</span>
@@ -2697,20 +2650,11 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                             <img
                                                                                 src={slot.itemImage}
                                                                                 alt={slot.itemName}
-                                                                                className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain"
+                                                                                className="absolute z-[2] object-contain"
+                                                                                style={itemSlotIconStyleForGrade(slot.itemGrade as ItemGrade)}
                                                                             />
                                                                         ) : null}
-                                                                        {(() => {
-                                                                            const stars = slot.itemStars ?? 0;
-                                                                            const starVisual = getStarVisual(stars);
-                                                                            if (!starVisual || stars <= 0) return null;
-                                                                            return (
-                                                                                <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                                                                    <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                                                                    <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{stars}</span>
-                                                                                </div>
-                                                                            );
-                                                                        })()}
+                                                                        <EquipmentEnhancementBadge stars={slot.itemStars} />
                                                                     </div>
                                                                     <div className="min-w-0 pl-1 text-center">
                                                                         <span className={`block text-sm font-semibold leading-none ${slotGradeColor}`}>[{slotGradeLabel}]</span>
@@ -2829,18 +2773,10 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                             <img
                                                                 src={item.image}
                                                                 alt={item.name}
-                                                                className="absolute inset-0 m-auto h-[64%] w-[64%] object-contain"
+                                                                className="absolute z-[2] object-contain"
+                                                                style={itemSlotIconStyleForGrade(item.grade as ItemGrade)}
                                                             />
-                                                            {(() => {
-                                                                const starVisual = getStarVisual(item.stars ?? 0);
-                                                                if (!starVisual) return null;
-                                                                return (
-                                                                    <div className="absolute right-1 top-1 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                                                        <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                                                        <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{item.stars}</span>
-                                                                    </div>
-                                                                );
-                                                            })()}
+                                                            <EquipmentEnhancementBadge stars={item.stars} />
                                                         </button>
                                                     ))}
                                                 </div>
@@ -2876,7 +2812,6 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                 const isCurrency = entry.kind === 'currency';
                                                 const gradeKey = entry.itemGrade ?? ItemGrade.Normal;
                                                 const gradeLabel = localizedGrade(gradeKey);
-                                                const starVisual = getStarVisual(entry.itemStars ?? 0);
                                                 const currencyIcon = entry.currency === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp';
                                                 const currencyAlt = entry.currency === 'gold' ? tCommon('resources.gold') : tCommon('resources.diamonds');
                                                 return (
@@ -2901,13 +2836,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                                 ) : (
                                                                     <>
                                                                         <img src={gradeBackgrounds[gradeKey]} alt={gradeLabel} className="absolute inset-0 h-full w-full object-cover" />
-                                                                        {entry.itemImage ? <img src={entry.itemImage} alt={entry.itemName} className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" /> : null}
-                                                                        {starVisual ? (
-                                                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/55 px-1 py-0.5">
-                                                                                <img src={starVisual.image} alt="" className="h-3 w-3" />
-                                                                                <span className={`text-[10px] font-bold leading-none ${starVisual.color}`}>{entry.itemStars}</span>
-                                                                            </div>
-                                                                        ) : null}
+                                                                        {entry.itemImage ? <img src={entry.itemImage} alt={entry.itemName} className="absolute z-[2] object-contain" style={itemSlotIconStyleForGrade(gradeKey)} /> : null}
+                                                                        <EquipmentEnhancementBadge stars={entry.itemStars} />
                                                                     </>
                                                                 )}
                                                             </div>
@@ -3151,17 +3081,8 @@ const ExchangeModal: React.FC<ExchangeModalProps> = ({
                                                     className={`relative shrink-0 overflow-hidden rounded bg-black/25 ring-1 ring-slate-600/60 ${mobileExchange ? 'h-9 w-9' : 'h-10 w-10'}`}
                                                 >
                                                     <img src={gradeBackgrounds[row.itemGrade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                                                    <img src={row.itemImage} alt="" className="absolute inset-0 m-auto h-[74%] w-[74%] object-contain" />
-                                                    {(() => {
-                                                        const starVisual = getStarVisual(row.itemStars ?? 0);
-                                                        if (!starVisual) return null;
-                                                        return (
-                                                            <div className="absolute right-0.5 top-0.5 z-10 flex items-center gap-0.5 rounded bg-black/60 px-0.5 py-[1px]">
-                                                                <img src={starVisual.image} alt="" className="h-2.5 w-2.5 object-contain" />
-                                                                <span className={`font-bold leading-none ${starVisual.color} ${mobileExchange ? 'text-[10px]' : 'text-[8px]'}`}>{row.itemStars}</span>
-                                                            </div>
-                                                        );
-                                                    })()}
+                                                    <img src={row.itemImage} alt="" className="absolute z-[2] object-contain" style={itemSlotIconStyleForGrade(row.itemGrade)} />
+                                                    <EquipmentEnhancementBadge stars={row.itemStars} />
                                                 </div>
                                                 <p className={`text-center font-semibold text-slate-200 ${mobileExchange ? 'text-[11px] leading-tight' : 'text-sm'}`}>{row.statusText}</p>
                                                 <p

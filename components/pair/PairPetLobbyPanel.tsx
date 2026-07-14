@@ -1646,20 +1646,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             : undefined;
 
         if (aiTab === 'info' || aiTab === 'training' || aiTab === 'shop') {
-            const isRepPet = Boolean(
-                isPairPetMaterial(it) &&
-                    !isPairEggItem(it) &&
-                    it.templateId &&
-                    equippedTid &&
-                    it.templateId === equippedTid &&
-                    (!equippedItemId || equippedItemId === it.id),
-            );
+            const isRepPet = Boolean(equippedPetRow && equippedPetRow.id === it.id);
+            /** 드래그 가능(대표펫 포함) — 대표펫은 드롭/탭 시 안내 후 거부 */
             const dragPet =
                 aiTab === 'training' &&
                 isPairPetMaterial(it) &&
                 !isPairEggItem(it) &&
                 !inTraining &&
-                !isRepPet &&
                 !useTapTrainingFlow;
             const canTapPetToTrain =
                 aiTab === 'training' &&
@@ -1680,7 +1673,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                       : undefined;
             const thumbTitle =
                 petViewerTitle ??
-                (aiTab === 'training' && isRepPet ? t('training.repPetViewerHint') : trainInvTitle);
+                (aiTab === 'training' && isRepPet ? t('training.repPetCannotTrain') : trainInvTitle);
 
             return (
                 <div
@@ -1700,6 +1693,15 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                         onClick={() => {
                             const canDetail = isPairPetMaterial(it) && !isPairEggItem(it) && it.templateId;
                             if (!canDetail) return;
+                            if (
+                                useTapTrainingFlow &&
+                                aiTab === 'training' &&
+                                isRepPet &&
+                                trainingMobilePickSlotIndex != null
+                            ) {
+                                window.alert(t('training.repPetCannotTrain'));
+                                return;
+                            }
                             if (canTapPetToTrain && trainingMobilePickSlotIndex != null) {
                                 setTrainingStartConfirm({ slotIndex: trainingMobilePickSlotIndex, itemId: it.id });
                                 setTrainingMobilePickSlotIndex(null);
@@ -1770,6 +1772,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             if (trainingStartConfirm != null || isBusy) return;
             const itemId = e.dataTransfer.getData('text/pair-training-pet');
             if (!itemId) return;
+            if (equippedPetRow && equippedPetRow.id === itemId) {
+                window.alert(t('training.repPetCannotTrain'));
+                return;
+            }
             setTrainingStartConfirm({ slotIndex, itemId });
         };
 
@@ -2817,11 +2823,20 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 disabled={isBusy || !petRow}
                                                 onClick={async () => {
                                                     if (!petRow) return;
+                                                    if (repPet?.id === petRow.id) {
+                                                        window.alert(t('training.repPetCannotTrain'));
+                                                        setTrainingStartConfirm(null);
+                                                        return;
+                                                    }
                                                     const res = await applyPetAction({
                                                         type: 'PAIR_PET_START_TRAINING',
                                                         payload: { slotIndex, itemId },
                                                     });
-                                                    if (res && (res as { error?: string }).error) return;
+                                                    const startErr = res && (res as { error?: string }).error;
+                                                    if (startErr) {
+                                                        window.alert(startErr);
+                                                        return;
+                                                    }
                                                     setTrainingStartConfirm(null);
                                                 }}
                                                 colorScheme="none"

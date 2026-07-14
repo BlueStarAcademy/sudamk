@@ -23,6 +23,7 @@ import {
 } from './modes/towerPlayerHidden.js';
 import { handlePlayfulGameAction } from './modes/playful.js';
 import { deepClone } from './utils/cloneHelper.js';
+import { runPerGameSerial } from './utils/perGameSerialQueue.js';
 import { createDefaultUser, createDefaultQuests } from './initialData.ts';
 import { containsProfanity } from '../profanity.js';
 import * as mannerService from './mannerService.js';
@@ -55,7 +56,6 @@ export type HandleActionResult = {
     error?: string;
 };
 
-const gameActionQueues = new Map<string, Promise<unknown>>();
 const ALKKAGI_AI_FIRST_ATTACK_DELAY_MS = 2000;
 const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
 
@@ -83,15 +83,7 @@ export const PLAYFUL_SERVER_ACTION_TYPES = new Set<string>([
 ]);
 
 async function runGameActionSerial<T>(gameId: string, task: () => Promise<T>): Promise<T> {
-    const previous = gameActionQueues.get(gameId) ?? Promise.resolve();
-    const nextTask = previous.catch(() => undefined).then(task);
-    const queueTail = nextTask.finally(() => {
-        if (gameActionQueues.get(gameId) === queueTail) {
-            gameActionQueues.delete(gameId);
-        }
-    });
-    gameActionQueues.set(gameId, queueTail);
-    return nextTask;
+    return runPerGameSerial(gameId, task);
 }
 
 const clonePointListFromPayload = (value: unknown): types.Point[] | undefined => {

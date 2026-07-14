@@ -25,6 +25,13 @@ import { getChampionshipVersusDisplayRating } from '../shared/utils/championship
 import { getSeasonalRankingTierName } from '../shared/constants/ranking.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
 import GuildMark from './guild/GuildMark.js';
+import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
+import {
+    GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
+    GRADE_SLOT_SCRIM_CLASS,
+    gradeSlotBorderOverlayClass,
+    itemSlotIconStyleForGrade,
+} from '../shared/constants/itemSlotIconLayout.js';
 
 // Re-using components from Profile.tsx for consistency.
 const getXpRequirementForLevel = (level: number): number => {
@@ -105,35 +112,6 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
-const getStarDisplay = (stars: number, notEnhancedTitle: string) => {
-    let starImage = '';
-    let numberColor = '';
-
-    if (stars >= 10) {
-        starImage = '/images/equipments/Star4.webp';
-        numberColor = "prism-text-effect";
-    } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.webp';
-        numberColor = "text-purple-400";
-    } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.webp';
-        numberColor = "text-amber-400";
-    } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.webp';
-        numberColor = "text-white";
-    } else {
-        return <img src="/images/equipments/Star1.webp" alt="star" className="w-4 h-4 inline-block opacity-30" title={notEnhancedTitle} />;
-    }
-
-    // Add text shadow here for consistency across all usages
-    return (
-        <span className="flex items-center gap-0.5" style={{ textShadow: '1px 1px 2px black, 0 0 5px black' }}>
-            <img src={starImage} alt="star" className="w-4 h-4" />
-            <span className={`font-bold ${numberColor}`}>{stars}</span>
-        </span>
-    );
-};
-
 const EquipmentSlotDisplay: React.FC<{
     slot: EquipmentSlot;
     item?: InventoryItem;
@@ -143,35 +121,33 @@ const EquipmentSlotDisplay: React.FC<{
     /** 타인 프로필: compact 슬롯 안에서 장비 아이콘만 살짝 확대 */
     largerCompactIcon?: boolean;
 }> = ({ slot, item, onClick, compact, largerCompactIcon }) => {
-    const { t } = useTranslation('profile');
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     const round = compact ? 'rounded-lg' : 'rounded-xl';
+    void largerCompactIcon;
 
     if (item) {
         const isTranscendent = item.grade === ItemGrade.Transcendent;
-        const iconPct = compact ? (largerCompactIcon ? '76%' : '68%') : '80%';
-        const iconPad = compact ? (largerCompactIcon ? 'p-1' : 'p-1.5') : 'p-3';
         return (
             <div
-                className={`relative aspect-square w-full border border-white/[0.1] bg-gradient-to-br from-zinc-900/90 to-black/60 shadow-inner ring-1 ring-inset ring-white/[0.05] ${round} ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+                className={`relative aspect-square w-full overflow-hidden border border-white/[0.1] bg-gradient-to-br from-zinc-900/90 to-black/60 shadow-inner ring-1 ring-inset ring-white/[0.05] ${round} ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={item.name}
                 onClick={onClick}
-                style={{ border: isTranscendent ? undefined : undefined }}
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 h-full w-full rounded-md object-cover" />
-                <div
-                    className={`absolute z-10 font-bold ${compact ? 'right-1 top-0.5 origin-top-right scale-[0.82]' : 'right-2.5 top-1 text-sm'}`}
-                >
-                    {getStarDisplay(item.stars, t('notEnhanced'))}
-                </div>
+                <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
                 {item.image && (
                     <img
                         src={item.image}
                         alt={item.name}
-                        className={`absolute object-contain ${iconPad}`}
-                        style={{ width: iconPct, height: iconPct, left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                        className="absolute z-[2] object-contain"
+                        style={itemSlotIconStyleForGrade(item.grade)}
                     />
                 )}
+                <div
+                    className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                    aria-hidden
+                />
+                <EquipmentEnhancementBadge stars={item.stars} />
             </div>
         );
     }

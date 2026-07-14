@@ -126,20 +126,20 @@ export const ResultModalXpRewardBadge: React.FC<{
             title={title ?? defaultTitle}
         >
             <div
-                className={`flex ${DENSITY_BOX[density]} shrink-0 flex-col items-center justify-center rounded-lg border ring-1 ring-inset ${v.box}`}
+                className={`flex ${DENSITY_BOX[density]} shrink-0 flex-col items-center justify-center overflow-hidden rounded-lg border px-0.5 ring-1 ring-inset ${v.box}`}
                 aria-hidden
             >
-                {modeLabel ? <span className={labelModeClass}>{modeLabel}</span> : null}
-                <span className={labelExpClass}>EXP</span>
+                {modeLabel ? <span className={`${labelModeClass} whitespace-nowrap`}>{modeLabel}</span> : null}
+                <span className={`${labelExpClass} whitespace-nowrap`}>EXP</span>
             </div>
             {!hideAmount && (
                 <span
-                    className={`text-center ${isCompact ? `flex max-w-[5.5rem] flex-wrap items-baseline justify-center gap-x-0.5 ${v.amountCompact}` : v.amount}`}
+                    className={`text-center ${isCompact ? `flex max-w-[5.5rem] flex-nowrap items-baseline justify-center gap-x-0.5 ${v.amountCompact}` : v.amount}`}
                 >
                     {showPetZero ? (
                         <span className="whitespace-nowrap text-slate-400">{tx("game:resultModal.noChange")}</span>
                     ) : variant === 'pet' && petXpSpecSplit ? (
-                        <span className="flex flex-wrap items-baseline justify-center gap-x-0.5 whitespace-nowrap">
+                        <span className="inline-flex flex-nowrap items-baseline justify-center gap-x-0.5 whitespace-nowrap">
                             <span>+{petXpSpecSplit.base.toLocaleString()}</span>
                             {petXpSpecSplit.spec > 0 ? (
                                 <span className="font-semibold text-emerald-300/95">(+{petXpSpecSplit.spec.toLocaleString()})</span>

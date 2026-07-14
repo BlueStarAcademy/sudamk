@@ -40,5 +40,44 @@ describe('normalizeInventoryEquipmentItem equipment image', () => {
         };
         const out = normalizeInventoryEquipmentItem(raw);
         expect(out.image).toBe('/images/equipments/Board7.webp');
+        expect(out.name).toBe('신룡 바둑판');
+    });
+
+    it('renames legacy transcendent 천룡 names to 신룡 set (mythic 천룡 untouched)', () => {
+        const rawTrans: InventoryItem = {
+            id: 'eq-3',
+            name: '천룡 바둑판',
+            description: 'legacy cheollyong name on transcendent',
+            type: 'equipment',
+            slot: 'board',
+            grade: ItemGrade.Transcendent,
+            image: '/images/equipments/Board7.webp',
+            stars: 0,
+            level: 1,
+            quantity: 1,
+            isEquipped: false,
+            createdAt: 1,
+        };
+        const outTrans = normalizeInventoryEquipmentItem(rawTrans);
+        expect(outTrans.name).toBe('신룡 바둑판');
+        expect(outTrans.image).toBe('/images/equipments/Board7.webp');
+
+        const rawMythic: InventoryItem = {
+            id: 'eq-4',
+            name: '천룡 바둑판',
+            description: 'mythic cheollyong stays',
+            type: 'equipment',
+            slot: 'board',
+            grade: ItemGrade.Mythic,
+            image: '/images/equipments/Board6.webp',
+            stars: 0,
+            level: 1,
+            quantity: 1,
+            isEquipped: false,
+            createdAt: 1,
+        };
+        const outMythic = normalizeInventoryEquipmentItem(rawMythic);
+        expect(outMythic.name).toBe('천룡 바둑판');
+        expect(outMythic.image).toBe('/images/equipments/Board6.webp');
     });
 });

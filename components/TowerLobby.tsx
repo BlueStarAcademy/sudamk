@@ -154,12 +154,13 @@ const TOWER_LOBBY_INVENTORY_ITEMS = [
     { itemKey: 'refresh', icon: '/images/button/reflesh.webp', namesOrIds: TOWER_ITEM_REFRESH_NAMES },
 ] as const;
 
+/** 서버 `BUY_TOWER_ITEM` / `TOWER_SHOP_ITEMS.itemId` 와 동일해야 함 (유니코드 오타 시 턴 추가로 폴백됨) */
 const TOWER_LOBBY_ITEM_SERVER_ID: Record<(typeof TOWER_LOBBY_INVENTORY_ITEMS)[number]['itemKey'], string> = {
-    turnAdd: '\uD134 \uCD94\uAC00',
-    missile: '\uBBF8\uC0AC\uC77C',
-    hidden: '\uD788\uB4E4',
-    scan: '\uC2A4\uCE94',
-    refresh: '\uBC30\uCE58\uBCC0\uACBD',
+    turnAdd: '턴 추가',
+    missile: '미사일',
+    hidden: '히든',
+    scan: '스캔',
+    refresh: '배치변경',
 };
 
 const TowerLobby: React.FC = () => {
@@ -334,7 +335,10 @@ const TowerLobby: React.FC = () => {
         stages.map((floor) => {
                             const stage = TOWER_STAGES.find(s => s.id === `tower-${floor}`);
                             const userTowerFloor = (currentUserWithStatus as any).towerFloor ?? 0;
-                            const isCleared = floor <= userTowerFloor;
+                            const userMonthlyTowerFloor =
+                                Number((currentUserWithStatus as any).monthlyTowerFloor ?? 0) || 0;
+                            // 보상·⚡0: 이번 달 클리어(monthly). 잠금/현재층: 진행도(towerFloor)
+                            const isCleared = floor <= userMonthlyTowerFloor;
                             const isCurrent = floor === userTowerFloor + 1;
                             const actionPoints = currentUserWithStatus?.actionPoints?.current ?? 0;
                             
@@ -344,7 +348,7 @@ const TowerLobby: React.FC = () => {
                             // 잠금 여부: 1층은 항상 열림, 2층 이상은 이전 층이 클리어되어야 함 (관리자는 예외)
                             const isLocked = !isAdmin && floor > 1 && floor > userTowerFloor + 1;
                             
-                            // 클리어한 층은 행동력 소모가 0
+                            // 이번 달 이미 클리어한 층은 행동력 소모가 0
                             const effectiveActionPointCost = isCleared ? 0 : (stage?.actionPointCost ?? 0);
                             const canChallenge = !isLocked && actionPoints >= effectiveActionPointCost;
                             

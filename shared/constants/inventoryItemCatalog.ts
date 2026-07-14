@@ -1,4 +1,8 @@
-import { EQUIPMENT_POOL, CONSUMABLE_ITEMS, MATERIAL_ITEMS, LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW } from './items.js';
+import {
+    EQUIPMENT_POOL,
+    CONSUMABLE_ITEMS,
+    MATERIAL_ITEMS,
+} from './items.js';
 import { SHOP_ITEM_DISPLAY } from './shopItemDisplay.js';
 
 export type InventoryItemCatalogEntry = {
@@ -8,6 +12,8 @@ export type InventoryItemCatalogEntry = {
 };
 
 const KO_NAME_TO_ENTRY = new Map<string, InventoryItemCatalogEntry>();
+/** slug 기준 — 신화/초월이 같은 표시명이어도 eq_*6 / eq_*7 둘 다 목록에 남김 */
+const SLUG_TO_ENTRY = new Map<string, InventoryItemCatalogEntry>();
 
 function slugFromImage(image: string | undefined, fallbackName: string): string {
     if (image) {
@@ -32,20 +38,30 @@ function slugFromImage(image: string | undefined, fallbackName: string): string 
     return `n_${h.toString(36)}`;
 }
 
-function registerEntry(name: string, entry: InventoryItemCatalogEntry): void {
+function registerEntry(name: string, entry: InventoryItemCatalogEntry, overwriteName = false): void {
     const trimmed = name?.trim();
     if (!trimmed) return;
-    KO_NAME_TO_ENTRY.set(trimmed, entry);
+    if (overwriteName || !KO_NAME_TO_ENTRY.has(trimmed)) {
+        KO_NAME_TO_ENTRY.set(trimmed, entry);
+    }
+    SLUG_TO_ENTRY.set(entry.slug, entry);
 }
 
-function registerItem(name: string, description: string | undefined, image: string | undefined, slugOverride?: string): void {
+function registerItem(
+    name: string,
+    description: string | undefined,
+    image: string | undefined,
+    slugOverride?: string,
+    overwriteName = false,
+): void {
     const slug = slugOverride ?? slugFromImage(image, name);
     const entry: InventoryItemCatalogEntry = { slug, name, description };
-    registerEntry(name, entry);
+    registerEntry(name, entry, overwriteName);
 }
 
 for (const item of EQUIPMENT_POOL) {
-    registerItem(item.name, item.description, item.image);
+    // 신화=천룡(*6), 초월=신룡(*7) — 표시명이 달라 이름·slug 모두 등록
+    registerItem(item.name, item.description, item.image, undefined, false);
 }
 
 for (const item of CONSUMABLE_ITEMS) {
@@ -54,11 +70,6 @@ for (const item of CONSUMABLE_ITEMS) {
 
 for (const item of Object.values(MATERIAL_ITEMS)) {
     registerItem(item.name, item.description, item.image);
-}
-
-for (const [legacyName, newName] of Object.entries(LEGACY_TRANSCENDENT_EQUIPMENT_NAME_TO_NEW)) {
-    const entry = KO_NAME_TO_ENTRY.get(newName);
-    if (entry) registerEntry(legacyName, entry);
 }
 
 for (const [shopId, display] of Object.entries(SHOP_ITEM_DISPLAY)) {
@@ -82,12 +93,5 @@ export function resolveInventoryItemSlug(koName: string | undefined | null): str
 }
 
 export function listInventoryItemCatalogEntries(): InventoryItemCatalogEntry[] {
-    const seen = new Set<string>();
-    const out: InventoryItemCatalogEntry[] = [];
-    for (const entry of KO_NAME_TO_ENTRY.values()) {
-        if (seen.has(entry.slug)) continue;
-        seen.add(entry.slug);
-        out.push(entry);
-    }
-    return out.sort((a, b) => a.slug.localeCompare(b.slug));
+    return Array.from(SLUG_TO_ENTRY.values());
 }

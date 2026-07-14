@@ -278,14 +278,18 @@ const AnimatedMissileStone: React.FC<{
                         cx={0}
                         cy={0}
                         r={stone_radius}
-                        fill={player === Player.Black ? "#111827" : "#f5f2e8"}
+                        fill={player === Player.Black ? "#111827" : "url(#clamshell_highlight)"}
+                        stroke={player === Player.White ? 'rgba(15,23,42,0.18)' : undefined}
+                        strokeWidth={player === Player.White ? Math.max(0.6, stone_radius * 0.04) : 0}
                     />
-                    <circle 
-                        cx={0} 
-                        cy={0} 
-                        r={stone_radius} 
-                        fill={player === Player.Black ? 'url(#slate_highlight)' : 'url(#clamshell_highlight)'} 
-                    />
+                    {player === Player.Black && (
+                        <circle
+                            cx={0}
+                            cy={0}
+                            r={stone_radius}
+                            fill="url(#slate_highlight)"
+                        />
+                    )}
                 </g>
             </g>
         </g>
@@ -379,8 +383,17 @@ const AnimatedHiddenMissile: React.FC<{
                 ))}
                 {/* Stone with glow effect */}
                 <g className="missile-stone-glow">
-                    <circle cx={0} cy={0} r={stone_radius} fill={player === Player.Black ? "#111827" : "#f5f2e8"} />
-                    <circle cx={0} cy={0} r={stone_radius} fill={player === Player.Black ? 'url(#slate_highlight)' : 'url(#clamshell_highlight)'} />
+                    <circle
+                        cx={0}
+                        cy={0}
+                        r={stone_radius}
+                        fill={player === Player.Black ? "#111827" : "url(#clamshell_highlight)"}
+                        stroke={player === Player.White ? 'rgba(15,23,42,0.18)' : undefined}
+                        strokeWidth={player === Player.White ? Math.max(0.6, stone_radius * 0.04) : 0}
+                    />
+                    {player === Player.Black && (
+                        <circle cx={0} cy={0} r={stone_radius} fill="url(#slate_highlight)" />
+                    )}
                     <image href={player === Player.Black ? BLACK_HIDDEN_STONE_IMG : WHITE_HIDDEN_STONE_IMG} x={-specialImageOffset} y={-specialImageOffset} width={specialImageSize} height={specialImageSize} />
                 </g>
             </g>
@@ -583,12 +596,16 @@ const Stone: React.FC<{ player: Player, cx: number, cy: number, isLastMove?: boo
                 cx={cx}
                 cy={cy}
                 r={radius}
-                fill={visualPlayer === Player.Black ? "#111827" : "#f5f2e8"}
-                stroke={strokeColor}
-                strokeWidth={strokeWidth}
+                fill={visualPlayer === Player.Black ? "#111827" : "url(#clamshell_highlight)"}
+                stroke={strokeColor !== 'none' ? strokeColor : visualPlayer === Player.White ? 'rgba(15,23,42,0.18)' : 'none'}
+                strokeWidth={strokeColor !== 'none' ? strokeWidth : visualPlayer === Player.White ? Math.max(0.6, radius * 0.04) : 0}
             />
-            {visualPlayer === Player.White && <circle cx={cx} cy={cy} r={radius} fill="url(#clam_grain)" />}
-            <circle cx={cx} cy={cy} r={radius} fill={visualPlayer === Player.Black ? 'url(#slate_highlight)' : 'url(#clamshell_highlight)'} />
+            {visualPlayer === Player.White && (
+                <circle cx={cx} cy={cy} r={radius} fill="url(#clam_grain)" opacity={0.45} />
+            )}
+            {visualPlayer === Player.Black && (
+                <circle cx={cx} cy={cy} r={radius} fill="url(#slate_highlight)" />
+            )}
             {isBaseStone && (
                 <image href={visualPlayer === Player.Black ? BLACK_BASE_STONE_IMG : WHITE_BASE_STONE_IMG} x={cx - specialImageOffset} y={cy - specialImageOffset} width={specialImageSize} height={specialImageSize} />
             )}
@@ -2216,20 +2233,24 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                 onContextMenu={handleContextMenu}
             >
                 <defs>
-                    <radialGradient id="slate_highlight" cx="35%" cy="35%" r="60%" fx="30%" fy="30%">
-                        <stop offset="0%" stopColor="#6b7280" stopOpacity="0.8"/>
-                        <stop offset="100%" stopColor="#111827" stopOpacity="0.2"/>
+                    <radialGradient id="slate_highlight" cx="32%" cy="30%" r="72%" fx="28%" fy="26%">
+                        <stop offset="0%" stopColor="#9ca3af" stopOpacity="0.85"/>
+                        <stop offset="42%" stopColor="#374151" stopOpacity="0.45"/>
+                        <stop offset="100%" stopColor="#020617" stopOpacity="0.55"/>
                     </radialGradient>
-                    <radialGradient id="clamshell_highlight" cx="35%" cy="35%" r="60%" fx="30%" fy="30%">
-                        <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9"/>
-                        <stop offset="100%" stopColor="#e5e7eb" stopOpacity="0.1"/>
+                    {/* Opaque sphere shade — semi-transparent overlays read flat when SVG paint servers drop */}
+                    <radialGradient id="clamshell_highlight" cx="32%" cy="28%" r="74%" fx="30%" fy="26%">
+                        <stop offset="0%" stopColor="#ffffff"/>
+                        <stop offset="28%" stopColor="#f8f5ec"/>
+                        <stop offset="62%" stopColor="#d9d2c4"/>
+                        <stop offset="100%" stopColor="#8f8778"/>
                     </radialGradient>
-                    <filter id="clam_grain_filter">
-                        <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/>
-                        <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.1 0" />
+                    <filter id="clam_grain_filter" x="-20%" y="-20%" width="140%" height="140%">
+                        <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="3" stitchTiles="stitch"/>
+                        <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 0.08 0" />
                     </filter>
                     <pattern id="clam_grain" patternUnits="userSpaceOnUse" width="100" height="100">
-                        <rect width="100" height="100" fill="#f5f2e8"/>
+                        <rect width="100" height="100" fill="#f5f2e8" fillOpacity="0"/>
                         <rect width="100" height="100" filter="url(#clam_grain_filter)"/>
                     </pattern>
                     {/* 미사일 불꽃 그라디언트 - 여러 레이어 */}

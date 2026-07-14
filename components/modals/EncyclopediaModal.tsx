@@ -38,8 +38,7 @@ import { MythicStatAbbrev } from '../MythicStatAbbrev.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../../shared/constants/pcShellLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import {
-    ITEM_SLOT_ICON_SIZE_PCT,
-    itemSlotIconStyle,
+    itemSlotIconStyleForGrade,
     GRADE_SLOT_SCRIM_CLASS,
     GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
     gradeSlotBorderOverlayClass,
@@ -91,7 +90,7 @@ const gradeOrder: Record<ItemGrade, number> = {
     transcendent: 6,
 };
 
-/** 신화/초월 등 동일 표시명 장비 구분용 (이름만으로는 목록 키·선택이 충돌함) */
+/** 장비 목록 키 (등급·슬롯 포함 — 이름만으로 충돌 방지) */
 function encyclopediaItemKey(item: EncyclopediaItem): string {
     return `${item.type}|${item.name}|${item.grade}|${item.slot ?? ''}`;
 }
@@ -140,7 +139,7 @@ const EncyclopediaItemThumb: React.FC<{ item: EncyclopediaItem; size?: 'sm' | 'm
                     src={item.image}
                     alt=""
                     className="absolute object-contain"
-                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                    style={itemSlotIconStyleForGrade(item.grade)}
                 />
             ) : null}
             <div
@@ -195,7 +194,7 @@ const EncyclopediaIconCell: React.FC<{
                     src={item.image}
                     alt=""
                     className="absolute object-contain"
-                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                    style={itemSlotIconStyleForGrade(item.grade)}
                 />
             ) : null}
             <div
@@ -1107,7 +1106,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                             src={imagePreviewItem.image}
                             alt={localizedItemName(imagePreviewItem.name)}
                             className="absolute object-contain"
-                            style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                            style={itemSlotIconStyleForGrade(imagePreviewItem.grade)}
                         />
                         <div
                             className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(imagePreviewItem.grade)}`}

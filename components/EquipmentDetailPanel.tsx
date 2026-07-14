@@ -11,7 +11,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement } from '../constants';
 import { MythicSubsPartitioned } from './MythicSubsPartitioned.js';
 import { EquipmentBagStyleOptionRow } from './equipment/EquipmentBagStyleOptionRow.js';
-import { ITEM_SLOT_ICON_SIZE_PCT, itemSlotIconStyle, GRADE_SLOT_SCRIM_CLASS, GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS, gradeSlotBorderOverlayClass } from '../shared/constants/itemSlotIconLayout.js';
+import { itemSlotIconStyleForGrade, GRADE_SLOT_SCRIM_CLASS, GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS, gradeSlotBorderOverlayClass } from '../shared/constants/itemSlotIconLayout.js';
 import {
     resolveBagItemDetailImagePath,
 } from '../shared/utils/bagItemDetailHelpers.js';
@@ -23,7 +23,7 @@ export const equipmentDetailGradeStyles: Record<ItemGrade, { color: string; back
     uncommon: { color: 'text-emerald-400', background: '/images/equipments/uncommonbgi.webp', frame: 'from-emerald-500/20 to-emerald-900/10 ring-emerald-500/30' },
     rare: { color: 'text-sky-400', background: '/images/equipments/rarebgi.webp', frame: 'from-sky-500/20 to-blue-950/15 ring-sky-500/35' },
     epic: { color: 'text-violet-400', background: '/images/equipments/epicbgi.webp', frame: 'from-violet-500/25 to-purple-950/15 ring-violet-500/40' },
-    legendary: { color: 'text-rose-500', background: '/images/equipments/legendarybgi.webp', frame: 'from-rose-500/25 to-red-950/15 ring-rose-500/40' },
+    legendary: { color: 'text-rose-600', background: '/images/equipments/legendarybgi.webp', frame: 'from-rose-950/20 to-red-950/10 ring-rose-800/35' },
     mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp', frame: 'from-amber-400/30 to-yellow-950/20 ring-amber-400/45' },
     transcendent: {
         color: 'text-cyan-300',
@@ -41,7 +41,6 @@ type DetailTypography = {
     tradeBadge: string;
     tradeLine: string;
     bodyLeading: string;
-    starLarge: boolean;
 };
 
 const getDetailTypography = (comfortableTypography: boolean, enlargedTypography: boolean): DetailTypography => {
@@ -55,7 +54,6 @@ const getDetailTypography = (comfortableTypography: boolean, enlargedTypography:
             tradeBadge: 'text-[12px] font-semibold leading-none',
             tradeLine: 'text-[12px] font-semibold leading-snug',
             bodyLeading: 'text-[14px] leading-snug',
-            starLarge: true,
         };
     }
     if (comfortableTypography) {
@@ -68,7 +66,6 @@ const getDetailTypography = (comfortableTypography: boolean, enlargedTypography:
             tradeBadge: 'text-[11px] font-semibold leading-none',
             tradeLine: 'text-[11px] font-semibold leading-snug',
             bodyLeading: 'text-[13px] leading-snug',
-            starLarge: true,
         };
     }
     return {
@@ -80,7 +77,6 @@ const getDetailTypography = (comfortableTypography: boolean, enlargedTypography:
         tradeBadge: 'text-[11px] font-semibold leading-none',
         tradeLine: 'text-[11px] font-semibold leading-snug',
         bodyLeading: 'text-[12px] leading-snug',
-        starLarge: false,
     };
 };
 
@@ -210,7 +206,7 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                         src={imagePath}
                                         alt={displayItemName}
                                         className="absolute z-[2] object-contain"
-                                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                                        style={itemSlotIconStyleForGrade(item.grade)}
                                     />
                                 ) : null}
                                 <div
@@ -346,14 +342,14 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                                     src={item.image}
                                     alt={displayItemName}
                                     className="absolute z-[2] object-contain"
-                                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                                    style={itemSlotIconStyleForGrade(item.grade)}
                                 />
                             ) : null}
                             <div
                                 className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
                                 aria-hidden
                             />
-                            <EquipmentEnhancementBadge stars={item.stars} sizePct={typo.starLarge ? 28 : 26} />
+                            <EquipmentEnhancementBadge stars={item.stars} />
                         </div>
                         {showTradeStatusUnderImage && item.type === 'equipment' && (
                             <div

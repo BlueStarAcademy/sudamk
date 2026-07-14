@@ -7,7 +7,7 @@ import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES } from '../../constants/rules.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
-import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
+import { itemSlotIconStyleForGrade } from '../../shared/constants/itemSlotIconLayout.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -92,7 +92,7 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
                         src={item.image}
                         alt=""
                         className="pointer-events-none absolute object-contain"
-                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                        style={itemSlotIconStyleForGrade(item.grade)}
                     />
                 )}
             </div>

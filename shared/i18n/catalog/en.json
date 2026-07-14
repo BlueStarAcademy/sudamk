@@ -4527,57 +4527,29 @@
       "rankHintShort": "Rank-based tiers (see rewards for promote/stay/demote rules)"
     },
     "items": {
-      "box_diabox1": {
-        "name": "다이아 꾸러미 I",
-        "description": "1 ~ 20 다이아 획득"
+      "eq_fan1": {
+        "name": "Blue Wind Fan",
+        "description": "A light, practical bamboo fan."
       },
-      "box_diabox2": {
-        "name": "다이아 꾸러미 II",
-        "description": "10 ~ 30 다이아 획득"
+      "eq_fan2": {
+        "name": "Silver Wind Fan",
+        "description": "A soft silk fan that fits comfortably in your hand."
       },
-      "box_diabox3": {
-        "name": "다이아 꾸러미 III",
-        "description": "20 ~ 50 다이아 획득"
+      "eq_fan3": {
+        "name": "Flame Wind Fan",
+        "description": "A master's fan that spreads gracefully like a crane's wings."
       },
-      "box_diabox4": {
-        "name": "다이아 꾸러미 IV",
-        "description": "30 ~ 100 다이아 획득"
+      "eq_fan4": {
+        "name": "Frost Wind Fan",
+        "description": "Forged from heavy steel; can serve as a weapon in a pinch."
       },
-      "box_goldbox1": {
-        "name": "골드 꾸러미 I",
-        "description": "10 ~ 500 골드 획득"
+      "eq_fan5": {
+        "name": "Dragon Feather Fan",
+        "description": "A legendary fan made from a hundred white feathers."
       },
-      "box_goldbox2": {
-        "name": "골드 꾸러미 II",
-        "description": "100 ~ 1,000 골드 획득"
-      },
-      "box_goldbox3": {
-        "name": "골드 꾸러미 III",
-        "description": "500 ~ 3,000 골드 획득"
-      },
-      "box_goldbox4": {
-        "name": "골드 꾸러미 IV",
-        "description": "1,000 ~ 10,000 골드 획득"
-      },
-      "btn_addturn": {
-        "name": "Extra Turn",
-        "description": "Adds an extra turn in Tower of Challenge."
-      },
-      "btn_hidden": {
-        "name": "Hidden",
-        "description": "Hidden stone item for Tower of Challenge."
-      },
-      "btn_missile": {
-        "name": "Missile",
-        "description": "Missile item for Tower of Challenge."
-      },
-      "btn_reflesh": {
-        "name": "Reposition",
-        "description": "Reposition item for Tower of Challenge."
-      },
-      "btn_scan": {
-        "name": "Scan",
-        "description": "Scan item for Tower of Challenge."
+      "eq_fan6": {
+        "name": "Heavenly Dragon Fan",
+        "description": "A mythical fan said to stir winds that overturn the board."
       },
       "eq_board1": {
         "name": "Sprout Board",
@@ -4599,105 +4571,9 @@
         "name": "Dragon Gate Board",
         "description": "A legendary board of thousand-year golden pine."
       },
-      "eq_board7": {
-        "name": "Divine Dragon Board",
-        "description": "A transcendent board that opens a path to victory with every move."
-      },
-      "eq_bottom1": {
-        "name": "Spring Gi Bottom",
-        "description": "Training pants that allow easy movement."
-      },
-      "eq_bottom2": {
-        "name": "Summer Gi Bottom",
-        "description": "Sturdy pants that resist wear."
-      },
-      "eq_bottom3": {
-        "name": "Autumn Gi Bottom",
-        "description": "Fine silk pants paired with the scholar's robe."
-      },
-      "eq_bottom4": {
-        "name": "Winter Gi Bottom",
-        "description": "Bottom wear that never hinders a swordsman's movement."
-      },
-      "eq_bottom5": {
-        "name": "Dragon Robe Bottom",
-        "description": "Finest silk bottoms paired with the dragon robe."
-      },
-      "eq_bottom7": {
-        "name": "Divine Dragon Gi Bottom",
-        "description": "Transcendent bottoms imbued with a dragon's will for balance in any storm."
-      },
-      "eq_fan1": {
-        "name": "Blue Wind Fan",
-        "description": "A light, practical bamboo fan."
-      },
-      "eq_fan2": {
-        "name": "Silver Wind Fan",
-        "description": "A soft silk fan that fits comfortably in your hand."
-      },
-      "eq_fan3": {
-        "name": "Flame Wind Fan",
-        "description": "A master's fan that spreads gracefully like a crane's wings."
-      },
-      "eq_fan4": {
-        "name": "Frost Wind Fan",
-        "description": "Forged from heavy steel; can serve as a weapon in a pinch."
-      },
-      "eq_fan5": {
-        "name": "Dragon Feather Fan",
-        "description": "A legendary fan made from a hundred white feathers."
-      },
-      "eq_fan7": {
-        "name": "Divine Dragon Fan",
-        "description": "A transcendent fan holding the breath of a sky-splitting dragon."
-      },
-      "eq_stone1": {
-        "name": "Sprout Stones",
-        "description": "Light, inexpensive plastic go stones."
-      },
-      "eq_stone2": {
-        "name": "Silver Grain Stones",
-        "description": "Go stones polished from smooth river pebbles."
-      },
-      "eq_stone3": {
-        "name": "Ruby Go Stones",
-        "description": "Precisely cut obsidian stones with a cold gleam."
-      },
-      "eq_stone4": {
-        "name": "Jade Go Stones",
-        "description": "Stones of blue and white jade with a luminous glow."
-      },
-      "eq_stone5": {
-        "name": "Dragon Eye Stones",
-        "description": "Legendary stones forged with the energy of sun, moon, and stars."
-      },
-      "eq_stone7": {
-        "name": "Divine Dragon Stones",
-        "description": "Transcendent stones forged from dawn-star fragments to dominate the board in a single move."
-      },
-      "eq_stonebox1": {
-        "name": "Light Wood Bowl",
-        "description": "A light, inexpensive plastic go bowl."
-      },
-      "eq_stonebox2": {
-        "name": "Sturdy Bamboo Bowl",
-        "description": "A go bowl of jujube wood with a subtle fragrance."
-      },
-      "eq_stonebox3": {
-        "name": "Rosewood Bowl",
-        "description": "Crafted from rosewood with a beautiful red hue."
-      },
-      "eq_stonebox4": {
-        "name": "Ebony Bowl",
-        "description": "A rare bowl of exotic wood with striking patterns."
-      },
-      "eq_stonebox5": {
-        "name": "Dragon Scale Bowl",
-        "description": "A finest red sandalwood bowl delicately carved with dragons."
-      },
-      "eq_stonebox7": {
-        "name": "Divine Dragon Bowl",
-        "description": "A transcendent bowl that seals battlefield aura into every stone drawn."
+      "eq_board6": {
+        "name": "Heavenly Dragon Board",
+        "description": "A mythical board inlaid like a night sky of stars."
       },
       "eq_top1": {
         "name": "Spring Gi Top",
@@ -4719,9 +4595,253 @@
         "name": "Dragon Robe Top",
         "description": "Embroidered with dragon motifs symbolizing imperial majesty."
       },
+      "eq_top6": {
+        "name": "Heavenly Dragon Gi Top",
+        "description": "Mythic garb said to grant divine protection to the wearer."
+      },
+      "eq_bottom1": {
+        "name": "Spring Gi Bottom",
+        "description": "Training pants that allow easy movement."
+      },
+      "eq_bottom2": {
+        "name": "Summer Gi Bottom",
+        "description": "Sturdy pants that resist wear."
+      },
+      "eq_bottom3": {
+        "name": "Autumn Gi Bottom",
+        "description": "Fine silk pants paired with the scholar's robe."
+      },
+      "eq_bottom4": {
+        "name": "Winter Gi Bottom",
+        "description": "Bottom wear that never hinders a swordsman's movement."
+      },
+      "eq_bottom5": {
+        "name": "Dragon Robe Bottom",
+        "description": "Finest silk bottoms paired with the dragon robe."
+      },
+      "eq_bottom6": {
+        "name": "Heavenly Dragon Gi Bottom",
+        "description": "Mythic bottoms said to be woven from clouds."
+      },
+      "eq_stonebox1": {
+        "name": "Light Wood Bowl",
+        "description": "A light, inexpensive plastic go bowl."
+      },
+      "eq_stonebox2": {
+        "name": "Sturdy Bamboo Bowl",
+        "description": "A go bowl of jujube wood with a subtle fragrance."
+      },
+      "eq_stonebox3": {
+        "name": "Rosewood Bowl",
+        "description": "Crafted from rosewood with a beautiful red hue."
+      },
+      "eq_stonebox4": {
+        "name": "Ebony Bowl",
+        "description": "A rare bowl of exotic wood with striking patterns."
+      },
+      "eq_stonebox5": {
+        "name": "Dragon Scale Bowl",
+        "description": "A finest red sandalwood bowl delicately carved with dragons."
+      },
+      "eq_stonebox6": {
+        "name": "Heavenly Dragon Bowl",
+        "description": "A mysterious case said to hold an ancient god's relic."
+      },
+      "eq_stone1": {
+        "name": "Sprout Stones",
+        "description": "Light, inexpensive plastic go stones."
+      },
+      "eq_stone2": {
+        "name": "Silver Grain Stones",
+        "description": "Go stones polished from smooth river pebbles."
+      },
+      "eq_stone3": {
+        "name": "Ruby Go Stones",
+        "description": "Precisely cut obsidian stones with a cold gleam."
+      },
+      "eq_stone4": {
+        "name": "Jade Go Stones",
+        "description": "Stones of blue and white jade with a luminous glow."
+      },
+      "eq_stone5": {
+        "name": "Dragon Eye Stones",
+        "description": "Legendary stones forged with the energy of sun, moon, and stars."
+      },
+      "eq_stone6": {
+        "name": "Heavenly Dragon Stones",
+        "description": "Mythic stones like a galaxy poured into the night sky."
+      },
+      "eq_fan7": {
+        "name": "Divine Dragon Fan",
+        "description": "A transcendent fan holding the breath of a sky-splitting divine dragon."
+      },
+      "eq_board7": {
+        "name": "Divine Dragon Board",
+        "description": "A transcendent board that opens a path to victory with every move."
+      },
       "eq_top7": {
         "name": "Divine Dragon Gi Top",
         "description": "Transcendent top wear woven with dragon-scale light for unwavering focus."
+      },
+      "eq_bottom7": {
+        "name": "Divine Dragon Gi Bottom",
+        "description": "Transcendent bottoms imbued with a dragon's will for balance in any storm."
+      },
+      "eq_stonebox7": {
+        "name": "Divine Dragon Bowl",
+        "description": "A transcendent bowl that seals battlefield aura into every stone drawn."
+      },
+      "eq_stone7": {
+        "name": "Divine Dragon Stones",
+        "description": "Transcendent stones forged from dawn-star fragments to dominate the board in a single move."
+      },
+      "box_equipmentbox1": {
+        "name": "장비 상자 I",
+        "description": "일반~희귀 등급 장비 획득"
+      },
+      "box_equipmentbox2": {
+        "name": "장비 상자 II",
+        "description": "일반~에픽 등급 장비 획득"
+      },
+      "box_equipmentbox3": {
+        "name": "장비 상자 III",
+        "description": "고급~전설 등급 장비 획득"
+      },
+      "box_equipmentbox4": {
+        "name": "장비 상자 IV",
+        "description": "희귀~신화 등급 장비 획득"
+      },
+      "box_equipmentbox5": {
+        "name": "장비 상자 V",
+        "description": "에픽~신화 등급 장비 획득"
+      },
+      "box_equipmentbox6": {
+        "name": "장비 상자 VI",
+        "description": "전설~신화 등급 장비 획득"
+      },
+      "box_resourcebox1": {
+        "name": "재료 상자 I",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "box_resourcebox2": {
+        "name": "재료 상자 II",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "box_resourcebox3": {
+        "name": "재료 상자 III",
+        "description": "하급 ~ 상급 강화석 5개 획득"
+      },
+      "box_resourcebox4": {
+        "name": "재료 상자 IV",
+        "description": "중급 ~ 최상급 강화석 5개 획득"
+      },
+      "box_resourcebox5": {
+        "name": "재료 상자 V",
+        "description": "상급 ~ 신비의 강화석 5개 획득"
+      },
+      "box_resourcebox6": {
+        "name": "재료 상자 VI",
+        "description": "상급 ~ 신비의 강화석 5개 획득"
+      },
+      "box_goldbox1": {
+        "name": "골드 꾸러미 I",
+        "description": "10 ~ 500 골드 획득"
+      },
+      "box_goldbox2": {
+        "name": "골드 꾸러미 II",
+        "description": "100 ~ 1,000 골드 획득"
+      },
+      "box_goldbox3": {
+        "name": "골드 꾸러미 III",
+        "description": "500 ~ 3,000 골드 획득"
+      },
+      "box_goldbox4": {
+        "name": "골드 꾸러미 IV",
+        "description": "1,000 ~ 10,000 골드 획득"
+      },
+      "box_diabox1": {
+        "name": "다이아 꾸러미 I",
+        "description": "1 ~ 20 다이아 획득"
+      },
+      "box_diabox2": {
+        "name": "다이아 꾸러미 II",
+        "description": "10 ~ 30 다이아 획득"
+      },
+      "box_diabox3": {
+        "name": "다이아 꾸러미 III",
+        "description": "20 ~ 50 다이아 획득"
+      },
+      "box_diabox4": {
+        "name": "다이아 꾸러미 IV",
+        "description": "30 ~ 100 다이아 획득"
+      },
+      "use_con1": {
+        "name": "컨디션회복제(소)",
+        "description": "긴장감을 완화시켜주는 컨디션 회복제"
+      },
+      "use_con2": {
+        "name": "컨디션회복제(중)",
+        "description": "머리가 맑아지는 느낌의 컨디션 회복제"
+      },
+      "use_con3": {
+        "name": "컨디션회복제(대)",
+        "description": "오늘의 대회를 성공적으로 치를 것 같은 컨디션 회복제"
+      },
+      "btn_addturn": {
+        "name": "Extra Turn",
+        "description": "Adds an extra turn in Tower of Challenge."
+      },
+      "btn_missile": {
+        "name": "Missile",
+        "description": "Missile item for Tower of Challenge."
+      },
+      "btn_hidden": {
+        "name": "Hidden",
+        "description": "Hidden stone item for Tower of Challenge."
+      },
+      "btn_scan": {
+        "name": "Scan",
+        "description": "Scan item for Tower of Challenge."
+      },
+      "btn_reflesh": {
+        "name": "Reposition",
+        "description": "Reposition item for Tower of Challenge."
+      },
+      "use_ap_potion_10": {
+        "name": "행동력 회복제(+10)",
+        "description": "뭔가 하고싶은 의욕이 생긴다."
+      },
+      "use_ap_potion_20": {
+        "name": "행동력 회복제(+20)",
+        "description": "뭔가 해야 할 것 같다."
+      },
+      "use_ap_potion_30": {
+        "name": "행동력 회복제(+30)",
+        "description": "바로 경기를 하러 가자."
+      },
+      "use_refine": {
+        "name": "Refinement Charm",
+        "description": "Adds one refinement attempt to gear that cannot be refined."
+      },
+      "use_allowtrade": {
+        "name": "Trade Listing Ticket",
+        "description": "Permit to register additional items for sale on the exchange."
+      },
+      "use_belong": {
+        "name": "귀속 해제권",
+        "description": "귀속된 장비를 거래가능 상태로 변경"
+      },
+      "use_change1": {
+        "name": "옵션 종류 변경권",
+        "description": "장비의 주옵션, 부옵션, 특수옵션 중 하나를 다른 종류의 옵션으로 변경할 수 있는 아이템입니다."
+      },
+      "use_change2": {
+        "name": "옵션 수치 변경권",
+        "description": "장비의 부옵션 또는 특수옵션 중 하나의 수치를 변경할 수 있는 아이템입니다."
+      },
+      "use_change3": {
+        "name": "스페셜 옵션 변경권",
+        "description": "신화 또는 초월 장비의 스페셜 옵션을 다른 스페셜 옵션으로 변경할 수 있는 아이템입니다."
       },
       "mat_materials1": {
         "name": "Low Enhancement Stone",
@@ -4767,33 +4887,13 @@
         "name": "Celestial Soul Stone",
         "description": "Soul stone material for pair pets."
       },
-      "shop_action_point_10": {
-        "name": "AP recovery (+10)",
-        "description": "You feel motivated to do something."
-      },
-      "shop_action_point_20": {
-        "name": "AP recovery (+20)",
-        "description": "You feel like you should do something."
-      },
-      "shop_action_point_30": {
-        "name": "AP recovery (+30)",
-        "description": "Time to play a match!"
-      },
-      "shop_condition_potion_large": {
-        "name": "Condition potion (L)",
-        "description": "Restores condition for a big match today."
-      },
-      "shop_condition_potion_medium": {
-        "name": "Condition potion (M)",
-        "description": "Clears your head and restores condition."
-      },
-      "shop_condition_potion_small": {
-        "name": "Condition potion (S)",
-        "description": "Eases tension and restores condition."
-      },
       "shop_equipment_box_1": {
         "name": "Equipment Box I",
         "description": "Random gear: Normal–Rare"
+      },
+      "shop_mythic_option_change_ticket": {
+        "name": "Special option change ticket",
+        "description": "Changes a mythic or transcendent special option to another special option."
       },
       "shop_equipment_box_2": {
         "name": "Equipment Box II",
@@ -4814,10 +4914,6 @@
       "shop_equipment_box_6": {
         "name": "Equipment Box VI",
         "description": "Random gear: Legendary–Mythic"
-      },
-      "shop_equipment_unbind_ticket": {
-        "name": "Unbind ticket",
-        "description": "Makes bound equipment tradable."
       },
       "shop_material_box_1": {
         "name": "Material Box I",
@@ -4843,9 +4939,13 @@
         "name": "Material Box VI",
         "description": "5 stones: High–Mystic grade"
       },
-      "shop_mythic_option_change_ticket": {
-        "name": "Special option change ticket",
-        "description": "Changes a mythic or transcendent special option to another special option."
+      "shop_equipment_unbind_ticket": {
+        "name": "Unbind ticket",
+        "description": "Makes bound equipment tradable."
+      },
+      "shop_refinement_charm": {
+        "name": "Refinement Charm",
+        "description": "Adds one refinement attempt to gear that cannot be refined."
       },
       "shop_option_type_change_ticket": {
         "name": "Option type change ticket",
@@ -4855,13 +4955,29 @@
         "name": "Option value change ticket",
         "description": "Rerolls the value of one sub or special option."
       },
-      "shop_refinement_charm": {
-        "name": "Refinement Charm",
-        "description": "Adds one refinement attempt to gear that cannot be refined."
+      "shop_condition_potion_small": {
+        "name": "Condition potion (S)",
+        "description": "Eases tension and restores condition."
       },
-      "use_allowtrade": {
-        "name": "Trade Listing Ticket",
-        "description": "Permit to register additional items for sale on the exchange."
+      "shop_condition_potion_medium": {
+        "name": "Condition potion (M)",
+        "description": "Clears your head and restores condition."
+      },
+      "shop_condition_potion_large": {
+        "name": "Condition potion (L)",
+        "description": "Restores condition for a big match today."
+      },
+      "shop_action_point_10": {
+        "name": "AP recovery (+10)",
+        "description": "You feel motivated to do something."
+      },
+      "shop_action_point_20": {
+        "name": "AP recovery (+20)",
+        "description": "You feel like you should do something."
+      },
+      "shop_action_point_30": {
+        "name": "AP recovery (+30)",
+        "description": "Time to play a match!"
       }
     },
     "stats": {

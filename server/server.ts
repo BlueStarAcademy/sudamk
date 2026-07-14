@@ -2160,6 +2160,14 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         console.error('[MainLoop] Error in tryRunDailyDatabaseBackup:', error?.message);
                     }
                     
+                    // 길드 연구: 시간이 지난 researchTask를 자동 완료(레벨업·효과 반영)
+                    try {
+                        const { processDueGuildResearch } = await import('./scheduledTasks.js');
+                        await processDueGuildResearch();
+                    } catch (error: any) {
+                        console.error('[MainLoop] Error in processDueGuildResearch:', error?.message);
+                    }
+
                     // 길드전 종료 처리를 매칭보다 먼저: 기한이 지난 전쟁을 completed·히스토리 반영한 뒤
                     // activeGuildWars에서 status 필터 시 좀비(active+종료시각 경과)와 신규 전쟁이 동시에 쌓이는 것을 방지
                     try {

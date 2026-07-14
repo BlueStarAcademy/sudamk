@@ -5,8 +5,7 @@ import { isPairArenaExclusiveBagItem } from '../../shared/constants/petLobby.js'
 import {
     GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
     gradeSlotBorderOverlayClass,
-    itemSlotIconStyle,
-    ITEM_SLOT_ICON_SIZE_PCT,
+    itemSlotIconStyleForGrade,
 } from '../../shared/constants/itemSlotIconLayout.js';
 import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
 import EquipmentStatusBadge from '../EquipmentStatusBadge.js';
@@ -73,7 +72,7 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({
                             }
                         }}
                         className={`relative aspect-square overflow-hidden rounded-md transition-all duration-200 ${item ? 'hover:scale-105' : 'bg-tertiary/50'} ${isDisabled ? 'filter grayscale opacity-50 pointer-events-none' : 'cursor-pointer'}`}
-                        style={{ width: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%' }}
+                        style={{ width: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%', containerType: 'size' }}
                     >
                         {item ? (
                             <>
@@ -84,7 +83,7 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({
                                         src={item.image}
                                         alt={item.name}
                                         className="absolute z-[1] object-contain"
-                                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                                        style={itemSlotIconStyleForGrade(item.grade)}
                                     />
                                 )}
                                 <div

@@ -72,7 +72,7 @@
     "inProgressViewerHint": "수련 중 — 좌측 뷰어에 상세 정보",
     "repPetViewerHint": "대표 펫 — 좌측 뷰어에 상세 정보",
     "tapEmptySlotFirst": "빈 수련 슬롯을 먼저 터치한 뒤 펫을 선택하세요.",
-    "repPetCannotTrain": "대표 펫은 수련에 보낼 수 없습니다.",
+    "repPetCannotTrain": "대표펫은 수련을 보낼 수 없습니다.",
     "tapSlotThenPick": "빈 슬롯 터치 후 펫 선택",
     "dropToStart": "펫을 슬롯에 놓으면 수련 시작",
     "petXpLabel": "펫",

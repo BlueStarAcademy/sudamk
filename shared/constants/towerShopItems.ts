@@ -71,8 +71,16 @@ export const TOWER_SHOP_ITEMS: TowerShopItemDef[] = [
 
 export function resolveTowerShopItem(itemId?: string | null): TowerShopItemDef {
     if (itemId) {
-        const found = TOWER_SHOP_ITEMS.find((i) => i.itemId === itemId);
-        if (found) return found;
+        const exact = TOWER_SHOP_ITEMS.find((i) => i.itemId === itemId);
+        if (exact) return exact;
+        const needle = itemId.trim().toLowerCase();
+        // i18n 라벨·영문 별칭(`Hidden`, `scan`, …)으로 연 경우에도 올바른 상점 항목 선택
+        for (const item of TOWER_SHOP_ITEMS) {
+            const aliases = towerShopInventoryNameOrIdsForItem(item.itemId);
+            if (aliases.some((n) => n === itemId || n.toLowerCase() === needle)) {
+                return item;
+            }
+        }
     }
     return TOWER_SHOP_ITEMS[0]!;
 }

@@ -175,6 +175,39 @@ describe('resolveStrategicPvePlayingBoardAndMoveHistory', () => {
         expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
     });
 
+    it('prefers longer server board even when optimistic client history diverges at last move', () => {
+        const client = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 0, player: Player.White },
+            ],
+            boardState: [
+                [Player.Black, Player.White, Player.None],
+                [Player.None, Player.None, Player.None],
+                [Player.None, Player.None, Player.None],
+            ],
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+        const server = {
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 2, y: 0, player: Player.White },
+                { x: 1, y: 1, player: Player.Black },
+            ],
+            boardState: [
+                [Player.Black, Player.None, Player.White],
+                [Player.None, Player.Black, Player.None],
+                [Player.None, Player.None, Player.None],
+            ],
+            settings: { boardSize: 3 },
+        } as LiveGameSession;
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
+        expect(resolved.moveHistory).toHaveLength(3);
+        expect(resolved.boardState?.[0]?.[2]).toBe(Player.White);
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.Black);
+    });
+
     it('keeps client when same-length stale server has diverged AI stone position', () => {
         const client = {
             moveHistory: [

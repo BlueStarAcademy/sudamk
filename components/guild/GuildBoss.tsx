@@ -28,6 +28,12 @@ import { calculateTotalStats } from '../../utils/statUtils.js';
 import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
 import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
+import {
+    GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
+    GRADE_SLOT_SCRIM_CLASS,
+    gradeSlotBorderOverlayClass,
+    itemSlotIconStyleForGrade,
+} from '../../shared/constants/itemSlotIconLayout.js';
 import { GUILD_ATTACK_ICON, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_REGEN_IMG } from '../../assets.js';
 import HomeNativeMergedEquipmentAbilityPanel from '../HomeNativeMergedEquipmentAbilityPanel.js';
 import { BADUK_ABILITY_STAT_CAP, BADUK_ABILITY_TOTAL_CAP } from '../CoreStatsHexagonChart.js';
@@ -41,7 +47,7 @@ import type { TFunction } from 'i18next';
 
 /** 모바일 보스전: 보스 이미지 | 우측 누적피해 Top3 + 전투중계 */
 const GUILD_BOSS_MOBILE_RANKING_COLUMN_CLASS = 'flex min-h-0 w-[min(56%,15.5rem)] min-w-[14.5rem] shrink-0 flex-col gap-1 overflow-hidden';
-/** PC 보스전: 좌 보스(이미지 폭) → 우 유저(콘텐츠 폭) → 중 로그(남는 공간 flex-1) */
+/** PC 보스전: 좌 보스(이미지 비율) + 누적랭킹(남은 세로) → 우 유저 → 중 로그(flex-1) */
 const GUILD_BOSS_DESKTOP_LEFT_RAIL_CLASS =
     'flex h-full min-h-0 w-[min(32vw,28rem)] min-w-[16rem] shrink-0 flex-col items-stretch gap-2 overflow-hidden';
 const GUILD_BOSS_DESKTOP_LOG_RAIL_CLASS = 'flex min-h-0 min-w-0 flex-1 flex-col gap-3';
@@ -124,10 +130,6 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
-const renderStarDisplay = (stars: number) => {
-    return <EquipmentEnhancementBadge stars={stars} />;
-};
-
 export const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem; onClick?: () => void; }> = ({ slot, item, onClick }) => {
     const clickableClass = item && onClick ? 'cursor-pointer hover:scale-105 transition-transform' : '';
     
@@ -135,13 +137,25 @@ export const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: Invent
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
-                className={`relative w-full aspect-square rounded-md border border-color/50 bg-tertiary/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+                className={`relative aspect-square w-full overflow-hidden rounded-md border border-color/50 bg-tertiary/50 ${clickableClass} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={item.name}
                 onClick={onClick}
             >
-                <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-sm" />
-                {renderStarDisplay(item.stars)}
-                {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 h-full w-full rounded-sm object-cover" />
+                <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
+                {item.image && (
+                    <img
+                        src={item.image}
+                        alt={item.name}
+                        className="absolute z-[2] object-contain"
+                        style={itemSlotIconStyleForGrade(item.grade)}
+                    />
+                )}
+                <div
+                    className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                    aria-hidden
+                />
+                <EquipmentEnhancementBadge stars={item.stars} />
             </div>
         );
     } else {
@@ -488,6 +502,8 @@ const BossPanel: React.FC<BossPanelProps> = ({
         [boss.id, boss.name, t],
     );
     const hpPercent = maxHp > 0 ? (hp / maxHp) * 100 : 0;
+    /** PC 좌레일: 레일 폭에 맞추고 높이는 이미지 비율(정사각 등)로 — 남는 세로를 랭킹에 양보 */
+    const desktopWidthFit = fitContentWidth && !fillAvailableHeight && !compact;
     const desktopFitFill = fitContentWidth && fillAvailableHeight && !compact;
 
     return (
@@ -497,9 +513,11 @@ const BossPanel: React.FC<BossPanelProps> = ({
                     ? 'h-full min-h-0 gap-1'
                     : desktopFitFill
                       ? 'h-full min-h-0 w-full gap-2'
-                      : fitContentWidth
-                        ? 'w-fit max-w-full shrink-0 gap-2'
-                        : 'h-full gap-2'
+                      : desktopWidthFit
+                        ? 'h-full max-h-full w-full max-w-full shrink-0 gap-1.5'
+                        : fitContentWidth
+                          ? 'w-fit max-w-full shrink-0 gap-2'
+                          : 'h-full gap-2'
             }`}
         >
             <div
@@ -508,9 +526,11 @@ const BossPanel: React.FC<BossPanelProps> = ({
                         ? 'flex min-h-0 flex-1 flex-col items-center justify-center'
                         : desktopFitFill
                           ? 'mx-auto h-full w-fit max-w-full'
-                          : fitContentWidth
-                            ? 'w-fit max-w-full shrink-0'
-                            : 'flex min-h-0 flex-1 flex-col items-center justify-center'
+                          : desktopWidthFit
+                            ? 'min-h-0 w-full max-w-full flex-1 overflow-hidden'
+                            : fitContentWidth
+                              ? 'w-fit max-w-full shrink-0'
+                              : 'flex min-h-0 flex-1 flex-col items-center justify-center'
                 }`}
             >
                 <GuildBossPortrait
@@ -520,26 +540,30 @@ const BossPanel: React.FC<BossPanelProps> = ({
                     roundedClassName="rounded-lg"
                     className={
                         compact
-                            ? 'mx-auto h-full min-h-0 w-full max-w-full'
+                            ? 'relative z-0 mx-auto h-full min-h-0 w-full max-w-full'
                             : desktopFitFill
-                              ? 'mx-auto h-full w-fit max-w-full'
-                              : fitContentWidth
-                                ? 'w-fit max-w-full shrink-0'
-                                : 'mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col'
+                              ? 'relative z-0 mx-auto h-full w-fit max-w-full'
+                              : desktopWidthFit
+                                ? 'relative z-0 w-full max-w-full'
+                                : fitContentWidth
+                                  ? 'relative z-0 w-fit max-w-full shrink-0'
+                                  : 'relative z-0 mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col'
                     }
                     imgClassName={
                         compact
                             ? 'h-full w-auto max-w-full min-h-0'
                             : desktopFitFill
                               ? 'block h-full w-auto max-w-full'
-                              : fitContentWidth
-                                ? 'block h-auto w-auto max-h-[min(58vh,520px)]'
-                                : 'mx-auto h-full w-full max-h-[min(88vh,820px)] min-h-[min(58vh,480px)]'
+                              : desktopWidthFit
+                                ? 'block h-auto w-full max-h-full'
+                                : fitContentWidth
+                                  ? 'block h-auto w-auto max-h-[min(58vh,520px)]'
+                                  : 'mx-auto h-full w-full max-h-[min(88vh,820px)] min-h-[min(58vh,480px)]'
                     }
                 />
-                <div className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-t from-black/70 via-transparent to-black/50"></div>
+                <div className="pointer-events-none absolute inset-0 z-[1] rounded-lg bg-gradient-to-b from-black/55 via-transparent to-transparent"></div>
                 
-                <div className={`absolute left-2 right-2 flex flex-col items-stretch gap-1 ${compact ? 'top-1' : 'top-2'}`}>
+                <div className={`absolute left-2 right-2 z-10 flex flex-col items-stretch gap-1 ${compact ? 'top-1' : 'top-2'}`}>
                      <div className={`w-full bg-tertiary rounded-full border-2 border-black/50 relative ${compact ? 'h-4' : 'h-5'}`}>
                         <div className="bg-gradient-to-r from-red-500 to-red-700 h-full rounded-full" style={{ width: `${hpPercent}%`, transition: 'width 0.5s linear' }}></div>
                          <span className={`absolute inset-0 font-bold text-white flex items-center justify-center ${compact ? 'text-[10px]' : 'text-sm'}`} style={{textShadow: '1px 1px 2px black'}}>
@@ -564,27 +588,34 @@ const BossPanel: React.FC<BossPanelProps> = ({
                         {bossDisplayName} · {t('boss.stage', { stage: difficultyStage })}
                     </p>
                 </div>
-                
-                <div className={`absolute bottom-0 left-0 right-0 flex items-center justify-center ${compact ? 'gap-1.5 p-1' : 'gap-3 p-2 sm:gap-4'}`}>
-                    <div
-                        className={`flex max-w-full shrink-0 flex-row flex-nowrap items-center justify-center overflow-visible rounded-xl border border-white/20 bg-black/45 shadow-lg ${compact ? 'gap-0.5 p-1' : 'gap-1.5 p-1.5 sm:gap-2 sm:p-2'}`}
-                        aria-label={t('boss.bossSkillsAria')}
-                    >
-                        {boss.skills.map((skill) => (
-                            <BossSkillTile
-                                key={skill.id}
-                                skill={skill}
-                                className={
-                                    compact
-                                        ? 'h-9 w-9 shrink-0'
-                                        : 'h-14 w-14 shrink-0 sm:h-16 sm:w-16 md:h-[4.5rem] md:w-[4.5rem]'
-                                }
-                            />
-                        ))}
-                    </div>
-                    <div className={`w-px shrink-0 bg-gray-500/50 ${compact ? 'h-8' : 'h-10 sm:h-12'}`}></div>
-                    <BossRecommendedStatsTip stats={boss.recommendedStats} compact={compact} />
+            </div>
+
+            {/* 스킬·추천팁: 보스 이미지 아래 (오버레이 아님) */}
+            <div
+                className={`relative z-10 flex shrink-0 items-center justify-center ${
+                    compact ? 'gap-1.5 px-0.5' : 'gap-2.5 sm:gap-3'
+                }`}
+            >
+                <div
+                    className={`flex max-w-full shrink-0 flex-row flex-nowrap items-center justify-center overflow-visible rounded-xl border border-white/20 bg-black/45 shadow-lg ${
+                        compact ? 'gap-0.5 p-1' : 'gap-1.5 p-1.5 sm:gap-2 sm:p-2'
+                    }`}
+                    aria-label={t('boss.bossSkillsAria')}
+                >
+                    {boss.skills.map((skill) => (
+                        <BossSkillTile
+                            key={skill.id}
+                            skill={skill}
+                            className={
+                                compact
+                                    ? 'h-9 w-9 shrink-0'
+                                    : 'h-12 w-12 shrink-0 sm:h-14 sm:w-14'
+                            }
+                        />
+                    ))}
                 </div>
+                <div className={`w-px shrink-0 bg-gray-500/50 ${compact ? 'h-8' : 'h-9 sm:h-11'}`}></div>
+                <BossRecommendedStatsTip stats={boss.recommendedStats} compact={compact} />
             </div>
         </div>
     );
@@ -623,30 +654,36 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
 }) => {
     const { t } = useTranslation(['guild', 'common']);
     const { handlers, allUsers } = useAppContext();
-    const top3 = fullDamageRanking.slice(0, 3);
+    /** PC 확장: 전체 랭킹 스크롤 / 그 외: Top 3 */
+    const showFullRanking = !compact && !desktopTightTop3;
+    const rankingRows = showFullRanking ? fullDamageRanking : fullDamageRanking.slice(0, 3);
     const amIInTop3 = myRankData ? myRankData.rank <= 3 : false;
     const myRankUser = myRankData ? allUsers?.find((u) => u.id === myRankData.userId) : undefined;
 
-    const top3RowClass = compact
+    const rowClass = compact
         ? 'h-[2.15rem] px-1 text-sm'
         : desktopTightTop3
           ? 'h-[2.4rem] px-1.5 text-[15px] leading-tight'
-          : 'p-1.5 text-base';
+          : 'h-[2.35rem] px-1.5 text-[15px] leading-tight';
     const rankingGridClass = getDamageRankingGridClass(compact);
     const nickColClass = getDamageRankingNickColClass(compact);
 
     return (
         <div
             className={`bg-panel border border-color flex min-h-0 flex-col rounded-lg ${
-                compact ? 'h-full p-2' : desktopTightTop3 ? 'shrink-0 p-2.5' : 'h-full p-3'
+                compact ? 'h-full p-2' : desktopTightTop3 ? 'shrink-0 p-2.5' : 'h-full p-2.5'
             }`}
         >
             <h4
                 className={`flex-shrink-0 text-center font-bold text-yellow-300 ${
-                    compact ? 'mb-1 text-base' : desktopTightTop3 ? 'mb-1.5 text-base' : 'mb-2 text-lg'
+                    compact ? 'mb-1 text-base' : desktopTightTop3 ? 'mb-1.5 text-base' : 'mb-1.5 text-base'
                 }`}
             >
-                {compact ? t('boss.damageTop3') : t('boss.damageRankingTop3')}
+                {compact
+                    ? t('boss.damageTop3')
+                    : showFullRanking
+                      ? t('boss.cumulativeRank')
+                      : t('boss.damageRankingTop3')}
             </h4>
 
             <div
@@ -656,19 +693,32 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
                         : 'min-h-0 flex-grow overflow-y-auto pr-1'
                 }
             >
-                {top3.length > 0 ? (
+                {rankingRows.length > 0 ? (
                     <ul className={desktopTightTop3 ? 'flex flex-col gap-1' : 'space-y-1'}>
-                        {top3.map((rank, index) => {
+                        {rankingRows.map((rank, index) => {
                             const ru = allUsers?.find((u) => u.id === rank.userId);
-                            const place = (index + 1) as 1 | 2 | 3;
+                            const place = index + 1;
+                            const isMe = myRankData?.userId === rank.userId;
                             return (
                             <li
                                 key={rank.userId}
                                 onClick={() => handlers.openViewingUser(rank.userId)}
-                                className={`${rankingGridClass} cursor-pointer rounded-md bg-tertiary/50 hover:bg-secondary ${top3RowClass}`}
+                                className={`${rankingGridClass} cursor-pointer rounded-md hover:bg-secondary ${rowClass} ${
+                                    isMe ? 'bg-blue-900/40' : 'bg-tertiary/50'
+                                }`}
                             >
                                 <div className={DAMAGE_RANKING_RANK_COL_CLASS}>
-                                    <GuildBossTopRankBadge place={place} compact={compact} />
+                                    {place <= 3 ? (
+                                        <GuildBossTopRankBadge place={place as 1 | 2 | 3} compact={compact} />
+                                    ) : (
+                                        <span
+                                            className={`inline-flex shrink-0 items-center justify-center rounded-full bg-tertiary font-bold tabular-nums text-secondary ${
+                                                compact ? 'h-6 w-6 text-[11px]' : 'h-8 w-8 text-sm'
+                                            }`}
+                                        >
+                                            {place}
+                                        </span>
+                                    )}
                                 </div>
                                 <UserNicknameText
                                     user={{
@@ -695,7 +745,7 @@ const DamageRankingPanel: React.FC<DamageRankingPanelProps> = ({
                     </div>
                 )}
             </div>
-            {myRankData && !amIInTop3 && (
+            {myRankData && !amIInTop3 && !showFullRanking && (
                 <div className={`border-t border-color/50 flex-shrink-0 ${compact ? 'mt-1 pt-1' : 'mt-2 pt-2'}`}>
                     <div className={`${rankingGridClass} rounded-md bg-blue-900/40 ${compact ? 'p-1.5 text-xs' : 'p-1.5 text-xs'}`}>
                         <span
@@ -846,7 +896,8 @@ const GuildBossDesktopLeftRail: React.FC<GuildBossDesktopLeftRailProps> = ({
     myCurrentBattleDamage,
 }) => (
     <div className={GUILD_BOSS_DESKTOP_LEFT_RAIL_CLASS}>
-        <div className="flex min-h-0 w-full flex-1 items-center justify-center overflow-hidden">
+        {/* 보스 이미지(+아래 스킬/팁) — 상한으로 랭킹 최소 공간 확보 */}
+        <div className="flex max-h-[calc(100%-10rem)] w-full min-h-0 shrink-0 flex-col items-center justify-start overflow-hidden">
             <BossPanel
                 boss={boss}
                 hp={hp}
@@ -854,15 +905,13 @@ const GuildBossDesktopLeftRail: React.FC<GuildBossDesktopLeftRailProps> = ({
                 difficultyStage={difficultyStage}
                 damageNumbers={bossDamageNumbers}
                 fitContentWidth
-                fillAvailableHeight
             />
         </div>
-        <div className="min-w-0 w-full shrink-0">
+        <div className="min-h-0 min-w-0 w-full max-h-[min(12rem,30%)] flex-1 overflow-hidden">
             <DamageRankingPanel
                 fullDamageRanking={fullDamageRanking}
                 myRankData={myRankData}
                 myCurrentBattleDamage={myCurrentBattleDamage}
-                desktopTightTop3
             />
         </div>
     </div>

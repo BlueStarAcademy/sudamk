@@ -144,14 +144,15 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             
             // 잠금 검증: 1층은 항상 열림, 2층 이상은 이전 층이 클리어되어야 함 (관리자는 예외)
             const userTowerFloor = (user as any).towerFloor ?? 0;
+            const userMonthlyTowerFloor = Number((user as any).monthlyTowerFloor ?? 0) || 0;
             const isLocked = !isAdmin && floor > 1 && floor > userTowerFloor + 1;
             
             if (isLocked) {
                 return { error: `아래층을 먼저 클리어해야 합니다. (현재 클리어: ${userTowerFloor}층)` };
             }
             
-            // 클리어한 층은 행동력 소모가 0
-            const isCleared = floor <= userTowerFloor;
+            // 이번 달 이미 클리어한 층은 행동력 소모 0 (월간 재도전)
+            const isCleared = floor <= userMonthlyTowerFloor;
             const towerGear = aggregateSpecialOptionGearFromUser(user);
             const apDiscount = towerApDiscountForFloor(towerGear, floor);
             const effectiveActionPointCost = isCleared ? 0 : Math.max(0, stage.actionPointCost - apDiscount);

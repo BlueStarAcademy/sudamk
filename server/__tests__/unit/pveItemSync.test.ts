@@ -72,6 +72,48 @@ describe('PVE item client sync', () => {
         expect(game.boardState[4][4]).toBe(Player.None);
     });
 
+    it('does not let an advancing human reply erase a confirmed AI stone (adventure board desync)', () => {
+        const serverBoard = emptyBoard(5);
+        serverBoard[2][2] = Player.White; // confirmed AI stone
+        const game: any = {
+            id: 'pve-adventure-ai-stability',
+            isSinglePlayer: false,
+            isAiGame: true,
+            gameCategory: 'adventure',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            boardState: serverBoard,
+            moveHistory: [{ x: 2, y: 2, player: Player.White }],
+            currentPlayer: Player.Black,
+            gameStatus: 'playing',
+            mode: 'standard',
+            settings: { mixedModes: [] },
+        };
+
+        // Client replied after a board-less merge that dropped the AI stone and/or relocated it.
+        const clientBoard = emptyBoard(5);
+        clientBoard[4][4] = Player.White; // wrong relocated AI stone
+        clientBoard[0][0] = Player.Black; // human reply
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: clientBoard,
+                moveHistory: [
+                    { x: 4, y: 4, player: Player.White },
+                    { x: 0, y: 0, player: Player.Black },
+                ],
+                currentPlayer: Player.White,
+                gameStatus: 'playing',
+            },
+        });
+
+        expect(game.moveHistory[0]).toEqual({ x: 2, y: 2, player: Player.White });
+        expect(game.moveHistory[1]).toEqual({ x: 0, y: 0, player: Player.Black });
+        expect(game.boardState[2][2]).toBe(Player.White);
+        expect(game.boardState[4][4]).toBe(Player.None);
+        expect(game.boardState[0][0]).toBe(Player.Black);
+    });
+
     it('does not remap captured AI moves during missile board/history reconciliation', () => {
         const board = emptyBoard(5);
         board[4][4] = Player.White;

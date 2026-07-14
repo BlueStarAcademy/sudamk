@@ -5602,10 +5602,10 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const eqTid = user.equippedPairPetTemplateId ?? null;
             const eqIid = user.equippedPairPetInventoryItemId ?? null;
             if (eqIid && eqIid === itemId) {
-                return { error: '대표로 지정된 펫은 수련에 보낼 수 없습니다. 대표펫을 해제한 뒤 시도해 주세요.' };
+                return { error: '대표펫은 수련을 보낼 수 없습니다.' };
             }
             if (!eqIid && eqTid && row.templateId === eqTid) {
-                return { error: '대표로 지정된 펫은 수련에 보낼 수 없습니다. 대표펫을 해제한 뒤 시도해 주세요.' };
+                return { error: '대표펫은 수련을 보낼 수 없습니다.' };
             }
             const meta = readPairPetMetaFromRow(row);
             const minLv = minPetLevelForTrainingSlot(slotIndex);
