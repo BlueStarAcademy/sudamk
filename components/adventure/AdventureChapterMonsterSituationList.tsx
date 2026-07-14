@@ -17,7 +17,7 @@ import {
 } from '../../shared/utils/adventureMapSchedule.js';
 import {
     ADVENTURE_MAP_TREASURE_UI_ROW_ID,
-    adventureTreasureChestEquipmentImageForStageIndex,
+    adventureMapTreasureChestImage,
     getAdventureTreasureChestWindowMeta,
 } from '../../shared/utils/adventureMapTreasureSchedule.js';
 import { getAdventureAllowedBattleModes, resolveAdventureBoardSize } from '../../shared/utils/adventureBattleBoard.js';
@@ -72,7 +72,7 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
 
     const treasureWindowMeta = getAdventureTreasureChestWindowMeta(stage.id, nowMs);
     const treasureListActive = Boolean(treasureWindowMeta) && !treasureHandledForCurrentWindow;
-    const treasureImg = adventureTreasureChestEquipmentImageForStageIndex(stage.stageIndex);
+    const treasureImg = adventureMapTreasureChestImage(stage.id);
 
     return (
         <ul className={listClassName ?? 'mt-1 space-y-2 sm:space-y-2.5'}>
@@ -94,11 +94,6 @@ const AdventureChapterMonsterSituationList: React.FC<AdventureChapterMonsterSitu
                     <span className="flex min-w-0 flex-1 items-center gap-2">
                         <span className="relative h-9 w-9 shrink-0 overflow-hidden rounded-md border border-amber-400/45 bg-black/40 sm:h-10 sm:w-10">
                             <img src={treasureImg} alt="" className="h-full w-full object-contain p-0.5" draggable={false} />
-                            <span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
-                                <span className="rounded-full border border-white/35 bg-black/55 px-1 py-px text-[10px] font-black leading-none text-white shadow sm:text-[11px]">
-                                    ?
-                                </span>
-                            </span>
                         </span>
                         <span className="min-w-0 whitespace-nowrap text-[11px] font-bold text-amber-50 sm:text-xs">{t('adventure.treasureChest')}</span>
                     </span>

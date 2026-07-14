@@ -24,6 +24,22 @@ const ACTION_POINT_ITEM_IDS: Record<string, string> = {
     action_point_30: '30',
 };
 
+const ACTION_POINT_TEMPLATE_NAME: Record<string, string> = {
+    action_point_10: '행동력 회복제(+10)',
+    action_point_20: '행동력 회복제(+20)',
+    action_point_30: '행동력 회복제(+30)',
+};
+
+const resolveActionPointItemImage = (raw: string): string | null => {
+    const id = raw.trim();
+    const templateName =
+        ACTION_POINT_TEMPLATE_NAME[id] ??
+        (ACTION_POINT_RECOVERY_KO.exec(id) ? `행동력 회복제(+${ACTION_POINT_RECOVERY_KO.exec(id)![1]})` : null) ??
+        (id.match(/^action_point_(\d+)$/i) ? `행동력 회복제(+${id.match(/^action_point_(\d+)$/i)![1]})` : null);
+    if (!templateName) return null;
+    return CONSUMABLE_ITEMS.find((item) => item.name === templateName)?.image ?? null;
+};
+
 const resolveActionPointRecoveryDisplayName = (amount: string): string =>
     qs('actionPointRecovery', { amount });
 
@@ -108,7 +124,7 @@ const ActivityVitalityIcon: React.FC<{ className?: string; size?: number }> = ({
     );
 };
 
-/** 상점 소모품 탭과 동일: 행동력 회복제 카드는 ⚡ 배지 + 수치(아이템 이미지는 lightning.png, applus는 헤더 충전 버튼 전용) */
+/** 행동력 회복제 보상: 용량 뱃지(+10 등). 아이콘은 용량별 물약 아트를 씀 */
 const getShopActionPointBadgeFromReward = (reward: QuestReward): string | null => {
     if (!reward.items?.length) return null;
     const ref = reward.items[0];
@@ -430,10 +446,13 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean; inline?: bool
     const resolvedItemName = firstItem ? resolveConsumableDisplayName(firstItem) : '';
     const itemQty = firstItem?.quantity ?? 0;
     const actionPointBadge = quest.reward ? getShopActionPointBadgeFromReward(quest.reward) : null;
+    const apRaw =
+        firstItem && ('itemId' in firstItem ? firstItem.itemId : (firstItem as { name?: string }).name);
+    const apItemImage = actionPointBadge && typeof apRaw === 'string' ? resolveActionPointItemImage(apRaw) : null;
     const itemImage =
         resolvedItemName && !actionPointBadge
             ? (CONSUMABLE_ITEMS.find((item) => item.name === resolvedItemName)?.image ?? null)
-            : null;
+            : apItemImage;
     const ap = quest.activityPoints ?? 0;
     const hasActivity = ap > 0;
 
@@ -464,9 +483,9 @@ const QuestRewardPill: React.FC<{ quest: Quest; isMobile: boolean; inline?: bool
             {firstItem ? (
                 actionPointBadge ? (
                     <span className="inline-flex min-w-0 items-center gap-1 font-semibold text-slate-100">
-                        <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>
-                            ⚡
-                        </span>
+                        {itemImage ? (
+                            <img src={itemImage} alt="" className="h-4 w-4 object-contain sm:h-5 sm:w-5" />
+                        ) : null}
                         <span className="shrink-0 font-bold tabular-nums text-cyan-300">{actionPointBadge}</span>
                         <span className="tabular-nums text-amber-200">×{itemQty}</span>
                     </span>
@@ -715,15 +734,9 @@ const ActivityPanel: React.FC<{
         if (!reward.items || reward.items.length === 0) return '/images/Box/box.webp';
         const firstItem = reward.items[0];
         const raw = 'itemId' in firstItem ? firstItem.itemId : firstItem.name;
-        const fromShopId =
-            raw === 'action_point_10'
-                ? resolveActionPointRecoveryDisplayName('10')
-                : raw === 'action_point_20'
-                  ? resolveActionPointRecoveryDisplayName('20')
-                  : raw === 'action_point_30'
-                    ? resolveActionPointRecoveryDisplayName('30')
-                    : raw;
-        const itemTemplate = CONSUMABLE_ITEMS.find((item) => item.name === fromShopId);
+        const apImg = typeof raw === 'string' ? resolveActionPointItemImage(raw) : null;
+        if (apImg) return apImg;
+        const itemTemplate = CONSUMABLE_ITEMS.find((item) => item.name === raw);
         return itemTemplate?.image ?? '/images/Box/box.webp';
     };
 
@@ -763,7 +776,7 @@ const ActivityPanel: React.FC<{
                         const canClaim = progressMet && !isClaimed;
                         const reward = rewards[index];
                         const apBadge = getShopActionPointBadgeFromReward(reward);
-                        const itemImage = apBadge ? null : getItemImage(reward);
+                        const itemImage = getItemImage(reward);
                         const markerPct = milestoneMarkerPct(milestone);
                         const isLastMilestone = milestone >= maxProgress;
 
@@ -805,20 +818,11 @@ const ActivityPanel: React.FC<{
                                                 : t('claim.activityReward', { milestone })
                                         }
                                     >
-                                        {apBadge ? (
-                                            <span
-                                                className="flex h-full w-full items-center justify-center text-[1.35rem] leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] sm:text-[1.5rem]"
-                                                aria-hidden
-                                            >
-                                                ⚡
-                                            </span>
-                                        ) : (
-                                            <img
-                                                src={itemImage ?? '/images/Box/box.webp'}
-                                                alt=""
-                                                className="h-full w-full object-contain p-0.5"
-                                            />
-                                        )}
+                                        <img
+                                            src={itemImage ?? '/images/Box/box.webp'}
+                                            alt=""
+                                            className="h-full w-full object-contain p-0.5"
+                                        />
                                         {apBadge ? (
                                             <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-0.5 text-[9px] font-bold leading-tight text-cyan-300 shadow-md sm:px-1 sm:text-[10px]">
                                                 {apBadge}

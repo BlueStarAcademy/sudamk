@@ -4,6 +4,7 @@ import { useAppContext } from '../../hooks/useAppContext.js';
 import { Guild } from '../../types/entities.js';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
+import GuildMark from './GuildMark.js';
 
 interface GuildJoinModalProps {
     onClose: () => void;
@@ -197,24 +198,30 @@ const GuildJoinModal: React.FC<GuildJoinModalProps> = ({ onClose, onSuccess }) =
                                         className="p-4 bg-gray-800/50 rounded-lg border border-gray-700 hover:border-gray-600 transition-colors"
                                     >
                                         <div className="flex items-start justify-between gap-4">
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <h3 className="text-lg font-semibold text-white truncate">
-                                                        {guild.name}
-                                                    </h3>
-                                                    {guild.emblem && (
-                                                        <span className="text-xl">{guild.emblem}</span>
+                                            <div className="flex min-w-0 flex-1 items-start gap-3">
+                                                <GuildMark
+                                                    icon={guild.icon}
+                                                    emblem={guild.emblem}
+                                                    size={44}
+                                                    alt={guild.name}
+                                                    tone="plain"
+                                                />
+                                                <div className="min-w-0 flex-1">
+                                                    <div className="mb-1 flex items-center gap-2">
+                                                        <h3 className="truncate text-lg font-semibold text-white">
+                                                            {guild.name}
+                                                        </h3>
+                                                    </div>
+                                                    <div className="mb-2 flex items-center gap-4 text-sm text-gray-400">
+                                                        <span>{t('joinModal.members', { current: guild.memberCount, max: MAX_GUILD_MEMBERS })}</span>
+                                                        <span>{t('joinModal.level', { level: guild.level })}</span>
+                                                    </div>
+                                                    {guild.description && (
+                                                        <p className="line-clamp-2 text-sm text-gray-300">
+                                                            {guild.description}
+                                                        </p>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-4 text-sm text-gray-400 mb-2">
-                                                    <span>{t('joinModal.members', { current: guild.memberCount, max: MAX_GUILD_MEMBERS })}</span>
-                                                    <span>{t('joinModal.level', { level: guild.level })}</span>
-                                                </div>
-                                                {guild.description && (
-                                                    <p className="text-sm text-gray-300 line-clamp-2">
-                                                        {guild.description}
-                                                    </p>
-                                                )}
                                             </div>
                                             <div className="flex-shrink-0">
                                                 <Button

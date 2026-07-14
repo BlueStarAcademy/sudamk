@@ -543,6 +543,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
     // Lazy migration for chat message IDs to support deleting old messages
     for (const guild of Object.values(guilds)) {
+        // Catch up guilds whose XP bar filled before boss/war paths called level-up
+        if (guildService.checkGuildLevelUp(guild)) {
+            needsSave = true;
+        }
         if (guildService.applyWeeklyGuildChatResetIfNeeded(guild, chatWeekNow)) {
             needsSave = true;
         }
@@ -3723,8 +3727,10 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             freshUser.gold = (freshUser.gold || 0) + rewards.gold;
             
             // 길드 경험치
-            if (guild.xp === undefined) guild.xp = 0;
+            if (guild.xp === undefined) guild.xp = (guild as { experience?: number }).experience ?? 0;
             guild.xp += rewards.guildXp;
+            (guild as { experience?: number }).experience = guild.xp;
+            guildService.checkGuildLevelUp(guild);
             
             // 연구소 포인트
             if (!guild.researchPoints) guild.researchPoints = 0;
@@ -3997,16 +4003,14 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             freshUser.guildCoins = (freshUser.guildCoins || 0) + rewards.guildCoins;
             freshUser.diamonds = (freshUser.diamonds || 0) + rewards.diamonds;
             
-            // 길드 경험치
-            if (guild.xp === undefined) guild.xp = 0;
-            guild.xp += rewards.guildXp;
-            
-            // 연구소 포인트
-            if (!guild.researchPoints) guild.researchPoints = 0;
-            guild.researchPoints += rewards.researchPoints;
-            
-            // 공동보상(길드경험치, 연구포인트) 저장 - 마지막 상대 기록 표시용
+            // 공동보상(길드경험치·연구포인트)은 길드당 1회만 적립 — 개인 수령마다 중복되면 안 됨
             if (!(myWar as any).sharedRewards) {
+                if (guild.xp === undefined) guild.xp = (guild as { experience?: number }).experience ?? 0;
+                guild.xp += rewards.guildXp;
+                (guild as { experience?: number }).experience = guild.xp;
+                if (!guild.researchPoints) guild.researchPoints = 0;
+                guild.researchPoints += rewards.researchPoints;
+                guildService.checkGuildLevelUp(guild);
                 (myWar as any).sharedRewards = { guildXp: rewards.guildXp, researchPoints: rewards.researchPoints };
                 const activeWarToUpdate = activeWars.find((w: any) => w?.id === myWar.id);
                 if (activeWarToUpdate) {

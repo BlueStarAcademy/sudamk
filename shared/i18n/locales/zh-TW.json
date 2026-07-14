@@ -3129,7 +3129,7 @@
     },
     "specialStats": {
       "actionPointMax": "最大AP",
-      "strategyXpBonus": "用戶XP",
+      "strategyXpBonus": "EXP",
       "playfulXpBonus": "寵物經驗值",
       "championshipVenueAllStats": "錦標賽",
       "guildBossBattleAllStats": "公會老大"

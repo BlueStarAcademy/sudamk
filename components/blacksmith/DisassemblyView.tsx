@@ -15,6 +15,12 @@ import {
 import { BLACKSMITH_DISASSEMBLY_JACKPOT_RATES } from '../../constants/rules.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
+import {
+    GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
+    gradeSlotBorderOverlayClass,
+    itemSlotIconStyle,
+    ITEM_SLOT_ICON_SIZE_PCT,
+} from '../../shared/constants/itemSlotIconLayout.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -22,7 +28,7 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
     epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
     legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
+    mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -80,7 +86,6 @@ const DisassemblySelectedInventoryCell: React.FC<{
 }> = ({ item, onToggleDisassemblySelection, pcViewer = false }) => {
     const { t } = useTranslation('blacksmith');
     const styles = gradeStyles[item.grade];
-    const iconBoxPct = '88%';
     const cellPx = getSelectedDisassemblyCellPx(pcViewer);
     const compactStars = cellPx < 64;
     return (
@@ -89,7 +94,7 @@ const DisassemblySelectedInventoryCell: React.FC<{
             onClick={() => onToggleDisassemblySelection(item.id)}
             title={t('disassemble.deselect')}
             aria-label={t('disassemble.deselectAria', { name: item.name })}
-            className="relative mx-auto aspect-square w-full cursor-pointer rounded-md border-2 border-black/20 transition-all duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
+            className="relative mx-auto aspect-square w-full cursor-pointer overflow-hidden rounded-md border-2 border-black/20 transition-all duration-200 hover:scale-[1.03] focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400/70"
             style={{ maxWidth: cellPx }}
         >
             <img
@@ -102,21 +107,14 @@ const DisassemblySelectedInventoryCell: React.FC<{
                 <img
                     src={item.image}
                     alt=""
-                    className="absolute z-[1] object-contain p-0.5"
-                    style={{
-                        width: iconBoxPct,
-                        height: iconBoxPct,
-                        maxWidth: iconBoxPct,
-                        maxHeight: iconBoxPct,
-                        left: '50%',
-                        top: '50%',
-                        transform: 'translate(-50%, -50%)',
-                    }}
+                    className="absolute z-[1] object-contain"
+                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                 />
             )}
-            {item.grade === ItemGrade.Transcendent && (
-                <div className="pointer-events-none absolute inset-0 z-[2] rounded-md transcendent-inventory-slot-overlay" aria-hidden />
-            )}
+            <div
+                className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                aria-hidden
+            />
             {renderStarDisplay(item.stars ?? 0, compactStars)}
         </button>
     );

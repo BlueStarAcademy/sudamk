@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import { InventoryItem, UserWithStatus } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
-import { isActionPointConsumable, gradeBackgrounds, gradeStyles } from '../constants/items.js';
+import { gradeBackgrounds, gradeStyles } from '../constants/items.js';
 import { inventoryStacksMatchConsumableBulkAnchor } from '../utils/itemTemplateLookup.js';
 import { resolveCurrencyBundleConsumableKey } from '../shared/utils/currencyBundleConsumable.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
@@ -94,8 +94,7 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({
         else if (quantity > totalQuantity) setQuantity(totalQuantity);
     };
 
-    const isActionPoint = isActionPointConsumable(item.name);
-    const showImage = isActionPoint || item.image;
+    const showImage = Boolean(item.image);
 
     const resolvedGrade = (item.grade ?? ItemGrade.Normal) as ItemGrade;
     const tierBg = gradeBackgrounds[resolvedGrade] ?? gradeBackgrounds[ItemGrade.Normal];
@@ -139,22 +138,11 @@ const UseQuantityModal: React.FC<UseQuantityModalProps> = ({
                             >
                                 <img src={tierBg} alt="" className="absolute inset-0 z-0 h-full w-full object-cover" aria-hidden />
                                 {showImage ? (
-                                    isActionPoint ? (
-                                        <div className="relative z-[1] m-auto flex flex-col items-center justify-center text-amber-300">
-                                            <span className="text-3xl leading-none sm:text-2xl" aria-hidden>
-                                                ⚡
-                                            </span>
-                                            <span className="mt-0.5 text-sm font-bold text-amber-200 sm:text-xs">
-                                                +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
-                                            </span>
-                                        </div>
-                                    ) : (
-                                        <img
-                                            src={item.image!}
-                                            alt=""
-                                            className="relative z-[1] m-auto max-h-[72%] max-w-[72%] object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.75)]"
-                                        />
-                                    )
+                                    <img
+                                        src={item.image!}
+                                        alt=""
+                                        className="relative z-[1] m-auto max-h-[72%] max-w-[72%] object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.75)]"
+                                    />
                                 ) : (
                                     <span className="relative z-[1] m-auto text-2xl opacity-50" aria-hidden>
                                         ?

@@ -7,6 +7,7 @@ import { gradeBackgrounds, gradeStyles } from '../constants';
 import { getMailEquipmentDisplayStars, isMailAttachmentEquipment } from '../shared/utils/equipmentEnhancementStars.js';
 import { getItemTemplateByName } from '../utils/itemTemplateLookup.js';
 import { isActionPointConsumable } from '../constants/items.js';
+import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
 
 function resolveItemImageSrc(path: string | undefined): string {
     if (!path) return '/images/icon/Reward.webp';
@@ -82,11 +83,7 @@ const MailRewardItemTile: React.FC<{
                         style={{ width: iconPct, height: iconPct }}
                         aria-hidden
                     />
-                    {stars > 0 ? (
-                        <span className="absolute bottom-0.5 right-0.5 z-10 rounded-md border border-amber-400/40 bg-gradient-to-b from-amber-950/95 to-black/90 px-1 py-px text-[9px] font-black tabular-nums text-amber-200 shadow-sm">
-                            +{stars}
-                        </span>
-                    ) : null}
+                    <EquipmentEnhancementBadge stars={stars} />
                 </div>
                 {stars > 0 ? (
                     <span className={`text-[10px] font-bold tabular-nums text-amber-300/95`}>{t('enhancement', { stars })}</span>
@@ -102,26 +99,19 @@ const MailRewardItemTile: React.FC<{
             <div
                 className={`relative flex shrink-0 items-center justify-center rounded-xl border border-white/10 bg-gradient-to-b from-zinc-800/90 to-zinc-950/90 shadow-inner ${box}`}
             >
-                {actionPointBadge ? (
-                    <>
-                        <span
-                            className="flex h-full w-full items-center justify-center text-[1.9rem] leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]"
-                            aria-hidden
-                        >
-                            ⚡
-                        </span>
-                        <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
-                            {actionPointBadge}
-                        </span>
-                    </>
-                ) : (
+                <>
                     <img
                         src={resolveMailAttachmentImage(item)}
                         alt=""
                         className="max-h-[88%] max-w-[88%] object-contain drop-shadow"
                         aria-hidden
                     />
-                )}
+                    {actionPointBadge ? (
+                        <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
+                            {actionPointBadge}
+                        </span>
+                    ) : null}
+                </>
             </div>
             <span className={`max-w-[6.5rem] leading-tight line-clamp-2 text-gray-200 ${label}`}>{displayName}</span>
             {qty > 1 ? <span className="text-[10px] font-medium text-gray-400">×{qty}</span> : null}

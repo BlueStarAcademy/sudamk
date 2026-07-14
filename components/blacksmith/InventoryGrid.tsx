@@ -2,6 +2,14 @@ import React from 'react';
 import { InventoryItem, ItemGrade } from '../../types.js';
 import { isRefinementTicketMaterial } from '../../constants/items.js';
 import { isPairArenaExclusiveBagItem } from '../../shared/constants/petLobby.js';
+import {
+    GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
+    gradeSlotBorderOverlayClass,
+    itemSlotIconStyle,
+    ITEM_SLOT_ICON_SIZE_PCT,
+} from '../../shared/constants/itemSlotIconLayout.js';
+import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
+import EquipmentStatusBadge from '../EquipmentStatusBadge.js';
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
     normal: '/images/equipments/normalbgi.webp',
@@ -11,37 +19,6 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
     legendary: '/images/equipments/legendarybgi.webp',
     mythic: '/images/equipments/mythicbgi.webp',
     transcendent: '/images/equipments/transcendentbgi.webp',
-};
-
-const renderStarDisplay = (stars: number) => {
-    if (stars === 0) return null;
-
-    let starImage = '';
-    let numberColor = '';
-
-    if (stars >= 10) {
-        starImage = '/images/equipments/Star4.webp';
-        numberColor = "prism-text-effect";
-    } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.webp';
-        numberColor = "text-purple-400";
-    } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.webp';
-        numberColor = "text-amber-400";
-    } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.webp';
-        numberColor = "text-white";
-    }
-
-    return (
-        <div
-            className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
-            style={{ textShadow: '1px 1px 2px black' }}
-        >
-            <img src={starImage} alt="star" className="w-3 h-3" />
-            <span className={`font-bold text-xs leading-none ${numberColor}`}>{stars}</span>
-        </div>
-    );
 };
 
 interface InventoryGridProps {
@@ -71,7 +48,6 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({
     const slotCount = Math.max(inventorySlots, inventory.length);
     const inventoryDisplaySlots = Array.from({ length: slotCount }, (_, index) => inventory[index] || null);
     const cols = Math.max(4, Math.min(12, columnCount));
-    const iconBoxPct = cols <= 8 ? '88%' : '80%';
 
     return (
         <div 
@@ -96,7 +72,7 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({
                                 onSelectItem(item);
                             }
                         }}
-                        className={`relative aspect-square rounded-md transition-all duration-200 ${item ? 'hover:scale-105' : 'bg-tertiary/50'} ${isDisabled ? 'filter grayscale opacity-50 pointer-events-none' : 'cursor-pointer'}`}
+                        className={`relative aspect-square overflow-hidden rounded-md transition-all duration-200 ${item ? 'hover:scale-105' : 'bg-tertiary/50'} ${isDisabled ? 'filter grayscale opacity-50 pointer-events-none' : 'cursor-pointer'}`}
                         style={{ width: '100%', minWidth: 0, minHeight: 0, maxWidth: '100%' }}
                     >
                         {item ? (
@@ -107,23 +83,16 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({
                                     <img
                                         src={item.image}
                                         alt={item.name}
-                                        className="absolute z-[1] object-contain p-0.5"
-                                        style={{
-                                            width: iconBoxPct,
-                                            height: iconBoxPct,
-                                            maxWidth: iconBoxPct,
-                                            maxHeight: iconBoxPct,
-                                            left: '50%',
-                                            top: '50%',
-                                            transform: 'translate(-50%, -50%)',
-                                        }}
+                                        className="absolute z-[1] object-contain"
+                                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                                     />
                                 )}
-                                {item.grade === ItemGrade.Transcendent && (
-                                    <div className="transcendent-inventory-slot-overlay pointer-events-none absolute inset-0 z-[2] rounded-md" aria-hidden />
-                                )}
-                                {renderStarDisplay(item.stars)}
-                                {item.isEquipped && <div className="absolute top-0.5 right-0.5 text-xs font-bold text-white bg-blue-600/80 px-1 rounded-bl-md">E</div>}
+                                <div
+                                    className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                                    aria-hidden
+                                />
+                                <EquipmentEnhancementBadge stars={item.stars} />
+                                {item.isEquipped ? <EquipmentStatusBadge kind="equipped" /> : null}
                                 {(() => {
                                     if (isPairArenaExclusiveBagItem(item)) return null;
                                     const stackQty = item.quantity ?? 1;

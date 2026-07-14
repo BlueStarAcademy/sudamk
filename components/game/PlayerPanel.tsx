@@ -28,7 +28,7 @@ import {
 import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
-import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
+import { getAdventureCodexMonsterById, getAdventureMonsterPortraitUrl } from '../../constants/adventureMonstersCodex.js';
 import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import {
@@ -1178,7 +1178,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                   const m = getAdventureCodexMonsterById(session.adventureMonsterCodexId);
                   if (!m) return undefined;
                   return {
-                      portraitUrl: m.imageWebp,
+                      portraitUrl: getAdventureMonsterPortraitUrl(m),
                       displayName: m.name,
                       level: Math.max(1, session.adventureMonsterLevel ?? 1),
                   };

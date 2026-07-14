@@ -1,4 +1,4 @@
-import React, { useLayoutEffect, useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import React, { useLayoutEffect, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal, flushSync } from 'react-dom';
 import { useTranslation } from 'react-i18next';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
@@ -19,8 +19,10 @@ import {
     getAdventureAllowedBattleModes,
     resolveAdventureBoardSize,
 } from '../../shared/utils/adventureBattleBoard.js';
-import { AdventureMonsterSpriteFrame } from './AdventureMonsterSprite.js';
+import AdventureMonsterPortrait from './AdventureMonsterPortrait.js';
 import AdventureMapMonsterLabel from './AdventureMapMonsterLabel.js';
+import AdventureMapBackdrop from './AdventureMapBackdrop.js';
+import AdventureMapMonsterMarker from './AdventureMapMonsterMarker.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import {
     getAdventureChapterUnlockBlockers,
@@ -36,7 +38,6 @@ import {
     resolveAdventureMapSpawnSlot,
     type AdventureMapMonsterInstance,
 } from '../../shared/utils/adventureMapSchedule.js';
-import { buildAdventureMapMonsterWanderStyle } from '../../shared/utils/adventureMapMonsterWander.js';
 import {
     getRegionalMapMonsterDwellMultiplierForStage,
     getRegionalMapMonsterRespawnOffMultiplierForStage,
@@ -48,7 +49,7 @@ import AdventureTreasureChestPickModal from './AdventureTreasureChestPickModal.j
 import AdventureTreasureChestInfoPanel from './AdventureTreasureChestInfoPanel.js';
 import {
     ADVENTURE_MAP_TREASURE_UI_ROW_ID,
-    adventureTreasureChestEquipmentImageForStageIndex,
+    adventureMapTreasureChestImage,
     adventureTreasureChestHandledForCurrentWindow,
     buildAdventureMapTreasureChest,
     getAdventureTreasureChestWindowMeta,
@@ -103,51 +104,6 @@ function buildAdventureMapMonsterDetails(stage: AdventureStageDef, m: MapMonster
 }
 
 type MapMonster = AdventureMapMonsterInstance;
-
-const BUBBLE_VIEWPORT_PAD_PX = 8;
-const BUBBLE_GAP_FROM_ANCHOR_PX = 10;
-
-/**
- * 몬스터 앵커(맵 % 좌표 = 스프라이트 하단 중앙 근처) 기준으로 말풍선을 두되,
- * 맵 카드(overflow hidden) 안에 들어가도록 좌우·위아래 방향을 바꾼 뒤 클램프.
- */
-function computeAdventureMonsterBubblePosition(
-    vpW: number,
-    vpH: number,
-    xPct: number,
-    yPct: number,
-    bubbleW: number,
-    bubbleH: number,
-): { left: number; top: number } {
-    const pad = BUBBLE_VIEWPORT_PAD_PX;
-    const g = BUBBLE_GAP_FROM_ANCHOR_PX;
-    const ax = (vpW * xPct) / 100;
-    const ay = (vpH * yPct) / 100;
-
-    let top: number;
-    const preferBelow = yPct < 34;
-    if (preferBelow) {
-        top = ay + g;
-        if (top + bubbleH > vpH - pad) top = ay - g - bubbleH;
-    } else {
-        top = ay - g - bubbleH;
-        if (top < pad) top = ay + g;
-    }
-    top = Math.max(pad, Math.min(top, vpH - bubbleH - pad));
-
-    let left: number;
-    const preferRight = xPct <= 66;
-    if (preferRight) {
-        left = ax + g;
-        if (left + bubbleW > vpW - pad) left = ax - g - bubbleW;
-    } else {
-        left = ax - g - bubbleW;
-        if (left < pad) left = ax + g;
-    }
-    left = Math.max(pad, Math.min(left, vpW - bubbleW - pad));
-
-    return { left, top };
-}
 
 const ChapterLockGlyph: React.FC<{ className?: string }> = ({ className }) => (
     <svg
@@ -250,16 +206,13 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         rolls: [AdventureTreasureRollResult, AdventureTreasureRollResult, AdventureTreasureRollResult];
         nonce: string;
         pickSlots: 1 | 2;
-        equipmentBoxImage: string;
+        chestImage: string;
     }>(null);
     const [mapBox, setMapBox] = useState({ w: 0, h: 0 });
-    /** 말풍선이 잘리지 않게 클램프할 맵 카드(overflow hidden) */
     const mapViewportRef = useRef<HTMLDivElement>(null);
-    const monsterBubbleRef = useRef<HTMLDivElement>(null);
     /** 데스크톱: 챕터 몬스터 목록 너비를 획득 가능 보상 패널과 맞춤 */
     const desktopRewardBandRef = useRef<HTMLDivElement>(null);
     const [desktopRewardWidthPx, setDesktopRewardWidthPx] = useState<number | null>(null);
-    const [monsterBubblePos, setMonsterBubblePos] = useState<{ left: number; top: number } | null>(null);
 
     const suppressJson = useMemo(
         () => JSON.stringify(currentUserWithStatus?.adventureProfile?.adventureMapSuppressUntilByKey ?? {}),
@@ -482,59 +435,6 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         return getAdventureTreasureUserRewardSections(stage.stageIndex);
     }, [stage]);
 
-    const bubbleAnchor = useMemo(() => {
-        if (selectedMonster) return { xPct: selectedMonster.xPct, yPct: selectedMonster.yPct };
-        if (selectedTreasure) return { xPct: selectedTreasure.xPct, yPct: selectedTreasure.yPct };
-        return null;
-    }, [selectedMonster, selectedTreasure]);
-
-    const syncMonsterBubblePos = useCallback(() => {
-        if (isNativeMobile) {
-            setMonsterBubblePos(null);
-            return;
-        }
-        if (!bubbleAnchor || !mapViewportRef.current || !monsterBubbleRef.current) {
-            setMonsterBubblePos(null);
-            return;
-        }
-        if (selectedMonster && !selectionDetails) {
-            setMonsterBubblePos(null);
-            return;
-        }
-        const vp = mapViewportRef.current;
-        const vpW = vp.clientWidth;
-        const vpH = vp.clientHeight;
-        if (vpW <= 0 || vpH <= 0) return;
-        const br = monsterBubbleRef.current.getBoundingClientRect();
-        setMonsterBubblePos(
-            computeAdventureMonsterBubblePosition(
-                vpW,
-                vpH,
-                bubbleAnchor.xPct,
-                bubbleAnchor.yPct,
-                br.width,
-                br.height,
-            ),
-        );
-    }, [isNativeMobile, selectedMonster, selectedTreasure, selectionDetails, bubbleAnchor]);
-
-    useLayoutEffect(() => {
-        syncMonsterBubblePos();
-    }, [syncMonsterBubblePos]);
-
-    useEffect(() => {
-        if (isNativeMobile || (!selectedMonster && !selectedTreasure) || !mapViewportRef.current) return;
-        if (selectedMonster && !selectionDetails) return;
-        const vp = mapViewportRef.current;
-        const ro = new ResizeObserver(() => syncMonsterBubblePos());
-        ro.observe(vp);
-        window.addEventListener('resize', syncMonsterBubblePos);
-        return () => {
-            ro.disconnect();
-            window.removeEventListener('resize', syncMonsterBubblePos);
-        };
-    }, [isNativeMobile, selectedMonster, selectedTreasure, selectionDetails, syncMonsterBubblePos]);
-
     useEffect(() => {
         if (!isNativeMobile || !selectedId) return;
         const prev = document.body.style.overflow;
@@ -653,14 +553,6 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
         );
     }
 
-    const gridStyle: React.CSSProperties = {
-        backgroundImage: `
-            linear-gradient(${theme.gridColor} 1px, transparent 1px),
-            linear-gradient(90deg, ${theme.gridColor} 1px, transparent 1px)
-        `,
-        backgroundSize: '28px 28px',
-    };
-
     const mobileSpritePx =
         isNativeMobile && mapBox.w > 0 && mapBox.h > 0
             ? Math.max(36, Math.min(Math.round(Math.min(mapBox.w * 0.11, mapBox.h * 0.16)), 78))
@@ -702,19 +594,19 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                 rolls: [AdventureTreasureRollResult, AdventureTreasureRollResult, AdventureTreasureRollResult];
                 nonce: string;
                 pickSlots?: 1 | 2;
-                equipmentBoxImage: string;
+                chestImage: string;
             };
             clientResponse?: {
                 adventureTreasurePick?: {
                     rolls: [AdventureTreasureRollResult, AdventureTreasureRollResult, AdventureTreasureRollResult];
                     nonce: string;
                     pickSlots?: 1 | 2;
-                    equipmentBoxImage: string;
+                    chestImage: string;
                 };
             };
         };
         const pick = r?.clientResponse?.adventureTreasurePick ?? r?.adventureTreasurePick;
-        if (!pick?.rolls || !pick.nonce || !pick.equipmentBoxImage) return;
+        if (!pick?.rolls || !pick.nonce || !pick.chestImage) return;
         flushSync(() => {
             setSelectedId(null);
             setRosterModalCodexId(null);
@@ -723,7 +615,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             rolls: pick.rolls,
             nonce: pick.nonce,
             pickSlots: pick.pickSlots === 2 ? 2 : 1,
-            equipmentBoxImage: pick.equipmentBoxImage,
+            chestImage: pick.chestImage,
         });
     };
 
@@ -894,107 +786,31 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     aria-label={t('adventure.mapEmptyAria')}
                                     onClick={() => setSelectedId(null)}
                                 />
-                                <img
-                                    src={stage.mapWebp}
-                                    alt=""
-                                    className="pointer-events-none absolute inset-0 z-0 h-full w-full object-cover"
-                                    draggable={false}
+                                <AdventureMapBackdrop
+                                    stageId={stage.id as AdventureStageId}
+                                    mapWebp={stage.mapWebp}
+                                    animated
                                 />
-                                <div
-                                    className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-black/25 via-transparent to-black/45"
-                                    aria-hidden
-                                />
-                                <div className="pointer-events-none absolute inset-0 z-[1] opacity-[0.35]" style={gridStyle} />
-                                <div
-                                    className="pointer-events-none absolute inset-0 z-[1] opacity-40 mix-blend-soft-light"
-                                    style={{
-                                        background:
-                                            'radial-gradient(ellipse 80% 55% at 70% 30%, rgba(255,255,255,0.14), transparent 55%), radial-gradient(ellipse 60% 45% at 20% 75%, rgba(0,0,0,0.4), transparent 50%)',
-                                    }}
-                                />
-                                <div
-                                    className="pointer-events-none absolute inset-0 z-[1]"
-                                    style={{
-                                        background: `linear-gradient(to bottom, ${theme.fog} 0%, transparent 35%, transparent 65%, ${theme.fog} 100%)`,
-                                    }}
-                                />
-                                {monsters.map((m) => {
-                                    const sel = m.id === selectedId;
-                                    const wander = buildAdventureMapMonsterWanderStyle(m.id, mapBox.w, mapBox.h);
-                                    return (
-                                        <button
-                                            key={m.id}
-                                            type="button"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setSelectedId(m.id);
-                                            }}
-                                            className={[
-                                                'absolute z-20 flex touch-manipulation select-none flex-col items-center',
-                                                '-translate-x-1/2 -translate-y-full focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400 focus-visible:ring-offset-0',
-                                                sel ? 'scale-[1.05]' : 'hover:scale-[1.03] active:scale-[0.98]',
-                                            ].join(' ')}
-                                            style={{ left: `${m.xPct}%`, top: `${m.yPct}%` }}
-                                            aria-label={t('adventure.monsterAria', {
-                                                name: m.speciesName,
-                                                level: m.level,
-                                                mode: getAdventureMonsterModeLabel(t, m.mode),
-                                            })}
-                                        >
-                                            <div
-                                                className={[
-                                                    'adventure-map-monster-wander flex flex-col items-center rounded-md px-0.5 pb-0.5 pt-0',
-                                                    sel ? 'ring-2 ring-amber-400/90 ring-offset-0' : '',
-                                                ].join(' ')}
-                                                style={wander.wanderStyle}
-                                            >
-                                                <div
-                                                    className="adventure-map-monster-face"
-                                                    style={wander.faceStyle}
-                                                >
-                                                    <div
-                                                        className={[
-                                                            'relative flex items-end justify-center',
-                                                            mobileSpritePx != null
-                                                                ? ''
-                                                                : isNativeMobile
-                                                                  ? 'h-[clamp(2.4rem,9vw,3.4rem)] w-[clamp(2.4rem,9vw,3.4rem)]'
-                                                                  : 'h-[clamp(4.25rem,17.25vw,6.1rem)] w-[clamp(4.25rem,17.25vw,6.1rem)] sm:h-[6.75rem] sm:w-[6.75rem]',
-                                                        ].join(' ')}
-                                                        style={
-                                                            mobileSpritePx != null
-                                                                ? {
-                                                                      width: mobileSpritePx,
-                                                                      height: mobileSpritePx,
-                                                                      minWidth: mobileSpritePx,
-                                                                      minHeight: mobileSpritePx,
-                                                                  }
-                                                                : undefined
-                                                        }
-                                                    >
-                                                        <AdventureMonsterSpriteFrame
-                                                            sheetUrl={m.spriteSheetWebp}
-                                                            frameIndex={m.spriteFrameIndex}
-                                                            cols={m.spriteCols}
-                                                            rows={m.spriteRows}
-                                                            softBackdrop
-                                                            className="absolute inset-0 z-0 h-full w-full bg-transparent"
-                                                        />
-                                                    </div>
-                                                </div>
-                                                <AdventureMapMonsterLabel
-                                                    variant="map"
-                                                    level={m.level}
-                                                    name={m.speciesName}
-                                                    boss={isAdventureChapterBossCodexId(m.codexId)}
-                                                    modeBadge={getAdventureMonsterModeLabel(t, m.mode)}
-                                                    remainingMs={Math.max(0, m.expiresAt - now)}
-                                                    compact={isNativeMobile}
-                                                />
-                                            </div>
-                                        </button>
-                                    );
-                                })}
+                                {monsters.map((m) => (
+                                    <AdventureMapMonsterMarker
+                                        key={m.id}
+                                        monster={m}
+                                        selected={m.id === selectedId}
+                                        stageId={stage.id as AdventureStageId}
+                                        mapW={mapBox.w}
+                                        mapH={mapBox.h}
+                                        mobileSpritePx={mobileSpritePx}
+                                        isNativeMobile={isNativeMobile}
+                                        remainingMs={Math.max(0, m.expiresAt - now)}
+                                        modeBadge={getAdventureMonsterModeLabel(t, m.mode)}
+                                        onSelect={() => setSelectedId(m.id)}
+                                        ariaLabel={t('adventure.monsterAria', {
+                                            name: m.speciesName,
+                                            level: m.level,
+                                            mode: getAdventureMonsterModeLabel(t, m.mode),
+                                        })}
+                                    />
+                                ))}
                                 {treasure ? (
                                     <button
                                         key={treasure.id}
@@ -1038,18 +854,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 }
                                             >
                                                 <img
-                                                    src={treasure.equipmentBoxImage}
+                                                    src={treasure.chestImage}
                                                     alt=""
                                                     className="h-full w-full object-contain drop-shadow"
                                                     draggable={false}
                                                 />
-                                                {!isNativeMobile ? (
-                                                    <span className="pointer-events-none absolute inset-0 flex items-center justify-center" aria-hidden>
-                                                        <span className="rounded-full border border-white/35 bg-black/55 px-2 py-1 text-base font-black text-white shadow sm:px-2.5 sm:py-1 sm:text-lg">
-                                                            ?
-                                                        </span>
-                                                    </span>
-                                                ) : null}
                                             </div>
                                             <p
                                                 className={`mt-1 text-center font-bold leading-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ${
@@ -1065,34 +874,13 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 {((selectedMonster && selectionDetails) || (selectedTreasure && treasureRewardSections)) &&
                                     !isNativeMobile && (
                                     <div
-                                        ref={monsterBubbleRef}
                                         role="dialog"
                                         aria-label={selectedTreasure ? t('adventure.treasureChestInfo') : t('adventure.monsterInfo')}
-                                        className={`pointer-events-auto absolute z-40 ${
+                                        className={`pointer-events-auto absolute left-1/2 top-1/2 z-40 -translate-x-1/2 -translate-y-1/2 ${
                                             selectedTreasure
                                                 ? 'min-w-[min(100%,20rem)] w-[min(calc(100%-0.75rem),36rem)] max-w-[36rem]'
                                                 : 'w-[min(calc(100%-0.75rem),24rem)] max-w-[24rem]'
                                         }`}
-                                        style={
-                                            monsterBubblePos
-                                                ? {
-                                                      left: monsterBubblePos.left,
-                                                      top: monsterBubblePos.top,
-                                                      transform: 'none',
-                                                      transformOrigin: 'top left',
-                                                  }
-                                                : bubbleAnchor
-                                                  ? {
-                                                        left: `calc(${bubbleAnchor.xPct}% + 2.65rem)`,
-                                                        top: `${bubbleAnchor.yPct}%`,
-                                                        transform:
-                                                            bubbleAnchor.yPct < 28
-                                                                ? 'translateY(0.5rem)'
-                                                                : 'translateY(calc(-100% - 0.5rem))',
-                                                        transformOrigin: 'top left',
-                                                    }
-                                                  : undefined
-                                        }
                                         onClick={(e) => e.stopPropagation()}
                                     >
                                         <div className="relative rounded-2xl border border-amber-400/55 bg-zinc-950 shadow-[0_20px_56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md">
@@ -1100,7 +888,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             <div className="relative flex flex-col gap-3.5 p-3.5 sm:flex-row sm:items-start sm:gap-4 sm:p-4">
                                                 <div
                                                     className={[
-                                                        'mx-auto flex w-[7.5rem] shrink-0 flex-col self-start overflow-hidden rounded-xl border-[3px] border-amber-400/60 bg-white shadow-md sm:mx-0 sm:w-[8.25rem]',
+                                                        'mx-auto flex w-[7.5rem] shrink-0 flex-col self-start overflow-hidden rounded-xl border-[3px] border-amber-400/60 shadow-md sm:mx-0 sm:w-[8.25rem]',
                                                     ].join(' ')}
                                                 >
                                                     <div
@@ -1115,14 +903,16 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                             </span>
                                                         ) : null}
                                                     </div>
-                                                    <div className="flex aspect-square w-full shrink-0 items-center justify-center bg-white p-2">
-                                                        <AdventureMonsterSpriteFrame
-                                                            sheetUrl={selectedMonster.spriteSheetWebp}
-                                                            frameIndex={selectedMonster.spriteFrameIndex}
-                                                            cols={selectedMonster.spriteCols}
-                                                            rows={selectedMonster.spriteRows}
-                                                            softBackdrop
-                                                            className="h-full w-full max-h-full max-w-full bg-transparent"
+                                                    <div
+                                                        className={`relative flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden ${selectionDetails.chapterUi.portraitStageClass}`}
+                                                    >
+                                                        <AdventureMonsterPortrait
+                                                            entry={{
+                                                                imageWebp: selectedMonster.spriteSheetWebp,
+                                                                spriteCols: selectedMonster.spriteCols,
+                                                                spriteRows: selectedMonster.spriteRows,
+                                                            }}
+                                                            className="h-[85%] w-[85%]"
                                                         />
                                                     </div>
                                                 </div>
@@ -1205,9 +995,10 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                     <AdventureTreasureChestInfoPanel
                                                         stageTitle={stage.title}
                                                         showInlineTitle
-                                                        equipmentBoxImage={selectedTreasure.equipmentBoxImage}
+                                                        chestImage={selectedTreasure.chestImage}
                                                         remainingLabel={formatAdventureRemainMs(t,Math.max(0, selectedTreasure.windowEndMs - now))}
                                                         mapKeysHeld={mapKeysHeld}
+                                                        stageId={stage.id}
                                                         sections={treasureRewardSections}
                                                         onOpen={handleOpenTreasureChest}
                                                         openDisabled={
@@ -1229,10 +1020,10 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             <div className="flex min-h-0 shrink-0 items-stretch gap-2">
                                 <aside
                                     ref={desktopRewardBandRef}
-                                    className="flex min-h-0 shrink-0 flex-col rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:p-3.5"
+                                    className="flex min-h-0 w-[min(16.5rem,42vw)] shrink-0 flex-col overflow-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:w-[18rem] sm:p-3.5"
                                     aria-label={t('adventure.chapterRewardAria')}
                                 >
-                                    <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} iconLayout="wrap" />
+                                    <AdventureChapterRewardHints stageId={stage.id as AdventureStageId} iconLayout="scroll" />
                                 </aside>
                                 <aside
                                     className="flex min-h-0 w-[12.25rem] shrink-0 flex-col overflow-x-hidden overflow-y-hidden rounded-xl border-2 border-amber-400/55 bg-gradient-to-br from-amber-800/92 via-amber-950/94 to-violet-950/92 p-3 shadow-[0_10px_36px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md sm:w-[13.5rem] sm:p-3.5"
@@ -1388,13 +1179,14 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 {rosterModalIsTreasure && treasureRewardSections ? (
                                     <AdventureTreasureChestInfoPanel
                                         stageTitle={stage.title}
-                                        equipmentBoxImage={adventureTreasureChestEquipmentImageForStageIndex(stage.stageIndex)}
+                                        chestImage={adventureMapTreasureChestImage(stage.id)}
                                         remainingLabel={
                                             rosterModalTreasureWindow && now < rosterModalTreasureWindow.windowEndMs
                                                 ? formatAdventureRemainMs(t,Math.max(0, rosterModalTreasureWindow.windowEndMs - now))
                                                 : '—'
                                         }
                                         mapKeysHeld={mapKeysHeld}
+                                        stageId={stage.id}
                                         sections={treasureRewardSections}
                                         onOpen={handleOpenTreasureChest}
                                         openDisabled={
@@ -1408,7 +1200,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                                         <div
                                             className={[
-                                                'mx-auto flex w-[7.5rem] shrink-0 flex-col self-start overflow-hidden rounded-xl border-[3px] border-amber-400/55 bg-white shadow-lg sm:mx-0 sm:w-[8.25rem]',
+                                                'mx-auto flex w-[7.5rem] shrink-0 flex-col self-start overflow-hidden rounded-xl border-[3px] border-amber-400/55 shadow-lg sm:mx-0 sm:w-[8.25rem]',
                                             ].join(' ')}
                                         >
                                             <div
@@ -1423,14 +1215,16 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                     </span>
                                                 ) : null}
                                             </div>
-                                            <div className="flex aspect-square w-full shrink-0 items-center justify-center bg-white p-2">
-                                                <AdventureMonsterSpriteFrame
-                                                    sheetUrl={rosterModalInstance.spriteSheetWebp}
-                                                    frameIndex={rosterModalInstance.spriteFrameIndex}
-                                                    cols={rosterModalInstance.spriteCols}
-                                                    rows={rosterModalInstance.spriteRows}
-                                                    softBackdrop
-                                                    className="h-full w-full max-h-full max-w-full bg-transparent"
+                                            <div
+                                                className={`relative flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden ${rosterModalInstanceDetails.chapterUi.portraitStageClass}`}
+                                            >
+                                                <AdventureMonsterPortrait
+                                                    entry={{
+                                                        imageWebp: rosterModalInstance.spriteSheetWebp,
+                                                        spriteCols: rosterModalInstance.spriteCols,
+                                                        spriteRows: rosterModalInstance.spriteRows,
+                                                    }}
+                                                    className="h-[85%] w-[85%]"
                                                 />
                                             </div>
                                         </div>
@@ -1504,7 +1298,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
                                         <div
                                             className={[
-                                                'mx-auto flex w-[7.5rem] shrink-0 flex-col self-start overflow-hidden rounded-xl border-[3px] border-amber-400/55 bg-white shadow-lg sm:mx-0 sm:w-[8.25rem]',
+                                                'mx-auto flex w-[7.5rem] shrink-0 flex-col self-start overflow-hidden rounded-xl border-[3px] border-amber-400/55 shadow-lg sm:mx-0 sm:w-[8.25rem]',
                                             ].join(' ')}
                                         >
                                             <div
@@ -1519,14 +1313,12 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                     </span>
                                                 ) : null}
                                             </div>
-                                            <div className="flex aspect-square w-full shrink-0 items-center justify-center bg-white p-2">
-                                                <AdventureMonsterSpriteFrame
-                                                    sheetUrl={rosterModalRow!.imageWebp}
-                                                    frameIndex={0}
-                                                    cols={1}
-                                                    rows={1}
-                                                    softBackdrop
-                                                    className="h-full w-full max-h-full max-w-full bg-transparent"
+                                            <div
+                                                className={`relative flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden ${rosterModalStaticPreview.chapterUi.portraitStageClass}`}
+                                            >
+                                                <AdventureMonsterPortrait
+                                                    entry={rosterModalRow!}
+                                                    className="h-[85%] w-[85%]"
                                                 />
                                             </div>
                                         </div>
@@ -1596,7 +1388,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
             typeof document !== 'undefined'
                 ? createPortal(
                       <div
-                          className="fixed inset-0 z-[90] flex flex-col justify-end bg-black/60 backdrop-blur-[2px]"
+                          className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 p-3 backdrop-blur-[2px] sm:p-5"
                           role="presentation"
                           onClick={() => setSelectedId(null)}
                       >
@@ -1608,17 +1400,13 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                       ? t('adventure.treasureChestTitle', { title: stage.title }) + ' ' + t('adventure.treasureChestInfo')
                                       : t('adventure.monsterInfo')
                               }
-                              className="pointer-events-auto flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-0.5rem))] w-full min-h-0 flex-col overflow-hidden rounded-t-[1.35rem] border-x border-t border-amber-400/50 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black shadow-[0_-24px_64px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)]"
+                              className={`pointer-events-auto flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] w-full min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-400/50 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black shadow-[0_24px_64px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)] ${
+                                  selectedTreasure ? 'max-w-[min(100%,36rem)]' : 'max-w-[24rem]'
+                              }`}
                               onClick={(e) => e.stopPropagation()}
                           >
                               <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                                  <div
-                                      className="flex shrink-0 justify-center pt-2"
-                                      aria-hidden
-                                  >
-                                      <span className="h-1 w-10 rounded-full bg-zinc-600/90" />
-                                  </div>
-                                  <div className="flex shrink-0 items-start gap-3 border-b border-amber-500/15 px-4 pb-3 pt-1">
+                                  <div className="flex shrink-0 items-start gap-3 border-b border-amber-500/15 px-4 pb-3 pt-3">
                                       <div className="min-w-0 flex-1">
                                           {selectedTreasure ? (
                                               <h2 className="min-w-0 flex-1 truncate text-lg font-black leading-tight tracking-tight text-white">
@@ -1648,7 +1436,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                       <div className="flex items-start gap-3">
                                           <div
                                               className={[
-                                                  'flex w-[6.25rem] shrink-0 flex-col self-start overflow-hidden rounded-lg border-2 border-amber-400/55 bg-white shadow-md',
+                                                  'flex w-[6.25rem] shrink-0 flex-col self-start overflow-hidden rounded-lg border-2 border-amber-400/55 shadow-md',
                                               ].join(' ')}
                                           >
                                               <div
@@ -1663,14 +1451,16 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                       </span>
                                                   ) : null}
                                               </div>
-                                              <div className="flex aspect-square w-full shrink-0 items-center justify-center bg-white p-1.5">
-                                                  <AdventureMonsterSpriteFrame
-                                                      sheetUrl={selectedMonster.spriteSheetWebp}
-                                                      frameIndex={selectedMonster.spriteFrameIndex}
-                                                      cols={selectedMonster.spriteCols}
-                                                      rows={selectedMonster.spriteRows}
-                                                      softBackdrop
-                                                      className="h-full w-full max-h-full max-w-full bg-transparent"
+                                              <div
+                                                  className={`relative flex aspect-square w-full shrink-0 items-center justify-center overflow-hidden ${selectionDetails.chapterUi.portraitStageClass}`}
+                                              >
+                                                  <AdventureMonsterPortrait
+                                                      entry={{
+                                                          imageWebp: selectedMonster.spriteSheetWebp,
+                                                          spriteCols: selectedMonster.spriteCols,
+                                                          spriteRows: selectedMonster.spriteRows,
+                                                      }}
+                                                      className="h-[88%] w-[88%]"
                                                   />
                                               </div>
                                           </div>
@@ -1736,9 +1526,10 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                       ) : selectedTreasure && treasureRewardSections ? (
                                           <AdventureTreasureChestInfoPanel
                                               stageTitle={stage.title}
-                                              equipmentBoxImage={selectedTreasure.equipmentBoxImage}
+                                              chestImage={selectedTreasure.chestImage}
                                               remainingLabel={formatAdventureRemainMs(t,Math.max(0, selectedTreasure.windowEndMs - now))}
                                               mapKeysHeld={mapKeysHeld}
+                                              stageId={stage.id}
                                               sections={treasureRewardSections}
                                               onOpen={handleOpenTreasureChest}
                                               openDisabled={
@@ -1844,7 +1635,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                           stageId={stage.id}
                           stageTitle={stage.title}
                           stageIndex={stage.stageIndex}
-                          equipmentBoxImage={treasurePickModal.equipmentBoxImage}
+                          chestImage={treasurePickModal.chestImage}
                           rolls={treasurePickModal.rolls}
                           pickSlots={treasurePickModal.pickSlots}
                           nonce={treasurePickModal.nonce}

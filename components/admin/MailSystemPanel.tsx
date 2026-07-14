@@ -66,7 +66,7 @@ const MAIL_PACKAGE_THUMB: Record<CashShopPackageId, string> = {
     equipment_package_1: '/images/Box/EquipmentBox5.webp',
     equipment_package_2: '/images/Box/EquipmentBox5.webp',
     equipment_package_3: '/images/Box/EquipmentBox6.webp',
-    remove_ads: '/images/shop/remove_ads_package.svg',
+    remove_ads: '/images/shop/remove_ads_package.webp',
 };
 
 function buildEquipmentAdminTooltip(slot: EquipmentSlot, grade: ItemGrade, description: string): string {
@@ -285,23 +285,14 @@ const ItemSelectionModal: React.FC<ItemSelectionModalProps> = ({ onAddItem, onCl
                                 </>
                             ) : (
                                 <>
-                                    {isActionPointConsumable(item.name) ? (() => {
-                                        const apBadge = actionPointPotionShopBadge(item.name);
-                                        return (
-                                            <div className="relative mb-0.5 flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)]">
-                                                <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" aria-hidden>
-                                                    ⚡
-                                                </span>
-                                                {apBadge ? (
-                                                    <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
-                                                        {apBadge}
-                                                    </span>
-                                                ) : null}
-                                            </div>
-                                        );
-                                    })() : (
-                                        <img src={item.image!} alt={item.name} className="h-16 w-16 shrink-0 object-contain" />
-                                    )}
+                                    <div className="relative mb-0.5 flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)]">
+                                        <img src={item.image!} alt="" className="h-14 w-14 object-contain drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" />
+                                        {isActionPointConsumable(item.name) && actionPointPotionShopBadge(item.name) ? (
+                                            <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-1 text-[10px] font-bold leading-tight text-cyan-300 shadow-md">
+                                                {actionPointPotionShopBadge(item.name)}
+                                            </span>
+                                        ) : null}
+                                    </div>
                                     <span className="mt-1 line-clamp-2 text-center text-xs">{item.name}</span>
                                 </>
                             )}

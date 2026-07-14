@@ -13,6 +13,8 @@ import {
 } from '../../constants/adventureConstants.js';
 import { isAdventureChapterBossCodexId } from '../../constants/adventureMonstersCodex.js';
 import { getAdventureAllowedBattleModes, resolveAdventureBoardSize } from './adventureBattleBoard.js';
+import { sampleAdventureMapPathPosition } from './adventureMapPaths.js';
+import type { AdventureStageId } from '../../constants/adventureConstants.js';
 
 /** `adventureProfile.adventureMapSuppressUntilByKey` 키 — stageId·codexId에 `::` 미포함 가정 */
 export const ADVENTURE_MAP_SUPPRESS_KEY_SEP = '::' as const;
@@ -50,7 +52,13 @@ export type AdventureMapDwellWindow = {
 export type AdventureMapStageForSchedule = {
     id: string;
     stageIndex: number;
-    monsters: readonly { codexId: string; imageWebp: string; name: string }[];
+    monsters: readonly {
+        codexId: string;
+        imageWebp: string;
+        name: string;
+        spriteCols?: number;
+        spriteRows?: number;
+    }[];
 };
 
 export function fnv1a32(str: string): number {
@@ -329,14 +337,37 @@ function groundPositionFromRng(rng: () => number, yLowerHalf: boolean): { xPct: 
     };
 }
 
+function clampSpawnAwayFromLeftPanel(pos: { xPct: number; yPct: number }): { xPct: number; yPct: number } {
+    const xmin = Math.max(ADVENTURE_MAP_MONSTER_SPAWN_X_PCT.min, ADVENTURE_MAP_MONSTER_SPAWN_X_MIN_EXCLUDING_LEFT_PANEL);
+    return {
+        xPct: Math.max(xmin, Math.min(ADVENTURE_MAP_MONSTER_SPAWN_X_PCT.max, pos.xPct)),
+        yPct: Math.max(ADVENTURE_MAP_MONSTER_SPAWN_Y_PCT.min, Math.min(ADVENTURE_MAP_MONSTER_SPAWN_Y_PCT.max, pos.yPct)),
+    };
+}
+
+function isAdventurePathStageId(id: string): id is AdventureStageId {
+    return (
+        id === 'neighborhood_hill' ||
+        id === 'lake_park' ||
+        id === 'aquarium' ||
+        id === 'zoo' ||
+        id === 'amusement_park'
+    );
+}
+
 function pickNonOverlappingPositionSeeded(
     existing: readonly { xPct: number; yPct: number }[],
     rng: () => number,
     yLowerHalf: boolean,
+    stageId?: string,
 ): { xPct: number; yPct: number } | null {
     const minD2 = ADVENTURE_MAP_MONSTER_MIN_DISTANCE_PCT * ADVENTURE_MAP_MONSTER_MIN_DISTANCE_PCT;
     for (let t = 0; t < ADVENTURE_MAP_MONSTER_SPAWN_MAX_TRIES; t++) {
-        const pos = groundPositionFromRng(rng, yLowerHalf);
+        const raw =
+            stageId && isAdventurePathStageId(stageId)
+                ? sampleAdventureMapPathPosition(stageId, rng, { preferLowerHalf: yLowerHalf })
+                : groundPositionFromRng(rng, yLowerHalf);
+        const pos = clampSpawnAwayFromLeftPanel(raw);
         const clash = existing.some((e) => distanceSquaredPct(e, pos) < minD2);
         if (!clash) return pos;
     }
@@ -394,7 +425,7 @@ export function buildAdventureMapMonstersFromSchedule(
 
         const seed = fnv1a32(`${stage.id}|${row.codexId}|${windowStart}`);
         const rng = mulberry32(seed);
-        const pos = pickNonOverlappingPositionSeeded(placed, rng, isBoss);
+        const pos = pickNonOverlappingPositionSeeded(placed, rng, isBoss, stage.id);
         if (!pos) continue;
         placed.push(pos);
 
@@ -409,6 +440,8 @@ export function buildAdventureMapMonstersFromSchedule(
         const allowedModes = getAdventureAllowedBattleModes(boardSize);
         if (allowedModes.length === 0) continue;
         const mode = allowedModes[Math.floor(rng() * allowedModes.length)]! as AdventureMonsterBattleMode;
+        const spriteCols = Math.max(1, Math.floor(row.spriteCols ?? 1));
+        const spriteRows = Math.max(1, Math.floor(row.spriteRows ?? 1));
 
         out.push({
             id,
@@ -421,8 +454,8 @@ export function buildAdventureMapMonstersFromSchedule(
             expiresAt: windowEnd,
             spriteSheetWebp: row.imageWebp,
             speciesName: row.name,
-            spriteCols: 1,
-            spriteRows: 1,
+            spriteCols,
+            spriteRows,
             spriteFrameIndex: 0,
         });
     }

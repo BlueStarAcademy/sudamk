@@ -49,6 +49,7 @@ import { SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT } from '../../shared/cons
 import { GuildWarUnifiedScoreboard } from './GuildWarUnifiedScoreboard.js';
 import { useTranslation } from 'react-i18next';
 import { translateGuildDisplayName } from '../../shared/utils/guildDisplayName.js';
+import GuildMark from './GuildMark.js';
 
 const GUILD_WAR_PERSONAL_DAILY_LIMIT = GUILD_WAR_PERSONAL_DAILY_ATTEMPTS;
 
@@ -1428,10 +1429,12 @@ const GuildWar = () => {
                                         </div>
                                     </div>
                                 ) : null}
-                                <img
-                                    src={visualBlueGuild.icon || visualBlueGuild.emblem || '/images/guild/profile/icon1.webp'}
+                                <GuildMark
+                                    icon={visualBlueGuild.icon}
+                                    emblem={visualBlueGuild.emblem}
+                                    size={40}
                                     alt=""
-                                    className="h-10 w-10 shrink-0 rounded-md object-contain ring-1 ring-blue-400/40"
+                                    tone="blue"
                                 />
                                 <span className="mt-0.5 max-w-full truncate text-center text-[11px] font-bold">{visualBlueGuildName}</span>
                             </div>
@@ -1445,10 +1448,12 @@ const GuildWar = () => {
                                 />
                             </div>
                             <div className="flex min-w-0 flex-1 flex-col items-center">
-                                <img
-                                    src={visualRedGuild.icon || visualRedGuild.emblem || '/images/guild/profile/icon1.webp'}
+                                <GuildMark
+                                    icon={visualRedGuild.icon}
+                                    emblem={visualRedGuild.emblem}
+                                    size={40}
                                     alt=""
-                                    className="h-10 w-10 shrink-0 rounded-md object-contain ring-1 ring-red-400/40"
+                                    tone="red"
                                 />
                                 <span className="mt-0.5 max-w-full truncate text-center text-[11px] font-bold">{visualRedGuildName}</span>
                                 {weAreVisualBlue ? (
@@ -1510,10 +1515,13 @@ const GuildWar = () => {
                                             alt="Blue Team Flag"
                                             className="h-full w-full object-contain object-bottom"
                                         />
-                                        <img
-                                            src={visualBlueGuild.icon || visualBlueGuild.emblem || '/images/guild/profile/icon1.webp'}
+                                        <GuildMark
+                                            icon={visualBlueGuild.icon}
+                                            emblem={visualBlueGuild.emblem}
+                                            size={48}
                                             alt={t('war.blueTeamAlt')}
-                                            className="absolute left-1/2 top-[42px] h-12 w-12 max-w-[44%] -translate-x-1/2 object-contain drop-shadow-md"
+                                            tone="none"
+                                            className="absolute left-1/2 top-[42px] max-w-[44%] -translate-x-1/2 drop-shadow-md"
                                         />
                                     </div>
                                     <div className="z-10 -mt-5 rounded-md bg-black/60 px-3 py-1.5 shadow-lg">
@@ -1539,10 +1547,13 @@ const GuildWar = () => {
                                             alt="Red Team Flag"
                                             className="h-full w-full object-contain object-bottom"
                                         />
-                                        <img
-                                            src={visualRedGuild.icon || visualRedGuild.emblem || '/images/guild/profile/icon1.webp'}
+                                        <GuildMark
+                                            icon={visualRedGuild.icon}
+                                            emblem={visualRedGuild.emblem}
+                                            size={48}
                                             alt={t('war.redTeamAlt')}
-                                            className="absolute left-1/2 top-[42px] h-12 w-12 max-w-[44%] -translate-x-1/2 object-contain drop-shadow-md"
+                                            tone="none"
+                                            className="absolute left-1/2 top-[42px] max-w-[44%] -translate-x-1/2 drop-shadow-md"
                                         />
                                     </div>
                                     <div className="z-10 -mt-5 rounded-md bg-black/60 px-3 py-1.5 shadow-lg">

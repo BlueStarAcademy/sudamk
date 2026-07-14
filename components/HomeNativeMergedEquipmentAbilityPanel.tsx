@@ -4,6 +4,7 @@ import { CoreStat, EquipmentSlot, InventoryItem, ItemGrade } from '../types.js';
 import { CORE_STATS_DATA, emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement } from '../constants';
 import Button from './Button.js';
 import { BADUK_ABILITY_STAT_CAP, CORE_STAT_RADAR_ORDER } from './CoreStatsHexagonChart.js';
+import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
 
 const gradeBackgrounds: Record<string, string> = {
     normal: '/images/equipments/normalbgi.webp',
@@ -48,7 +49,6 @@ export const HomeEquippedSlotDisplay: React.FC<{
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
         const titleText = t('coreAbility.detailClick', { name: item.name, level: formatEquipLevelRequirement(requiredLevel) });
-        const starInfo = getStarDisplayInfo(item.stars);
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
@@ -57,16 +57,7 @@ export const HomeEquippedSlotDisplay: React.FC<{
                 onClick={onClick}
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 h-full w-full rounded-md object-cover" />
-                {item.stars > 0 && (
-                    <div
-                        className={`absolute z-10 rounded-md border border-white/10 bg-black/55 font-bold backdrop-blur-[1px] ${
-                            compact ? 'right-1 top-1 px-1 py-0.5 text-[10px]' : 'right-1.5 top-1.5 px-1.5 py-0.5 text-sm'
-                        } ${starInfo.colorClass}`}
-                        style={{ textShadow: '1px 1px 2px black' }}
-                    >
-                        ★{item.stars}
-                    </div>
-                )}
+                <EquipmentEnhancementBadge stars={item.stars} />
                 {item.image && (
                     <img
                         src={item.image}

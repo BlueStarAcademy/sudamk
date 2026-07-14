@@ -7,6 +7,7 @@ import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES } from '../../constants/rules.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
+import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -14,7 +15,7 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
     epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
     legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
+    mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -87,7 +88,12 @@ const ItemSlot: React.FC<{ item: InventoryItem | null; onRemove: () => void; isC
             >
                 <img src={styles.background} alt="" className="absolute inset-0 h-full w-full rounded-lg object-cover" />
                 {item.image && (
-                    <img src={item.image} alt="" className="pointer-events-none absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />
+                    <img
+                        src={item.image}
+                        alt=""
+                        className="pointer-events-none absolute object-contain"
+                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                    />
                 )}
             </div>
             <p className={`${isCompact ? typo.caption : typo.bodySemi} font-bold ${styles.color} whitespace-nowrap overflow-hidden text-ellipsis w-full`} title={item.name}>{item.name}</p>

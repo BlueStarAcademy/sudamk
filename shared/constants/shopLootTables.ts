@@ -31,13 +31,13 @@ export const EQUIPMENT_BOX_LOOT_TABLES: Record<
         { grade: ItemGrade.Mythic, weight: 1 },
     ],
     equipment_box_5: [
-        { grade: ItemGrade.Epic, weight: 83 },
-        { grade: ItemGrade.Legendary, weight: 15 },
-        { grade: ItemGrade.Mythic, weight: 2 },
+        { grade: ItemGrade.Epic, weight: 75 },
+        { grade: ItemGrade.Legendary, weight: 20 },
+        { grade: ItemGrade.Mythic, weight: 5 },
     ],
     equipment_box_6: [
-        { grade: ItemGrade.Legendary, weight: 95 },
-        { grade: ItemGrade.Mythic, weight: 5 },
+        { grade: ItemGrade.Legendary, weight: 80 },
+        { grade: ItemGrade.Mythic, weight: 20 },
     ],
 };
 

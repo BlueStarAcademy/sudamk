@@ -60,13 +60,13 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
         <div className={adminPageNarrow}>
             <AdminPageHeader
                 title="경험치 획득 공식"
-                subtitle="유저 전략 경험치(userXp)와 대표펫(장착 펫) 경험치는 서버 정산 로직과 동일한 기준으로 정리했습니다. 상수·구간은 공유 모듈 값을 반영합니다."
+                subtitle="유저 EXP(userXp)와 대표펫(장착 펫) 경험치는 서버 정산 로직과 동일한 기준으로 정리했습니다. 상수·구간은 공유 모듈 값을 반영합니다."
                 onBack={onBack}
             />
 
             <div className={adminSectionGap}>
                 <section className={adminCard}>
-                    <h2 className={adminCardTitle}>1. 유저 전략 경험치 (프로필 EXP / userXp)</h2>
+                    <h2 className={adminCardTitle}>1. 유저 EXP (프로필 EXP / userXp)</h2>
                     <p className="text-sm text-gray-400">
                         일반 1:1 대국 정산은 <code className="text-amber-200/90">server/summaryService.ts</code>의{' '}
                         <code className="text-amber-200/90">processPlayerSummary</code>를 따릅니다. 아래는 그 순서를 요약한
@@ -80,7 +80,7 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
                             '그 외 전략 모드 기본값: 승리 100, 무승부 0, 패배 25 (무효국 제외).',
                             'AI 대국(모험·전략 대기실 AI 제외): 위 값에 ×0.2.',
                             '전략 PVP/PVE(모험·전략 대기실 AI 제외): 상대 레벨 − 내 레벨에 따라 (1 + 차이×0.1)배, 0.5~1.5로 클램프 후 반올림.',
-                            '특수 능력치: 전략 모드는 전략 EXP% 보너스, 놀이 모드는 놀이 EXP% 보너스가 (1 + 합계%)로 곱해짐.',
+                            '특수 능력치: 전략 모드는 EXP% 보너스, 놀이 모드는 놀이 EXP% 보너스가 (1 + 합계%)로 곱해짐.',
                             '완주 배율: 전략은 `min(1, 실제 수 / (100×(판/19)²))` (19×19·100수가 100%). 모험·전략 대기실 AI는 이 배율을 적용하지 않음.',
                             '위 배율을 EXP에 곱한 뒤, 랭킹이 아닌 휴먼 간 전략·놀이 PVP는 ×0.25.',
                             '길드 전쟁에서 획득 별이 0이면 EXP 0.',
@@ -162,7 +162,7 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
                     <h3 className="text-sm font-semibold text-primary">전략바둑 대국 보너스</h3>
                     <p className="mt-1 text-sm text-gray-400">
                         전략 모드·페어바둑이 아님·무효국 아님·유저 EXP 증가가 0보다 큼·AI가 아닌 플레이어·싱글/타워/싱글플레이 카테고리 제외일 때, 위에서 확정된{' '}
-                        <strong className="text-primary">유저 전략 EXP 증분</strong>의 절반을 대표펫에 지급합니다.
+                        <strong className="text-primary">유저 EXP 증분</strong>의 절반을 대표펫에 지급합니다.
                     </p>
                     <div className={formulaBlock}>{'petRaw = max(0, round(userXpGain × 0.5))'}</div>
                     <p className="mt-2 text-sm text-gray-400">
@@ -177,7 +177,7 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
                             <thead className="border-b border-color/50 bg-secondary/50 text-xs uppercase text-gray-500">
                                 <tr>
                                     <th className="px-3 py-2">판</th>
-                                    <th className="px-3 py-2">전략 EXP (주사위)</th>
+                                    <th className="px-3 py-2">EXP (주사위)</th>
                                     <th className="px-3 py-2">펫 EXP (주사위)</th>
                                 </tr>
                             </thead>
@@ -229,7 +229,7 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
 
                     <h3 className="mt-5 text-sm font-semibold text-primary">레벨업 필요 EXP</h3>
                     <div className={formulaBlock}>
-                        {`유저 전략/놀이 레벨 바 (getXpRequirementForLevel):
+                        {`유저/놀이 레벨 바 (getXpRequirementForLevel):
 Lv 1–10: 200 + Lv×100
 Lv 11–20: 300 + Lv×150
 Lv 21–50: 이전 구간 값에서 매 레벨 ×1.2

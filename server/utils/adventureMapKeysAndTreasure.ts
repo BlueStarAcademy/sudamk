@@ -4,7 +4,7 @@ import type { InventoryItem } from '../../types/index.js';
 import { getAdventureStageById } from '../../constants/adventureConstants.js';
 import { normalizeAdventureProfile } from '../../utils/adventureUnderstanding.js';
 import {
-    adventureTreasureChestEquipmentImageForStageIndex,
+    adventureMapTreasureChestImage,
     getAdventureTreasureChestWindowMeta,
 } from '../../shared/utils/adventureMapTreasureSchedule.js';
 import {
@@ -107,7 +107,7 @@ export type PrepareAdventureTreasureResult =
           rolls: [AdventureTreasureRollResult, AdventureTreasureRollResult, AdventureTreasureRollResult];
           nonce: string;
           pickSlots: 1 | 2;
-          equipmentBoxImage: string;
+          chestImage: string;
       }
     | { ok: false; error: string };
 
@@ -193,7 +193,7 @@ export function prepareAdventureMapTreasureChest(user: User, stageId: string, no
             rolls: existing.rolls,
             nonce: existing.nonce,
             pickSlots: existing.pickSlots,
-            equipmentBoxImage: adventureTreasureChestEquipmentImageForStageIndex(stage.stageIndex),
+            chestImage: adventureMapTreasureChestImage(stageId),
         };
     }
 
@@ -234,7 +234,7 @@ export function prepareAdventureMapTreasureChest(user: User, stageId: string, no
         rolls: session.rolls,
         nonce: session.nonce,
         pickSlots: session.pickSlots,
-        equipmentBoxImage: adventureTreasureChestEquipmentImageForStageIndex(stage.stageIndex),
+        chestImage: adventureMapTreasureChestImage(stageId),
     };
 }
 

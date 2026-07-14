@@ -210,22 +210,22 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
                         {(() => {
                             const { itemId, quantity } = classBarDef.milestone10;
                             const ap = apBadgeForTable(itemId);
-                            const src = ap ? null : resolveItemImageSrc(itemId);
+                            const src = resolveItemImageSrc(itemId);
                             return (
                                 <RewardBadge
                                     tone="item"
                                     label={itemId}
                                     value={`×${quantity}`}
                                     icon={
-                                        ap ? (
-                                            <span className="relative inline-flex h-4 w-4 items-center justify-center text-[11px]">
-                                                ⚡
-                                                <span className="absolute -right-1 -top-0.5 rounded bg-gray-900/95 px-0.5 text-[8px] font-bold text-cyan-300">
-                                                    {ap}
-                                                </span>
+                                        src ? (
+                                            <span className="relative inline-flex h-4 w-4 items-center justify-center">
+                                                <img src={src} alt="" className="h-4 w-4 object-contain" />
+                                                {ap ? (
+                                                    <span className="absolute -right-1 -top-0.5 rounded bg-gray-900/95 px-0.5 text-[8px] font-bold text-cyan-300">
+                                                        {ap}
+                                                    </span>
+                                                ) : null}
                                             </span>
-                                        ) : src ? (
-                                            <img src={src} alt="" className="h-4 w-4 object-contain" />
                                         ) : (
                                             <span className="inline-flex h-4 w-4 items-center justify-center text-[12px]">🎁</span>
                                         )
@@ -240,22 +240,22 @@ const SinglePlayerRewardsTable: React.FC<SinglePlayerRewardsTableProps> = ({
                         {(() => {
                             const { itemId, quantity } = classBarDef.milestone20;
                             const ap = apBadgeForTable(itemId);
-                            const src = ap ? null : resolveItemImageSrc(itemId);
+                            const src = resolveItemImageSrc(itemId);
                             return (
                                 <RewardBadge
                                     tone="item"
                                     label={itemId}
                                     value={`×${quantity}`}
                                     icon={
-                                        ap ? (
-                                            <span className="relative inline-flex h-4 w-4 items-center justify-center text-[11px]">
-                                                ⚡
-                                                <span className="absolute -right-1 -top-0.5 rounded bg-gray-900/95 px-0.5 text-[8px] font-bold text-cyan-300">
-                                                    {ap}
-                                                </span>
+                                        src ? (
+                                            <span className="relative inline-flex h-4 w-4 items-center justify-center">
+                                                <img src={src} alt="" className="h-4 w-4 object-contain" />
+                                                {ap ? (
+                                                    <span className="absolute -right-1 -top-0.5 rounded bg-gray-900/95 px-0.5 text-[8px] font-bold text-cyan-300">
+                                                        {ap}
+                                                    </span>
+                                                ) : null}
                                             </span>
-                                        ) : src ? (
-                                            <img src={src} alt="" className="h-4 w-4 object-contain" />
                                         ) : (
                                             <span className="inline-flex h-4 w-4 items-center justify-center text-[12px]">🎁</span>
                                         )

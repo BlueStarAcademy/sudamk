@@ -18,8 +18,8 @@ type Props = {
     compact?: boolean;
     className?: string;
     /**
-     * scroll: 가로 스크롤(기본)
-     * wrap: 가로 스크롤 없이 줄바꿈(맵 좌측 도킹 등 — 패널 너비에 맞춤)
+     * scroll: 가로 한 줄 + 폭 부족 시 가로 스크롤(기본·맵 패널)
+     * wrap: 줄바꿈(로비 카드 등 예외)
      */
     iconLayout?: 'scroll' | 'wrap';
 };
@@ -181,8 +181,8 @@ const AdventureChapterRewardHints: React.FC<Props> = ({ stageId, compact, classN
                                 ? 'mx-auto flex max-w-[10.5rem] flex-wrap items-stretch justify-center gap-0.5'
                                 : 'mx-auto flex max-w-[12.5rem] flex-wrap items-stretch justify-center gap-1.5 sm:max-w-[14rem] sm:gap-2'
                             : compact
-                              ? 'flex w-max min-w-full flex-nowrap items-stretch justify-center gap-0.5'
-                              : 'flex w-max min-w-full flex-nowrap items-stretch justify-center gap-1 sm:gap-1.5'
+                              ? 'flex w-max min-w-full flex-nowrap items-stretch justify-start gap-0.5'
+                              : 'flex w-max min-w-full flex-nowrap items-stretch justify-start gap-1 sm:gap-1.5'
                     }
                 >
                 {goldSlots.map((slot) => (

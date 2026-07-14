@@ -94,16 +94,15 @@ export const SEASONAL_TIER_REWARDS: Record<string, QuestReward> = {
     '챌린저': { diamonds: 375, items: [{ itemId: '장비 상자 VI', quantity: 1 }, { itemId: '재료 상자 VI', quantity: 1 }, { itemId: '골드 꾸러미 IV', quantity: 1 }] },
 };
 
+/** Maps season tier → BORDER_POOL id (ProfileEdit unlockTier / Avatar URL). 새싹·루키는 시즌 Round 보상 없음. */
 export const SEASONAL_TIER_BORDERS: Record<string, string> = {
-    '새싹': 'border_sprout_season_N', // Assuming N is the season number
-    '루키': 'border_rookie_season_N',
-    '브론즈': 'border_bronze_season_N',
-    '실버': 'border_silver_season_N',
-    '골드': 'border_gold_season_N',
-    '플래티넘': 'border_platinum_season_N',
-    '다이아': 'border_diamond_season_N',
-    '마스터': 'border_master_season_N',
-    '챌린저': 'border_challenger_season_N',
+    '브론즈': 'bronze_reward',
+    '실버': 'silver_reward',
+    '골드': 'gold_reward',
+    '플래티넘': 'platinum_reward',
+    '다이아': 'diamond_reward',
+    '마스터': 'master_reward',
+    '챌린저': 'challenger_reward',
 };
 
 /** 전략바둑 랭킹전·챔피언십 대전장 시즌 티어 산정(점수·랭킹·시즌 대국 수) */

@@ -6,7 +6,7 @@ import DraggableWindow from './DraggableWindow.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS, EQUIPMENT_POOL, MATERIAL_ITEMS, aiUserId } from '../constants';
-import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
+import { getAdventureCodexMonsterById, getAdventureMonsterPortraitUrl } from '../constants/adventureMonstersCodex.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../shared/utils/liveSessionSinglePlayerStage.js';
 import { getMannerRank as getMannerRankShared } from '../services/manner.js';
@@ -1239,7 +1239,7 @@ const MatchPlayersRoster: React.FC<{
         if (!session || session.gameCategory !== 'adventure' || !session.adventureMonsterCodexId) return null;
         const e = getAdventureCodexMonsterById(session.adventureMonsterCodexId);
         if (!e) return null;
-        return { imageWebp: e.imageWebp, name: e.name, level: Math.max(1, session.adventureMonsterLevel ?? 1) };
+        return { imageWebp: getAdventureMonsterPortraitUrl(e), name: e.name, level: Math.max(1, session.adventureMonsterLevel ?? 1) };
     }, [session]);
     const monsterPortrait = useResilientImgSrc(adventureMonster?.imageWebp);
 
@@ -2416,6 +2416,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                     vipPlayRewardSlot={vipSlotForRender}
                                     onVipLockedClick={() => handlers.openShop('vip', { modal: true })}
                                     pairPetGradeUpgradeNeeded={showPetGradeUpgradeInsteadOfXp && !isPlayful}
+                                    adventureStageId={session.adventureStageId}
                                 />
                             </div>
                         ) : (

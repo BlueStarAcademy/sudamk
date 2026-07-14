@@ -16,11 +16,39 @@ export type AdventureMonsterCodexEntry = {
     imageWebp: string;
     name: string;
     codexDescription: string;
+    /** 가로 스프라이트 시트 열 수 (기본 1; 개선 시트는 4) */
+    spriteCols?: number;
+    /** 세로 스프라이트 시트 행 수 (기본 1) */
+    spriteRows?: number;
     /** 챕터당 2마리(놀이동산 3마리): % 보너스 담당 보스 */
     codexPercentBossBonus?: AdventureCodexPercentBossBonus;
     /** 놀이동산 19줄 판·고보상 전용 유니크 보스 (`shared/utils/adventureBattleBoard`의 `ADVENTURE_BOSS_CODEX_IDS`와 id 일치) */
     isAdventureBoss?: boolean;
 };
+
+/** 맵 배회용 4프레임 가로 시트 기본값 */
+export const ADVENTURE_MONSTER_SPRITE_SHEET = { cols: 4, rows: 1 } as const;
+
+export function resolveAdventureMonsterSpriteGrid(entry?: {
+    spriteCols?: number;
+    spriteRows?: number;
+} | null): { cols: number; rows: number } {
+    return {
+        cols: Math.max(1, Math.floor(entry?.spriteCols ?? 1)),
+        rows: Math.max(1, Math.floor(entry?.spriteRows ?? 1)),
+    };
+}
+
+/** `<img src>` 초상화용 — 4프레임 시트면 `_portrait.webp`, 아니면 imageWebp */
+export function getAdventureMonsterPortraitUrl(entry: {
+    imageWebp: string;
+    spriteCols?: number;
+    spriteRows?: number;
+}): string {
+    const { cols, rows } = resolveAdventureMonsterSpriteGrid(entry);
+    if (cols <= 1 && rows <= 1) return entry.imageWebp;
+    return entry.imageWebp.replace(/\.webp$/i, '_portrait.webp');
+}
 
 const hill = '/images/monster/neighborhood_hill';
 const lake = '/images/monster/lake_park';
@@ -103,7 +131,7 @@ export const ADVENTURE_MONSTERS_NEIGHBORHOOD_HILL = [
         codexDescription: '숲 끝자락에서 군림하는 이끼 왕관의 주인이에요. 천천히 기어가도 위엄만큼은 빠릅니다.',
         codexPercentBossBonus: { target: 'adventureGold' },
     },
-] as const satisfies readonly AdventureMonsterCodexEntry[];
+].map((m) => ({ ...m, spriteCols: 4, spriteRows: 1 })) as AdventureMonsterCodexEntry[];
 
 /** 호수공원: lake_park_01~11.webp 번호 = 표시 순서(오리판이→…→호수판왕). codexId lake_01~11은 저장용 고정 */
 export const ADVENTURE_MONSTERS_LAKE_PARK = [
@@ -185,7 +213,7 @@ export const ADVENTURE_MONSTERS_LAKE_PARK = [
         codexDescription: '이 구역 호수의 대장 포지션이에요. 물결 무늬 망토를 두르고 은은하게 반짝입니다.',
         codexPercentBossBonus: { target: 'materialDrop' },
     },
-] as const satisfies readonly AdventureMonsterCodexEntry[];
+].map((m) => ({ ...m, spriteCols: 4, spriteRows: 1 })) as AdventureMonsterCodexEntry[];
 
 export const ADVENTURE_MONSTERS_AQUARIUM = [
     {
@@ -256,7 +284,7 @@ export const ADVENTURE_MONSTERS_AQUARIUM = [
         codexDescription: '다섯 갈래 별처럼 빛나는 윤곽이에요. 밤 수조에서는 길 잃은 손님에게 별빛 안내등 노릇을 합니다.',
         codexPercentBossBonus: { target: 'itemDrop' },
     },
-] as const satisfies readonly AdventureMonsterCodexEntry[];
+].map((m) => ({ ...m, spriteCols: 4, spriteRows: 1 })) as AdventureMonsterCodexEntry[];
 
 export const ADVENTURE_MONSTERS_AMUSEMENT_PARK = [
     {
@@ -317,7 +345,7 @@ export const ADVENTURE_MONSTERS_AMUSEMENT_PARK = [
         codexPercentBossBonus: { target: 'highGradeEquipment' },
         isAdventureBoss: true,
     },
-] as const satisfies readonly AdventureMonsterCodexEntry[];
+].map((m) => ({ ...m, spriteCols: 4, spriteRows: 1 })) as AdventureMonsterCodexEntry[];
 
 export const ADVENTURE_MONSTERS_ZOO = [
     {
@@ -391,7 +419,7 @@ export const ADVENTURE_MONSTERS_ZOO = [
         codexDescription: '밤 행성이 끌리는 타입이에요. 달이 뜨면 산책 코스를 혼자 개척합니다.',
         codexPercentBossBonus: { target: 'highGradeMaterial' },
     },
-] as const satisfies readonly AdventureMonsterCodexEntry[];
+].map((m) => ({ ...m, spriteCols: 4, spriteRows: 1 })) as AdventureMonsterCodexEntry[];
 
 const ALL_ADVENTURE_CODEX_MONSTERS: readonly AdventureMonsterCodexEntry[] = [
     ...ADVENTURE_MONSTERS_NEIGHBORHOOD_HILL,

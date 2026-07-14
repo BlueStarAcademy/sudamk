@@ -5,8 +5,10 @@ import type { AdventureStageUnderstandingRow } from '../../utils/adventureStageU
 const AdventureChapterRegionalSummary: React.FC<{
     row: AdventureStageUnderstandingRow;
     compact?: boolean;
+    /** 빈 해금 슬롯 또는 강화 포인트 잔여 시 「지역 효과」 버튼에 붉은점 */
+    showAttentionDot?: boolean;
     onOpenEffectSlots: () => void;
-}> = ({ row, compact = false, onOpenEffectSlots }) => {
+}> = ({ row, compact = false, showAttentionDot = false, onOpenEffectSlots }) => {
     const { t } = useTranslation('lobby');
     const xpCurrent = row.xpInTier ?? row.xp;
     const xpGoal = row.xpNeedInTier ?? row.xpGoal;
@@ -52,12 +54,18 @@ const AdventureChapterRegionalSummary: React.FC<{
                     e.stopPropagation();
                     onOpenEffectSlots();
                 }}
-                className={`shrink-0 whitespace-nowrap rounded-lg border border-fuchsia-400/50 bg-gradient-to-b from-fuchsia-600/35 to-fuchsia-950/80 font-bold text-fuchsia-50 shadow-[0_4px_14px_-6px_rgba(192,132,252,0.55)] transition-all hover:border-amber-300/50 hover:from-fuchsia-500/45 hover:to-fuchsia-900/80 active:scale-[0.98] ${
+                className={`relative shrink-0 whitespace-nowrap rounded-lg border border-fuchsia-400/50 bg-gradient-to-b from-fuchsia-600/35 to-fuchsia-950/80 font-bold text-fuchsia-50 shadow-[0_4px_14px_-6px_rgba(192,132,252,0.55)] transition-all hover:border-amber-300/50 hover:from-fuchsia-500/45 hover:to-fuchsia-900/80 active:scale-[0.98] ${
                     compact ? 'px-2 py-1 text-[9px]' : 'px-3 py-1.5 text-[10px] sm:text-xs'
                 }`}
                 aria-label={t('adventure.regionalEffectAria', { title: row.title })}
             >
                 {t('adventure.regionalEffect')}
+                {showAttentionDot ? (
+                    <span
+                        className="absolute -right-0.5 -top-0.5 h-2 w-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.75)] ring-2 ring-zinc-950/90"
+                        aria-hidden
+                    />
+                ) : null}
             </button>
         </div>
     );

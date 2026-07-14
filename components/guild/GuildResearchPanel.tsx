@@ -9,6 +9,9 @@ import DraggableWindow from '../DraggableWindow.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useTranslation } from 'react-i18next';
+import GuildResearchStartConfirmModal, {
+    type GuildResearchStartConfirmPayload,
+} from './GuildResearchStartConfirmModal.js';
 
 interface GuildResearchPanelProps {
     guild: Guild;
@@ -96,9 +99,19 @@ const ResearchItemPanel: React.FC<{
     isResearchingThis: boolean;
     isAnyResearchActive: boolean;
     isNativeMobile: boolean;
-}> = ({ researchId, project, guild, myMemberInfo, isResearchingThis, isAnyResearchActive, isNativeMobile }) => {
+    onRequestStart: (payload: GuildResearchStartConfirmPayload) => void;
+}> = ({
+    researchId,
+    project,
+    guild,
+    myMemberInfo,
+    isResearchingThis,
+    isAnyResearchActive,
+    isNativeMobile,
+    onRequestStart,
+}) => {
     const { t } = useTranslation(['guild', 'common']);
-    const { handlers, currentUserWithStatus } = useAppContext();
+    const { currentUserWithStatus } = useAppContext();
     const [timeLeft, setTimeLeft] = useState(0);
 
     const currentLevel = guild.research?.[researchId]?.level ?? 0;
@@ -144,18 +157,14 @@ const ResearchItemPanel: React.FC<{
 
     const handleStartResearch = () => {
         if (!canStartResearch) return;
-        if (
-            window.confirm(
-                t('research.startConfirm', {
-                    name: project.name,
-                    level: nextLevel,
-                    cost: cost.toLocaleString(),
-                    time: formatTimeLeft(timeMs, t),
-                }),
-            )
-        ) {
-            handlers.handleAction({ type: 'GUILD_START_RESEARCH', payload: { guildId: guild.id, researchId } });
-        }
+        onRequestStart({
+            researchId,
+            name: project.name,
+            image: project.image,
+            level: nextLevel,
+            cost,
+            timeLabel: formatTimeLeft(timeMs, t),
+        });
     };
 
     const currentEffectDisplay = getResearchSkillDisplay(researchId, currentLevel, t);
@@ -281,9 +290,11 @@ const ResearchItemPanel: React.FC<{
 
 const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => void }> = ({ guild, myMemberInfo, onClose }) => {
     const { t } = useTranslation(['guild', 'common']);
+    const { handlers } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
     const isHandheld = useIsHandheldDevice();
     const [activeTab, setActiveTab] = useState<GuildResearchCategory>(GuildResearchCategory.development);
+    const [pendingStart, setPendingStart] = useState<GuildResearchStartConfirmPayload | null>(null);
     const researchInProgressId = guild.researchTask?.researchId;
 
     const researchProjectsForTab = useMemo(() => {
@@ -362,11 +373,25 @@ const GuildResearchPanel: React.FC<GuildResearchPanelProps & { onClose: () => vo
                             isResearchingThis={researchInProgressId === id}
                             isAnyResearchActive={!!researchInProgressId}
                             isNativeMobile={isNativeMobile}
+                            onRequestStart={setPendingStart}
                         />
                     ))}
                 </div>
                 </div>
             </div>
+            {pendingStart && (
+                <GuildResearchStartConfirmModal
+                    payload={pendingStart}
+                    onClose={() => setPendingStart(null)}
+                    onConfirm={() => {
+                        const researchId = pendingStart.researchId;
+                        handlers.handleAction({
+                            type: 'GUILD_START_RESEARCH',
+                            payload: { guildId: guild.id, researchId },
+                        });
+                    }}
+                />
+            )}
         </DraggableWindow>
     );
 };

@@ -8,7 +8,7 @@ const ITEM_GRADE_COLOR_MAP: Record<string, string> = {
     rare: 'text-blue-400',
     epic: 'text-purple-400',
     legendary: 'text-red-500',
-    mythic: 'text-orange-400',
+    mythic: 'text-amber-400',
     transcendent: 'text-cyan-300',
 };
 

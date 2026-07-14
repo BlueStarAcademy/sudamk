@@ -3126,7 +3126,7 @@
     },
     "specialStats": {
       "actionPointMax": "Max AP",
-      "strategyXpBonus": "User XP",
+      "strategyXpBonus": "EXP",
       "playfulXpBonus": "Pet XP",
       "championshipVenueAllStats": "Championship",
       "guildBossBattleAllStats": "Guild boss"
@@ -4458,6 +4458,9 @@
       "consumableTab": "Consumable",
       "inventoryHint": "Can be used from inventory.",
       "noGuide": "No guide text.",
+      "viewLarge": "View large",
+      "viewLargeAria": "View equipment image large",
+      "closePreview": "Close",
       "tier1": "Bag",
       "tier2": "Rock",
       "tier3": "Bottle",
@@ -6980,6 +6983,7 @@
       "guildLevel": "Guild Lv:",
       "startResearch": "Start research",
       "startConfirm": "Start level {{level}} research for [{{name}}]?\n\nRequired points: {{cost}} RP\nEstimated time: {{time}}",
+      "startConfirmQuestion": "Start level {{level}} research for [{{name}}]?",
       "chancePrefix": "[{{chance}}% chance] ",
       "categoryDevelopment": "Guild development",
       "categoryBoss": "Boss battle",

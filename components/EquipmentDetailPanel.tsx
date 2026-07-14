@@ -9,16 +9,13 @@ import { useTranslation } from 'react-i18next';
 import { InventoryItem, ItemGrade } from '../types.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement } from '../constants';
-import { isActionPointConsumable } from '../constants/items';
 import { MythicSubsPartitioned } from './MythicSubsPartitioned.js';
 import { EquipmentBagStyleOptionRow } from './equipment/EquipmentBagStyleOptionRow.js';
+import { ITEM_SLOT_ICON_SIZE_PCT, itemSlotIconStyle, GRADE_SLOT_SCRIM_CLASS, GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS, gradeSlotBorderOverlayClass } from '../shared/constants/itemSlotIconLayout.js';
 import {
-    AP_CONSUMABLE_LIGHTNING_FONT_SIZE_CQ,
-    AP_CONSUMABLE_PLUS_FONT_SIZE_CQ,
-    apConsumableLightningEmojiPx,
-    apConsumableLightningPlusLabelPx,
     resolveBagItemDetailImagePath,
 } from '../shared/utils/bagItemDetailHelpers.js';
+import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
 
 /** ItemDetailModal과 동일 — 등급별 프레임·배경 (구매 모달 등에서 재사용 가능) */
 export const equipmentDetailGradeStyles: Record<ItemGrade, { color: string; background: string; frame: string }> = {
@@ -27,7 +24,7 @@ export const equipmentDetailGradeStyles: Record<ItemGrade, { color: string; back
     rare: { color: 'text-sky-400', background: '/images/equipments/rarebgi.webp', frame: 'from-sky-500/20 to-blue-950/15 ring-sky-500/35' },
     epic: { color: 'text-violet-400', background: '/images/equipments/epicbgi.webp', frame: 'from-violet-500/25 to-purple-950/15 ring-violet-500/40' },
     legendary: { color: 'text-rose-500', background: '/images/equipments/legendarybgi.webp', frame: 'from-rose-500/25 to-red-950/15 ring-rose-500/40' },
-    mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp', frame: 'from-amber-500/25 to-orange-950/20 ring-amber-400/45' },
+    mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp', frame: 'from-amber-400/30 to-yellow-950/20 ring-amber-400/45' },
     transcendent: {
         color: 'text-cyan-300',
         background: '/images/equipments/transcendentbgi.webp',
@@ -85,40 +82,6 @@ const getDetailTypography = (comfortableTypography: boolean, enlargedTypography:
         bodyLeading: 'text-[12px] leading-snug',
         starLarge: false,
     };
-};
-
-const renderStarDisplay = (stars: number, starLarge?: boolean) => {
-    if (stars === 0) return null;
-
-    let starImage = '';
-    let numberColor = '';
-
-    if (stars >= 10) {
-        starImage = '/images/equipments/Star4.webp';
-        numberColor = 'prism-text-effect';
-    } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.webp';
-        numberColor = 'text-purple-400';
-    } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.webp';
-        numberColor = 'text-amber-400';
-    } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.webp';
-        numberColor = 'text-white';
-    }
-
-    const starImgCls = starLarge ? 'h-4 w-4' : 'h-3 w-3';
-    const starNumCls = starLarge ? 'text-[14px] font-bold leading-none' : 'text-[12px] font-bold leading-none';
-
-    return (
-        <div
-            className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
-            style={{ textShadow: '1px 1px 2px black' }}
-        >
-            <img src={starImage} alt="" className={starImgCls} />
-            <span className={`${starNumCls} ${numberColor}`}>{stars}</span>
-        </div>
-    );
 };
 
 function resolveNoWrapTextFontPx(
@@ -241,45 +204,19 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                         <div className="flex shrink-0 flex-col items-center">
                             <div className={iconSlotBoxClass} style={iconSlotBoxStyle}>
                                 <img src={styles.background} alt={item.grade} className="absolute inset-0 h-full w-full rounded-lg object-cover" />
-                                {isActionPointConsumable(item.name) ? (
-                                    (() => {
-                                        const match = item.name.match(/\+(\d+)/);
-                                        const apValue = match ? match[1] : null;
-                                        const side = iconSlotPx ?? 64;
-                                        const emojiFs =
-                                            iconSlotPx != null
-                                                ? `${apConsumableLightningEmojiPx(side)}px`
-                                                : AP_CONSUMABLE_LIGHTNING_FONT_SIZE_CQ;
-                                        const plusFs =
-                                            iconSlotPx != null
-                                                ? `${apConsumableLightningPlusLabelPx(side)}px`
-                                                : AP_CONSUMABLE_PLUS_FONT_SIZE_CQ;
-                                        return (
-                                            <span
-                                                className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-[min(4px,8%)] leading-none"
-                                                aria-hidden
-                                                style={{ fontSize: emojiFs }}
-                                            >
-                                                <span className="leading-none">⚡</span>
-                                                {apValue && (
-                                                    <span
-                                                        className="mt-0.5 max-w-full whitespace-nowrap font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
-                                                        style={{ fontSize: plusFs }}
-                                                    >
-                                                        +{apValue}
-                                                    </span>
-                                                )}
-                                            </span>
-                                        );
-                                    })()
-                                ) : imagePath ? (
+                                <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
+                                {imagePath ? (
                                     <img
                                         src={imagePath}
                                         alt={displayItemName}
-                                        className="relative z-[2] object-contain p-2"
-                                        style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                        className="absolute z-[2] object-contain"
+                                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                                     />
                                 ) : null}
+                                <div
+                                    className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                                    aria-hidden
+                                />
                             </div>
                         </div>
                         <div className="ml-2 min-w-0 flex-grow text-right sm:ml-3 md:ml-4">
@@ -403,28 +340,20 @@ export const EquipmentDetailPanel: React.FC<EquipmentDetailPanelProps> = ({
                     <div className="flex shrink-0 flex-col items-center">
                         <div className={equipIconSlotClass} style={equipIconSlotStyle}>
                             <img src={styles.background} alt={item.grade} className="absolute inset-0 h-full w-full rounded-lg object-cover" />
-                            {isActionPointConsumable(item.name) ? (
-                                <span
-                                    className="absolute inset-0 flex items-center justify-center leading-none"
-                                    style={{
-                                        fontSize:
-                                            iconSlotPx != null
-                                                ? `${apConsumableLightningEmojiPx(iconSlotPx)}px`
-                                                : AP_CONSUMABLE_LIGHTNING_FONT_SIZE_CQ,
-                                    }}
-                                    aria-hidden
-                                >
-                                    ⚡
-                                </span>
-                            ) : item.image ? (
+                            <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
+                            {item.image ? (
                                 <img
                                     src={item.image}
                                     alt={displayItemName}
-                                    className="relative z-[2] object-contain p-2"
-                                    style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                    className="absolute z-[2] object-contain"
+                                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                                 />
                             ) : null}
-                            {renderStarDisplay(item.stars, typo.starLarge)}
+                            <div
+                                className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                                aria-hidden
+                            />
+                            <EquipmentEnhancementBadge stars={item.stars} sizePct={typo.starLarge ? 28 : 26} />
                         </div>
                         {showTradeStatusUnderImage && item.type === 'equipment' && (
                             <div

@@ -43,9 +43,9 @@ const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
         goldMax: 2000,
         actionPoints: 10,
         equipmentTiers: [
-            { roman: 'I', weight: 60 },
-            { roman: 'II', weight: 35 },
-            { roman: 'III', weight: 5 },
+            { roman: 'I', weight: 70 },
+            { roman: 'II', weight: 20 },
+            { roman: 'III', weight: 10 },
         ],
         materialTiers: [
             { roman: 'I', weight: 60 },
@@ -58,9 +58,9 @@ const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
         goldMax: 4000,
         actionPoints: 15,
         equipmentTiers: [
-            { roman: 'I', weight: 45 },
-            { roman: 'II', weight: 45 },
-            { roman: 'III', weight: 10 },
+            { roman: 'I', weight: 40 },
+            { roman: 'II', weight: 30 },
+            { roman: 'III', weight: 30 },
         ],
         materialTiers: [
             { roman: 'I', weight: 45 },
@@ -73,10 +73,9 @@ const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
         goldMax: 6000,
         actionPoints: 20,
         equipmentTiers: [
-            { roman: 'I', weight: 34 },
-            { roman: 'II', weight: 50 },
-            { roman: 'III', weight: 15 },
-            { roman: 'IV', weight: 1 },
+            { roman: 'II', weight: 40 },
+            { roman: 'III', weight: 40 },
+            { roman: 'IV', weight: 20 },
         ],
         materialTiers: [
             { roman: 'I', weight: 34 },
@@ -90,9 +89,9 @@ const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
         goldMax: 8000,
         actionPoints: 25,
         equipmentTiers: [
-            { roman: 'II', weight: 65 },
-            { roman: 'III', weight: 30 },
-            { roman: 'IV', weight: 5 },
+            { roman: 'III', weight: 60 },
+            { roman: 'IV', weight: 35 },
+            { roman: 'V', weight: 5 },
         ],
         materialTiers: [
             { roman: 'II', weight: 65 },
@@ -105,10 +104,10 @@ const CHAPTER_REWARDS: Record<number, AdventureTreasureChapterRewardDef> = {
         goldMax: 10000,
         actionPoints: 30,
         equipmentTiers: [
-            { roman: 'II', weight: 49 },
-            { roman: 'III', weight: 35 },
-            { roman: 'IV', weight: 15 },
-            { roman: 'V', weight: 1 },
+            { roman: 'III', weight: 20 },
+            { roman: 'IV', weight: 70 },
+            { roman: 'V', weight: 9.5 },
+            { roman: 'VI', weight: 0.5 },
         ],
         materialTiers: [
             { roman: 'II', weight: 49 },
@@ -144,7 +143,7 @@ export type AdventureMapTreasurePickSession = {
 };
 
 const PREVIEW_GOLD = '/images/icon/Gold.webp';
-const PREVIEW_LIGHTNING = '/images/icon/lightning.webp';
+const PREVIEW_LIGHTNING = '/images/use/ap_potion_10.webp';
 const PREVIEW_EQ: Record<string, string> = {
     I: '/images/Box/EquipmentBox1.webp',
     II: '/images/Box/EquipmentBox2.webp',
@@ -291,7 +290,7 @@ export function getAdventureTreasureRewardPreviewBlocks(stageIndex: number): Adv
             image: MAT_IMG[row.roman] ?? MAT_IMG.I!,
             label: `${row.weight}%`,
         })),
-        ap: { image: '/images/icon/lightning.webp', label: `${def.actionPoints} 회복` },
+        ap: { image: '/images/use/ap_potion_10.webp', label: `${def.actionPoints} 회복` },
     };
 }
 

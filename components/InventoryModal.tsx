@@ -6,7 +6,7 @@ import { UserWithStatus, InventoryItem, ServerAction, InventoryItemType, ItemGra
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
-import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isActionPointConsumable, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial, normalizeRefinementTicketInventoryName } from '../constants/items';
+import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial, normalizeRefinementTicketInventoryName } from '../constants/items';
 import { isPairArenaExclusiveBagItem, isPairPetMaterial } from '../shared/constants/petLobby.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
@@ -24,16 +24,21 @@ import AlertModal from './AlertModal.js';
 import { MythicOptionAbbrev } from './MythicStatAbbrev.js';
 import { coerceSpecialStatType } from '../shared/utils/specialStatMilestones.js';
 import { EquipmentBagStyleOptionRow, resolveEquipmentOptionColorClass } from './equipment/EquipmentBagStyleOptionRow.js';
+import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
+import EquipmentStatusBadge, { resolveEquipmentStatusMarkerKind } from './EquipmentStatusBadge.js';
 import {
-    AP_CONSUMABLE_LIGHTNING_FONT_SIZE_CQ,
-    AP_CONSUMABLE_PLUS_FONT_SIZE_CQ,
-    apConsumableLightningEmojiPx,
-    apConsumableLightningPlusLabelPx,
     findConsumableItem,
     getEnhancementMaterialUsageLinesForBag,
     normalizeConsumableName,
     resolveBagItemDetailImagePath,
 } from '../shared/utils/bagItemDetailHelpers.js';
+import {
+    ITEM_SLOT_ICON_SIZE_PCT,
+    itemSlotIconStyle,
+    GRADE_SLOT_SCRIM_CLASS,
+    GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
+    gradeSlotBorderOverlayClass,
+} from '../shared/constants/itemSlotIconLayout.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 import InventorySlotExpandDiamondBody from './inventory/InventorySlotExpandDiamondBody.js';
 import {
@@ -153,62 +158,12 @@ const EquipmentSlotDisplay: React.FC<{
     compactIconLayout?: boolean;
 }> = ({ slot, item, scaleFactor = 1, onClick, isSelected = false, compactIconLayout = false }) => {
     const localizedItemName = useLocalizedInventoryItemName();
-    const renderStarDisplay = (stars: number) => {
-        if (stars === 0) return null;
-
-        let starImage = '';
-        let numberColor = '';
-
-        if (stars >= 10) {
-            starImage = '/images/equipments/Star4.webp';
-            numberColor = "prism-text-effect";
-        } else if (stars >= 7) {
-            starImage = '/images/equipments/Star3.webp';
-            numberColor = "text-purple-400";
-        } else if (stars >= 4) {
-            starImage = '/images/equipments/Star2.webp';
-            numberColor = "text-amber-400";
-        } else if (stars >= 1) {
-            starImage = '/images/equipments/Star1.webp';
-            numberColor = "text-white";
-        }
-
-        /** `EquipmentDetailPanel`과 동일: 테두리 없음, bg-black/45. 모바일·좁은 슬롯은 comfortableTypography와 동일 크기 */
-        const badgeShell =
-            'absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]';
-        if (compactIconLayout) {
-            return (
-                <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
-                    <img src={starImage} alt="" className="h-3.5 w-3.5" />
-                    <span className={`text-[13px] font-bold leading-none ${numberColor}`}>{stars}</span>
-                </div>
-            );
-        }
-
-        const starSize = Math.max(12, Math.round(12 * scaleFactor));
-        const fontSize = Math.max(12, Math.round(12 * scaleFactor));
-
-        return (
-            <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
-                <img src={starImage} alt="" style={{ width: `${starSize}px`, height: `${starSize}px` }} />
-                <span className={`font-bold leading-none ${numberColor}`} style={{ fontSize: `${fontSize}px` }}>
-                    {stars}
-                </span>
-            </div>
-        );
-    };
 
     if (item) {
-        const iconPct = compactIconLayout ? '62%' : '80%';
-        const padding = Math.max(
-            compactIconLayout ? 3 : 4,
-            Math.round((compactIconLayout ? 5 : 6) * scaleFactor)
-        );
-        const borderWidth = Math.max(1, Math.round(2 * scaleFactor));
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
-                className={`relative aspect-square rounded-lg bg-tertiary/50 ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-accent/70' : ''} ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+                className={`relative aspect-square overflow-hidden rounded-lg bg-tertiary/50 ${onClick ? 'cursor-pointer hover:ring-2 hover:ring-accent/70' : ''} ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
                 title={localizedItemName(item.name)}
                 onClick={onClick}
                 style={{ 
@@ -218,7 +173,6 @@ const EquipmentSlotDisplay: React.FC<{
                     minHeight: 0, 
                     maxWidth: '100%', 
                     maxHeight: '100%',
-                    border: isTranscendent ? undefined : `${borderWidth}px solid rgba(255, 255, 255, 0.1)`,
                     boxSizing: 'border-box',
                     containerType: 'size',
                 }}
@@ -235,6 +189,7 @@ const EquipmentSlotDisplay: React.FC<{
                         objectFit: 'cover'
                     }} 
                 />
+                <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
                 {(() => {
                     // 이미지 경로 찾기: item.image가 있으면 사용, 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
                     let imagePath: string | undefined = item.image;
@@ -283,44 +238,12 @@ const EquipmentSlotDisplay: React.FC<{
                         }
                     }
                     
-                    if (isActionPointConsumable(item.name)) {
-                        const match = item.name.match(/\+(\d+)/);
-                        const apValue = match ? match[1] : null;
-                        return (
-                            <span
-                                className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-[min(4px,8%)] leading-none"
-                                aria-hidden
-                                style={{ fontSize: AP_CONSUMABLE_LIGHTNING_FONT_SIZE_CQ }}
-                            >
-                                <span className="leading-none">⚡</span>
-                                {apValue && (
-                                    <span
-                                        className="mt-0.5 max-w-full whitespace-nowrap font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
-                                        style={{ fontSize: AP_CONSUMABLE_PLUS_FONT_SIZE_CQ }}
-                                    >
-                                        +{apValue}
-                                    </span>
-                                )}
-                            </span>
-                        );
-                    }
                     return imagePath ? (
                         <img 
                             src={imagePath} 
                             alt={item.name} 
-                            className="absolute object-contain" 
-                            style={{ 
-                                width: iconPct, 
-                                height: iconPct, 
-                                padding: `${padding}px`, 
-                                maxWidth: iconPct, 
-                                maxHeight: iconPct,
-                                boxSizing: 'border-box',
-                                objectFit: 'contain',
-                                left: '50%',
-                                top: '50%',
-                                transform: 'translate(-50%, -50%)'
-                            }}
+                            className="absolute z-[2] object-contain" 
+                            style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                             onError={(e) => {
                                 console.error(`[EquipmentSlotDisplay] Failed to load image: ${imagePath} for item:`, item);
                                 (e.target as HTMLImageElement).style.display = 'none';
@@ -328,7 +251,11 @@ const EquipmentSlotDisplay: React.FC<{
                         />
                     ) : null;
                 })()}
-                {renderStarDisplay(item.stars)}
+                <div
+                    className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                    aria-hidden
+                />
+                <EquipmentEnhancementBadge stars={item.stars} />
             </div>
         );
     } else {
@@ -481,51 +408,6 @@ const LocalItemDetailDisplay: React.FC<{
     }
 
     const styles = gradeStyles[item.grade];
-
-    const renderStarDisplay = (stars: number) => {
-        if (stars === 0) return null;
-
-        let starImage = '';
-        let numberColor = '';
-
-        if (stars >= 10) {
-            starImage = '/images/equipments/Star4.webp';
-            numberColor = "prism-text-effect";
-        } else if (stars >= 7) {
-            starImage = '/images/equipments/Star3.webp';
-            numberColor = "text-purple-400";
-        } else if (stars >= 4) {
-            starImage = '/images/equipments/Star2.webp';
-            numberColor = "text-amber-400";
-        } else if (stars >= 1) {
-            starImage = '/images/equipments/Star1.webp';
-            numberColor = "text-white";
-        }
-
-        const badgeShell =
-            'absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]';
-        /** 아이콘 슬롯이 작을 때 `EquipmentDetailPanel` comfortableTypography와 동일 */
-        if (imgBox <= 96) {
-            return (
-                <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
-                    <img src={starImage} alt="" className="h-3.5 w-3.5" />
-                    <span className={`text-[13px] font-bold leading-none ${numberColor}`}>{stars}</span>
-                </div>
-            );
-        }
-
-        const starSize = Math.max(12, Math.round(12 * scaleFactor));
-        const fontSize = Math.max(12, Math.round(12 * scaleFactor));
-
-        return (
-            <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
-                <img src={starImage} alt="" style={{ width: `${starSize}px`, height: `${starSize}px` }} />
-                <span className={`font-bold leading-none ${numberColor}`} style={{ fontSize: `${fontSize}px` }}>
-                    {stars}
-                </span>
-            </div>
-        );
-    };
 
     const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
     const showRequirement = item.type === 'equipment';
@@ -686,17 +568,10 @@ const LocalItemDetailDisplay: React.FC<{
                                 src={item.image}
                                 alt={item.name}
                                 className="absolute object-contain"
-                                style={{
-                                    width: '80%',
-                                    height: '80%',
-                                    padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`,
-                                    left: '50%',
-                                    top: '50%',
-                                    transform: 'translate(-50%, -50%)',
-                                }}
+                                style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                             />
                         )}
-                        {renderStarDisplay(item.stars)}
+                        <EquipmentEnhancementBadge stars={item.stars} />
                     </div>
                     <div className={`mt-1.5 min-h-0 flex-1 overflow-y-auto rounded-lg bg-gray-900/50 p-2 ${BAG_SCROLLBAR_Y_CLASS}`}>
                         <h3 className={`max-w-full whitespace-nowrap font-bold ${styles.color}`} title={displayItemName} style={{ fontSize: `${resolveNoWrapTextFontPx(displayItemName, Math.max(12, Math.round(14 * scaleFactor * mobileTextScale)), 8, 9, 0.62)}px` }}>
@@ -832,42 +707,12 @@ const LocalItemDetailDisplay: React.FC<{
                         {(() => {
                             const imagePath = resolveBagItemDetailImagePath(item);
 
-                            if (isActionPointConsumable(item.name)) {
-                                const match = item.name.match(/\+(\d+)/);
-                                const apValue = match ? match[1] : null;
-                                const emojiPx = apConsumableLightningEmojiPx(imgBox);
-                                const plusPx = apConsumableLightningPlusLabelPx(imgBox);
-                                return (
-                                    <span
-                                        className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-[min(4px,8%)] leading-none"
-                                        aria-hidden
-                                        style={{ fontSize: `${emojiPx}px` }}
-                                    >
-                                        <span className="leading-none">⚡</span>
-                                        {apValue && (
-                                            <span
-                                                className="mt-0.5 max-w-full whitespace-nowrap font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
-                                                style={{ fontSize: `${plusPx}px` }}
-                                            >
-                                                +{apValue}
-                                            </span>
-                                        )}
-                                    </span>
-                                );
-                            }
                             return imagePath ? (
                                 <img
                                     src={imagePath}
                                     alt={item.name}
                                     className="absolute object-contain"
-                                    style={{
-                                        width: '80%',
-                                        height: '80%',
-                                        padding: `${Math.max(2, Math.round(4 * scaleFactor))}px`,
-                                        left: '50%',
-                                        top: '50%',
-                                        transform: 'translate(-50%, -50%)'
-                                    }}
+                                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                                     onError={(e) => {
                                         console.error(`[LocalItemDetailDisplay] Failed to load image: ${imagePath} for item:`, item);
                                         (e.target as HTMLImageElement).style.display = 'none';
@@ -875,7 +720,7 @@ const LocalItemDetailDisplay: React.FC<{
                                 />
                             ) : null;
                         })()}
-                        {renderStarDisplay(item.stars)}
+                        <EquipmentEnhancementBadge stars={item.stars} />
                     </div>
                     {item.type === 'equipment' && (
                         <div
@@ -3384,57 +3229,13 @@ const InventoryItemCard: React.FC<{
     compactIconLayout?: boolean;
 }> = ({ item, onClick, isSelected, isEquipped, enhancementStars, isPresetEquipped, scaleFactor = 1, compactIconLayout = false }) => {
     const stars = enhancementStars || item.stars || 0;
-    
-    const renderStarDisplay = () => {
-        if (stars === 0) return null;
-
-        let starImage = '';
-        let numberColor = '';
-
-        if (stars >= 10) {
-            starImage = '/images/equipments/Star4.webp';
-            numberColor = "prism-text-effect";
-        } else if (stars >= 7) {
-            starImage = '/images/equipments/Star3.webp';
-            numberColor = "text-purple-400";
-        } else if (stars >= 4) {
-            starImage = '/images/equipments/Star2.webp';
-            numberColor = "text-amber-400";
-        } else if (stars >= 1) {
-            starImage = '/images/equipments/Star1.webp';
-            numberColor = "text-white";
-        }
-
-        const badgeShell =
-            'absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]';
-        if (compactIconLayout) {
-            return (
-                <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
-                    <img src={starImage} alt="" className="h-3.5 w-3.5" />
-                    <span className={`text-[13px] font-bold leading-none ${numberColor}`}>{stars}</span>
-                </div>
-            );
-        }
-
-        const starSize = Math.max(12, Math.round(12 * scaleFactor));
-        const fontSize = Math.max(12, Math.round(12 * scaleFactor));
-
-        return (
-            <div className={badgeShell} style={{ textShadow: '1px 1px 2px black' }}>
-                <img src={starImage} alt="" style={{ width: `${starSize}px`, height: `${starSize}px` }} />
-                <span className={`font-bold leading-none ${numberColor}`} style={{ fontSize: `${fontSize}px` }}>
-                    {stars}
-                </span>
-            </div>
-        );
-    };
 
     const isTranscendent = item.grade === ItemGrade.Transcendent;
 
     return (
         <div
             onClick={onClick}
-            className={`relative aspect-square rounded-lg cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} hover:ring-2 hover:ring-accent/70 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
+            className={`relative aspect-square overflow-hidden rounded-lg cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-accent' : 'ring-1 ring-transparent'} hover:ring-2 hover:ring-accent/70 ${isTranscendent ? 'transcendent-grade-slot' : ''}`}
             title={item.name}
             style={{
                 width: '100%',
@@ -3448,6 +3249,7 @@ const InventoryItemCard: React.FC<{
             }}
         >
             <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 object-cover rounded-md" style={{ width: '100%', height: '100%', maxWidth: '100%', maxHeight: '100%' }} />
+            <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
             {(() => {
                 // 이미지 경로 찾기: item.image가 있으면 사용, 없으면 CONSUMABLE_ITEMS나 MATERIAL_ITEMS에서 찾기
                 let imagePath: string | undefined = item.image;
@@ -3496,42 +3298,12 @@ const InventoryItemCard: React.FC<{
                     }
                 }
                 
-                if (isActionPointConsumable(item.name)) {
-                    const match = item.name.match(/\+(\d+)/);
-                    const apValue = match ? match[1] : null;
-                    return (
-                        <span
-                            className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-[min(4px,8%)] leading-none"
-                            aria-hidden
-                            style={{ fontSize: AP_CONSUMABLE_LIGHTNING_FONT_SIZE_CQ }}
-                        >
-                            <span className="leading-none">⚡</span>
-                            {apValue && (
-                                <span
-                                    className="mt-0.5 max-w-full whitespace-nowrap font-bold leading-none text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)]"
-                                    style={{ fontSize: AP_CONSUMABLE_PLUS_FONT_SIZE_CQ }}
-                                >
-                                    +{apValue}
-                                </span>
-                            )}
-                        </span>
-                    );
-                }
                 return imagePath ? (
                     <img 
                         src={imagePath} 
                         alt={item.name} 
-                        className="absolute object-contain" 
-                        style={{ 
-                            width: compactIconLayout ? '74%' : '80%', 
-                            height: compactIconLayout ? '74%' : '80%', 
-                            padding: `${Math.max(compactIconLayout ? 3 : 4, Math.round((compactIconLayout ? 5 : 6) * scaleFactor))}px`, 
-                            maxWidth: compactIconLayout ? '74%' : '80%', 
-                            maxHeight: compactIconLayout ? '74%' : '80%', 
-                            left: '50%', 
-                            top: '50%', 
-                            transform: 'translate(-50%, -50%)' 
-                        }} 
+                        className="absolute z-[2] object-contain" 
+                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)} 
                         onError={(e) => {
                             console.error(`[InventoryItemCard] Failed to load image: ${imagePath} for item:`, item);
                             (e.target as HTMLImageElement).style.display = 'none';
@@ -3539,35 +3311,14 @@ const InventoryItemCard: React.FC<{
                     />
                 ) : null;
             })()}
-            {renderStarDisplay()}
-            {isEquipped && (
-                <div 
-                    className="absolute bg-green-500 text-white flex items-center justify-center rounded-full border-2 border-gray-800"
-                    style={{
-                        top: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
-                        left: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
-                        width: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
-                        height: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
-                        fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px`
-                    }}
-                >
-                    E
-                </div>
-            )}
-            {!isEquipped && isPresetEquipped && (
-                <div 
-                    className="absolute bg-blue-500 text-white flex items-center justify-center rounded-full border-2 border-gray-800"
-                    style={{
-                        top: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
-                        left: `${Math.max(4, Math.round(6 * scaleFactor))}px`,
-                        width: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
-                        height: `${Math.max(12, Math.round(16 * scaleFactor))}px`,
-                        fontSize: `${Math.max(8, Math.round(10 * scaleFactor))}px`
-                    }}
-                >
-                    P
-                </div>
-            )}
+            <div
+                className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                aria-hidden
+            />
+            <EquipmentEnhancementBadge stars={stars} />
+            <EquipmentStatusBadge
+                kind={resolveEquipmentStatusMarkerKind({ isEquipped, isPresetEquipped })}
+            />
             {(() => {
                 if (item.type !== 'consumable' && item.type !== 'material') return null;
                 const stackQty = item.quantity ?? 1;

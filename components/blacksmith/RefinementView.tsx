@@ -21,6 +21,7 @@ import { MythicOptionAbbrev, MythicStatAbbrev } from '../MythicStatAbbrev.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
+import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
 
 const REFINEMENT_TICKET_DEFS: { id: 'type' | 'value' | 'mythic'; itemKey: keyof typeof MATERIAL_ITEMS }[] = [
     { id: 'type', itemKey: '옵션 종류 변경권' },
@@ -103,7 +104,7 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
     epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
     legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
+    mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -171,7 +172,14 @@ const ItemDisplay: React.FC<{
             <div className="mb-1.5 flex shrink-0">
                 <div className={`relative mr-2 h-16 w-16 flex-shrink-0 rounded-lg ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}>
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                    {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                    {item.image && (
+                        <img
+                            src={item.image}
+                            alt={item.name}
+                            className="absolute object-contain"
+                            style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                        />
+                    )}
                     {renderStarDisplay(item.stars)}
                 </div>
                 <div className="min-w-0 flex-grow pt-0.5">

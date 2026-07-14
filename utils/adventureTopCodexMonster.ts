@@ -1,4 +1,4 @@
-import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
+import { getAdventureCodexMonsterById, getAdventureMonsterPortraitUrl } from '../constants/adventureMonstersCodex.js';
 import type { AdventureProfile } from '../types/entities.js';
 import { getAdventureCodexComprehensionLevel } from './adventureCodexComprehension.js';
 import { normalizeAdventureProfile } from './adventureUnderstanding.js';
@@ -47,7 +47,7 @@ export function getTopAdventureCodexMonsterByWins(
     return {
         codexId: bestCodexId,
         name: entry.name,
-        imageWebp: entry.imageWebp,
+        imageWebp: getAdventureMonsterPortraitUrl(entry),
         wins: bestWins,
         comprehensionLevel: getAdventureCodexComprehensionLevel(bestWins),
     };

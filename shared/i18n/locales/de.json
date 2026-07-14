@@ -3129,7 +3129,7 @@
     },
     "specialStats": {
       "actionPointMax": "Maximaler AP",
-      "strategyXpBonus": "Benutzer XP",
+      "strategyXpBonus": "EXP",
       "playfulXpBonus": "Haustier-XP",
       "championshipVenueAllStats": "Meisterschaft",
       "guildBossBattleAllStats": "Gildenboss"

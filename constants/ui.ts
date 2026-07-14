@@ -50,7 +50,7 @@ export const BORDER_POOL: BorderInfo[] = [
     { id: 'blue', name: '블루', url: '#3b82f6', description: '전략/놀이 레벨 합 7 이상 사용 가능.', requiredLevelSum: 7 },
     { id: 'indigo', name: '인디고', url: '#6366f1', description: '전략/놀이 레벨 합 8 이상 사용 가능.', requiredLevelSum: 8 },
     { id: 'purple', name: '퍼플', url: '#8b5cf6', description: '전략/놀이 레벨 합 9 이상 사용 가능.', requiredLevelSum: 9 },
-    { id: 'rainbow', name: '레인보우', url: 'conic-gradient(red, yellow, lime, aqua, blue, magenta, red)', description: '전략/놀이 레벨 합 10 이상 사용 가능.', requiredLevelSum: 10 },
+    { id: 'rainbow', name: '레인보우', url: 'conic-gradient(from 0deg, #ff6b6b, #ffd93d, #6bcb77, #4d96ff, #9b59b6, #ff6b6b)', description: '전략/놀이 레벨 합 10 이상 사용 가능.', requiredLevelSum: 10 },
     { id: 'bronze_reward', name: '브론즈 보상', url: '/images/tire/Round1.webp', description: '지난 시즌 브론즈 티어 달성 보상입니다.', unlockTier: '브론즈' },
     { id: 'silver_reward', name: '실버 보상', url: '/images/tire/Round2.webp', description: '지난 시즌 실버 티어 달성 보상입니다.', unlockTier: '실버' },
     { id: 'gold_reward', name: '골드 보상', url: '/images/tire/Round3.webp', description: '지난 시즌 골드 티어 달성 보상입니다.', unlockTier: '골드' },

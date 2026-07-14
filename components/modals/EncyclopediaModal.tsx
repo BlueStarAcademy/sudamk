@@ -13,7 +13,6 @@ import {
     MYTHIC_STATS_DATA,
     GRADE_LEVEL_REQUIREMENTS,
     formatEquipLevelRequirement,
-    isActionPointConsumable,
     PAIR_PET_CATALOG,
 } from '../../constants';
 import { computeEnhancedMainValueAtStars } from '../../shared/utils/equipmentEnhancementStars.js';
@@ -38,6 +37,13 @@ import DraggableWindow from '../DraggableWindow.js';
 import { MythicStatAbbrev } from '../MythicStatAbbrev.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../../shared/constants/pcShellLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
+import {
+    ITEM_SLOT_ICON_SIZE_PCT,
+    itemSlotIconStyle,
+    GRADE_SLOT_SCRIM_CLASS,
+    GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS,
+    gradeSlotBorderOverlayClass,
+} from '../../shared/constants/itemSlotIconLayout.js';
 
 interface EncyclopediaModalProps {
     onClose: () => void;
@@ -66,13 +72,13 @@ function isPetTabEggOrSoulStoneItem(item: EncyclopediaItem): boolean {
 }
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
-    normal: 'images/equipments/normalbgi.webp',
-    uncommon: 'images/equipments/uncommonbgi.webp',
-    rare: 'images/equipments/rarebgi.webp',
-    epic: 'images/equipments/epicbgi.webp',
-    legendary: 'images/equipments/legendarybgi.webp',
-    mythic: 'images/equipments/mythicbgi.webp',
-    transcendent: 'images/equipments/transcendentbgi.webp',
+    normal: '/images/equipments/normalbgi.webp',
+    uncommon: '/images/equipments/uncommonbgi.webp',
+    rare: '/images/equipments/rarebgi.webp',
+    epic: '/images/equipments/epicbgi.webp',
+    legendary: '/images/equipments/legendarybgi.webp',
+    mythic: '/images/equipments/mythicbgi.webp',
+    transcendent: '/images/equipments/transcendentbgi.webp',
 };
 
 const gradeOrder: Record<ItemGrade, number> = {
@@ -113,30 +119,6 @@ function formatEncyclopediaMainStatNumber(v: number): string {
     return Number.isInteger(t) ? String(t) : t.toFixed(2).replace(/\.?0+$/, '');
 }
 
-/** 가방·인벤토리와 동일: 행동력 회복제는 이미지 대신 ⚡ + 수치 */
-function ActionPointIconOverlay({ name, compact }: { name: string; compact?: boolean }) {
-    const m = name.match(/\+(\d+)/);
-    const apValue = m?.[1];
-    return (
-        <span
-            className={`absolute inset-0 z-[2] flex flex-col items-center justify-center ${compact ? 'text-[1.55rem] sm:text-[1.75rem]' : 'text-[2.8rem]'}`}
-            style={{ left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
-            aria-hidden
-        >
-            <span className="leading-none drop-shadow-[0_0_10px_rgba(34,211,238,0.55)]">⚡</span>
-            {apValue ? (
-                <span
-                    className={`mt-0.5 font-bold text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)] ${
-                        compact ? 'text-[10px] sm:text-[11px]' : 'text-base'
-                    }`}
-                >
-                    +{apValue}
-                </span>
-            ) : null}
-        </span>
-    );
-}
-
 type EncyclopediaListSection = {
     key: string;
     title: string;
@@ -152,22 +134,19 @@ const EncyclopediaItemThumb: React.FC<{ item: EncyclopediaItem; size?: 'sm' | 'm
     return (
         <div className={`relative shrink-0 overflow-hidden ring-1 ring-inset ring-white/10 ${shell}`}>
             <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            {isActionPointConsumable(item.name) ? (
-                <ActionPointIconOverlay name={item.name} compact />
-            ) : item.image ? (
+            <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
+            {item.image ? (
                 <img
                     src={item.image}
                     alt=""
                     className="absolute object-contain"
-                    style={{
-                        width: '78%',
-                        height: '78%',
-                        left: '50%',
-                        top: '50%',
-                        transform: 'translate(-50%, -50%)',
-                    }}
+                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                 />
             ) : null}
+            <div
+                className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                aria-hidden
+            />
         </div>
     );
 };
@@ -210,22 +189,19 @@ const EncyclopediaIconCell: React.FC<{
     >
         <div className="relative aspect-square w-full overflow-hidden rounded-md">
             <img src={gradeBackgrounds[item.grade]} alt="" className="absolute inset-0 h-full w-full object-cover" />
-            {isActionPointConsumable(item.name) ? (
-                <ActionPointIconOverlay name={item.name} compact />
-            ) : item.image ? (
+            <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
+            {item.image ? (
                 <img
                     src={item.image}
                     alt=""
                     className="absolute object-contain"
-                    style={{
-                        width: '78%',
-                        height: '78%',
-                        left: '50%',
-                        top: '50%',
-                        transform: 'translate(-50%, -50%)',
-                    }}
+                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                 />
             ) : null}
+            <div
+                className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(item.grade)}`}
+                aria-hidden
+            />
         </div>
     </button>
 );
@@ -259,6 +235,17 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
     const [selectedItem, setSelectedItem] = useState<EncyclopediaItem | null>(null);
     /** 장비 도감: 주옵·전투부옵 범위 미리보기 강화 단계 0~10 */
     const [encyclopediaEquipStars, setEncyclopediaEquipStars] = useState(0);
+    /** 장비 이미지 크게보기 */
+    const [imagePreviewItem, setImagePreviewItem] = useState<EncyclopediaItem | null>(null);
+
+    useEffect(() => {
+        if (!imagePreviewItem) return;
+        const onKey = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') setImagePreviewItem(null);
+        };
+        window.addEventListener('keydown', onKey);
+        return () => window.removeEventListener('keydown', onKey);
+    }, [imagePreviewItem]);
 
     const equipmentItemsBySlot = useMemo(() => {
         const map: Record<EquipmentSlot, EncyclopediaItem[]> = {
@@ -430,6 +417,7 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
 
     useEffect(() => {
         setEncyclopediaEquipStars(0);
+        setImagePreviewItem(null);
         if (useMobileItemDetailScreen) {
             setSelectedItem(null);
             return;
@@ -874,7 +862,19 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
                 <div className={`flex items-start ${isDenseEquipViewer ? 'gap-2.5 sm:gap-3' : 'gap-3 sm:gap-3.5'}`}>
                     <EncyclopediaItemThumb item={item} size="md" />
                     <div className="min-w-0 flex-1">
-                        <h3 className={`${viewerTitleClass} ${gradeColorByGrade[item.grade]}`}>{localizedItemName(item.name)}</h3>
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h3 className={`${viewerTitleClass} ${gradeColorByGrade[item.grade]}`}>{localizedItemName(item.name)}</h3>
+                            {isEquipmentDetail && item.image ? (
+                                <button
+                                    type="button"
+                                    onClick={() => setImagePreviewItem(item)}
+                                    className="shrink-0 rounded-md border border-amber-400/40 bg-amber-500/15 px-2 py-0.5 text-[11px] font-semibold text-amber-100 transition hover:bg-amber-500/25 active:scale-[0.98] sm:text-xs"
+                                    aria-label={t('encyclopedia.viewLargeAria')}
+                                >
+                                    {t('encyclopedia.viewLarge')}
+                                </button>
+                            ) : null}
+                        </div>
                         <div className="mt-1.5 flex flex-wrap items-center gap-1.5 sm:mt-2 sm:gap-2">
                             <span className={`${viewerChipClass} border-white/15 bg-black/35 text-slate-100`}>{kindLabel}</span>
                             <span className={`${viewerChipClass} ${encyclopediaGradeChipClass(item.grade)}`}>
@@ -1083,24 +1083,82 @@ const EncyclopediaModal: React.FC<EncyclopediaModalProps> = ({ onClose, isTopmos
         </div>
     );
 
+    const imagePreviewOverlay =
+        imagePreviewItem && imagePreviewItem.image ? (
+            <div
+                className="fixed inset-0 z-[120] flex items-center justify-center bg-black/80 p-4 backdrop-blur-sm"
+                role="dialog"
+                aria-modal="true"
+                aria-label={t('encyclopedia.viewLargeAria')}
+                onClick={() => setImagePreviewItem(null)}
+            >
+                <div
+                    className="relative flex w-full max-w-[min(88vw,28rem)] flex-col items-center gap-3"
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-white/15 shadow-[0_24px_80px_-12px_rgba(0,0,0,0.85)] ring-1 ring-amber-400/25">
+                        <img
+                            src={gradeBackgrounds[imagePreviewItem.grade]}
+                            alt=""
+                            className="absolute inset-0 h-full w-full object-cover"
+                        />
+                        <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
+                        <img
+                            src={imagePreviewItem.image}
+                            alt={localizedItemName(imagePreviewItem.name)}
+                            className="absolute object-contain"
+                            style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                        />
+                        <div
+                            className={`${GRADE_SLOT_BORDER_OVERLAY_POSITION_CLASS} ${gradeSlotBorderOverlayClass(imagePreviewItem.grade)}`}
+                            aria-hidden
+                        />
+                    </div>
+                    <div className="text-center">
+                        <p className={`text-base font-bold sm:text-lg ${gradeColorByGrade[imagePreviewItem.grade]}`}>
+                            {localizedItemName(imagePreviewItem.name)}
+                        </p>
+                        <p className="mt-0.5 text-xs text-slate-300 sm:text-sm">{localizedGrade(imagePreviewItem.grade)}</p>
+                    </div>
+                    <button
+                        type="button"
+                        onClick={() => setImagePreviewItem(null)}
+                        className="rounded-lg border border-white/20 bg-zinc-800/95 px-4 py-2 text-sm font-semibold text-zinc-100 hover:bg-zinc-700"
+                    >
+                        {t('encyclopedia.closePreview')}
+                    </button>
+                </div>
+            </div>
+        ) : null;
+
     if (embedded) {
-        return <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} flex min-h-0 flex-1 flex-col overflow-hidden`}>{encyclopediaBody}</div>;
+        return (
+            <>
+                <div className={`${PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS} flex min-h-0 flex-1 flex-col overflow-hidden`}>
+                    {encyclopediaBody}
+                </div>
+                {imagePreviewOverlay}
+            </>
+        );
     }
 
     return (
-        <DraggableWindow
-            title={t('encyclopedia.encyclopediaTitle')}
-            onClose={onClose}
-            windowId="encyclopedia"
-            initialWidth={useMobileItemDetailScreen ? 700 : 1040}
-            initialHeight={880}
-            isTopmost={isTopmost}
-            mobileViewportFit={useMobileItemDetailScreen}
-            mobileViewportMaxHeightVh={useMobileItemDetailScreen ? 92 : undefined}
-            bodyScrollable={false}
-        >
-            {encyclopediaBody}
-        </DraggableWindow>
+        <>
+            <DraggableWindow
+                title={t('encyclopedia.encyclopediaTitle')}
+                onClose={onClose}
+                windowId="encyclopedia"
+                initialWidth={useMobileItemDetailScreen ? 700 : 1040}
+                initialHeight={880}
+                isTopmost={isTopmost}
+                mobileViewportFit={useMobileItemDetailScreen}
+                mobileViewportMaxHeightVh={useMobileItemDetailScreen ? 92 : undefined}
+                bodyScrollable={false}
+            >
+                {encyclopediaBody}
+            </DraggableWindow>
+            {imagePreviewOverlay}
+        </>
     );
 };
 

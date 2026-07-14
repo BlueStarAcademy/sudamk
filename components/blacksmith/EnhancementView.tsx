@@ -13,6 +13,7 @@ import { formatSpecialSubLineForPanel } from '../../shared/utils/specialStatMile
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { formatBlacksmithPercentInt } from '../../shared/utils/formatBlacksmithPercentInt.js';
 import { getBlacksmithViewerTypography, BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../../shared/constants/blacksmithViewerTypography.js';
+import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
 
 const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     normal: { color: 'text-gray-300', background: '/images/equipments/normalbgi.webp' },
@@ -20,7 +21,7 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string; }> = {
     rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
     epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
     legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
+    mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -117,7 +118,14 @@ const ItemDisplay: React.FC<{
             <div className="mb-1.5 flex">
                 <div className={`relative w-20 h-20 rounded-lg flex-shrink-0 mr-3 ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''}`}>
                     <img src={styles.background} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-lg" />
-                    {item.image && <img src={item.image} alt={item.name} className="absolute object-contain p-1" style={{ width: '80%', height: '80%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }} />}
+                    {item.image && (
+                        <img
+                            src={item.image}
+                            alt={item.name}
+                            className="absolute object-contain"
+                            style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
+                        />
+                    )}
                     {renderStarDisplay(item.stars, previousStars, isAnimating)}
                 </div>
                 <div className="min-w-0 flex-grow pt-1">

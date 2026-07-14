@@ -24,6 +24,7 @@ import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.
 import { getChampionshipVersusDisplayRating } from '../shared/utils/championshipVersusElo.js';
 import { getSeasonalRankingTierName } from '../shared/constants/ranking.js';
 import { resolvePublicUrl } from '../utils/publicAssetUrl.js';
+import GuildMark from './guild/GuildMark.js';
 
 // Re-using components from Profile.tsx for consistency.
 const getXpRequirementForLevel = (level: number): number => {
@@ -611,20 +612,18 @@ const UserProfileModal: React.FC<UserProfileModalProps> = ({ user, onClose, onVi
                         </div>
                         {user.guildId ? (
                             <div className="mt-0.5 flex items-center gap-2 rounded-xl border border-indigo-400/25 bg-gradient-to-r from-indigo-950/55 via-slate-950/40 to-violet-950/45 px-2.5 py-1.5 shadow-inner ring-1 ring-inset ring-white/[0.04]">
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black/40">
-                                    {(guildInfo?.icon ?? (user as any).guildIcon) ? (
-                                        <img
-                                            src={(() => {
-                                                const icon = guildInfo?.icon ?? (user as any).guildIcon;
-                                                return icon?.startsWith('/images/guild/icon') ? icon.replace('/images/guild/icon', '/images/guild/profile/icon') : icon;
-                                            })()}
-                                            alt={guildInfo?.name ?? (user as any).guildName ?? t('userModal.guild')}
-                                            className="w-full h-full object-cover"
-                                        />
-                                    ) : (
+                                {(guildInfo?.icon ?? (user as any).guildIcon) ? (
+                                    <GuildMark
+                                        icon={guildInfo?.icon ?? (user as any).guildIcon}
+                                        alt={guildInfo?.name ?? (user as any).guildName ?? t('userModal.guild')}
+                                        size={28}
+                                        tone="plain"
+                                    />
+                                ) : (
+                                    <div className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/10 bg-black/40">
                                         <img src="/images/button/guild.webp" alt={t('userModal.guild')} className="w-4 h-4 object-contain" />
-                                    )}
-                                </div>
+                                    </div>
+                                )}
                                 <span className="text-[0.65rem] font-bold uppercase tracking-wider text-indigo-300/80">{t('userModal.guild')}</span>
                                 <span className="truncate text-sm font-semibold text-slate-100">{guildInfo?.name ?? (user as any).guildName ?? t('userModal.guildMember')}</span>
                                 <span className="ml-auto font-mono text-xs tabular-nums text-indigo-200/85">

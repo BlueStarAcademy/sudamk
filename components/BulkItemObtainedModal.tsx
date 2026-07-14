@@ -9,7 +9,8 @@ import DraggableWindow, {
 import { InventoryItem } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import { audioService } from '../services/audioService.js';
-import { MATERIAL_ITEMS, isActionPointConsumable } from '../constants/items';
+import { MATERIAL_ITEMS } from '../constants/items';
+import { ITEM_SLOT_ICON_SIZE_PCT, itemSlotIconStyle, GRADE_SLOT_SCRIM_CLASS } from '../shared/constants/itemSlotIconLayout.js';
 import { RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS, RESULT_MODAL_BOX_GOLD_CLASS } from './game/ResultModalRewardSlot.js';
 import { ITEM_OBTAIN_COUNT_BADGE_CLASS } from './game/ItemObtainModalShared.js';
 import { isPairPetMaterial, isPairSoulStoneItem } from '../shared/constants/petLobby.js';
@@ -27,7 +28,7 @@ const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string,
     rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', background: '/images/equipments/rarebgi.webp' },
     epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', background: '/images/equipments/epicbgi.webp' },
     legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', background: '/images/equipments/mythicbgi.webp' },
+    mythic: { bg: 'bg-amber-700', text: 'text-amber-200', shadow: 'shadow-amber-400/50', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -184,12 +185,8 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                                     <img
                                                         src={imagePath}
                                                         alt=""
-                                                        className="absolute z-[1] max-h-[62%] max-w-[62%] object-contain p-[6%] drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
-                                                        style={{
-                                                            left: '50%',
-                                                            top: '50%',
-                                                            transform: 'translate(-50%, -50%)',
-                                                        }}
+                                                        className="absolute z-[1] object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
+                                                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                                                     />
                                                 ) : null}
                                                 <span className={ITEM_OBTAIN_COUNT_BADGE_CLASS}>
@@ -211,25 +208,13 @@ const BulkItemObtainedModal: React.FC<BulkItemObtainedModalProps> = ({ items, on
                                             }`}
                                         >
                                             <img src={styles.background} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                                            {isActionPointConsumable(item.name) ? (
-                                                <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1">
-                                                    <span className="text-[clamp(0.85rem,4.2vw,1.1rem)] leading-none" aria-hidden>
-                                                        ⚡
-                                                    </span>
-                                                    <span className="mt-0.5 max-w-[95%] text-center text-[8px] font-extrabold leading-tight text-amber-100 drop-shadow sm:text-[9px]">
-                                                        +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
-                                                    </span>
-                                                </div>
-                                            ) : imagePath ? (
+                                            <div className={GRADE_SLOT_SCRIM_CLASS} aria-hidden />
+                                            {imagePath ? (
                                                 <img
                                                     src={imagePath}
                                                     alt=""
-                                                    className="absolute z-[1] max-h-[62%] max-w-[62%] object-contain p-[6%] drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
-                                                    style={{
-                                                        left: '50%',
-                                                        top: '50%',
-                                                        transform: 'translate(-50%, -50%)',
-                                                    }}
+                                                    className="absolute z-[1] object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.5)]"
+                                                    style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                                                 />
                                             ) : null}
                                             {!isPairPetMaterial(item) ? (

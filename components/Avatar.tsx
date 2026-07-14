@@ -26,29 +26,17 @@ const Avatar: React.FC<AvatarProps> = ({
   const isColorBorder = borderUrl && (borderUrl.startsWith('#') || borderUrl.startsWith('conic-gradient'));
   const isImageBorder = borderUrl && !isColorBorder;
   const finalAvatarUrl = avatarUrl || '/images/profiles/profile1.webp';
+  /** 테두리 종류와 무관하게 얼굴 원 크기·위치를 고정 (색/이미지 테두리 공통) */
+  const faceRemSize = remSize * 0.82;
 
-  // Case 1: Image Border — 외곽은 항상 `size`×`size` 고정, 얼굴 원은 PNG 링 안쪽에 들어가도록 축소
+  // Case 1: Image Border — 외곽·얼굴은 고정, 장식 링만 테두리 에셋에 맞게 스케일
   if (isImageBorder) {
-    /** 프리미엄1·2, 챌린저잡기, VIP 링 — 링 장식이 작게 느껴져 PNG를 더 키우고 얼굴 비율을 줄임 */
-    const isLargeOrnateRing =
-        borderUrl.includes('Ring5.png') ||
-        borderUrl.includes('Ring6.png') ||
-        borderUrl.includes('Ring7.png') ||
-        borderUrl.includes('Ring8.png');
+    /** 프리미엄1·2, 챌린저잡기, VIP 링 — 장식이 바깥으로 나가 보이도록 프레임을 키움 */
+    const isLargeOrnateRing = /Ring[5-8]\.(webp|png)/i.test(borderUrl);
 
     let borderRemSize = remSize * 1.4;
-    if (borderUrl.includes('Ring')) {
+    if (/Ring/i.test(borderUrl)) {
         borderRemSize = remSize * (isLargeOrnateRing ? 1.74 : 1.52);
-    }
-    /** 링 PNG 스케일·안쪽 홀에 맞춘 얼굴 원 비율(바깥 프레임 `remSize` 대비) */
-    const innerFaceRem = remSize * (isLargeOrnateRing ? 0.66 : borderUrl.includes('Ring') ? 0.76 : 0.84);
-
-    const faceStyle: React.CSSProperties = {
-        width: `${innerFaceRem}rem`,
-        height: `${innerFaceRem}rem`,
-    };
-    if (borderUrl.includes('Ring5.png')) {
-        faceStyle.transform = `translateX(-${innerFaceRem * 0.2}rem)`;
     }
 
     return (
@@ -60,7 +48,10 @@ const Avatar: React.FC<AvatarProps> = ({
         }}
       >
         <div className="relative z-0 flex h-full w-full items-center justify-center">
-          <div className="rounded-full overflow-hidden bg-gray-700" style={faceStyle}>
+          <div
+            className="overflow-hidden rounded-full bg-gray-700"
+            style={{ width: `${faceRemSize}rem`, height: `${faceRemSize}rem` }}
+          >
             <img src={finalAvatarUrl} alt={userName} className="h-full w-full object-cover" decoding="async" />
           </div>
         </div>
@@ -81,22 +72,31 @@ const Avatar: React.FC<AvatarProps> = ({
     );
   }
   
-  // Case 2: Color Border
+  // Case 2: Color Border — metal rim + inset highlight for a more desirable frame
   if (isColorBorder) {
-    const innerRemSize = remSize * 0.85;
     const isGradient = borderUrl.startsWith('conic-gradient');
+    const rimBackground = isGradient
+      ? borderUrl
+      : `linear-gradient(145deg, rgba(255,255,255,0.55) 0%, ${borderUrl} 38%, ${borderUrl} 62%, rgba(0,0,0,0.35) 100%)`;
     return (
       <div
         className={`relative flex items-center justify-center rounded-full flex-shrink-0 ${className}`}
-        style={{ 
-            width: `${remSize}rem`, 
-            height: `${remSize}rem`, 
-            ...(isGradient ? { background: borderUrl } : { backgroundColor: borderUrl }) 
+        style={{
+            width: `${remSize}rem`,
+            height: `${remSize}rem`,
+            background: rimBackground,
+            boxShadow: isGradient
+              ? '0 0 0 1px rgba(255,255,255,0.35), 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 1px rgba(255,255,255,0.45)'
+              : `0 0 0 1px rgba(255,255,255,0.28), 0 2px 6px rgba(0,0,0,0.28), inset 0 1px 1px rgba(255,255,255,0.4)`,
         }}
       >
         <div
           className="flex items-center justify-center rounded-full overflow-hidden bg-gray-700"
-          style={{ width: `${innerRemSize}rem`, height: `${innerRemSize}rem` }}
+          style={{
+            width: `${faceRemSize}rem`,
+            height: `${faceRemSize}rem`,
+            boxShadow: 'inset 0 0 0 1.5px rgba(0,0,0,0.35)',
+          }}
         >
           <img src={finalAvatarUrl} alt={userName} className="w-full h-full object-cover" decoding="async" />
         </div>

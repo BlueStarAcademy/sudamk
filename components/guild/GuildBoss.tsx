@@ -27,6 +27,7 @@ import type { BattleLogEntry, GuildBossBattleResult } from '../../types/index.js
 import { calculateTotalStats } from '../../utils/statUtils.js';
 import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
+import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
 import { GUILD_ATTACK_ICON, GUILD_RESEARCH_HEAL_BLOCK_IMG, GUILD_RESEARCH_IGNITE_IMG, GUILD_RESEARCH_REGEN_IMG } from '../../assets.js';
 import HomeNativeMergedEquipmentAbilityPanel from '../HomeNativeMergedEquipmentAbilityPanel.js';
 import { BADUK_ABILITY_STAT_CAP, BADUK_ABILITY_TOTAL_CAP } from '../CoreStatsHexagonChart.js';
@@ -35,6 +36,7 @@ import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { LOBBY_MOBILE_BTN_PRIMARY_CLASS, PRE_GAME_MODAL_PRIMARY_BTN_CLASS } from '../game/PreGameDescriptionLayout.js';
 import { useTranslation } from 'react-i18next';
 import { translateGuildBossName } from '../../shared/utils/translateGuildBossName.js';
+import GuildBossPortrait from './GuildBossPortrait.js';
 import type { TFunction } from 'i18next';
 
 /** 모바일 보스전: 보스 이미지 | 우측 누적피해 Top3 + 전투중계 */
@@ -123,36 +125,7 @@ const gradeBackgrounds: Record<ItemGrade, string> = {
 };
 
 const renderStarDisplay = (stars: number) => {
-    if (stars === 0) return null;
-
-    let starImage = '';
-    let numberColor = '';
-    let starImageClass = '';
-
-    if (stars >= 10) {
-        starImage = '/images/equipments/Star4.webp';
-        numberColor = "prism-text-effect";
-        starImageClass = "prism-image-effect";
-    } else if (stars >= 7) {
-        starImage = '/images/equipments/Star3.webp';
-        numberColor = "text-purple-400";
-    } else if (stars >= 4) {
-        starImage = '/images/equipments/Star2.webp';
-        numberColor = "text-amber-400";
-    } else if (stars >= 1) {
-        starImage = '/images/equipments/Star1.webp';
-        numberColor = "text-white";
-    }
-
-    return (
-        <div
-            className="absolute right-1.5 top-0.5 z-10 flex items-center gap-0.5 rounded-bl-md bg-black/45 px-1 py-0.5 backdrop-blur-[2px]"
-            style={{ textShadow: '1px 1px 2px black' }}
-        >
-            <img src={starImage} alt="star" className={`w-3 h-3 ${starImageClass}`} />
-            <span className={`font-bold text-xs leading-none ${numberColor}`}>{stars}</span>
-        </div>
-    );
+    return <EquipmentEnhancementBadge stars={stars} />;
 };
 
 export const EquipmentSlotDisplay: React.FC<{ slot: EquipmentSlot; item?: InventoryItem; onClick?: () => void; }> = ({ slot, item, onClick }) => {
@@ -540,20 +513,31 @@ const BossPanel: React.FC<BossPanelProps> = ({
                             : 'flex min-h-0 flex-1 flex-col items-center justify-center'
                 }`}
             >
-                <img
-                    src={boss.image}
+                <GuildBossPortrait
+                    image={boss.image}
                     alt={bossDisplayName}
-                    className={`rounded-lg object-contain ${
+                    variant="hero"
+                    roundedClassName="rounded-lg"
+                    className={
                         compact
-                            ? 'mx-auto h-full w-auto max-w-full min-h-0'
+                            ? 'mx-auto h-full min-h-0 w-full max-w-full'
+                            : desktopFitFill
+                              ? 'mx-auto h-full w-fit max-w-full'
+                              : fitContentWidth
+                                ? 'w-fit max-w-full shrink-0'
+                                : 'mx-auto flex min-h-0 w-full max-w-full flex-1 flex-col'
+                    }
+                    imgClassName={
+                        compact
+                            ? 'h-full w-auto max-w-full min-h-0'
                             : desktopFitFill
                               ? 'block h-full w-auto max-w-full'
                               : fitContentWidth
                                 ? 'block h-auto w-auto max-h-[min(58vh,520px)]'
                                 : 'mx-auto h-full w-full max-h-[min(88vh,820px)] min-h-[min(58vh,480px)]'
-                    }`}
+                    }
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/50 rounded-lg pointer-events-none"></div>
+                <div className="pointer-events-none absolute inset-0 rounded-lg bg-gradient-to-t from-black/70 via-transparent to-black/50"></div>
                 
                 <div className={`absolute left-2 right-2 flex flex-col items-stretch gap-1 ${compact ? 'top-1' : 'top-2'}`}>
                      <div className={`w-full bg-tertiary rounded-full border-2 border-black/50 relative ${compact ? 'h-4' : 'h-5'}`}>

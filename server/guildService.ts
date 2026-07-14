@@ -43,14 +43,19 @@ export function applyWeeklyGuildChatResetIfNeededAll(guilds: Record<string, Guil
 
 export const checkGuildLevelUp = (guild: Guild): boolean => {
     let leveledUp = false;
-    const guildXp = guild.xp ?? 0;
-    let xpForNextLevel = GUILD_XP_PER_LEVEL(guild.level);
-    while (guildXp >= xpForNextLevel) {
-        guild.xp = (guild.xp ?? 0) - xpForNextLevel;
-        guild.level++;
+    let xp = Number(guild.xp ?? (guild as { experience?: number }).experience ?? 0);
+    if (!Number.isFinite(xp) || xp < 0) xp = 0;
+    guild.level = Math.max(1, Math.floor(Number(guild.level) || 1));
+
+    let need = GUILD_XP_PER_LEVEL(guild.level);
+    while (xp >= need && Number.isFinite(need) && need > 0) {
+        xp -= need;
+        guild.level += 1;
         leveledUp = true;
-        xpForNextLevel = GUILD_XP_PER_LEVEL(guild.level);
+        need = GUILD_XP_PER_LEVEL(guild.level);
     }
+    guild.xp = xp;
+    (guild as { experience?: number }).experience = xp;
     return leveledUp;
 };
 

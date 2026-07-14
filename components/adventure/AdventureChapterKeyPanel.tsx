@@ -5,6 +5,10 @@ import type { AdventureStageId } from '../../constants/adventureConstants.js';
 import { ADVENTURE_MAP_KEY_CHAPTER_CONFIG } from '../../shared/utils/adventureMapTreasureRewards.js';
 import type { AdventureProfile } from '../../types/index.js';
 import AdventureKeyFragmentIcon from './AdventureKeyFragmentIcon.js';
+import {
+    ADVENTURE_REGIONAL_KEY_THEME,
+    AdventureRegionalKeyIcon,
+} from './AdventureRegionalKeyIcons.js';
 
 type Props = {
     stageId: AdventureStageId;
@@ -18,6 +22,7 @@ const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, 
     const stage = useMemo(() => getAdventureStageById(stageId), [stageId]);
     const chapterIdx = stage?.stageIndex ?? 1;
     const cfg = ADVENTURE_MAP_KEY_CHAPTER_CONFIG[Math.max(1, Math.min(5, Math.floor(chapterIdx)))]!;
+    const theme = ADVENTURE_REGIONAL_KEY_THEME[stageId] ?? ADVENTURE_REGIONAL_KEY_THEME.neighborhood_hill;
 
     const held = Math.max(0, Math.floor(adventureProfile?.adventureMapKeysHeldByStageId?.[stageId] ?? 0));
     const prog = Math.max(0, Math.floor(adventureProfile?.adventureMapKeyKillProgressByStageId?.[stageId] ?? 0));
@@ -60,9 +65,7 @@ const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, 
                                     : 'flex min-w-0 items-center gap-1 font-mono text-sm font-black text-amber-50 sm:text-base'
                             }
                         >
-                            <span aria-hidden className="inline-flex shrink-0 text-sm leading-none sm:text-base">
-                                🔑
-                            </span>
+                            <AdventureRegionalKeyIcon stageId={stageId} compact={compact} size="inline" />
                             <span className="min-w-0 truncate">
                                 {t('adventure.keysCount', { held, max: cfg.maxHeld })}
                             </span>
@@ -74,7 +77,7 @@ const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, 
                         aria-label={t('adventure.keyFragmentProgressAria', { prog: Math.min(prog, xpCap - 1), cap: xpCap })}
                     >
                         <span className="inline-flex shrink-0 items-center" aria-hidden>
-                            <AdventureKeyFragmentIcon compact={compact} variant="panel" />
+                            <AdventureKeyFragmentIcon stageId={stageId} compact={compact} variant="panel" />
                         </span>
                         <span
                             className={
@@ -90,13 +93,17 @@ const AdventureChapterKeyPanel: React.FC<Props> = ({ stageId, adventureProfile, 
                 <div
                     className={
                         compact
-                            ? 'h-2 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-inset ring-amber-500/30 sm:h-2.5'
-                            : 'h-2.5 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-inset ring-amber-500/35 sm:h-3'
+                            ? 'h-2 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-inset ring-white/15 sm:h-2.5'
+                            : 'h-2.5 overflow-hidden rounded-full bg-zinc-900 ring-1 ring-inset ring-white/20 sm:h-3'
                     }
+                    style={{ boxShadow: `inset 0 0 0 1px ${theme.accent}33` }}
                 >
                     <div
-                        className="h-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-yellow-200 transition-all duration-500"
-                        style={{ width: `${barPct}%` }}
+                        className="h-full rounded-full transition-all duration-500"
+                        style={{
+                            width: `${barPct}%`,
+                            backgroundImage: `linear-gradient(90deg, ${theme.barFrom}, ${theme.barVia}, ${theme.barTo})`,
+                        }}
                     />
                 </div>
             </div>

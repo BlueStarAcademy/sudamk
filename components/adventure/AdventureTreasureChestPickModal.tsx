@@ -221,7 +221,7 @@ export type AdventureTreasureChestPickModalProps = {
     stageId: string;
     stageTitle: string;
     stageIndex: number;
-    equipmentBoxImage: string;
+    chestImage: string;
     rolls: [AdventureTreasureRollResult, AdventureTreasureRollResult, AdventureTreasureRollResult];
     pickSlots: 1 | 2;
     nonce: string;
@@ -238,7 +238,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
     stageId,
     stageTitle,
     stageIndex,
-    equipmentBoxImage,
+    chestImage,
     rolls,
     pickSlots,
     nonce,
@@ -405,7 +405,7 @@ const AdventureTreasureChestPickModal: React.FC<AdventureTreasureChestPickModalP
                                         >
                                             <div className="relative aspect-square w-full max-w-[100px] shrink-0">
                                                 <img
-                                                    src={equipmentBoxImage}
+                                                    src={chestImage}
                                                     alt=""
                                                     className={`h-full w-full object-contain drop-shadow-lg transition-transform duration-300 ${
                                                         on ? 'scale-105' : 'group-hover:scale-[1.03]'

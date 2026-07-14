@@ -104,7 +104,13 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                                         >
                                             <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
                                                 <div className="relative flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-slate-900/80 sm:h-10 sm:w-10">
-                                                    <span className="text-xl sm:text-2xl">⚡</span>
+                                                    {group.sampleItem.image ? (
+                                                        <img
+                                                            src={group.sampleItem.image}
+                                                            alt=""
+                                                            className="h-7 w-7 object-contain sm:h-8 sm:w-8"
+                                                        />
+                                                    ) : null}
                                                     <span className="absolute -bottom-0.5 right-0.5 text-[9px] font-bold text-cyan-300 drop-shadow-[0_0_4px_rgba(34,211,238,0.8)] sm:text-[10px]">
                                                         {renderActionPointValue(group.name)}
                                                     </span>

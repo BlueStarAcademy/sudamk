@@ -8,6 +8,7 @@ import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../../shared/constants/pcS
 import { InventoryItem } from '../../types.js';
 import { ItemGrade } from '../../types/enums.js';
 import { getBlacksmithViewerTypography } from '../../shared/constants/blacksmithViewerTypography.js';
+import { itemSlotIconStyle, ITEM_SLOT_ICON_SIZE_PCT } from '../../shared/constants/itemSlotIconLayout.js';
 
 const mobilePickerTypo = getBlacksmithViewerTypography(false, { mobileWork: true });
 
@@ -19,7 +20,7 @@ const gradeStyles: Record<ItemGrade, { color: string; background: string }> = {
     rare: { color: 'text-blue-400', background: '/images/equipments/rarebgi.webp' },
     epic: { color: 'text-purple-400', background: '/images/equipments/epicbgi.webp' },
     legendary: { color: 'text-red-500', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { color: 'text-orange-400', background: '/images/equipments/mythicbgi.webp' },
+    mythic: { color: 'text-amber-400', background: '/images/equipments/mythicbgi.webp' },
     transcendent: { color: 'text-cyan-300', background: '/images/equipments/transcendentbgi.webp' },
 };
 
@@ -70,8 +71,8 @@ const CombineSlotPreview: React.FC<{
                     <img
                         src={item.image}
                         alt=""
-                        className="pointer-events-none absolute left-1/2 top-1/2 object-contain p-0.5"
-                        style={{ width: '80%', height: '80%', transform: 'translate(-50%, -50%)' }}
+                        className="pointer-events-none absolute object-contain"
+                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                     />
                 )}
             </button>

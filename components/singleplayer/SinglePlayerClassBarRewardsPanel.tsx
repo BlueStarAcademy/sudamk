@@ -203,7 +203,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                         const isClaimed = milestone === 10 ? !!barClaims.m10 : !!barClaims.m20;
                         const canClaim = progressMet && !isClaimed;
                         const apBadge = classBarApBadge(itemDef.itemId);
-                        const itemSrc = apBadge ? null : resolveClassBarItemImageSrc(itemDef.itemId);
+                        const itemSrc = resolveClassBarItemImageSrc(itemDef.itemId);
                         return (
                             <div
                                 key={`bar-mile-${milestone}`}
@@ -229,16 +229,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                                         className={`relative h-full w-full rounded-sm ${!progressMet && !isClaimed ? 'opacity-45 grayscale' : ''}`}
                                         aria-label={t('singleplayer.classBarRewardAria', { milestone })}
                                     >
-                                        {apBadge ? (
-                                            <span
-                                                className={`flex h-full w-full items-center justify-center leading-none drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${isTopShelf ? 'text-sm' : isCompact ? 'text-base sm:text-[1.1rem]' : 'text-[1.35rem]'}`}
-                                                aria-hidden
-                                            >
-                                                ⚡
-                                            </span>
-                                        ) : (
-                                            <img src={itemSrc ?? '/images/Box/box.webp'} alt="" className="h-full w-full object-contain p-0.5" />
-                                        )}
+                                        <img src={itemSrc ?? '/images/Box/box.webp'} alt="" className="h-full w-full object-contain p-0.5" />
                                         {apBadge ? (
                                             <span
                                                 className={`absolute right-0 top-0 rounded-bl bg-gray-900/90 px-0.5 font-bold leading-tight text-cyan-300 shadow-md ${isCompact ? 'text-[7px]' : 'text-[9px]'}`}

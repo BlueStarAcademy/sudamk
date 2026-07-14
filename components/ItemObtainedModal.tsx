@@ -9,7 +9,8 @@ import DraggableWindow, {
 } from './DraggableWindow.js';
 import { InventoryItem, ItemGrade } from '../types.js';
 import { audioService } from '../services/audioService.js';
-import { isActionPointConsumable, MATERIAL_ITEMS } from '../constants/items.js';
+import { MATERIAL_ITEMS } from '../constants/items.js';
+import { ITEM_SLOT_ICON_SIZE_PCT, itemSlotIconStyle } from '../shared/constants/itemSlotIconLayout.js';
 import { EquipmentDetailPanel } from './EquipmentDetailPanel.js';
 import { RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS, RESULT_MODAL_BOX_GOLD_CLASS, RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS } from './game/ResultModalRewardSlot.js';
 import { ITEM_OBTAIN_COUNT_BADGE_CLASS, SingleItemObtainCard } from './game/ItemObtainModalShared.js';
@@ -28,16 +29,17 @@ interface ItemObtainedModalProps {
 }
 
 const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string, name: string, background: string }> = {
-    normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', background: '/images/equipments/normalbgi.webp' },
-    uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', background: '/images/equipments/uncommonbgi.webp' },
-    rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', background: '/images/equipments/rarebgi.webp' },
-    epic: { bg: 'bg-purple-700', text: 'text-purple-200', shadow: 'shadow-purple-500/50', background: '/images/equipments/epicbgi.webp' },
-    legendary: { bg: 'bg-red-800', text: 'text-red-200', shadow: 'shadow-red-500/50', background: '/images/equipments/legendarybgi.webp' },
-    mythic: { bg: 'bg-orange-700', text: 'text-orange-200', shadow: 'shadow-orange-500/50', background: '/images/equipments/mythicbgi.webp' },
-    transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-200', shadow: 'shadow-cyan-500/50', background: '/images/equipments/transcendentbgi.webp' },
+    normal: { bg: 'bg-zinc-700', text: 'text-zinc-100', shadow: 'shadow-zinc-900/50', background: '/images/equipments/normalbgi.webp' },
+    uncommon: { bg: 'bg-emerald-800', text: 'text-emerald-100', shadow: 'shadow-emerald-500/50', background: '/images/equipments/uncommonbgi.webp' },
+    rare: { bg: 'bg-sky-800', text: 'text-sky-100', shadow: 'shadow-sky-500/50', background: '/images/equipments/rarebgi.webp' },
+    epic: { bg: 'bg-violet-800', text: 'text-violet-100', shadow: 'shadow-violet-500/50', background: '/images/equipments/epicbgi.webp' },
+    legendary: { bg: 'bg-rose-900', text: 'text-rose-100', shadow: 'shadow-rose-500/50', background: '/images/equipments/legendarybgi.webp' },
+    mythic: { bg: 'bg-amber-800', text: 'text-amber-100', shadow: 'shadow-amber-500/50', background: '/images/equipments/mythicbgi.webp' },
+    transcendent: { bg: 'bg-cyan-900', text: 'text-cyan-100', shadow: 'shadow-cyan-500/50', background: '/images/equipments/transcendentbgi.webp' },
 };
 
 const gradeBorderStyles: Partial<Record<ItemGrade, string>> = {
+    uncommon: 'border-pulse-uncommon',
     rare: 'border-pulse-rare',
     epic: 'border-pulse-epic',
     legendary: 'border-pulse-legendary',
@@ -265,21 +267,12 @@ const ItemObtainedModal: React.FC<ItemObtainedModalProps> = ({ item, onClose, is
                                 className={`relative h-full w-full overflow-hidden rounded-[0.85rem] ${borderClass || 'border border-slate-500/50'} ${item.grade === ItemGrade.Transcendent ? 'transcendent-grade-slot' : ''} ${isHighGrade ? 'item-reveal-animation' : ''} ${glowClass}`}
                             >
                                 <img src={styles.background} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                                {isActionPointConsumable(item.name) ? (
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center overflow-hidden px-1">
-                                        <span className="text-[clamp(1.1rem,5vw,1.65rem)] leading-none sm:text-[1.75rem]" aria-hidden>
-                                            ⚡
-                                        </span>
-                                        <span className="mt-0.5 max-w-full text-center text-[clamp(0.6rem,2.6vw,0.72rem)] font-extrabold tracking-wide text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.9)] sm:text-xs">
-                                            +{item.name.replace(/.*\(\+(\d+)\)/, '$1')}
-                                        </span>
-                                    </div>
-                                ) : item.image ? (
+                                {item.image ? (
                                     <img
                                         src={item.image}
                                         alt=""
-                                        className="absolute object-contain p-[12%] sm:p-[14%]"
-                                        style={{ width: '82%', height: '82%', left: '50%', top: '50%', transform: 'translate(-50%, -50%)' }}
+                                        className="absolute object-contain"
+                                        style={itemSlotIconStyle(ITEM_SLOT_ICON_SIZE_PCT)}
                                     />
                                 ) : null}
                                 {stackQty > 1 && !isPairPetMaterial(item) ? (

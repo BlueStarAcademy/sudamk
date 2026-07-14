@@ -4,7 +4,7 @@ import type { PurchaseConsentTarget } from './legal/PurchaseConsentModal.js';
 const PurchaseConsentModal = lazy(() => import('./legal/PurchaseConsentModal.js'));
 import { UserWithStatus, ServerAction, InventoryItemType } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
-import { gradeStyles } from '../shared/constants/items.js';
+import { gradeStyles, CONSUMABLE_ITEMS } from '../shared/constants/items.js';
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import { ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT } from '../constants';
@@ -40,6 +40,11 @@ import {
     shopAdNextClaimNeedsAd,
     type ShopAdRewardTab,
 } from '../shared/constants/shopAdReward.js';
+import {
+    SHOP_AD_REWARD_IMAGE,
+    SHOP_EQUIPMENT_BONUS_IMAGES,
+    SHOP_REMOVE_ADS_IMAGE,
+} from '../shared/constants/shopItemArt.js';
 import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 import i18n from '../shared/i18n/config.js';
 import { useLocalizedShopItem } from '../shared/i18n/shopItemText.js';
@@ -242,22 +247,20 @@ const ShopAdRewardCard: React.FC<{
             <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent" />
             <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-20 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)]" />
             <div
-                className="relative mb-1.5 flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)]"
+                className="relative mb-1.5 flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] sm:h-24 sm:w-24"
             >
                 {isAdFree ? (
                     <img
-                        src="/images/shop/remove_ads_package.svg"
+                        src={SHOP_REMOVE_ADS_IMAGE}
                         alt=""
-                        className="h-14 w-14 object-contain drop-shadow-[0_6px_12px_rgba(220,38,38,0.35)]"
+                        className="h-full w-full object-contain p-1 drop-shadow-[0_6px_12px_rgba(220,38,38,0.35)]"
                     />
-                ) : nextClaimNeedsAd ? (
-                    <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" role="img" aria-label={t('adReward.aria')}>
-                        🎬
-                    </span>
                 ) : (
-                    <span className="text-3xl drop-shadow-[0_6px_12px_rgba(34,197,94,0.35)]" role="img" aria-label={t('adReward.dailyFreeReward')}>
-                        🎁
-                    </span>
+                    <img
+                        src={SHOP_AD_REWARD_IMAGE}
+                        alt=""
+                        className="h-full w-full object-contain p-1 drop-shadow-[0_6px_12px_rgba(99,102,241,0.45)]"
+                    />
                 )}
             </div>
             <h3
@@ -348,13 +351,13 @@ const ShopItemCard: React.FC<{
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-indigo-300/80 to-transparent pointer-events-none" />
             <div className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-[radial-gradient(circle_at_top,rgba(79,70,229,0.35),transparent_65%)] pointer-events-none" />
             <div
-                className="relative mb-1.5 flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)]"
+                className="relative mb-1.5 flex h-20 w-20 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_25px_-8px_rgba(129,140,248,0.65)] sm:h-24 sm:w-24"
             >
-                {(item.itemId === 'action_point_10' || item.itemId === 'action_point_20' || item.itemId === 'action_point_30') ? (
-                    <span className="text-3xl drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]" aria-label={name}>⚡</span>
-                ) : (
-                    <img src={image} alt={name} className={`w-full h-full object-contain drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)] ${mobile ? 'p-1' : 'p-1.5'}`} />
-                )}
+                <img
+                    src={image}
+                    alt={name}
+                    className="h-full w-full object-contain drop-shadow-[0_6px_12px_rgba(30,64,175,0.4)]"
+                />
                 {badge && (
                     <span className="absolute top-0 right-0 text-[10px] font-bold text-cyan-300 bg-gray-900/90 px-1 rounded-bl leading-tight shadow-md">
                         {badge}
@@ -553,9 +556,9 @@ const PackageBoxRowVisual: React.FC<{
     /** 에픽/전설/신화 확정 지급 박스 — 가로폭 축소(상자명 공간 확보) */
     const equipmentPkgBonusGroupClass = compact
         ? dn
-            ? 'flex w-[3.35rem] shrink-0 flex-col items-center justify-center gap-0 rounded border border-emerald-500/25 bg-emerald-950/20 px-0.5 py-0.5'
-            : 'flex w-[3.5rem] shrink-0 flex-col items-center justify-center gap-0 rounded-md border border-emerald-500/30 bg-emerald-950/25 px-0.5 py-0.5 sm:w-[3.65rem] sm:px-1 sm:py-1'
-        : 'flex w-[3.65rem] shrink-0 flex-col items-center justify-center gap-0 rounded-lg border border-emerald-500/30 bg-emerald-950/25 px-1 py-1 sm:w-[3.85rem] sm:px-1.5 sm:py-1.5';
+            ? 'flex w-[3.85rem] shrink-0 flex-col items-center justify-center gap-0 rounded border border-emerald-500/25 bg-emerald-950/20 px-0.5 py-0.5'
+            : 'flex w-[4rem] shrink-0 flex-col items-center justify-center gap-0 rounded-md border border-emerald-500/30 bg-emerald-950/25 px-0.5 py-0.5 sm:w-[4.15rem] sm:px-1 sm:py-1'
+        : 'flex w-[4.25rem] shrink-0 flex-col items-center justify-center gap-0 rounded-lg border border-emerald-500/30 bg-emerald-950/25 px-1 py-1 sm:w-[4.5rem] sm:px-1.5 sm:py-1.5';
     const bonusEquipmentLineBaseClass = compact
         ? dn
             ? 'block text-center text-[8px] font-extrabold leading-[1.05] tracking-tight'
@@ -615,7 +618,19 @@ const PackageBoxRowVisual: React.FC<{
                 <div className={equipmentPkgBoxGroupClass}>{boxesGrid}</div>
                 <span className={`flex shrink-0 items-center self-center ${plusClass}`}>+</span>
                 <div className={equipmentPkgBonusGroupClass}>
-                    <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0 px-0.5" role="text" aria-label={`${gradeLabel} ${t('equipmentWord')}`}>
+                    <div className="flex w-full min-w-0 flex-col items-center justify-center gap-0.5 px-0.5" role="text" aria-label={`${gradeLabel} ${t('equipmentWord')}`}>
+                        <img
+                            src={SHOP_EQUIPMENT_BONUS_IMAGES[equipmentBonusGradeWord]}
+                            alt=""
+                            className={`object-contain drop-shadow ${
+                                compact
+                                    ? dn
+                                        ? 'h-7 w-7'
+                                        : 'h-8 w-8 sm:h-9 sm:w-9'
+                                    : 'h-9 w-9 sm:h-10 sm:w-10'
+                            }`}
+                            draggable={false}
+                        />
                         <span className={`${bonusEquipmentLineBaseClass} ${gradeColorClass}`}>{gradeLabel}</span>
                         <span className={`${bonusEquipmentLineBaseClass} text-emerald-100`}>{t('equipmentWord')}</span>
                     </div>
@@ -1296,7 +1311,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
             name: t('packages.remove_ads'),
             priceKRW: 10900,
             benefits: [t('packageBenefits.remove_ads_1'), t('packageBenefits.remove_ads_2')],
-            packageVisual: { type: 'remove_ads_image', imageSrc: '/images/shop/remove_ads_package.svg' },
+            packageVisual: { type: 'remove_ads_image', imageSrc: SHOP_REMOVE_ADS_IMAGE },
         }),
         [t],
     );
@@ -1615,6 +1630,11 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     withShopItemText('action_point_20', { dailyLimit: 1, prices: [1500], badge: '+20' }),
                     withShopItemText('action_point_30', { dailyLimit: 1, prices: [2000], badge: '+30' }),
                 ] as const;
+                const apImageById: Record<string, string> = {
+                    action_point_10: CONSUMABLE_ITEMS.find((i) => i.name === '행동력 회복제(+10)')?.image ?? '/images/use/ap_potion_10.webp',
+                    action_point_20: CONSUMABLE_ITEMS.find((i) => i.name === '행동력 회복제(+20)')?.image ?? '/images/use/ap_potion_20.webp',
+                    action_point_30: CONSUMABLE_ITEMS.find((i) => i.name === '행동력 회복제(+30)')?.image ?? '/images/use/ap_potion_30.webp',
+                };
                 const actionPointShopItems = ACTION_POINT_ITEMS.map(({ itemId, name, description, dailyLimit, prices, badge }) => {
                     const purchaseRecord = currentUser.dailyShopPurchases?.[itemId];
                     const prDate = shopPurchaseRecordDateMs(purchaseRecord?.date);
@@ -1627,7 +1647,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
                         name,
                         description,
                         price: { gold: nextPrice },
-                        image: '/images/icon/lightning.webp',
+                        image: apImageById[itemId] ?? '/images/use/ap_potion_10.webp',
                         dailyLimit,
                         type: 'consumable' as const,
                         badge,

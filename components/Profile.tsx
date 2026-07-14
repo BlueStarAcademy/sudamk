@@ -26,6 +26,8 @@ import BadukRankingBoard from './BadukRankingBoard.js';
 import MannerRankModal from './MannerRankModal.js';
 import GuildCreateModal from './guild/GuildCreateModal.js';
 import GuildJoinModal from './guild/GuildJoinModal.js';
+import GuildMark from './guild/GuildMark.js';
+import EquipmentEnhancementBadge from './EquipmentEnhancementBadge.js';
 import type { Guild, ChampionshipVersusVenueKind } from '../types/entities.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { ADVENTURE_STAGES } from '../constants/adventureConstants.js';
@@ -174,7 +176,6 @@ const EquipmentSlotDisplay: React.FC<{
     if (item) {
         const requiredLevel = GRADE_LEVEL_REQUIREMENTS[item.grade];
         const titleText = t('equipmentDetailTitle', { name: item.name, level: formatEquipLevelRequirement(requiredLevel) });
-        const starInfo = getStarDisplayInfo(item.stars);
         const isTranscendent = item.grade === ItemGrade.Transcendent;
         return (
             <div
@@ -184,16 +185,7 @@ const EquipmentSlotDisplay: React.FC<{
                 style={{ border: isTranscendent ? undefined : undefined }}
             >
                 <img src={gradeBackgrounds[item.grade]} alt={item.grade} className="absolute inset-0 w-full h-full object-cover rounded-md" />
-                {item.stars > 0 && (
-                    <div
-                        className={`absolute z-10 rounded-md border border-white/10 bg-black/55 font-bold backdrop-blur-[1px] ${
-                            compact ? 'top-1 right-1 px-1 py-0.5 text-[10px]' : 'top-1.5 right-1.5 px-1.5 py-0.5 text-sm'
-                        } ${starInfo.colorClass}`}
-                        style={{ textShadow: '1px 1px 2px black' }}
-                    >
-                        ★{item.stars}
-                    </div>
-                )}
+                <EquipmentEnhancementBadge stars={item.stars} />
                 {item.image && (
                     <img
                         src={item.image}
@@ -1339,25 +1331,22 @@ const Profile: React.FC<ProfileProps> = () => {
                         </div>
                     ) : guildInfo ? (
                         <div className={`flex min-w-0 flex-nowrap items-center gap-1.5 px-0.5 py-0.5 ${ch ? 'sm:gap-1.5 sm:px-0.5 sm:py-0.5' : 'sm:gap-2 sm:px-1 sm:py-1'}`}>
-                            <div
-                                className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-color bg-secondary/50 ${
-                                    ch ? 'h-8 w-8' : readableHome ? 'h-9 w-9 sm:h-10 sm:w-10' : nh ? 'h-9 w-9' : 'h-9 w-9 sm:h-10 sm:w-10'
-                                }`}
-                            >
-                                {guildInfo.icon ? (
-                                    <img
-                                        src={
-                                            guildInfo.icon.startsWith('/images/guild/icon')
-                                                ? guildInfo.icon.replace('/images/guild/icon', '/images/guild/profile/icon')
-                                                : guildInfo.icon
-                                        }
-                                        alt={guildInfo.name}
-                                        className="h-full w-full object-cover"
-                                    />
-                                ) : (
+                            {guildInfo.icon ? (
+                                <GuildMark
+                                    icon={guildInfo.icon}
+                                    alt={guildInfo.name}
+                                    size={ch ? 32 : 40}
+                                    tone="plain"
+                                />
+                            ) : (
+                                <div
+                                    className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-color bg-secondary/50 ${
+                                        ch ? 'h-8 w-8' : readableHome ? 'h-9 w-9 sm:h-10 sm:w-10' : nh ? 'h-9 w-9' : 'h-9 w-9 sm:h-10 sm:w-10'
+                                    }`}
+                                >
                                     <img src="/images/button/guild.webp" alt={t('guildLocked')} className={`object-contain ${nh ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'}`} />
-                                )}
-                            </div>
+                                </div>
+                            )}
                             <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden sm:gap-1.5">
                                 <span
                                     className={`shrink-0 rounded-md border border-amber-500/45 bg-amber-950/45 font-semibold leading-tight text-amber-100 ${

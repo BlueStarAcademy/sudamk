@@ -243,7 +243,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                         rolls: prepared.rolls,
                         nonce: prepared.nonce,
                         pickSlots: prepared.pickSlots,
-                        equipmentBoxImage: prepared.equipmentBoxImage,
+                        chestImage: prepared.chestImage,
                     },
                 },
             };

@@ -27,8 +27,8 @@ export type AdventureMapTreasureChestInstance = {
     windowEndMs: number;
     xPct: number;
     yPct: number;
-    /** 챕터별 베이스 장비상자 이미지(로마 숫자 II~VI) — UI에서 ? 오버레이 */
-    equipmentBoxImage: string;
+    /** 챕터 전용 보물상자 아트 (`/images/adventure/treasure/<stageId>.webp`) */
+    chestImage: string;
 };
 
 function mulberry32(seed: number): () => number {
@@ -48,11 +48,20 @@ export function getKstHourStartEpochMs(nowMs: number): number {
     return Date.UTC(k.getUTCFullYear(), k.getUTCMonth(), k.getUTCDate(), k.getUTCHours(), 0, 0, 0) - KST_OFFSET_MS;
 }
 
-/** 챕터 인덱스(1~5) → 장비상자 II~VI 베이스 PNG */
-export function adventureTreasureChestEquipmentImageForStageIndex(stageIndex: number): string {
-    const s = Math.max(1, Math.min(5, Math.floor(stageIndex)));
-    const boxNum = s + 1;
-    return `/images/Box/EquipmentBox${boxNum}.webp`;
+const ADVENTURE_TREASURE_CHEST_STAGE_IDS = [
+    'neighborhood_hill',
+    'lake_park',
+    'aquarium',
+    'zoo',
+    'amusement_park',
+] as const;
+
+/** 챕터 전용 맵 보물상자 아트 (장비상자 EquipmentBox와 분리) */
+export function adventureMapTreasureChestImage(stageId: string): string {
+    const id = ADVENTURE_TREASURE_CHEST_STAGE_IDS.includes(stageId as (typeof ADVENTURE_TREASURE_CHEST_STAGE_IDS)[number])
+        ? stageId
+        : 'neighborhood_hill';
+    return `/images/adventure/treasure/${id}.webp`;
 }
 
 function distanceSquaredPct(a: { xPct: number; yPct: number }, b: { xPct: number; yPct: number }): number {
@@ -138,7 +147,7 @@ export function getAdventureTreasureChestWindowMeta(stageId: string, nowMs: numb
  */
 export function buildAdventureMapTreasureChest(
     stageId: string,
-    stageIndex: number,
+    _stageIndex: number,
     nowMs: number,
     mapMonsters: readonly AdventureMapMonsterInstance[],
     opts?: { mapPositionUserId?: string | null },
@@ -159,6 +168,6 @@ export function buildAdventureMapTreasureChest(
         windowEndMs: meta.windowEndMs,
         xPct: pos.xPct,
         yPct: pos.yPct,
-        equipmentBoxImage: adventureTreasureChestEquipmentImageForStageIndex(stageIndex),
+        chestImage: adventureMapTreasureChestImage(stageId),
     };
 }

@@ -8,11 +8,21 @@ export type VipPlayRewardRollOutcome =
 
 const LEGENDARY_CHANCE = 0.001;
 
-function rollBoxTier(): VipBoxTier {
+/** 재료 상자 I~IV: 60% / 25% / 10% / 5% */
+function rollMaterialBoxTier(): VipBoxTier {
     const t = Math.random();
     if (t < 0.6) return 0;
     if (t < 0.85) return 1;
     if (t < 0.95) return 2;
+    return 3;
+}
+
+/** 장비 상자 III~VI: 65% / 30% / 4.9% / 0.1% (`tier` 0=III … 3=VI) */
+function rollEquipmentBoxTier(): VipBoxTier {
+    const t = Math.random();
+    if (t < 0.65) return 0;
+    if (t < 0.95) return 1;
+    if (t < 0.999) return 2;
     return 3;
 }
 
@@ -27,7 +37,8 @@ export function rollVipPlayRewardOutcomeGoldOnly(): VipPlayRewardRollOutcome {
 
 /**
  * 보상 VIP 슬롯: 전설 장비 0.1%, 나머지는 골드(100~1000) / 장비상자 분기 / 재료상자 분기 균등.
- * 장비·재료 상자는 각각 I~IV가 60% / 25% / 10% / 5%.
+ * 장비 상자: III 65% / IV 30% / V 4.9% / VI 0.1%.
+ * 재료 상자: I 60% / II 25% / III 10% / IV 5%.
  * (전략·놀이 바둑 등은 호출부에서 {@link rollVipPlayRewardOutcomeGoldOnly}를 쓴다.)
  */
 export function rollVipPlayRewardOutcome(): VipPlayRewardRollOutcome {
@@ -41,7 +52,7 @@ export function rollVipPlayRewardOutcome(): VipPlayRewardRollOutcome {
         return { type: 'gold', amount: rollGoldAmount() };
     }
     if (branch < third * 2) {
-        return { type: 'equipment_box', tier: rollBoxTier() };
+        return { type: 'equipment_box', tier: rollEquipmentBoxTier() };
     }
-    return { type: 'material_box', tier: rollBoxTier() };
+    return { type: 'material_box', tier: rollMaterialBoxTier() };
 }

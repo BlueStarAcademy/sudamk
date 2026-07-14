@@ -6,7 +6,7 @@ import {
     ADVENTURE_STAGES,
     type AdventureStageId,
 } from '../../constants/adventureConstants.js';
-import { AdventureMonsterSpriteFrame } from './AdventureMonsterSprite.js';
+import AdventureMonsterPortrait from './AdventureMonsterPortrait.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { CORE_STATS_DATA } from '../../constants.js';
@@ -423,7 +423,7 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                             <div className="flex shrink-0 flex-col items-center sm:items-start">
                                                 <div
                                                     className={[
-                                                        'flex w-[7.25rem] flex-col overflow-hidden rounded-lg bg-white shadow-md sm:w-[8.25rem]',
+                                                        'flex w-[7.25rem] flex-col overflow-hidden rounded-lg shadow-[0_8px_24px_-10px_rgba(0,0,0,0.7)] sm:w-[8.25rem]',
                                                         'border-[3px]',
                                                         gradeBorder,
                                                     ].join(' ')}
@@ -447,14 +447,22 @@ const AdventureMonsterCodexModal: React.FC<Props> = ({
                                                             </span>
                                                         ) : null}
                                                     </div>
-                                                    <div className="flex min-h-[6.25rem] w-full flex-1 items-center justify-center bg-white py-2 sm:min-h-[7rem]">
-                                                        <AdventureMonsterSpriteFrame
-                                                            sheetUrl={m.imageWebp}
-                                                            frameIndex={0}
-                                                            cols={1}
-                                                            rows={1}
-                                                            className="h-[5.25rem] w-[5.25rem] shrink-0 bg-transparent sm:h-28 sm:w-28"
-                                                            imgClassName="drop-shadow-[0_1px_6px_rgba(0,0,0,0.35)]"
+                                                    <div
+                                                        className={`relative flex min-h-[6.5rem] w-full flex-1 items-center justify-center overflow-hidden sm:min-h-[7.25rem] ${chapterUi.portraitStageClass}`}
+                                                    >
+                                                        <div
+                                                            aria-hidden
+                                                            className="pointer-events-none absolute inset-0 opacity-[0.14]"
+                                                            style={{
+                                                                backgroundImage:
+                                                                    'linear-gradient(45deg, rgba(0,0,0,0.35) 25%, transparent 25%), linear-gradient(-45deg, rgba(0,0,0,0.35) 25%, transparent 25%), linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.35) 75%), linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.35) 75%)',
+                                                                backgroundSize: '12px 12px',
+                                                                backgroundPosition: '0 0, 0 6px, 6px -6px, -6px 0',
+                                                            }}
+                                                        />
+                                                        <AdventureMonsterPortrait
+                                                            entry={m}
+                                                            className="relative z-[1] h-[5.5rem] w-[5.5rem] shrink-0 sm:h-[6.5rem] sm:w-[6.5rem]"
                                                         />
                                                     </div>
                                                 </div>

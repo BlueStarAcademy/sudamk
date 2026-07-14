@@ -8,6 +8,7 @@ import AdventureProfilePanel from './AdventureProfilePanel.js';
 import AdventureChapterRegionalSummary from './AdventureChapterRegionalSummary.js';
 import AdventureRegionalBuffModal from './AdventureRegionalBuffModal.js';
 import { buildAdventureStageUnderstandingRows } from '../../utils/adventureStageUnderstandingRows.js';
+import { hasAdventureRegionalBuffAttention } from '../../utils/adventureRegionalSpecialtyBuff.js';
 import PcLobbyThreeColumnShell from '../shell/PcLobbyThreeColumnShell.js';
 import {
     PC_HOME_LEFT_COLUMN_CLASS,
@@ -266,6 +267,11 @@ const AdventureLobby: React.FC = () => {
                                         <AdventureChapterRegionalSummary
                                             row={stageUnderstandingRows[i]!}
                                             compact={false}
+                                            showAttentionDot={hasAdventureRegionalBuffAttention(
+                                                currentUserWithStatus?.adventureProfile,
+                                                stage.id,
+                                                unlocked,
+                                            )}
                                             onOpenEffectSlots={() => setRegionalBuffStageId(stage.id)}
                                         />
                                     </div>

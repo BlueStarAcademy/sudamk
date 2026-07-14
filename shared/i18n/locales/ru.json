@@ -3129,7 +3129,7 @@
     },
     "specialStats": {
       "actionPointMax": "Макс АП",
-      "strategyXpBonus": "Пользовательский опыт",
+      "strategyXpBonus": "EXP",
       "playfulXpBonus": "Опыт питомца",
       "championshipVenueAllStats": "чемпионат",
       "guildBossBattleAllStats": "Босс гильдии"

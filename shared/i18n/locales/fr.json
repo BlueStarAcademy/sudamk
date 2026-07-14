@@ -3129,7 +3129,7 @@
     },
     "specialStats": {
       "actionPointMax": "AP maximum",
-      "strategyXpBonus": "XP utilisateur",
+      "strategyXpBonus": "EXP",
       "playfulXpBonus": "XP de familier",
       "championshipVenueAllStats": "championnat",
       "guildBossBattleAllStats": "Chef de guilde"

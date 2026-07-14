@@ -3204,7 +3204,7 @@
     },
     "specialStats": {
       "actionPointMax": "최대 AP",
-      "strategyXpBonus": "유저 XP",
+      "strategyXpBonus": "EXP",
       "playfulXpBonus": "펫 XP",
       "championshipVenueAllStats": "챔피언십",
       "guildBossBattleAllStats": "길드보스"
@@ -3348,8 +3348,8 @@
       "borderCategories": {
         "basic": "기본",
         "levelLocked": "레벨제한",
-        "shop": "구매테두리",
-        "seasonReward": "전시즌보상"
+        "shop": "구매전용",
+        "seasonReward": "시즌보상"
       },
       "mbtiTypes": {
         "E": {
@@ -4536,6 +4536,9 @@
       "consumableTab": "소모품",
       "inventoryHint": "가방에서 사용할 수 있습니다.",
       "noGuide": "안내 문구가 없습니다.",
+      "viewLarge": "크게보기",
+      "viewLargeAria": "장비 이미지 크게 보기",
+      "closePreview": "닫기",
       "tier1": "가방",
       "tier2": "바위",
       "tier3": "병",
@@ -7057,6 +7060,7 @@
       "guildLevel": "길드Lv:",
       "startResearch": "연구 시작",
       "startConfirm": "[{{name}}] {{level}}레벨 연구를 시작하시겠습니까?\n\n필요 포인트: {{cost}} RP\n예상 시간: {{time}}",
+      "startConfirmQuestion": "[{{name}}] {{level}}레벨 연구를 시작하시겠습니까?",
       "chancePrefix": "[{{chance}}% 확률] ",
       "categoryDevelopment": "길드 발전",
       "categoryBoss": "보스전",

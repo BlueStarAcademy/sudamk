@@ -49,7 +49,8 @@ const BORDER_CATEGORY_ORDER: BorderCategory[] = ['basic', 'levelLocked', 'shop',
 
 /** 테두리(링 등)로 시각이 커져도 미리보기 칸(px)은 고정 — `Avatar`의 `size`는 이 값에 맞춰 산출 */
 const PROFILE_PREVIEW_FRAME_PX = { mobile: 112, pc: 136 } as const;
-const PROFILE_PREVIEW_BORDER_SCALE_MAX = 1.52;
+/** `Avatar` 이미지 테두리 최대 배율(Ring5–8 = 1.74)에 맞춰 미리보기 size 산출 */
+const PROFILE_PREVIEW_BORDER_SCALE_MAX = 1.74;
 
 const formatVipRemainingPlain = (
     expiresAt: number | undefined,
@@ -620,7 +621,7 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
                                                     : 'text-zinc-500 hover:bg-white/[0.07] hover:text-zinc-200'
                                             }`}
                                         >
-                                            {cat}
+                                            {t(`edit.borderCategories.${cat}`)}
                                         </button>
                                     ))}
                                 </div>

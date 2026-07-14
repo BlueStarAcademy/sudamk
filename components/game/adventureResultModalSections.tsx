@@ -3,7 +3,7 @@ import { tx } from '../../shared/i18n/runtimeText.js';
 import type { GameSummary } from '../../types.js';
 import { CONSUMABLE_ITEMS, CORE_STATS_DATA, EQUIPMENT_POOL, gradeStyles, MATERIAL_ITEMS } from '../../constants.js';
 import { CoreStat, ItemGrade } from '../../types/enums.js';
-import { getAdventureCodexMonsterById } from '../../constants/adventureMonstersCodex.js';
+import { getAdventureCodexMonsterById, getAdventureMonsterPortraitUrl } from '../../constants/adventureMonstersCodex.js';
 import {
     ADVENTURE_CODEX_BOSS_PERCENT_PER_LEVEL,
     ADVENTURE_CODEX_MAX_LEVEL,
@@ -215,10 +215,12 @@ function AdventureKeyFragmentRewardSlot({
     compact,
     amount,
     obtained = true,
+    stageId,
 }: {
     compact: boolean;
     amount: number;
     obtained?: boolean;
+    stageId?: string | null;
 }) {
     if (!obtained) {
         return (
@@ -227,7 +229,7 @@ function AdventureKeyFragmentRewardSlot({
                     className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'} flex-col`}
                 >
                     <div className="opacity-45 grayscale">
-                        <AdventureKeyFragmentIcon compact={compact} variant="reward" />
+                        <AdventureKeyFragmentIcon stageId={stageId} compact={compact} variant="reward" />
                     </div>
                 </div>
                 <span
@@ -249,7 +251,7 @@ function AdventureKeyFragmentRewardSlot({
             <div
                 className={`${RESULT_MODAL_ADVENTURE_UNIFIED_SLOT_CLASS} ${compact ? RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]'} flex-col`}
             >
-                <AdventureKeyFragmentIcon compact={compact} variant="reward" />
+                <AdventureKeyFragmentIcon stageId={stageId} compact={compact} variant="reward" />
             </div>
             <span
                 className={
@@ -463,6 +465,7 @@ export function AdventureBattleFixedRewardRow({
     vipPlayRewardSlot,
     onVipLockedClick,
     pairPetGradeUpgradeNeeded = false,
+    adventureStageId,
 }: {
     slots: NonNullable<GameSummary['adventureRewardSlots']>;
     xpChange: number;
@@ -473,6 +476,7 @@ export function AdventureBattleFixedRewardRow({
     onVipLockedClick?: () => void;
     /** 펫 XP는 0이지만 등급 강화가 필요한 경우 — 펫 XP 배지 대신 안내 슬롯 */
     pairPetGradeUpgradeNeeded?: boolean;
+    adventureStageId?: string | null;
 }) {
     const keyFragmentObtained = !!slots.keyFragment?.obtained;
     const keyFragmentAmount = Math.max(1, Math.floor(slots.keyFragment?.amount ?? 1));
@@ -516,7 +520,12 @@ export function AdventureBattleFixedRewardRow({
             ) : null}
             {keyFragmentObtained ? (
                 <div className="shrink-0">
-                    <AdventureKeyFragmentRewardSlot compact={compact} amount={keyFragmentAmount} obtained />
+                    <AdventureKeyFragmentRewardSlot
+                        compact={compact}
+                        amount={keyFragmentAmount}
+                        obtained
+                        stageId={adventureStageId}
+                    />
                 </div>
             ) : null}
             {slots.equipment.obtained && slots.equipment.displayName ? (
@@ -570,6 +579,7 @@ export function AdventureBattleRewardRowWithReveal({
     vipPlayRewardSlot,
     onVipLockedClick,
     pairPetGradeUpgradeNeeded = false,
+    adventureStageId,
 }: {
     slots: NonNullable<GameSummary['adventureRewardSlots']>;
     xpChange: number;
@@ -579,6 +589,7 @@ export function AdventureBattleRewardRowWithReveal({
     vipPlayRewardSlot?: GameSummary['vipPlayRewardSlot'];
     onVipLockedClick?: () => void;
     pairPetGradeUpgradeNeeded?: boolean;
+    adventureStageId?: string | null;
 }) {
     const keyFragmentObtained = !!slots.keyFragment?.obtained;
     const keyFragmentAmount = Math.max(1, Math.floor(slots.keyFragment?.amount ?? 1));
@@ -599,6 +610,7 @@ export function AdventureBattleRewardRowWithReveal({
                 vipPlayRewardSlot={vipPlayRewardSlot}
                 onVipLockedClick={onVipLockedClick}
                 pairPetGradeUpgradeNeeded={pairPetGradeUpgradeNeeded}
+                adventureStageId={adventureStageId}
             />
         );
     }
@@ -642,7 +654,12 @@ export function AdventureBattleRewardRowWithReveal({
             ) : null}
             {keyFragmentObtained ? (
                 <div className="shrink-0">
-                    <AdventureKeyFragmentRewardSlot compact={compact} amount={keyFragmentAmount} obtained />
+                    <AdventureKeyFragmentRewardSlot
+                        compact={compact}
+                        amount={keyFragmentAmount}
+                        obtained
+                        stageId={adventureStageId}
+                    />
                 </div>
             ) : null}
             {slots.equipment.obtained && equipName ? (
@@ -686,7 +703,7 @@ export function AdventureResultCodexCard({
     const { codexId, winsBefore, winsAfter } = codexDelta;
     const gainedWins = Math.max(0, winsAfter - winsBefore);
     const entry = getAdventureCodexMonsterById(codexId);
-    const portrait = useResilientImgSrc(entry?.imageWebp);
+    const portrait = useResilientImgSrc(entry ? getAdventureMonsterPortraitUrl(entry) : undefined);
     const levelBefore = getAdventureCodexComprehensionLevel(winsBefore);
     const levelAfter = getAdventureCodexComprehensionLevel(winsAfter);
     const { prog: progBefore } = getAdventureCodexComprehensionBarProgress(winsBefore, levelBefore);

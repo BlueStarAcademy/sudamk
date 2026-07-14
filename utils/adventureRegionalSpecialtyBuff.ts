@@ -222,6 +222,40 @@ export function getRegionalEnhancePointsRemaining(profile: AdventureProfile | nu
     return Math.max(0, grant - spentImplicit);
 }
 
+/** 열린(미획득) 지역 효과 슬롯이 하나라도 있는지 */
+export function hasEmptyUnlockedRegionalBuffSlot(
+    profile: AdventureProfile | null | undefined,
+    stageId: string,
+): boolean {
+    const p = normalizeAdventureProfile(profile);
+    const xp = p.understandingXpByStage?.[stageId] ?? 0;
+    const tier = getAdventureUnderstandingTierFromXp(xp);
+    const maxSlots = slotCountForUnderstandingTier(tier);
+    if (maxSlots <= 0) return false;
+    const buffs = p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [];
+    for (let i = 0; i < maxSlots; i++) {
+        const e = buffs[i];
+        if (e == null || typeof e !== 'object' || String((e as { kind?: unknown }).kind ?? '').trim() === '') {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * 대기실 「지역 효과」 안내 점 — 빈 해금 슬롯이 있거나 강화 포인트가 남아 있을 때.
+ * 챕터가 잠긴 경우 false.
+ */
+export function hasAdventureRegionalBuffAttention(
+    profile: AdventureProfile | null | undefined,
+    stageId: string,
+    chapterUnlocked: boolean,
+): boolean {
+    if (!chapterUnlocked) return false;
+    if (getRegionalEnhancePointsRemaining(profile, stageId) > 0) return true;
+    return hasEmptyUnlockedRegionalBuffSlot(profile, stageId);
+}
+
 /**
  * 슬롯 수·강화 포인트 클램프(기존 데이터 마이그레이션 포함). 기존 슬롯 효과는 유지하고 부족분만 채움.
  */

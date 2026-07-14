@@ -6,7 +6,7 @@ import PreGameColorRoulette from './PreGameColorRoulette.js';
 import { ColorAssignmentStickyFooter } from './ColorAssignmentStickyFooter.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { aiUserId } from '../constants/index.js';
-import { getAdventureCodexMonsterById } from '../constants/adventureMonstersCodex.js';
+import { getAdventureCodexMonsterById, getAdventureMonsterPortraitUrl } from '../constants/adventureMonstersCodex.js';
 import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
@@ -57,7 +57,7 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
             ? getAdventureCodexMonsterById(session.adventureMonsterCodexId)
             : undefined;
     const monsterName = monsterEntry?.name;
-    const monsterPortraitUrl = monsterEntry?.imageWebp;
+    const monsterPortraitUrl = monsterEntry ? getAdventureMonsterPortraitUrl(monsterEntry) : undefined;
     const blackUiPlayer =
         blackPlayer.id === aiUserId && monsterName ? { ...blackPlayer, nickname: monsterName } : blackPlayer;
     const whiteUiPlayer =

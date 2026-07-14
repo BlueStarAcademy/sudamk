@@ -25,7 +25,7 @@ export function getXpRequirementForLevel(level: number): number {
 }
 
 /**
- * 페어 대표펫 레벨업에 필요한 구간별 EXP — 유저 전략/놀이 레벨 곡선(`getXpRequirementForLevel`)의 절반(최소 1).
+ * 페어 대표펫 레벨업에 필요한 구간별 EXP — 유저/놀이 레벨 곡선(`getXpRequirementForLevel`)의 절반(최소 1).
  */
 export function getPairPetXpRequirementForLevel(level: number): number {
     const full = getXpRequirementForLevel(level);

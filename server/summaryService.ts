@@ -325,7 +325,7 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
                 }
             }
 
-            /** 전략 AI 대국과 동일: 클리어 전략 EXP의 50%를 장착 펫에 반영 */
+            /** 전략 AI 대국과 동일: 클리어 EXP의 50%를 장착 펫에 반영 */
             const strategyXpAwarded = Number(rewards.exp) || 0;
             if (strategyXpAwarded > 0) {
                 const petRaw = effectService.applyPairPetSpecialStatEquipmentXpMultiplier(user, Math.round(strategyXpAwarded * 0.5));
@@ -557,7 +557,7 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
                 }
             }
 
-            /** 전략 AI·싱글 클리어와 동일: 층 클리어 전략 EXP의 50%를 장착 펫에 반영 */
+            /** 전략 AI·싱글 클리어와 동일: 층 클리어 EXP의 50%를 장착 펫에 반영 */
             if (addedXp > 0) {
                 const petRaw = effectService.applyPairPetSpecialStatEquipmentXpMultiplier(user, Math.round(addedXp * 0.5));
                 if (petRaw > 0) {
@@ -1026,7 +1026,7 @@ export const createConsumableItemInstance = (name: string, quantity: number = 1)
     };
 };
 
-const VIP_EQUIPMENT_BOX_BY_TIER = ['장비 상자 I', '장비 상자 II', '장비 상자 III', '장비 상자 IV'] as const;
+const VIP_EQUIPMENT_BOX_BY_TIER = ['장비 상자 III', '장비 상자 IV', '장비 상자 V', '장비 상자 VI'] as const;
 const VIP_MATERIAL_BOX_BY_TIER = ['재료 상자 I', '재료 상자 II', '재료 상자 III', '재료 상자 IV'] as const;
 
 export type RewardVipResolvedGrant = {

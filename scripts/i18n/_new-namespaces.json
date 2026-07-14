@@ -543,7 +543,7 @@
       },
       "specialStats": {
         "actionPointMax": "최대 AP",
-        "strategyXpBonus": "유저 XP",
+        "strategyXpBonus": "EXP",
         "playfulXpBonus": "펫 XP",
         "championshipVenueAllStats": "챔피언십",
         "guildBossBattleAllStats": "길드보스"
@@ -1093,7 +1093,7 @@
       },
       "specialStats": {
         "actionPointMax": "Max AP",
-        "strategyXpBonus": "User XP",
+        "strategyXpBonus": "EXP",
         "playfulXpBonus": "Pet XP",
         "championshipVenueAllStats": "Championship",
         "guildBossBattleAllStats": "Guild boss"

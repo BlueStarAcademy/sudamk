@@ -8,7 +8,7 @@ import DraggableWindow from './DraggableWindow.js';
 import { UserWithStatus, InventoryItemType, InventoryItem, ItemGrade } from '../types.js';
 import { BASE_SLOTS_PER_CATEGORY } from '../constants/items.js';
 import { isActionPointConsumable } from '../constants/items.js';
-import { buildInventoryItemPreviewForPurchase, resolveBagItemDetailImagePath, apConsumableLightningEmojiPx, apConsumableLightningPlusLabelPx } from '../shared/utils/bagItemDetailHelpers.js';
+import { buildInventoryItemPreviewForPurchase, resolveBagItemDetailImagePath } from '../shared/utils/bagItemDetailHelpers.js';
 import { equipmentDetailGradeStyles } from './EquipmentDetailPanel.js';
 import { MAX_GAME_INTEGER_INPUT } from '../shared/constants/numericLimits.js';
 import { clampGameInt } from '../shared/utils/gameIntegerField.js';
@@ -73,9 +73,6 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
     const usageLines = usageBlocks(preview, itemMeta);
     const desc = itemMeta.resolveDescription(preview).trim() || '—';
 
-    const apMatch = isActionPointConsumable(preview.name) ? preview.name.match(/\+(\d+)/) : null;
-    const apValue = apMatch?.[1];
-
     return (
         <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-gradient-to-br from-[#14151f] via-[#0c0d12] to-[#08090e] shadow-[0_20px_50px_-28px_rgba(0,0,0,0.85),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-black/40">
             <div className={`relative p-[1px] ${styles.frame}`}>
@@ -90,30 +87,7 @@ const PurchaseModalItemShowcase: React.FC<{ preview: InventoryItem; shopBadge?: 
                                 style={{ width: HERO_SLOT_PX, height: HERO_SLOT_PX, containerType: 'size' }}
                             >
                                 <img src={styles.background} alt="" className="absolute inset-0 h-full w-full object-cover" />
-                                {isActionPointConsumable(preview.name) ? (
-                                    <span
-                                        className="absolute inset-0 z-[2] flex flex-col items-center justify-center overflow-hidden px-[min(6px,8%)] leading-none"
-                                        aria-hidden
-                                        style={{ fontSize: `${apConsumableLightningEmojiPx(HERO_SLOT_PX)}px` }}
-                                    >
-                                        <span className="leading-none drop-shadow-[0_0_12px_rgba(34,211,238,0.55)]">⚡</span>
-                                        {apValue ? (
-                                            <span
-                                                className="mt-1 max-w-full truncate font-bold leading-none text-cyan-200 drop-shadow-[0_0_6px_rgba(34,211,238,0.75)]"
-                                                style={{ fontSize: `${apConsumableLightningPlusLabelPx(HERO_SLOT_PX)}px` }}
-                                            >
-                                                +{apValue}
-                                            </span>
-                                        ) : shopBadge ? (
-                                            <span
-                                                className="mt-1 max-w-full truncate font-bold leading-none text-cyan-200 drop-shadow-[0_0_6px_rgba(34,211,238,0.75)]"
-                                                style={{ fontSize: `${apConsumableLightningPlusLabelPx(HERO_SLOT_PX)}px` }}
-                                            >
-                                                {shopBadge}
-                                            </span>
-                                        ) : null}
-                                    </span>
-                                ) : imagePath ? (
+                                {imagePath ? (
                                     <img
                                         src={imagePath}
                                         alt=""

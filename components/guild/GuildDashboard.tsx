@@ -49,6 +49,9 @@ import { SHOP_IMAGE_DESC_POPOVER_Z } from '../shopImageDescriptionPopover.js';
 import { useTranslation } from 'react-i18next';
 import { translateGuildBossName } from '../../shared/utils/translateGuildBossName.js';
 import { translateGuildDisplayName } from '../../shared/utils/guildDisplayName.js';
+import { resolveGuildIconPath, GUILD_ICON_POOL } from '../../shared/utils/guildIconPath.js';
+import GuildMark from './GuildMark.js';
+import GuildBossPortrait from './GuildBossPortrait.js';
 // 고급 버튼 스타일 (길드 패널용)
 const guildPanelBtnBase =
     'inline-flex items-center justify-center gap-1.5 rounded-xl border px-4 py-2 text-sm font-semibold tracking-wide transition-all duration-200';
@@ -66,20 +69,6 @@ const GUILD_HOME_MOBILE_DONATION_WINDOW_ID = 'guild-home-mobile-donation';
 
 /** `public/images/guild/guildbg.webp` — 길드 홈 전체 배경 */
 const GUILD_HOME_BACKGROUND_IMAGE = '/images/guild/guildbg.webp';
-
-// 길드 아이콘 경로 수정 함수
-const getGuildIconPath = (icon: string | undefined): string => {
-    if (!icon) return '/images/guild/profile/icon1.webp';
-    // 기존 경로가 /images/guild/icon으로 시작하면 /images/guild/profile/icon으로 변환
-    if (icon.startsWith('/images/guild/icon')) {
-        return icon.replace('/images/guild/icon', '/images/guild/profile/icon');
-    }
-    if (/\/images\//.test(icon) && /\.png$/i.test(icon)) {
-        return icon.replace(/\.png$/i, '.webp');
-    }
-    // 이미 올바른 경로이거나 다른 경로인 경우 그대로 반환
-    return icon;
-};
 
 const toEpochMs = (value: unknown): number | null => {
     if (typeof value === 'number' && Number.isFinite(value)) return value;
@@ -655,12 +644,7 @@ const GuildHomeTitlePanel: React.FC<{
             <div className="relative min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-3">
                     <div className="relative group shrink-0 overflow-visible">
-                        <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent/30 to-accent/10 blur-sm" aria-hidden />
-                        <img
-                            src={getGuildIconPath(guildIcon)}
-                            alt="Guild Icon"
-                            className="relative z-10 h-14 w-14 rounded-xl border-2 border-accent/30 bg-tertiary shadow-lg"
-                        />
+                        <GuildMark icon={guildIcon} size={56} alt="Guild Icon" showGlow />
                         {canManage && (
                             <button
                                 onClick={onIconSelect}
@@ -1136,11 +1120,14 @@ const BossPanel: React.FC<{
                         <>
                             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-black/20">
                                 <div className="relative flex min-h-0 flex-1 w-full items-center justify-center overflow-hidden rounded-xl bg-gradient-to-br from-stone-700/50 to-stone-800/40">
-                                    <div className="relative inline-block max-h-full max-w-full">
-                                        <img
-                                            src={currentBoss.image}
+                                    <div className="relative flex h-full min-h-[9rem] w-full max-w-full items-center justify-center">
+                                        <GuildBossPortrait
+                                            image={currentBoss.image}
                                             alt={translatedBossName}
-                                            className="block h-auto w-auto max-h-full max-w-full object-contain object-center drop-shadow-lg"
+                                            variant="hero"
+                                            className="h-full w-full"
+                                            roundedClassName="rounded-xl"
+                                            imgClassName="h-auto max-h-full w-auto max-w-full"
                                         />
                                         <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/55 via-transparent to-black/45" />
                                         <div className="absolute inset-x-0 top-0 z-10 flex flex-col gap-0.5 bg-gradient-to-b from-black/88 via-black/55 to-transparent px-1 pb-2 pt-1">
@@ -1245,7 +1232,25 @@ const BossPanel: React.FC<{
                             <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isCompact ? 'p-1.5' : 'p-2'}`}>
                                 <div className="flex min-h-0 flex-col items-center">
                                     <div className={`relative flex w-full items-center justify-center bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl border border-stone-600/50 shadow-lg overflow-hidden ${isCompact ? 'h-24 w-24' : 'h-full max-h-[19rem] w-full max-w-[19rem] flex-1 min-h-0'}`}>
-                                        <img src={currentBoss.image} alt={translatedBossName} className={`drop-shadow-lg object-contain ${isCompact ? 'h-20 w-20' : 'h-[92%] w-[92%]'}`} />
+                                        {isCompact ? (
+                                            <GuildBossPortrait
+                                                image={currentBoss.image}
+                                                alt={translatedBossName}
+                                                variant="thumbnail"
+                                                size={80}
+                                                className="bg-transparent"
+                                                roundedClassName="rounded-xl"
+                                            />
+                                        ) : (
+                                            <GuildBossPortrait
+                                                image={currentBoss.image}
+                                                alt={translatedBossName}
+                                                variant="hero"
+                                                className="h-full w-full"
+                                                roundedClassName="rounded-xl"
+                                                imgClassName="h-[92%] w-[92%]"
+                                            />
+                                        )}
                                         <div className={`absolute inset-x-0 bottom-0 flex flex-col items-stretch gap-1 px-2 pb-2 pt-8 bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
                                             <div className={`text-center font-bold tabular-nums text-white text-[12px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                                                 {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
@@ -2298,7 +2303,14 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                     <div className="absolute inset-0 bg-gradient-to-br from-white/10 via-transparent to-transparent pointer-events-none"></div>
                 )}
                 <div className={`bg-gradient-to-br ${isSelected ? 'from-white/20 to-white/10' : 'from-stone-800/80 to-stone-900/80'} rounded-lg flex items-center justify-center border-2 ${isSelected ? 'border-white/30' : 'border-stone-600/60'} shadow-lg flex-shrink-0 relative z-10 ${isNativeMobile ? 'w-11 h-11' : 'w-12 h-12'}`}>
-                    <img src={boss.image} alt={bossDisplayName} className={`object-contain drop-shadow-xl ${isNativeMobile ? 'w-9 h-9' : 'w-10 h-10'}`} />
+                    <GuildBossPortrait
+                        image={boss.image}
+                        alt={bossDisplayName}
+                        variant="thumbnail"
+                        size={isNativeMobile ? 36 : 40}
+                        showPedestal={false}
+                        roundedClassName="rounded-md"
+                    />
                 </div>
                 <span className={`font-bold relative z-10 ${isSelected ? 'text-white' : 'text-stone-300'} ${isNativeMobile ? 'text-center text-[10px] max-w-[4.5rem] line-clamp-2 leading-tight' : 'text-sm truncate'}`}>{bossDisplayName}</span>
             </button>
@@ -2312,7 +2324,14 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                 <div className={`flex border-b-2 border-stone-700/60 ${isNativeMobile ? 'flex-col items-center text-center gap-2 mb-3 pb-3' : 'items-center gap-4 mb-4 pb-4'}`}>
                     <div className={`bg-gradient-to-br ${theme.color} rounded-xl flex items-center justify-center border-2 ${theme.border} shadow-xl relative overflow-hidden flex-shrink-0 ${isNativeMobile ? 'w-[4.5rem] h-[4.5rem]' : 'w-24 h-24'}`}>
                         <div className="absolute inset-0 bg-gradient-to-br from-white/20 via-transparent to-transparent pointer-events-none"></div>
-                        <img src={selectedBoss.image} alt={selectedBossDisplayName} className={`object-contain drop-shadow-xl relative z-10 ${isNativeMobile ? 'w-[3.75rem] h-[3.75rem]' : 'w-20 h-20'}`} />
+                        <GuildBossPortrait
+                            image={selectedBoss.image}
+                            alt={selectedBossDisplayName}
+                            variant="thumbnail"
+                            size={isNativeMobile ? 60 : 80}
+                            className="relative z-10"
+                            roundedClassName="rounded-xl"
+                        />
                     </div>
                     <div className="flex-grow min-w-0">
                         <h3 className={`font-bold text-white drop-shadow-lg ${isNativeMobile ? 'text-lg mb-1' : 'text-xl mb-1 truncate'}`}>{selectedBossDisplayName}</h3>
@@ -2486,8 +2505,7 @@ const GuildAdminModal: React.FC<{
 
 const GuildIconSelectModal: React.FC<{ guild: GuildType; onClose: () => void; onSelect: (icon: string) => void }> = ({ guild, onClose, onSelect }) => {
     const { t } = useTranslation(['guild', 'common']);
-    const guildIcons = Array.from({ length: 11 }, (_, i) => `/images/guild/profile/icon${i + 1}.webp`);
-    const [selectedIcon, setSelectedIcon] = useState<string>(getGuildIconPath(guild.icon));
+    const [selectedIcon, setSelectedIcon] = useState<string>(resolveGuildIconPath(guild.icon));
 
     return (
         <DraggableWindow title={t('dashboard.changeEmblemTitle')} onClose={onClose} windowId="guild-icon-select" initialWidth={600} variant="store">
@@ -2496,19 +2514,24 @@ const GuildIconSelectModal: React.FC<{ guild: GuildType; onClose: () => void; on
                     {t('dashboard.changeEmblemHint')}
                 </div>
                 <div className="grid grid-cols-4 gap-4">
-                    {guildIcons.map((icon, index) => {
+                    {GUILD_ICON_POOL.map((icon, index) => {
                         const isSelected = selectedIcon === icon;
                         return (
                             <button
                                 key={icon}
                                 onClick={() => setSelectedIcon(icon)}
-                                className={`relative p-3 rounded-xl border-2 transition-all ${
+                                className={`relative flex items-center justify-center p-3 rounded-xl border-2 transition-all ${
                                     isSelected
                                         ? 'bg-accent/20 border-accent shadow-lg shadow-accent/30'
                                         : 'bg-stone-800/50 border-stone-600/50 hover:bg-stone-700/70 hover:border-stone-500/70'
                                 }`}
                             >
-                                <img src={icon} alt={t('dashboard.emblemAlt', { index: index + 1 })} className="w-full h-full object-cover rounded-lg" />
+                                <GuildMark
+                                    icon={icon}
+                                    size={64}
+                                    alt={t('dashboard.emblemAlt', { index: index + 1 })}
+                                    tone="plain"
+                                />
                                 {isSelected && (
                                     <div className="absolute top-1 right-1 w-5 h-5 bg-accent rounded-full flex items-center justify-center">
                                         <span className="text-xs">✓</span>
@@ -2836,8 +2859,12 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 <div className="flex w-full items-stretch gap-2">
                     <BackButton onClick={() => window.location.hash = '#/home'} />
                     <div className="relative group flex-shrink-0 overflow-visible self-center">
-                        <div className="absolute inset-0 bg-gradient-to-br from-accent/30 to-accent/10 rounded-xl blur-sm"></div>
-                        <img src={getGuildIconPath(currentGuild?.icon || guild?.icon)} alt="Guild Icon" className="relative z-10 h-10 w-10 bg-tertiary rounded-xl border-2 border-accent/30 shadow-lg" />
+                        <GuildMark
+                            icon={currentGuild?.icon || guild?.icon}
+                            size={40}
+                            alt="Guild Icon"
+                            showGlow
+                        />
                         {canManage && (
                             <button
                                 onClick={() => setIsIconSelectOpen(true)}

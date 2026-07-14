@@ -151,6 +151,11 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
         cardClass: string;
         /** 이미지 박스 상단 이름 바 */
         nameBarClass: string;
+        /**
+         * 초상화 무대 — 밝은/어두운 몬스터 모두 대비되도록 중간 톤.
+         * (순백·순검은 흰둥/검둥 계열이 묻힘)
+         */
+        portraitStageClass: string;
         /** 선택된 챕터 탭 */
         tabSelectedClass: string;
         /** 비선택 탭 hover 시 챕터 힌트 */
@@ -164,6 +169,8 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-emerald-500/20 bg-gradient-to-br from-emerald-950/88 via-green-950/82 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
         cardClass: 'border-emerald-500/20 bg-emerald-950/20',
         nameBarClass: 'from-emerald-800/95 to-emerald-950/98 border-b border-emerald-950/40',
+        portraitStageClass:
+            'bg-[radial-gradient(ellipse_72%_68%_at_50%_42%,rgba(228,240,220,0.95)_0%,rgba(120,140,110,0.88)_45%,rgba(55,70,52,0.92)_100%)]',
         tabSelectedClass:
             'border-emerald-400/55 bg-emerald-500/20 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-emerald-500/35 hover:text-emerald-100/90',
@@ -174,6 +181,8 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-sky-500/20 bg-gradient-to-br from-sky-950/88 via-blue-950/85 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
         cardClass: 'border-sky-500/20 bg-sky-950/22',
         nameBarClass: 'from-sky-800/95 to-sky-950/98 border-b border-sky-950/45',
+        portraitStageClass:
+            'bg-[radial-gradient(ellipse_72%_68%_at_50%_42%,rgba(220,236,248,0.95)_0%,rgba(110,140,168,0.9)_45%,rgba(40,58,78,0.94)_100%)]',
         tabSelectedClass:
             'border-sky-400/55 bg-sky-500/20 text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-sky-500/35 hover:text-sky-100/90',
@@ -184,6 +193,8 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-cyan-500/20 bg-gradient-to-br from-slate-950/92 via-blue-950/88 to-cyan-950/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
         cardClass: 'border-cyan-500/20 bg-cyan-950/18',
         nameBarClass: 'from-cyan-900/95 to-slate-950/98 border-b border-cyan-950/40',
+        portraitStageClass:
+            'bg-[radial-gradient(ellipse_72%_68%_at_50%_42%,rgba(210,236,245,0.95)_0%,rgba(70,120,150,0.9)_45%,rgba(22,45,62,0.95)_100%)]',
         tabSelectedClass:
             'border-cyan-400/55 bg-cyan-500/18 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-cyan-500/35 hover:text-cyan-100/90',
@@ -194,6 +205,8 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-amber-500/25 bg-gradient-to-br from-amber-950/88 via-yellow-950/75 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
         cardClass: 'border-amber-500/20 bg-amber-950/18',
         nameBarClass: 'from-amber-800/95 to-amber-950/98 border-b border-amber-950/45',
+        portraitStageClass:
+            'bg-[radial-gradient(ellipse_72%_68%_at_50%_42%,rgba(245,232,210,0.96)_0%,rgba(168,140,100,0.9)_45%,rgba(62,48,28,0.94)_100%)]',
         tabSelectedClass:
             'border-amber-400/55 bg-amber-500/22 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-amber-500/35 hover:text-amber-100/90',
@@ -204,6 +217,8 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-fuchsia-500/22 bg-gradient-to-br from-purple-950/90 via-fuchsia-950/85 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]',
         cardClass: 'border-fuchsia-500/20 bg-fuchsia-950/16',
         nameBarClass: 'from-fuchsia-800/95 to-purple-950/98 border-b border-purple-950/45',
+        portraitStageClass:
+            'bg-[radial-gradient(ellipse_72%_68%_at_50%_42%,rgba(242,220,248,0.95)_0%,rgba(140,100,160,0.9)_45%,rgba(48,28,58,0.95)_100%)]',
         tabSelectedClass:
             'border-fuchsia-400/55 bg-fuchsia-500/18 text-fuchsia-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-fuchsia-500/35 hover:text-fuchsia-100/90',

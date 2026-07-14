@@ -2,16 +2,19 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AdventureTreasureUserRewardSections } from '../../shared/utils/adventureMapTreasureRewards.js';
 import AdventureTreasureChestRewardSections from './AdventureTreasureChestRewardSections.js';
+import { AdventureRegionalKeyIcon } from './AdventureRegionalKeyIcons.js';
 import Button from '../Button.js';
 
 export type AdventureTreasureChestInfoPanelProps = {
     /** `보물상자-{지역명}` 상단 줄 — 맵 말풍선 등에서만 표시 */
     stageTitle: string;
     showInlineTitle?: boolean;
-    equipmentBoxImage: string;
+    chestImage: string;
     /** 남은 시간 등 표시 문자열(부모에서 계산) */
     remainingLabel: string;
     mapKeysHeld: number;
+    /** 지역 열쇠 아이콘 */
+    stageId?: string | null;
     sections: AdventureTreasureUserRewardSections;
     onOpen: () => void | Promise<void>;
     openDisabled: boolean;
@@ -26,9 +29,10 @@ const openButtonClass =
 const AdventureTreasureChestInfoPanel: React.FC<AdventureTreasureChestInfoPanelProps> = ({
     stageTitle,
     showInlineTitle = false,
-    equipmentBoxImage,
+    chestImage,
     remainingLabel,
     mapKeysHeld,
+    stageId,
     sections,
     onOpen,
     openDisabled,
@@ -47,7 +51,7 @@ const AdventureTreasureChestInfoPanel: React.FC<AdventureTreasureChestInfoPanelP
                     <div className="relative h-[5rem] w-[5rem] shrink-0 sm:h-[5.25rem] sm:w-[5.25rem]">
                         <div className="absolute inset-0 rounded-2xl bg-amber-400/15 blur-xl" aria-hidden />
                         <img
-                            src={equipmentBoxImage}
+                            src={chestImage}
                             alt=""
                             className="relative z-[1] h-full w-full object-contain drop-shadow-[0_10px_24px_rgba(0,0,0,0.55)]"
                             draggable={false}
@@ -60,7 +64,7 @@ const AdventureTreasureChestInfoPanel: React.FC<AdventureTreasureChestInfoPanelP
                         {remainingLabel}
                     </span>
                     <span className="inline-flex shrink-0 items-center gap-0.5 rounded-lg border border-amber-400/35 bg-black/40 px-1.5 py-0.5 text-sm font-black tabular-nums text-amber-100 sm:px-2 sm:py-1">
-                        <span aria-hidden>🔑</span>
+                        <AdventureRegionalKeyIcon stageId={stageId} size="inline" />
                         {mapKeysHeld}
                     </span>
                 </div>
@@ -81,7 +85,7 @@ const AdventureTreasureChestInfoPanel: React.FC<AdventureTreasureChestInfoPanelP
                 <span className="relative z-[1] flex items-center justify-center gap-2">
                     <span className="text-sm font-black tracking-wide text-amber-50 drop-shadow-sm">{t('adventure.open')}</span>
                     <span className="flex items-center gap-0.5 rounded-md border border-amber-300/45 bg-black/55 px-2 py-0.5 font-mono text-xs font-black tabular-nums text-amber-100 shadow-inner">
-                        <span aria-hidden>🔑</span>
+                        <AdventureRegionalKeyIcon stageId={stageId} size="inline" compact />
                         <span>1</span>
                     </span>
                 </span>
