@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation, Trans } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
+import { GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
 
 interface GuildWarApplicationDayOnlyModalProps {
     onClose: () => void;
@@ -22,7 +23,7 @@ const GuildWarApplicationDayOnlyModal: React.FC<GuildWarApplicationDayOnlyModalP
                 <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-amber-500/5 to-stone-500/10 pointer-events-none rounded-b-xl" />
                 <div className="relative z-10 flex flex-col items-center flex-1 min-h-0 p-6">
                     <div className="flex-shrink-0 w-16 h-16 rounded-xl bg-amber-900/50 border-2 border-amber-500/40 flex items-center justify-center mb-4">
-                        <span className="text-3xl">📅</span>
+                        <img src={GUILD_UI_ICONS.checkin} alt="" className="h-10 w-10 object-contain drop-shadow" />
                     </div>
                     <h2 className="flex-shrink-0 text-lg font-bold text-amber-100 mb-3">{t('war.nextPrepTitle')}</h2>
                     <div className="flex-1 min-h-0 w-full overflow-y-auto flex flex-col items-center justify-center text-center">

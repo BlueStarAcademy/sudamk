@@ -48,6 +48,7 @@ import {
 } from '../../shared/utils/guildWarSchedule.js';
 import { useModalStackLayer } from '../../hooks/useModalStackLayer.js';
 import { SHOP_IMAGE_DESC_POPOVER_Z } from '../shopImageDescriptionPopover.js';
+import { GUILD_UI_ICON_CLASS, GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
 import { useTranslation } from 'react-i18next';
 import { translateGuildBossName } from '../../shared/utils/translateGuildBossName.js';
 import { translateGuildDisplayName } from '../../shared/utils/guildDisplayName.js';
@@ -169,7 +170,7 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
         <div className="relative flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg">
             <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none rounded-xl" />
             <h3 className="font-bold text-base text-highlight text-center relative z-10 flex items-center justify-center gap-2 drop-shadow-lg flex-shrink-0">
-                <span className="text-lg">💎</span>
+                <img src={GUILD_UI_ICONS.donation} alt="" className={GUILD_UI_ICON_CLASS} />
                 <span>{t('donation.title')}</span>
             </h3>
 
@@ -654,7 +655,7 @@ const GuildHomeTitlePanel: React.FC<{
                                 title={t('dashboard.changeEmblem')}
                                 type="button"
                             >
-                                <span className="text-[10px]">✏️</span>
+                                <img src={GUILD_UI_ICONS.edit} alt="" className="h-3 w-3 object-contain" />
                             </button>
                         )}
                     </div>
@@ -696,7 +697,7 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
     return (
         <div className="flex-shrink-0 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg">
             <h3 className="font-bold text-base text-highlight mb-2 text-center flex items-center justify-center gap-2 flex-shrink-0">
-                <span className="text-xl">⚡</span>
+                <img src={GUILD_UI_ICONS.activities} alt="" className={GUILD_UI_ICON_CLASS} />
                 <span>{t('dashboard.activities')}</span>
             </h3>
             <div className="flex justify-around items-center gap-2">
@@ -1106,7 +1107,15 @@ const BossPanel: React.FC<{
                             isMobile ? 'text-sm' : isCompact ? 'text-sm' : 'text-lg'
                         }`}
                     >
-                        <span className={isMobile ? 'text-base' : isCompact ? 'text-base' : 'text-2xl'}>⚔️</span>
+                        <img
+                            src={GUILD_UI_ICONS.boss}
+                            alt=""
+                            className={
+                                isMobile || isCompact
+                                    ? 'h-5 w-5 shrink-0 object-contain drop-shadow'
+                                    : 'h-7 w-7 shrink-0 object-contain drop-shadow'
+                            }
+                        />
                         <span>{t('boss.title')}</span>
                     </h3>
                 </div>
@@ -2032,7 +2041,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                             >
                                 <div className="absolute inset-0 rounded-xl bg-gradient-to-t from-black/25 to-transparent" aria-hidden />
                                 <img
-                                    src="/images/guild/button/guildwar.webp"
+                                    src={GUILD_UI_ICONS.war}
                                     alt=""
                                     className={`relative z-[1] object-contain drop-shadow-lg ${isMobile ? 'h-8 w-8' : isCompact ? 'h-7 w-7' : 'h-10 w-10'}`}
                                 />
@@ -2391,7 +2400,11 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                         <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 via-yellow-400/5 to-amber-500/10 pointer-events-none"></div>
                         <div className="relative z-10">
                             <h4 className={`font-bold text-amber-300 flex items-center gap-1.5 ${isNativeMobile ? 'text-xs mb-1.5' : 'text-sm mb-2'}`}>
-                                <span className={isNativeMobile ? 'text-sm' : 'text-base'}>📖</span>
+                                <img
+                                    src={GUILD_UI_ICONS.guideBook}
+                                    alt=""
+                                    className={isNativeMobile ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 shrink-0 object-contain'}
+                                />
                                 {t('boss.strategyGuide')}
                             </h4>
                             <p className={`text-stone-200 leading-relaxed ${isNativeMobile ? 'text-xs' : 'text-xs'}`}>{selectedBoss.strategyGuide}</p>
@@ -2399,7 +2412,11 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                     </div>
                     <div className={`bg-gradient-to-br from-stone-800/80 to-stone-900/80 rounded-xl border-2 border-stone-600/60 shadow-xl ${isNativeMobile ? 'p-2.5' : 'p-3'}`}>
                         <h4 className={`font-bold text-cyan-300 flex items-center gap-1.5 ${isNativeMobile ? 'text-xs mb-2' : 'text-sm mb-3'}`}>
-                            <span className={isNativeMobile ? 'text-sm' : 'text-base'}>⚔️</span>
+                            <img
+                                src={GUILD_UI_ICONS.guideSkills}
+                                alt=""
+                                className={isNativeMobile ? 'h-3.5 w-3.5 shrink-0 object-contain' : 'h-4 w-4 shrink-0 object-contain'}
+                            />
                             {t('boss.mainSkills')}
                         </h4>
                         <ul className={isNativeMobile ? 'space-y-1.5' : 'space-y-2'}>
@@ -2421,7 +2438,7 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             <div className="absolute inset-0 bg-gradient-to-br from-blue-500/10 via-indigo-400/5 to-blue-500/10 pointer-events-none"></div>
                             <div className="relative z-10">
                                 <h4 className={`font-bold text-blue-300 flex items-center gap-1.5 ${isNativeMobile ? 'text-[11px] mb-1' : 'text-xs mb-1.5'}`}>
-                                    <span className="text-sm">💪</span>
+                                    <img src={GUILD_UI_ICONS.guidePower} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
                                     {t('boss.recommendedStats')}
                                 </h4>
                                 <p className={`text-stone-200 leading-relaxed ${isNativeMobile ? 'text-[11px]' : 'text-xs'}`}>{selectedBoss.recommendedStats.join(', ')}</p>
@@ -2431,7 +2448,7 @@ const GuildBossGuideModal: React.FC<{ onClose: () => void }> = ({ onClose }) => 
                             <div className="absolute inset-0 bg-gradient-to-br from-purple-500/10 via-violet-400/5 to-purple-500/10 pointer-events-none"></div>
                             <div className="relative z-10">
                                 <h4 className={`font-bold text-purple-300 flex items-center gap-1.5 ${isNativeMobile ? 'text-[11px] mb-1' : 'text-xs mb-1.5'}`}>
-                                    <span className="text-sm">🔬</span>
+                                    <img src={GUILD_UI_ICONS.guideLab} alt="" className="h-3.5 w-3.5 shrink-0 object-contain" />
                                     {t('boss.recommendedResearch')}
                                 </h4>
                                 <p className={`text-stone-200 leading-relaxed ${isNativeMobile ? 'text-[11px]' : 'text-xs'}`}>
@@ -2920,7 +2937,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                                 title={t('dashboard.changeEmblem')}
                                 type="button"
                             >
-                                <span className="text-[9px]">✏️</span>
+                                <img src={GUILD_UI_ICONS.edit} alt="" className="h-2.5 w-2.5 object-contain" />
                             </button>
                         )}
                     </div>

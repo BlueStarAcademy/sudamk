@@ -86,7 +86,7 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
         bodyRingClass: 'ring-emerald-400/20',
     },
     pet: {
-        iconEmoji: '🐾',
+        iconUrl: '/images/quickmenu/pet.webp',
         titleChromeClass: 'border-violet-400/50 bg-gradient-to-r from-violet-950/55 via-zinc-900/80 to-fuchsia-950/40',
         titleHeadingClass:
             'bg-gradient-to-r from-violet-50 via-fuchsia-100 to-violet-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
@@ -115,7 +115,7 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
         bodyRingClass: 'ring-violet-400/22',
     },
     ranking: {
-        iconEmoji: '🏆',
+        iconUrl: '/images/quickmenu/ranking.webp',
         titleChromeClass: 'border-amber-400/50 bg-gradient-to-r from-amber-950/55 via-zinc-900/80 to-yellow-950/45',
         titleHeadingClass:
             'bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
@@ -131,7 +131,7 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
         bodyRingClass: 'ring-orange-400/20',
     },
     encyclopedia: {
-        iconUrl: '/images/button/itembook.webp',
+        iconUrl: '/images/quickmenu/encyclopedia.webp',
         titleChromeClass: 'border-teal-400/45 bg-gradient-to-r from-teal-950/50 via-zinc-900/80 to-emerald-950/45',
         titleHeadingClass:
             'bg-gradient-to-r from-teal-50 via-emerald-100 to-teal-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
@@ -139,7 +139,7 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
         bodyRingClass: 'ring-teal-400/20',
     },
     announcements: {
-        iconEmoji: '📢',
+        iconUrl: '/images/quickmenu/news.webp',
         titleChromeClass: 'border-rose-400/45 bg-gradient-to-r from-rose-950/50 via-zinc-900/80 to-amber-950/40',
         titleHeadingClass:
             'bg-gradient-to-r from-rose-50 via-amber-100 to-rose-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
@@ -147,7 +147,7 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
         bodyRingClass: 'ring-rose-400/20',
     },
     help: {
-        iconEmoji: '❓',
+        iconUrl: '/images/button/help.webp',
         titleChromeClass: 'border-sky-400/45 bg-gradient-to-r from-sky-950/50 via-zinc-900/80 to-indigo-950/45',
         titleHeadingClass:
             'bg-gradient-to-r from-sky-50 via-blue-100 to-indigo-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',

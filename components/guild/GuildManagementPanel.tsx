@@ -4,6 +4,7 @@ import { Guild as GuildType } from '../../types/index.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import ToggleSwitch from '../ui/ToggleSwitch.js';
+import { GUILD_UI_ICON_CLASS, GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
 
 interface GuildManagementPanelProps {
     guild: GuildType;
@@ -158,7 +159,11 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                     <div className="relative z-10">
                         <div className={`flex items-start justify-between gap-2 ${compact ? 'mb-2' : 'mb-5'}`}>
                             <h3 className={`font-bold text-highlight drop-shadow-lg flex items-center gap-1 ${compact ? 'text-sm' : 'gap-2 text-2xl'}`}>
-                                <span className={compact ? 'text-base' : 'text-2xl'}>📢</span>
+                                <img
+                                    src={GUILD_UI_ICONS.announcement}
+                                    alt=""
+                                    className={compact ? 'h-4 w-4 shrink-0 object-contain drop-shadow' : GUILD_UI_ICON_CLASS}
+                                />
                                 <span>{t('management.announcement')}</span>
                             </h3>
                             <Button 
@@ -213,7 +218,11 @@ const GuildManagementPanel: React.FC<GuildManagementPanelProps> = ({
                     <div className="relative z-10 flex h-full flex-col">
                         <div className={`flex flex-shrink-0 items-start justify-between gap-2 ${dense ? 'mb-2' : 'mb-5'}`}>
                             <h3 className={`font-bold text-highlight drop-shadow-lg flex items-center gap-1 ${dense ? 'text-sm' : 'gap-2 text-2xl'}`}>
-                                <span className={dense ? 'text-base' : 'text-2xl'}>📝</span>
+                                <img
+                                    src={GUILD_UI_ICONS.applications}
+                                    alt=""
+                                    className={dense ? 'h-4 w-4 shrink-0 object-contain drop-shadow' : GUILD_UI_ICON_CLASS}
+                                />
                                 <span>{t('management.applications')}</span>
                             </h3>
                         </div>

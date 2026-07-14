@@ -13,6 +13,7 @@ import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRo
 import ChatInlineMessageRow from '../waiting-room/ChatInlineMessageRow.js';
 import { guildChatHistoryEntryToChatMessage } from '../../shared/utils/guildChatMessageAdapter.js';
 import { useTranslation } from 'react-i18next';
+import { GUILD_UI_ICON_CLASS, GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
 
 // 고급 버튼 스타일 함수
 const luxuryButtonBase =
@@ -117,7 +118,7 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
             <div className="relative z-10 flex flex-col h-full min-h-0">
                 <div className="flex justify-between items-center mb-2 flex-shrink-0">
                     <h3 className="font-bold text-sm sm:text-lg text-highlight drop-shadow-lg flex items-center gap-1 sm:gap-2">
-                        <span className="text-base sm:text-xl">📅</span>
+                        <img src={GUILD_UI_ICONS.checkin} alt="" className={GUILD_UI_ICON_CLASS} />
                         <span className="whitespace-nowrap">{t('checkIn.title')}</span>
                     </h3>
                     <div className="flex items-center gap-1.5 sm:gap-2">
@@ -293,7 +294,11 @@ export const GuildAnnouncementPanel: React.FC<{
                         compact ? 'gap-1 text-sm' : 'gap-2 text-lg'
                     }`}
                 >
-                    <span className={compact ? 'text-base' : 'text-xl'}>📢</span>
+                    <img
+                        src={GUILD_UI_ICONS.announcement}
+                        alt=""
+                        className={compact ? 'h-4 w-4 shrink-0 object-contain drop-shadow' : GUILD_UI_ICON_CLASS}
+                    />
                     <span>{t('management.announcement')}</span>
                 </h3>
                 {canEdit && (
@@ -585,7 +590,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                             disabled={isInputDisabled}
                         />
                         <Button type="submit" disabled={!message.trim() || isInputDisabled} className="!px-2 !py-1" title={t('homeChat.sendTitle')}>
-                            💬
+                            <img src={GUILD_UI_ICONS.chat} alt="" className="h-4 w-4 object-contain" />
                         </Button>
                     </form>
                 ) : (

@@ -13,6 +13,7 @@ import type { User } from '../../types/index.js';
 import { ResultModalVipRewardSlot } from '../game/ResultModalVipRewardSlot.js';
 import GuildExpBadge from './GuildExpBadge.js';
 import { useTranslation } from 'react-i18next';
+import { GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
 
 interface GuildBossBattleResultModalProps {
     result: GuildBossBattleResultType & { bossName: string; previousRank?: number | null; currentRank?: number | null };
@@ -92,7 +93,7 @@ const RewardCardFrontContent: React.FC<{ card: RewardCard }> = ({ card }) => (
         )}
         {card.isSpecial && (
             <div className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-yellow-400 animate-bounce">
-                <span className="text-[8px]">⭐</span>
+                <img src={GUILD_UI_ICONS.specialStar} alt="" className="h-2.5 w-2.5 object-contain" />
             </div>
         )}
     </>

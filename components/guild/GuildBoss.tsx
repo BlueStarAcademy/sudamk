@@ -11,6 +11,7 @@ import GuildResearchPanel from './GuildResearchPanel.js';
 import GuildMissionsPanel from './GuildMissionsPanel.js';
 import GuildShopModal from './GuildShopModal.js';
 import { BOSS_SKILL_ICON_MAP } from '../../assets.js';
+import { GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
 import {
     clearPendingGuildBossBattle,
     GUILD_BOSS_LOG_PLAYBACK_MS,
@@ -496,9 +497,12 @@ const BossRecommendedStatsTip: React.FC<{ stats: CoreStat[]; compact?: boolean }
         }
         aria-label={t('boss.recommendedStatsAria', { stats: stats.join(', ') })}
     >
-        <span className="select-none leading-none" aria-hidden>
-            💡
-        </span>
+        <img
+            src={GUILD_UI_ICONS.tip}
+            alt=""
+            className={compact ? 'h-4 w-4 object-contain' : 'h-6 w-6 object-contain sm:h-7 sm:w-7'}
+            aria-hidden
+        />
         <div
             className="pointer-events-none absolute bottom-[calc(100%+0.6rem)] left-1/2 z-[60] w-max max-w-[min(18rem,calc(100vw-3rem))] -translate-x-1/2 rounded-2xl border border-amber-500/40 bg-gray-950/95 px-3 py-2.5 text-left opacity-0 shadow-xl backdrop-blur-sm transition-opacity duration-150 group-hover/tip:opacity-100 group-focus-visible/tip:opacity-100 group-active/tip:opacity-100"
             role="tooltip"

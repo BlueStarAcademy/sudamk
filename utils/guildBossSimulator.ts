@@ -100,11 +100,20 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
         return Math.random() * 100 < researchEvasionPercent;
     };
 
-    const applyBossDamageToUser = (rawDamage: number): number => {
-        if (rawDamage <= 0) return 0;
+    const applyBossDamageToUser = (
+        rawDamage: number,
+    ): { damage: number; researchGuarded: boolean } => {
+        if (rawDamage <= 0) return { damage: 0, researchGuarded: false };
         const mitigated = computeGuildBossStabilityMitigation(totalStats[CoreStat.Stability]);
-        const afterResearch = mitigated * (1 - researchHitDamageReductionPercent / 100);
-        return Math.round(rawDamage * afterResearch);
+        const afterStability = Math.round(rawDamage * mitigated);
+        const afterResearch = Math.round(
+            rawDamage * mitigated * (1 - researchHitDamageReductionPercent / 100),
+        );
+        return {
+            damage: afterResearch,
+            researchGuarded:
+                researchHitDamageReductionPercent > 0 && afterResearch < afterStability,
+        };
     };
 
     const runUserTurn = (isExtra: boolean = false): boolean => {
@@ -260,7 +269,6 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
             let turnBossHeal = 0;
             let duelResultMessage = '';
             let duelOutcome: GuildBossDuelOutcome = 'none';
-            let usedHpPercent = false;
             const debuffsForLog: BattleLogEntry['debuffsApplied'] = [];
 
             if (bossSkill.id === '녹수_포자확산') {
@@ -291,7 +299,6 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                             turnBossDamage += getRandom(effect.value![0], effect.value![1]) * (effect.hits || 1);
                             break;
                         case 'hp_percent':
-                            usedHpPercent = true;
                             turnBossDamage += computeGuildBossHpPercentDamage(
                                 maxUserHp,
                                 effect.value![0],
@@ -329,7 +336,10 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 });
             }
 
-            const finalBossDamage = researchEvaded ? 0 : applyBossDamageToUser(turnBossDamage);
+            const applied = researchEvaded
+                ? { damage: 0, researchGuarded: false }
+                : applyBossDamageToUser(turnBossDamage);
+            const finalBossDamage = applied.damage;
             userHp -= finalBossDamage;
 
             let logMessage = `[${boss.name}]의 ${bossSkill.name}! (${duelResultMessage})`;
@@ -343,7 +353,6 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
             let skillFx: GuildBossFxKind = skillIdToFxKind(bossSkill.id, boss.id, {
                 isHeal: turnBossHeal > 0 && finalBossDamage <= 0,
                 isDebuff: debuffsForLog.length > 0 && finalBossDamage <= 0,
-                isHpPercent: usedHpPercent,
             });
             if (duelOutcome === 'full_success' || researchEvaded) skillFx = 'dodge';
 
@@ -358,7 +367,11 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 fxKind: skillFx,
                 duelOutcome: researchEvaded ? 'full_success' : duelOutcome,
                 skillId: bossSkill.id,
-                researchId: researchEvaded ? GuildResearchId.boss_attack_evasion : undefined,
+                researchId: researchEvaded
+                    ? GuildResearchId.boss_attack_evasion
+                    : applied.researchGuarded
+                      ? GuildResearchId.boss_hit_damage_reduction
+                      : undefined,
             });
         }
 
@@ -386,7 +399,10 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                                 researchId: GuildResearchId.boss_attack_evasion,
                             });
                         }
-                        const pDamage = researchEvaded ? 0 : applyBossDamageToUser(rawPDamage);
+                        const applied = researchEvaded
+                            ? { damage: 0, researchGuarded: false }
+                            : applyBossDamageToUser(rawPDamage);
+                        const pDamage = applied.damage;
                         userHp -= pDamage;
                         battleLog.push({
                             turn: turnsSurvived,
@@ -398,9 +414,13 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                             damageTaken: pDamage,
                             fxKind: researchEvaded
                                 ? 'dodge'
-                                : skillIdToFxKind(pSkill.id, boss.id, { isHpPercent: true }),
+                                : skillIdToFxKind(pSkill.id, boss.id),
                             skillId: pSkill.id,
-                            researchId: researchEvaded ? GuildResearchId.boss_attack_evasion : undefined,
+                            researchId: researchEvaded
+                                ? GuildResearchId.boss_attack_evasion
+                                : applied.researchGuarded
+                                  ? GuildResearchId.boss_hit_damage_reduction
+                                  : undefined,
                             duelOutcome: researchEvaded ? 'full_success' : undefined,
                         });
                         break;

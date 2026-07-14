@@ -16,7 +16,9 @@ import GuildBossSkillHitFx from './GuildBossSkillHitFx.js';
 import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
 import { translateGuildBossName } from '../../shared/utils/translateGuildBossName.js';
+import type { GuildBossFxDirection, GuildBossFxSpectacle } from '../../utils/guildBossBattleFx.js';
 import type { TFunction } from 'i18next';
+import { GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
 
 const getBossResearchEffectDisplay = (
     researchId: GuildResearchId,
@@ -66,6 +68,9 @@ const getBossResearchEffectDisplay = (
 export type GuildBossCombatFxState = {
     fxKind: GuildBossFxKind;
     secondaryFxKind?: GuildBossFxKind;
+    spectacle?: GuildBossFxSpectacle;
+    secondarySpectacle?: GuildBossFxSpectacle;
+    direction?: GuildBossFxDirection;
     icon?: string;
     isCrit: boolean;
     attacker: 'user' | 'boss' | null;
@@ -176,9 +181,12 @@ const BossRecommendedStatsTip: React.FC<{ stats: CoreStat[]; compact?: boolean; 
             }
             aria-label={t('boss.recommendedStatsAria', { stats: stats.join(', ') })}
         >
-            <span className="select-none leading-none" aria-hidden>
-                💡
-            </span>
+            <img
+                src={GUILD_UI_ICONS.tip}
+                alt=""
+                className={compact ? 'h-4 w-4 object-contain' : 'h-5 w-5 object-contain'}
+                aria-hidden
+            />
             <div className="pointer-events-none absolute bottom-[calc(100%+0.5rem)] left-1/2 z-[60] w-max max-w-[14rem] -translate-x-1/2 rounded-xl border border-amber-500/40 bg-gray-950/95 px-2.5 py-2 text-left opacity-0 shadow-xl transition-opacity group-hover/tip:opacity-100 group-focus-visible/tip:opacity-100">
                 <p className="mb-1 text-center text-[10px] font-bold text-amber-300/90">{t('boss.recommendedStats')}</p>
                 <div className="flex flex-wrap justify-center gap-1 text-[10px] font-semibold text-white">
@@ -282,25 +290,7 @@ const GuildBossBattleArena: React.FC<GuildBossBattleArenaProps> = ({
         .filter(Boolean)
         .join(' ');
 
-    const fxOnBoss =
-        combatFx &&
-        (combatFx.targetHit === 'boss' ||
-            combatFx.fxKind === 'research_heal_block' ||
-            combatFx.fxKind === 'research_heal_reduce' ||
-            (combatFx.fxKind === 'heal' && combatFx.attacker === 'boss'));
-    const fxOnUser =
-        combatFx &&
-        (combatFx.targetHit === 'user' ||
-            combatFx.fxKind === 'extra_turn' ||
-            combatFx.fxKind === 'research_regen' ||
-            combatFx.fxKind === 'research_hp_buff');
-
-    const projectileDir =
-        combatFx?.attacker === 'user' && combatFx.targetHit === 'boss'
-            ? 'to-boss'
-            : combatFx?.attacker === 'boss' && combatFx.targetHit === 'user'
-              ? 'to-user'
-              : 'none';
+    const showArenaSpectacle = Boolean(combatFx) || showOpeningHpBuff;
 
     return (
         <div className={`flex h-full min-h-0 w-full flex-col gap-2 ${compact ? 'p-1' : 'p-2'}`}>
@@ -309,6 +299,24 @@ const GuildBossBattleArena: React.FC<GuildBossBattleArenaProps> = ({
                     compact ? 'gap-1 p-1.5' : 'gap-2 p-3'
                 }`}
             >
+                {/* Arena-scale skill spectacle (primary VFX layer) */}
+                {showArenaSpectacle ? (
+                    <GuildBossSkillHitFx
+                        fxKind={showOpeningHpBuff && !combatFx ? 'research_hp_buff' : combatFx!.fxKind}
+                        secondaryFxKind={combatFx?.secondaryFxKind}
+                        spectacle={
+                            showOpeningHpBuff && !combatFx ? 'research_hp_buff' : combatFx?.spectacle
+                        }
+                        secondarySpectacle={combatFx?.secondarySpectacle}
+                        direction={combatFx?.direction ?? 'none'}
+                        isCrit={combatFx?.isCrit}
+                        fxKey={combatFx?.fxKey ?? 0}
+                        projectileDir="none"
+                        muted={combatFx?.fxKind === 'dodge'}
+                        className="guild-boss-fx-arena-layer z-[25]"
+                    />
+                ) : null}
+
                 {/* VS badge + live cumulative damage — panel center */}
                 <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center gap-1.5">
                     <div
@@ -354,17 +362,6 @@ const GuildBossBattleArena: React.FC<GuildBossBattleArenaProps> = ({
                                 className={`font-bold text-white ${compact ? 'text-sm' : 'text-lg'}`}
                             />
                         </div>
-                        {(fxOnUser || showOpeningHpBuff) && (combatFx || showOpeningHpBuff) ? (
-                            <GuildBossSkillHitFx
-                                fxKind={showOpeningHpBuff && !combatFx ? 'research_hp_buff' : combatFx!.fxKind}
-                                secondaryFxKind={combatFx?.secondaryFxKind}
-                                icon={combatFx?.icon}
-                                isCrit={combatFx?.isCrit}
-                                fxKey={combatFx?.fxKey ?? 0}
-                                projectileDir={projectileDir === 'to-user' ? 'to-user' : 'none'}
-                                missProjectile={combatFx?.missProjectile}
-                            />
-                        ) : null}
                     </div>
                     <div className={`relative w-full ${compact ? 'mt-1 max-w-[12rem]' : 'mt-2 max-w-[18rem]'}`}>
                         <div
@@ -495,17 +492,6 @@ const GuildBossBattleArena: React.FC<GuildBossBattleArenaProps> = ({
                                 ))}
                             </div>
                         </div>
-                        {(fxOnBoss || (combatFx && combatFx.fxKind === 'dodge' && combatFx.secondaryFxKind)) && combatFx ? (
-                            <GuildBossSkillHitFx
-                                fxKind={combatFx.fxKind === 'dodge' ? combatFx.fxKind : combatFx.fxKind}
-                                secondaryFxKind={combatFx.fxKind === 'dodge' ? combatFx.secondaryFxKind : combatFx.researchId ? 'research_damage_buff' : combatFx.secondaryFxKind}
-                                icon={combatFx.icon}
-                                isCrit={combatFx.isCrit}
-                                fxKey={combatFx.fxKey}
-                                projectileDir={projectileDir === 'to-boss' ? 'to-boss' : 'none'}
-                                missProjectile={combatFx.missProjectile}
-                            />
-                        ) : null}
                     </div>
                     <div className={`relative z-10 mt-1 flex shrink-0 items-center justify-center gap-1.5`}>
                         <div className="flex flex-row items-center gap-1 rounded-xl border border-white/20 bg-black/45 p-1">
@@ -517,16 +503,6 @@ const GuildBossBattleArena: React.FC<GuildBossBattleArenaProps> = ({
                     </div>
                 </div>
 
-                {combatFx && projectileDir !== 'none' && combatFx.missProjectile ? (
-                    <GuildBossSkillHitFx
-                        fxKind={combatFx.fxKind}
-                        icon={combatFx.icon}
-                        fxKey={combatFx.fxKey + 1}
-                        projectileDir={projectileDir}
-                        missProjectile
-                        className="!inset-0"
-                    />
-                ) : null}
             </div>
 
             {/* Split combat log: my attacks | boss attacks (turn-by-turn sides) */}

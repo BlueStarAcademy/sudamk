@@ -8,6 +8,7 @@ import Avatar from '../Avatar.js';
 import { AVATAR_POOL, BORDER_POOL, GUILD_INITIAL_MEMBER_LIMIT, ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 import { formatLastSeenGuild } from '../../utils/timeUtils.js';
 import { useTranslation } from 'react-i18next';
+import { GUILD_UI_ICON_CLASS, GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
 
 const memberSortLabelKey: Record<GuildMemberSortMode, string> = {
     role: 'members.sortRole',
@@ -350,7 +351,11 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                                 dense ? 'text-base' : 'gap-2 text-2xl'
                             }`}
                         >
-                            <span className={dense ? 'text-lg' : 'text-2xl'}>👥</span>
+                            <img
+                                src={GUILD_UI_ICONS.members}
+                                alt=""
+                                className={dense ? 'h-5 w-5 shrink-0 object-contain drop-shadow' : GUILD_UI_ICON_CLASS}
+                            />
                             <span className="whitespace-nowrap">
                                 {t('members.title')}{' '}
                                 <span className={`text-primary ${dense ? 'text-sm' : 'text-lg'}`}>

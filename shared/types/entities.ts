@@ -2062,6 +2062,7 @@ export type GuildBossFxKind =
     | 'research_heal_reduce'
     | 'research_damage_buff'
     | 'research_hp_buff'
+    | 'research_hit_guard'
     | 'extra_turn';
 
 export type GuildBossDuelOutcome = 'full_success' | 'partial' | 'fail' | 'none';

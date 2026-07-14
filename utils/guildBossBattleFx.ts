@@ -8,15 +8,93 @@ import {
     GUILD_RESEARCH_EVASION_IMG,
 } from '../assets.js';
 
+/** Skill-themed spectacle variant for arena-scale CSS VFX */
+export type GuildBossFxSpectacle =
+    | 'wave_crash'
+    | 'wave_crush'
+    | 'burn_surge'
+    | 'burn_blast'
+    | 'burn_dots'
+    | 'nature_vines'
+    | 'nature_spores'
+    | 'heal_bloom'
+    | 'mystery_swirl'
+    | 'mystery_invert'
+    | 'mystery_mind'
+    | 'radiance_strike'
+    | 'radiance_barrier'
+    | 'radiance_judgment'
+    | 'slash_cut'
+    | 'debuff_suppress'
+    | 'crush_default'
+    | 'research_ignite'
+    | 'research_regen'
+    | 'research_heal_block'
+    | 'research_heal_reduce'
+    | 'research_damage_buff'
+    | 'research_hp_buff'
+    | 'research_hit_guard'
+    | 'dodge'
+    | 'guard_partial'
+    | 'extra_turn'
+    | 'generic';
+
+export type GuildBossFxDirection = 'to-user' | 'to-boss' | 'none';
+
 export type ResolvedGuildBossCombatFx = {
     fxKind: GuildBossFxKind;
     secondaryFxKind?: GuildBossFxKind;
+    spectacle: GuildBossFxSpectacle;
+    secondarySpectacle?: GuildBossFxSpectacle;
+    direction: GuildBossFxDirection;
     duelOutcome: GuildBossDuelOutcome;
     researchId?: string;
     icon?: string;
     isCrit: boolean;
     attacker: 'user' | 'boss' | null;
     targetHit: 'user' | 'boss' | null;
+};
+
+type SkillFxMapEntry = { fxKind: GuildBossFxKind; spectacle: GuildBossFxSpectacle };
+
+const SKILL_FX_MAP: Record<string, SkillFxMapEntry> = {
+    청해_물결의압박: { fxKind: 'wave', spectacle: 'wave_crash' },
+    청해_심해의고요: { fxKind: 'wave', spectacle: 'wave_crush' },
+    청해_회복억제: { fxKind: 'debuff', spectacle: 'debuff_suppress' },
+    홍염_불꽃돌파: { fxKind: 'burn', spectacle: 'burn_surge' },
+    홍염_광열의폭발: { fxKind: 'burn', spectacle: 'burn_blast' },
+    홍염_화상: { fxKind: 'burn', spectacle: 'burn_dots' },
+    녹수_숲의압박: { fxKind: 'nature', spectacle: 'nature_vines' },
+    녹수_포자확산: { fxKind: 'nature', spectacle: 'nature_spores' },
+    녹수_자연의치유: { fxKind: 'heal', spectacle: 'heal_bloom' },
+    현묘_혼란의수수께끼: { fxKind: 'mystery', spectacle: 'mystery_swirl' },
+    현묘_뒤바뀐계산: { fxKind: 'mystery', spectacle: 'mystery_invert' },
+    현묘_심리전: { fxKind: 'mystery', spectacle: 'mystery_mind' },
+    백광_천벌의일격: { fxKind: 'radiance', spectacle: 'radiance_strike' },
+    백광_광휘의결계: { fxKind: 'radiance', spectacle: 'radiance_barrier' },
+    백광_심판의빛: { fxKind: 'radiance', spectacle: 'radiance_judgment' },
+};
+
+const FX_KIND_DEFAULT_SPECTACLE: Partial<Record<GuildBossFxKind, GuildBossFxSpectacle>> = {
+    slash: 'slash_cut',
+    wave: 'wave_crash',
+    burn: 'burn_surge',
+    nature: 'nature_vines',
+    heal: 'heal_bloom',
+    mystery: 'mystery_swirl',
+    radiance: 'radiance_strike',
+    crush: 'crush_default',
+    debuff: 'debuff_suppress',
+    dodge: 'dodge',
+    guard_partial: 'guard_partial',
+    research_ignite: 'research_ignite',
+    research_regen: 'research_regen',
+    research_heal_block: 'research_heal_block',
+    research_heal_reduce: 'research_heal_reduce',
+    research_damage_buff: 'research_damage_buff',
+    research_hp_buff: 'research_hp_buff',
+    research_hit_guard: 'research_hit_guard',
+    extra_turn: 'extra_turn',
 };
 
 export function bossIdToThemeFx(bossId: string): GuildBossFxKind {
@@ -36,14 +114,20 @@ export function bossIdToThemeFx(bossId: string): GuildBossFxKind {
     }
 }
 
-export function skillIdToFxKind(skillId: string | undefined, bossId: string, opts?: {
-    isHeal?: boolean;
-    isDebuff?: boolean;
-    isHpPercent?: boolean;
-}): GuildBossFxKind {
+export function skillIdToSpectacle(skillId: string | undefined): GuildBossFxSpectacle | undefined {
+    if (!skillId) return undefined;
+    return SKILL_FX_MAP[skillId]?.spectacle;
+}
+
+export function skillIdToFxKind(
+    skillId: string | undefined,
+    bossId: string,
+    opts?: { isHeal?: boolean; isDebuff?: boolean; isHpPercent?: boolean },
+): GuildBossFxKind {
     if (opts?.isHeal) return 'heal';
     if (opts?.isDebuff) return 'debuff';
-    if (opts?.isHpPercent) return 'crush';
+    // isHpPercent intentionally ignored — keep boss/skill theme (wave/burn/radiance…)
+    if (skillId && SKILL_FX_MAP[skillId]) return SKILL_FX_MAP[skillId].fxKind;
     if (!skillId) return bossIdToThemeFx(bossId);
     if (skillId.includes('심해') || skillId.includes('물결')) return 'wave';
     if (skillId.includes('불꽃') || skillId.includes('광열') || skillId.includes('화상')) return 'burn';
@@ -51,6 +135,16 @@ export function skillIdToFxKind(skillId: string | undefined, bossId: string, opt
     if (skillId.includes('혼란') || skillId.includes('계산') || skillId.includes('심리')) return 'mystery';
     if (skillId.includes('천벌') || skillId.includes('광휘') || skillId.includes('심판')) return 'radiance';
     return bossIdToThemeFx(bossId);
+}
+
+export function fxKindToSpectacle(fxKind: GuildBossFxKind, skillId?: string): GuildBossFxSpectacle {
+    const fromSkill = skillIdToSpectacle(skillId);
+    if (fromSkill && fxKind !== 'dodge' && fxKind !== 'guard_partial' && fxKind !== 'extra_turn') {
+        // Keep skill spectacle when kind still matches theme family
+        const mapped = skillId ? SKILL_FX_MAP[skillId] : undefined;
+        if (mapped && mapped.fxKind === fxKind) return fromSkill;
+    }
+    return FX_KIND_DEFAULT_SPECTACLE[fxKind] ?? 'generic';
 }
 
 export function parseDuelOutcomeFromMessage(message: string): GuildBossDuelOutcome {
@@ -120,6 +214,12 @@ export function resolveGuildBossCombatFx(entry: BattleLogEntry, bossId: string):
         secondaryFxKind = 'guard_partial';
     } else if (fxKind === 'slash' && researchId === GuildResearchId.boss_damage_increase) {
         secondaryFxKind = 'research_damage_buff';
+    } else if (
+        researchId === GuildResearchId.boss_hit_damage_reduction &&
+        fxKind !== 'dodge' &&
+        !entry.isUserAction
+    ) {
+        secondaryFxKind = 'research_hit_guard';
     }
 
     let attacker: 'user' | 'boss' | null = null;
@@ -128,10 +228,7 @@ export function resolveGuildBossCombatFx(entry: BattleLogEntry, bossId: string):
     if (fxKind === 'extra_turn' || fxKind === 'research_hp_buff') {
         attacker = 'user';
         targetHit = null;
-    } else if (
-        fxKind === 'research_heal_block' ||
-        fxKind === 'research_heal_reduce'
-    ) {
+    } else if (fxKind === 'research_heal_block' || fxKind === 'research_heal_reduce') {
         attacker = 'user';
         targetHit = 'boss';
     } else if (fxKind === 'research_regen' || entry.healingDone) {
@@ -145,15 +242,46 @@ export function resolveGuildBossCombatFx(entry: BattleLogEntry, bossId: string):
         targetHit = 'user';
     } else if (entry.isUserAction) {
         attacker = 'user';
-        targetHit = entry.message.includes('보스 HP') || fxKind === 'slash' || fxKind === 'research_ignite' ? 'boss' : null;
+        targetHit =
+            entry.message.includes('보스 HP') || fxKind === 'slash' || fxKind === 'research_ignite' ? 'boss' : null;
     } else {
         attacker = 'boss';
-        targetHit = entry.damageTaken !== undefined || entry.debuffsApplied?.length ? 'user' : entry.bossHealingDone ? 'boss' : 'user';
+        targetHit =
+            entry.damageTaken !== undefined || entry.debuffsApplied?.length
+                ? 'user'
+                : entry.bossHealingDone
+                  ? 'boss'
+                  : 'user';
     }
+
+    const direction: GuildBossFxDirection =
+        attacker === 'boss' && targetHit === 'user'
+            ? 'to-user'
+            : attacker === 'user' && targetHit === 'boss'
+              ? 'to-boss'
+              : 'none';
+
+    const spectacle =
+        fxKind === 'dodge'
+            ? 'dodge'
+            : fxKindToSpectacle(fxKind, entry.skillId);
+
+    const secondarySpectacle = secondaryFxKind
+        ? secondaryFxKind === 'guard_partial'
+            ? 'guard_partial'
+            : secondaryFxKind === 'research_hit_guard'
+              ? 'research_hit_guard'
+              : secondaryFxKind === 'research_damage_buff'
+                ? 'research_damage_buff'
+                : fxKindToSpectacle(secondaryFxKind, entry.skillId)
+        : undefined;
 
     return {
         fxKind,
         secondaryFxKind,
+        spectacle,
+        secondarySpectacle,
+        direction,
         duelOutcome,
         researchId,
         icon,

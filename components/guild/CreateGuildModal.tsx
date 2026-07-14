@@ -7,6 +7,7 @@ import Button from '../Button.js';
 import { containsProfanity } from '../../profanity.js';
 import { GUILD_CREATION_COST } from '../../constants/index.js';
 import ToggleSwitch from '../ui/ToggleSwitch.js';
+import { resourceIcons } from '../resourceIcons.js';
 
 interface CreateGuildModalProps {
     onClose: () => void;
@@ -176,7 +177,10 @@ const CreateGuildModal: React.FC<CreateGuildModalProps> = ({ onClose }) => {
                         <div className="rounded-xl p-3.5 border bg-amber-900/20 border-amber-500/40">
                             <div className="flex items-center justify-between">
                                 <span className="text-sm font-semibold text-amber-200">{t('createModal.creationCost')}</span>
-                                <span className="font-bold text-amber-300">{GUILD_CREATION_COST.toLocaleString()} 💎</span>
+                                <span className="inline-flex items-center gap-1 font-bold text-amber-300">
+                                    {GUILD_CREATION_COST.toLocaleString()}
+                                    <img src={resourceIcons.diamonds} alt="" className="h-4 w-4 object-contain" />
+                                </span>
                             </div>
                             <div className="flex justify-between mt-1.5 text-xs text-amber-200/80">
                                 <span>{t('createModal.owned')}</span>

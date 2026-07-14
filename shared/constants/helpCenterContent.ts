@@ -113,10 +113,15 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             compact: true,
                             images: [
                                 { src: '/images/quickmenu/quest.webp', alt: '퀘스트', caption: '퀘스트' },
-                                { src: '/images/quickmenu/gibo.webp', alt: '기보', caption: '기보' },
+                                { src: '/images/quickmenu/trade.webp', alt: '거래소', caption: '거래소' },
                                 { src: '/images/quickmenu/enhance.webp', alt: '대장간', caption: '대장간' },
                                 { src: '/images/quickmenu/store.webp', alt: '상점', caption: '상점' },
                                 { src: '/images/quickmenu/bag.webp', alt: '가방', caption: '가방' },
+                                { src: '/images/quickmenu/pet.webp', alt: '펫', caption: '펫' },
+                                { src: '/images/quickmenu/ranking.webp', alt: '랭킹', caption: '랭킹' },
+                                { src: '/images/quickmenu/gibo.webp', alt: '기보', caption: '기보' },
+                                { src: '/images/quickmenu/encyclopedia.webp', alt: '도감', caption: '도감' },
+                                { src: '/images/quickmenu/news.webp', alt: '공지', caption: '공지' },
                                 { src: '/images/button/help.webp', alt: '도움말', caption: '도움말' },
                             ],
                         },
@@ -358,7 +363,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             images: [
                                 { src: '/images/equipments/moru.webp', alt: '대장간', caption: '대장간' },
                                 { src: '/images/quickmenu/bag.webp', alt: '가방', caption: '가방' },
-                                { src: '/images/button/itembook.webp', alt: '도감', caption: '도감' },
+                                { src: '/images/quickmenu/encyclopedia.webp', alt: '도감', caption: '도감' },
                             ],
                         },
                         {
@@ -1354,7 +1359,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'gear-basics',
                     title: '장비 시스템',
                     tagline: '부위·등급·옵션이 캐릭터 성능을 만듭니다.',
-                    hero: { src: '/images/button/itembook.webp', alt: '도감' },
+                    hero: { src: '/images/quickmenu/encyclopedia.webp', alt: '도감' },
                     blocks: [
                         {
                             type: 'paragraph',
@@ -1888,7 +1893,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     {
         id: 'encyclopedia',
         label: '도감 · 옵션 규칙',
-        iconSrc: '/images/button/itembook.webp',
+        iconSrc: '/images/quickmenu/encyclopedia.webp',
         accentClass: 'from-amber-600/10 to-orange-900/10',
         subcategories: [
             {
@@ -1898,7 +1903,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'ency-rules',
                     title: '도감과 장비 옵션 규칙',
                     tagline: '아이콘을 눌러 말풍선으로 상세 스펙을 확인합니다.',
-                    hero: { src: '/images/button/itembook.webp', alt: '도감' },
+                    hero: { src: '/images/quickmenu/encyclopedia.webp', alt: '도감' },
                     blocks: [
                         {
                             type: 'paragraph',

@@ -130,7 +130,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 kind: 'pet',
                 gameplay: true,
-                emoji: '🐾',
+                iconUrl: '/images/quickmenu/pet.webp',
                 handler: handlers.openPetManagementModal,
                 disabled: false,
                 notification: hasClaimablePairPetTrainingOrHatchery,
@@ -138,7 +138,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 kind: 'ranking',
                 gameplay: false,
-                emoji: '🏆',
+                iconUrl: '/images/quickmenu/ranking.webp',
                 handler: handlers.openRankingQuickModal,
                 disabled: false,
                 notification: false,
@@ -154,7 +154,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 kind: 'encyclopedia',
                 gameplay: false,
-                iconUrl: '/images/button/itembook.webp',
+                iconUrl: '/images/quickmenu/encyclopedia.webp',
                 handler: handlers.openEncyclopedia,
                 disabled: false,
                 notification: false,
@@ -162,7 +162,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             {
                 kind: 'announcements',
                 gameplay: false,
-                emoji: '📢',
+                iconUrl: '/images/quickmenu/news.webp',
                 handler: handlers.openAnnouncementsModal,
                 disabled: false,
                 notification: hasUnreadHomeBoardPosts,

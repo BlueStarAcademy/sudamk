@@ -58,10 +58,15 @@ describe('pcShellLayout', () => {
 });
 
 describe('quickUtilityPanel chrome', () => {
-    it('defines accent chrome for each utility kind', () => {
+    it('defines accent chrome and WebP icons for each utility kind', () => {
         expect(QUICK_UTILITY_PANEL_CHROME.shop.iconUrl).toContain('store');
-        expect(QUICK_UTILITY_PANEL_CHROME.pet.iconEmoji).toBe('🐾');
-        expect(QUICK_UTILITY_PANEL_CHROME.help.iconEmoji).toBe('❓');
+        expect(QUICK_UTILITY_PANEL_CHROME.pet.iconUrl).toContain('pet.webp');
+        expect(QUICK_UTILITY_PANEL_CHROME.ranking.iconUrl).toContain('ranking.webp');
+        expect(QUICK_UTILITY_PANEL_CHROME.announcements.iconUrl).toContain('news.webp');
+        expect(QUICK_UTILITY_PANEL_CHROME.encyclopedia.iconUrl).toContain('encyclopedia.webp');
+        expect(QUICK_UTILITY_PANEL_CHROME.help.iconUrl).toContain('help.webp');
+        expect(QUICK_UTILITY_PANEL_CHROME.pet.iconEmoji).toBeUndefined();
+        expect(QUICK_UTILITY_PANEL_CHROME.help.iconEmoji).toBeUndefined();
     });
 });
 
