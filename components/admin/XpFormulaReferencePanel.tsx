@@ -76,7 +76,7 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
                         items={[
                             '무효국(no contest): 0.',
                             '모험 몬스터 대전: 승리 시 기본 EXP(판 크기) + 몬스터 레벨 보너스, 패배·휴먼 패는 0.',
-                            '전략바둑 대기실 AI: 승리 시 `strategicLobbyAiWinXp`(9줄 기준 × 판 크기 배율 × 계가 최대 턴 여부), 패배 0.',
+                            '전략바둑 대기실 AI: 승리 시 `strategicLobbyAiWinXp`(판별 기본 EXP × 계가 최대 턴이면 ×1.5), 패배 0.',
                             '그 외 전략 모드 기본값: 승리 100, 무승부 0, 패배 25 (무효국 제외).',
                             'AI 대국(모험·전략 대기실 AI 제외): 위 값에 ×0.2.',
                             '전략 PVP/PVE(모험·전략 대기실 AI 제외): 상대 레벨 − 내 레벨에 따라 (1 + 차이×0.1)배, 0.5~1.5로 클램프 후 반올림.',
@@ -116,7 +116,7 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
 
                     <h3 className="mt-5 text-sm font-semibold text-primary">전략 대기실 AI 승리 EXP (참고 값)</h3>
                     <p className="mt-2 text-sm text-gray-400">
-                        9줄 모험 기본 EXP × (13줄 2배, 19줄 5배) × (해당 판에서 계가 턴 한도가 최대면 ×1.5).
+                        판별 기본 EXP(9줄 50 / 13줄 100 / 19줄 200). 해당 판에서 계가 턴 한도가 최대면 ×1.5.
                     </p>
                     <div className="mt-2 overflow-x-auto rounded-xl border border-color/50">
                         <table className="w-full min-w-[320px] text-left text-sm text-gray-300">

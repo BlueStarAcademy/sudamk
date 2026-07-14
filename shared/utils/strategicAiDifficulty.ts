@@ -1,5 +1,11 @@
-import { getAdventureBaseStrategyXp } from '../constants/adventureStrategyXp.js';
 import { getScoringTurnLimitOptionsByBoardSize } from '../../constants/gameSettings.js';
+
+/** 전략 대기실 AI 승리 기본 EXP (일반 계가 한도). 최대 계가 한도면 ×1.5. */
+const STRATEGIC_LOBBY_AI_WIN_XP_BY_BOARD_SIZE: Record<number, number> = {
+  9: 50,
+  13: 100,
+  19: 200,
+};
 
 /**
  * 전략바둑 AI 난이도: UI 1~10 단계 ↔ KataServer levelbot 값.
@@ -153,12 +159,6 @@ export function pairGoAiRewardRelativeToStep3Multiplier(profileStep: number): nu
   return 1 + (s - 3) * 0.1;
 }
 
-function strategicLobbyAiBoardXpMultiplier(boardSize: number): number {
-  if (boardSize === 13) return 2;
-  if (boardSize === 19) return 5;
-  return 1;
-}
-
 function isMaxScoringTurnLimit(boardSize: number, scoringTurnLimit?: number): boolean {
   if (typeof scoringTurnLimit !== 'number' || !Number.isFinite(scoringTurnLimit) || scoringTurnLimit <= 0) return false;
   const maxLimit = Math.max(...getScoringTurnLimitOptionsByBoardSize(boardSize).filter((v) => v > 0));
@@ -167,16 +167,14 @@ function isMaxScoringTurnLimit(boardSize: number, scoringTurnLimit?: number): bo
 
 /**
  * 전략바둑 대기실 AI 대결 승리 기본 EXP.
- * - 9줄 모험 기본 EXP를 기준(1x)
- * - 13줄 2배, 19줄 5배 (그 외 판은 1x)
- * - 계가까지 턴을 해당 판의 최대치로 설정하면 +0.5x(총 1.5배 추가 곱)
+ * - 판별 기본: 9줄 50 / 13줄 100 / 19줄 200 (그 외는 9줄)
+ * - 계가 턴 한도가 해당 판 최대치면 ×1.5 (9→75, 13→150, 19→300)
  */
 export function strategicLobbyAiWinXp(boardSize?: number, scoringTurnLimit?: number): number {
   const bs = boardSize ?? 9;
-  const baseNine = getAdventureBaseStrategyXp(9);
-  const boardMul = strategicLobbyAiBoardXpMultiplier(bs);
+  const base = STRATEGIC_LOBBY_AI_WIN_XP_BY_BOARD_SIZE[bs] ?? STRATEGIC_LOBBY_AI_WIN_XP_BY_BOARD_SIZE[9];
   const turnMul = isMaxScoringTurnLimit(bs, scoringTurnLimit) ? 1.5 : 1;
-  return Math.max(1, Math.round(baseNine * boardMul * turnMul));
+  return Math.max(1, Math.round(base * turnMul));
 }
 
 /** 전략/놀이 대기실에서 시작한 AI 대국(싱글·탑·길드전 제외) */

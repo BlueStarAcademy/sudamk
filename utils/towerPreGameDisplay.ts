@@ -80,6 +80,27 @@ export function isTowerFirstClearAttemptOnFloor(
     return clearedMax < sessionFloor;
 }
 
+/** 탑 결과 summary에 실제 지급분(골드·EXP·펫·아이템)이 있는지 */
+export function towerSummaryHasGrantedRewards(
+    summary:
+        | {
+              gold?: number | null;
+              xp?: { change?: number | null } | null;
+              pairPetXp?: { change?: number | null } | null;
+              items?: unknown[] | null;
+          }
+        | null
+        | undefined,
+): boolean {
+    if (!summary) return false;
+    return (
+        (Number(summary.gold) || 0) > 0 ||
+        (Number(summary.xp?.change) || 0) > 0 ||
+        (Number(summary.pairPetXp?.change) || 0) > 0 ||
+        (Array.isArray(summary.items) && summary.items.length > 0)
+    );
+}
+
 export type TowerLobbyItemCounts = { missile: number; hidden: number; scan: number; turnAdd: number };
 
 export function countTowerLobbyItems(

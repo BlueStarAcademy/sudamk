@@ -101,6 +101,10 @@ import { readStrategicRankedBlock, readPairRankedBlock, readPairArenaAiMatchReco
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { resolveLiveArenaPhaseGoldXpMultiplier } from '../shared/utils/liveArenaPhaseGoldXpMultiplier.js';
 import { effectivePvpEntryApCostForUser } from '../shared/utils/pairPetArenaApDiscount.js';
+import {
+    isTowerFirstClearAttemptOnFloor,
+    towerSummaryHasGrantedRewards,
+} from '../utils/towerPreGameDisplay.js';
 
 /** `adventureCodexGoldBonusPercent` = 도감·보스 + 지역 이해도 골드% 합산 — 표시·정산 분리용 */
 function splitAdventureGoldBonusPercents(
@@ -382,6 +386,13 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
 };
 
 const processTowerGameSummary = async (game: LiveGameSession) => {
+    // 이미 이번 세션에서 보상이 반영된 summary가 있으면 중복 지급 방지
+    const priorGranted = towerSummaryHasGrantedRewards(game.summary?.[game.player1.id]);
+    if (priorGranted) {
+        console.log(`[processTowerGameSummary] Game ${game.id}: rewards already present in summary, skipping re-grant`);
+        return;
+    }
+
     // 경험치 누적을 위해 캐시 무효화 후 DB에서 최신 사용자 데이터 조회 (캐시에 0이 들어가 있던 버그 방지)
     db.invalidateUserCache(game.player1.id);
     const freshUser = await db.getUser(game.player1.id);
@@ -432,8 +443,8 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
         const paidTowerAttempt = towerApChargedOnWin > 0;
 
         // 월간 최초 클리어 여부 (층 보상은 monthlyTowerFloor 기준 — 월간 1회)
-        // towerFloor만 보면 월간 리셋이 누락됐거나 monthly가 0인 구데이터에서 보상이 영구 미지급됨
-        const isClearedThisMonth = floor <= userMonthlyTowerFloorBefore;
+        // towerFloor(평생)만 보면 월간 리셋 누락·구데이터에서 보상이 영구 미지급됨
+        const isFirstClearThisMonth = isTowerFirstClearAttemptOnFloor(userMonthlyTowerFloorBefore, floor);
         
         // towerFloor 업데이트 (현재 층이 사용자의 최고 층수보다 높으면 업데이트)
         if (floor > userTowerFloor) {
@@ -448,7 +459,7 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
             console.log(`[Tower Summary] Updating monthlyTowerFloor: ${userMonthlyTowerFloorBefore} -> ${floor}`);
         }
         
-        if (isClearedThisMonth) {
+        if (!isFirstClearThisMonth) {
             // 이번 달 이미 클리어한 층 재도전 시 보상 없음
             console.log(`[Tower Summary] Floor ${floor} - Already cleared this month (monthly=${userMonthlyTowerFloorBefore}), no reward on retry`);
         } else {
@@ -655,7 +666,9 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     }
     
     if (!towerFloorUpdated && !hasRewards && !levelUpOccurred && !game.actionPointsChargedOnVictory) {
-        console.log(`[Tower Summary] No changes to save for user ${user.nickname} (floor ${floor}, already cleared: ${floor <= userTowerFloor})`);
+        console.log(
+            `[Tower Summary] No changes to save for user ${user.nickname} (floor ${floor}, monthlyCleared=${userMonthlyTowerFloorBefore}, lifetime=${userTowerFloor})`
+        );
     }
 
     // updateUser가 UserInventory 동기화를 백그라운드로만 돌려, 직후 getUser(관계형 인벤)가 구 스냅샷을 읽으면
@@ -673,6 +686,13 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
 };
 
 export const endGame = async (game: LiveGameSession, winner: Player, winReason: WinReason): Promise<void> => {
+    const arenaPolicy = resolveArenaSessionPolicy(game as any);
+    const isTowerGame = arenaPolicy.kind === 'tower';
+    if (isTowerGame && String(game.gameCategory ?? '') !== 'tower') {
+        // ArenaKind가 tower인데 category가 유실되면 processTowerGameSummary가 스킵되어 보상이 영구 누락됨
+        (game as any).gameCategory = 'tower';
+    }
+
     const pairHumanIdsForSummary = isPairGoRewardGame(game) ? getPairGoHumanParticipantIds(game) : [];
     const summaryParticipantIds =
         pairHumanIdsForSummary.length > 0
@@ -683,14 +703,27 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     const alreadyTerminal = game.gameStatus === 'ended' || game.gameStatus === 'no_contest';
 
     if (alreadyTerminal) {
-        if (hasAllHumanSummaries && game.statsUpdated) {
-            return;
-        }
-        if (game.winner == null && winner !== Player.None) {
+        const humanId = game.player1?.id;
+        const priorSummary = humanId ? game.summary?.[humanId] : undefined;
+        const priorHadTowerRewards = isTowerGame && towerSummaryHasGrantedRewards(priorSummary);
+        let winnerCorrected = false;
+        // 탑: 패배/빈 summary로 statsUpdated만 켜진 뒤 승리 winner로 재정산 가능해야 함
+        if (isTowerGame && winner !== Player.None && winner !== game.winner) {
             game.winner = winner;
+            winnerCorrected = true;
+        } else if (game.winner == null && winner !== Player.None) {
+            // Player.None(0)은 == null 이 아니므로, 미정만 보정
+            game.winner = winner;
+            winnerCorrected = true;
         }
         if (!game.winReason) {
             game.winReason = winReason;
+        }
+        // summary 자체가 없거나, winner가 정정된 경우에만 재정산 (월간 재도전 빈 보상은 루프 금지)
+        if (isTowerGame && (!priorSummary || (winnerCorrected && !priorHadTowerRewards))) {
+            game.statsUpdated = false;
+        } else if (hasAllHumanSummaries && game.statsUpdated) {
+            return;
         }
     } else {
     const now = Date.now();
@@ -742,7 +775,7 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
     }
 
     // 도전의 탑 게임 처리는 processTowerGameSummary에서만 수행 (중복 업데이트 방지)
-    if (game.gameCategory === 'tower') {
+    if (isTowerGame) {
         await processTowerGameSummary(game);
     } else if (game.isSinglePlayer) {
         await processSinglePlayerGameSummary(game);

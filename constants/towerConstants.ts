@@ -1485,10 +1485,23 @@ function getTowerFirstClearGold(floor: number): number {
     return 2500;
 }
 
+/** 도전의 탑 월간 최초 클리어 EXP */
+function getTowerFirstClearExp(floor: number): number {
+    if (floor <= 10) return 75;
+    if (floor <= 20) return 125;
+    if (floor <= 35) return 200;
+    if (floor <= 50) return 250;
+    if (floor <= 60) return 300;
+    if (floor <= 80) return 400;
+    if (floor <= 90) return 500;
+    if (floor <= 99) return 600;
+    return 1000;
+}
+
 for (const stage of TOWER_STAGES) {
     const floor = parseInt(stage.id.replace('tower-', ''), 10);
     if (!Number.isFinite(floor)) continue;
     stage.rewards.firstClear.gold = getTowerFirstClearGold(floor);
-    stage.rewards.firstClear.exp = (stage.rewards.firstClear.exp || 0) * 2;
+    stage.rewards.firstClear.exp = getTowerFirstClearExp(floor);
 }
 

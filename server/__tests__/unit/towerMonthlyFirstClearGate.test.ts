@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { isTowerFirstClearAttemptOnFloor } from '../../../utils/towerPreGameDisplay.js';
+import {
+    isTowerFirstClearAttemptOnFloor,
+    towerSummaryHasGrantedRewards,
+} from '../../../utils/towerPreGameDisplay.js';
 
 describe('tower monthly first-clear gate', () => {
     it('grants when monthlyTowerFloor is below the floor even if lifetime towerFloor is higher', () => {
@@ -17,5 +20,30 @@ describe('tower monthly first-clear gate', () => {
     it('treats null/undefined monthly floor as 0', () => {
         expect(isTowerFirstClearAttemptOnFloor(undefined, 1)).toBe(true);
         expect(isTowerFirstClearAttemptOnFloor(null, 1)).toBe(true);
+    });
+});
+
+describe('towerSummaryHasGrantedRewards', () => {
+    it('is false for empty loss/retry summaries', () => {
+        expect(towerSummaryHasGrantedRewards(undefined)).toBe(false);
+        expect(
+            towerSummaryHasGrantedRewards({
+                gold: 0,
+                xp: { change: 0 },
+                items: [],
+            }),
+        ).toBe(false);
+    });
+
+    it('is true when any reward slot is present', () => {
+        expect(towerSummaryHasGrantedRewards({ gold: 500, xp: { change: 0 }, items: [] })).toBe(true);
+        expect(towerSummaryHasGrantedRewards({ gold: 0, xp: { change: 60 }, items: [] })).toBe(true);
+        expect(
+            towerSummaryHasGrantedRewards({
+                gold: 0,
+                xp: { change: 0 },
+                items: [{ name: '스캔', quantity: 1 } as any],
+            }),
+        ).toBe(true);
     });
 });

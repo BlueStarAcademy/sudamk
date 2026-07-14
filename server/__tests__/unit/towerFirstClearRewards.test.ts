@@ -30,12 +30,29 @@ describe('tower first-clear rewards', () => {
         }
     });
 
-    it('doubles first-clear exp', () => {
-        expect(stageForFloor(1).rewards.firstClear.exp).toBe(60);
-        expect(stageForFloor(11).rewards.firstClear.exp).toBe(100);
-        expect(stageForFloor(36).rewards.firstClear.exp).toBe(160);
-        expect(stageForFloor(66).rewards.firstClear.exp).toBe(300);
-        expect(stageForFloor(100).rewards.firstClear.exp).toBe(600);
+    it('applies first-clear exp by floor band', () => {
+        const expectations: Array<[number, number]> = [
+            [1, 75],
+            [10, 75],
+            [11, 125],
+            [20, 125],
+            [21, 200],
+            [35, 200],
+            [36, 250],
+            [50, 250],
+            [51, 300],
+            [60, 300],
+            [61, 400],
+            [80, 400],
+            [81, 500],
+            [90, 500],
+            [91, 600],
+            [99, 600],
+            [100, 1000],
+        ];
+        for (const [floor, exp] of expectations) {
+            expect(stageForFloor(floor).rewards.firstClear.exp).toBe(exp);
+        }
     });
 
     it('keeps milestone item rewards alongside gold', () => {

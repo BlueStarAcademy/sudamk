@@ -717,26 +717,80 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             if (!isTowerSession(game)) {
                 return { error: 'Not a tower game.' };
             }
-            
-            // 게임이 이미 종료되었는지 확인
-            if (game.gameStatus === 'ended') {
-                console.log('[END_TOWER_GAME] Game already ended, ignoring:', { gameId, currentWinner: game.winner, requestedWinner: winner });
-                return { clientResponse: { gameId: game.id, game } };
-            }
-            
+
             // 클라이언트에서 전달한 승자 정보를 사용 (클라이언트가 승리 조건을 정확히 체크함)
             // 단, winner가 유효한지 확인
             if (winner !== Player.Black && winner !== Player.White) {
                 console.error('[END_TOWER_GAME] Invalid winner:', { gameId, winner, winReason });
                 return { error: 'Invalid winner in payload.' };
             }
+
+            const humanId = game.player1?.id;
+            const existingSummary = humanId ? game.summary?.[humanId] : undefined;
+            const {
+                towerSummaryHasGrantedRewards,
+                isTowerFirstClearAttemptOnFloor,
+                getTowerSessionFloor,
+            } = await import('../../utils/towerPreGameDisplay.js');
+            const humanPlayerEnum: Player =
+                humanId && game.blackPlayerId === humanId
+                    ? Player.Black
+                    : humanId && game.whitePlayerId === humanId
+                      ? Player.White
+                      : Player.Black;
+            const humanIsRequestedWinner = winner === humanPlayerEnum;
+            const floor = getTowerSessionFloor(game);
+
+            // 빈 summary + 월간 최초 클리어 자격이 남아 있으면 보상 누락으로 보고 재정산
+            let missingFirstClearReward = false;
+            if (
+                humanIsRequestedWinner &&
+                !!existingSummary &&
+                !towerSummaryHasGrantedRewards(existingSummary)
+            ) {
+                const settleUser = await db.getUser(game.player1.id);
+                const monthly = Number((settleUser as any)?.monthlyTowerFloor ?? 0) || 0;
+                missingFirstClearReward = isTowerFirstClearAttemptOnFloor(monthly, floor);
+            }
+
+            const alreadySettledWithOutcome =
+                (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') &&
+                !!game.statsUpdated &&
+                !!existingSummary &&
+                !missingFirstClearReward &&
+                // 패배로 빈 summary가 먼저 쓰인 뒤 승리 winner로 재정산이 필요한 경우는 아래에서 endGame 재진입
+                (game.winner === winner || towerSummaryHasGrantedRewards(existingSummary));
+
+            // 이미 동일 승자로 정산 완료된 경우에만 short-circuit (summary 없는 ended는 보상 누락 복구)
+            if (alreadySettledWithOutcome) {
+                console.log('[END_TOWER_GAME] Game already settled, returning current state:', {
+                    gameId,
+                    currentWinner: game.winner,
+                    requestedWinner: winner,
+                });
+                const updatedUser = await db.getUser(game.player1.id, { includeEquipment: true, includeInventory: true });
+                return { clientResponse: { gameId: game.id, game, updatedUser: updatedUser ?? undefined } };
+            }
             
-            console.log('[END_TOWER_GAME] Ending tower game:', { gameId, winner: winner === Player.Black ? 'Black' : 'White', winReason, currentCaptures: game.captures });
+            console.log('[END_TOWER_GAME] Ending tower game:', {
+                gameId,
+                winner: winner === Player.Black ? 'Black' : 'White',
+                winReason,
+                priorStatus: game.gameStatus,
+                priorWinner: game.winner,
+                hadSummary: !!existingSummary,
+                statsUpdated: !!game.statsUpdated,
+                currentCaptures: game.captures,
+            });
             
             // 게임 종료 상태 업데이트 (endGame 호출 전에 설정하지 않음 - endGame 내부에서 설정됨)
             game.winner = winner;
             game.winReason = winReason;
             game.endTime = now;
+            // ended+빈/패배 summary 레이스에서 재정산이 막히지 않도록
+            if (game.statsUpdated && !towerSummaryHasGrantedRewards(existingSummary)) {
+                game.statsUpdated = false;
+            }
             
             // 서버에서 endGame 호출하여 클리어 정보 저장 및 towerFloor 업데이트
             // endGame 함수가 game.gameStatus를 'ended'로 설정하고 towerFloor를 업데이트함
