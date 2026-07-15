@@ -861,8 +861,10 @@ const applyAiCaptureOutcome = (
         );
 
         if (uniqueStonesToReveal.length > 0) {
+            // Kata 지연 후 착수 시점 기준으로 연출 시계를 잡는다(함수 초반 now는 이미 과거일 수 있음).
+            const revealNow = Date.now();
             if (game.turnDeadline) {
-                game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+                game.pausedTurnTimeLeft = (game.turnDeadline - revealNow) / 1000;
                 game.turnDeadline = undefined;
                 game.turnStartTime = undefined;
             }
@@ -872,10 +874,10 @@ const applyAiCaptureOutcome = (
             game.animation = {
                 type: 'hidden_reveal',
                 stones: uniqueStonesToReveal,
-                startTime: now,
+                startTime: revealNow,
                 duration: PVE_AI_HIDDEN_REVEAL_DURATION_MS,
             };
-            game.revealAnimationEndTime = now + PVE_AI_HIDDEN_REVEAL_DURATION_MS;
+            game.revealAnimationEndTime = revealNow + PVE_AI_HIDDEN_REVEAL_DURATION_MS;
             game.pendingCapture = {
                 stones: result.capturedStones,
                 move: { player: aiPlayerEnum, x: move.x, y: move.y },
@@ -1582,19 +1584,31 @@ const USER_HIDDEN_FULL_REVEAL_MS = 1500;
 function startUserHiddenFullRevealAnimationForAi(
     game: types.LiveGameSession,
     userPlayerEnum: Player,
-    now: number
+    _nowForDeadlinePause?: number
 ): boolean {
     if (!game.moveHistory || !game.hiddenMoves) return false;
     if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
 
-    const stones: { point: types.Point; player: Player }[] = [];
+    // Kata 질의 전에 캡처된 now를 쓰면 연출 endTime이 이미 과거가 되어 전체공개 애니가 즉시 종료된다.
+    const animNow = Date.now();
+    const deadlinePauseNow =
+        typeof _nowForDeadlinePause === 'number' && Number.isFinite(_nowForDeadlinePause)
+            ? Math.max(_nowForDeadlinePause, animNow)
+            : animNow;
+
+    const seedStones: { point: types.Point; player: Player }[] = [];
     for (let i = 0; i < game.moveHistory.length; i++) {
         if (!isCurrentUnrevealedHiddenMoveEntry(game, i, userPlayerEnum)) continue;
         const m = game.moveHistory[i]!;
         if (game.permanentlyRevealedStones.some(p => p.x === m.x && p.y === m.y)) continue;
-        stones.push({ point: { x: m.x, y: m.y }, player: userPlayerEnum });
+        seedStones.push({ point: { x: m.x, y: m.y }, player: userPlayerEnum });
     }
-    if (stones.length === 0) return false;
+    let stones = expandToAllUnrevealedHiddenStonesForPlayers(game, seedStones);
+    // expand가 비어도 시드(마스킹된 타깃)는 반드시 연출한다.
+    if (stones.length === 0) {
+        if (seedStones.length === 0) return false;
+        stones = seedStones;
+    }
 
     for (const s of stones) {
         if (!game.permanentlyRevealedStones.some(p => p.x === s.point.x && p.y === s.point.y)) {
@@ -1603,7 +1617,7 @@ function startUserHiddenFullRevealAnimationForAi(
     }
 
     if (game.turnDeadline) {
-        game.pausedTurnTimeLeft = (game.turnDeadline - now) / 1000;
+        game.pausedTurnTimeLeft = (game.turnDeadline - deadlinePauseNow) / 1000;
         game.turnDeadline = undefined;
         game.turnStartTime = undefined;
     }
@@ -1613,10 +1627,10 @@ function startUserHiddenFullRevealAnimationForAi(
     game.animation = {
         type: 'hidden_reveal',
         stones,
-        startTime: now,
+        startTime: animNow,
         duration: USER_HIDDEN_FULL_REVEAL_MS,
     };
-    game.revealAnimationEndTime = now + USER_HIDDEN_FULL_REVEAL_MS;
+    game.revealAnimationEndTime = animNow + USER_HIDDEN_FULL_REVEAL_MS;
     game.pendingCapture = null;
     (game as any).pendingAiMoveAfterUserHiddenFullReveal = true;
 

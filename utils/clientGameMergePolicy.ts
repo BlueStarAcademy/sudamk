@@ -124,6 +124,11 @@ export function shouldClearItemPhaseAnimationOnPlayingMerge(
         wasItemPhaseAnimatingStatus(existing.gameStatus) ||
         isItemPhaseTransientAnimationType(existing.animation as any);
     if (!prevWasItemPhaseAnimating) return false;
+    const incomingRev = incoming.serverRevision ?? 0;
+    const existingRev = existing.serverRevision ?? 0;
+    // PVP only: ahead playing revision wins over local animation clock.
+    // Applying this to adventure PVE skips capture full-reveal presentation.
+    if (policy.matchAxis === 'pvp' && incomingRev > existingRev) return true;
     if (isItemPhasePresentationStillActive(existing as LiveGameSession)) return false;
     const incomingAnim = (incoming as { animation?: LiveGameSession['animation'] }).animation;
     return incomingAnim === undefined || incomingAnim === null;
@@ -1005,11 +1010,16 @@ export function mergeGameUpdateByArena(
     const incomingWithLock = preserveExistingBaseSeatLockAgainstSlimDrop(incoming, existing);
     let merged = existing ? ({ ...existing, ...incomingWithLock } as LiveGameSession) : incomingWithLock;
     merged = preservePveAiHiddenPresentationOnMerge(merged, existing);
+    const incomingRev = incomingWithLock.serverRevision ?? 0;
+    const existingRev = existing?.serverRevision ?? 0;
+    const existingPolicy = existing ? resolveArenaSessionPolicy(existing as any) : null;
     if (
         existing &&
         incomingWithLock.gameStatus === 'playing' &&
         isItemPhasePresentationStillActive(existing) &&
-        (existing.animation as { type?: string } | null | undefined)?.type === 'hidden_reveal'
+        (existing.animation as { type?: string } | null | undefined)?.type === 'hidden_reveal' &&
+        // PVE always keep mid-reveal; PVP only when revision is not ahead
+        (existingPolicy?.matchAxis !== 'pvp' || incomingRev <= existingRev)
     ) {
         merged = {
             ...merged,
@@ -1019,26 +1029,69 @@ export function mergeGameUpdateByArena(
             pendingCapture: existing.pendingCapture ?? merged.pendingCapture,
         };
     }
-    // 모험: 클라 LOCAL_HIDDEN_REVEAL_COMPLETE로 정산된 뒤 늦게 도착한 hidden_reveal_animating 패킷이 되돌리지 않게
+    // Adventure: ignore late hidden_reveal_animating only after local finalize.
+    // Blindly dropping newer capture-reveal packets while still playing hides full reveal UI.
+    // AI 유저-히든 시도 전체공개는 moveHistory가 늘지 않아, endTime만 과거인 패킷을
+    // revealAlreadyDue로 버리면 연출이 영구히 안 나온다. 로컬에 이미 permanently 반영된
+    // 동일 돌 재전송만 stale로 취급한다.
     if (
         existing &&
+        existingPolicy?.kind === 'adventure' &&
         existing.gameStatus === 'playing' &&
         !existing.pendingCapture &&
-        incomingWithLock.gameStatus === 'hidden_reveal_animating' &&
-        resolveArenaSessionPolicy(existing as any).kind === 'adventure'
+        incomingWithLock.gameStatus === 'hidden_reveal_animating'
     ) {
-        merged = {
-            ...merged,
-            gameStatus: 'playing',
-            animation: null,
-            revealAnimationEndTime: undefined,
-            pendingCapture: null,
-            boardState: existing.boardState ?? merged.boardState,
-            captures: existing.captures ?? merged.captures,
-            justCaptured: existing.justCaptured ?? merged.justCaptured,
-            permanentlyRevealedStones:
-                existing.permanentlyRevealedStones ?? merged.permanentlyRevealedStones,
-        };
+        const alreadyRevealedIncomingStones = (() => {
+            const anim = incomingWithLock.animation as
+                | { type?: string; stones?: Array<{ point: { x: number; y: number } }> }
+                | null
+                | undefined;
+            if (anim?.type !== 'hidden_reveal' || !Array.isArray(anim.stones) || anim.stones.length === 0) {
+                return false;
+            }
+            const perm = existing.permanentlyRevealedStones || [];
+            return anim.stones.every((s) =>
+                perm.some((p) => p.x === s.point.x && p.y === s.point.y),
+            );
+        })();
+        const incomingIsStaleReplay =
+            incomingRev < existingRev ||
+            (incomingRev === existingRev && alreadyRevealedIncomingStones);
+        if (incomingIsStaleReplay) {
+            merged = {
+                ...merged,
+                gameStatus: 'playing',
+                animation: null,
+                revealAnimationEndTime: undefined,
+                pendingCapture: null,
+                boardState: existing.boardState ?? merged.boardState,
+                captures: existing.captures ?? merged.captures,
+                justCaptured: existing.justCaptured ?? merged.justCaptured,
+                permanentlyRevealedStones:
+                    existing.permanentlyRevealedStones ?? merged.permanentlyRevealedStones,
+            };
+        } else {
+            // Kata 지연 등으로 endTime이 이미 지난 첫 공개 패킷도 체감 연출이 남도록 시계를 맞춘다.
+            const anim = merged.animation as
+                | { type?: string; startTime?: number; duration?: number; stones?: unknown }
+                | null
+                | undefined;
+            const revealEnd = Number(merged.revealAnimationEndTime) || 0;
+            if (
+                anim?.type === 'hidden_reveal' &&
+                revealEnd > 0 &&
+                revealEnd <= Date.now()
+            ) {
+                const duration =
+                    typeof anim.duration === 'number' && anim.duration > 0 ? anim.duration : 1500;
+                const start = Date.now();
+                merged = {
+                    ...merged,
+                    animation: { ...anim, type: 'hidden_reveal', startTime: start, duration } as LiveGameSession['animation'],
+                    revealAnimationEndTime: start + duration,
+                };
+            }
+        }
     }
     merged = stripStaleJustCapturedOnMerge(merged, existing);
     merged = mergeStrategicItemInventoryMonotonic(merged, existing);

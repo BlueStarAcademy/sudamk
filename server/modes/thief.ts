@@ -320,6 +320,30 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             }
         }
     } else if (game.gameStatus === 'thief_rolling_animating') {
+        const rollAnim = game.animation;
+        if (rollAnim?.type === 'dice_roll_main') {
+            const durStuck = Math.max(0, Number(rollAnim.duration) || 1500);
+            const startStuck = Number(rollAnim.startTime) || 0;
+            const endStuck = startStuck + durStuck;
+            // 주사위와 같이: 애니 종료+여유 후에도 animating이면 강제 확정 (메인 루프 지연·payload 유실)
+            if (startStuck > 0 && now > endStuck + 2500) {
+                console.warn(`[updateThiefState] Stuck thief_rolling_animating, forcing resolve gameId=${game.id}`);
+                game.dice = rollAnim.dice;
+                game.animation = null;
+                game.gameStatus = 'thief_placing';
+                game.stonesPlacedThisTurn = [];
+                if (game.currentPlayer === types.Player.Black) {
+                    game.thiefFreestyleThiefPlacing = !game.boardState.flat().includes(types.Player.Black);
+                } else {
+                    game.thiefFreestyleThiefPlacing = undefined;
+                }
+                if (shouldEnforceTimeControl(game)) {
+                    game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
+                    game.turnStartTime = now;
+                }
+                return;
+            }
+        }
         if (game.animation && game.animation.type === 'dice_roll_main' && now > game.animation.startTime + game.animation.duration) {
             game.dice = game.animation.dice;
             game.animation = null;
@@ -333,6 +357,18 @@ export const updateThiefState = (game: types.LiveGameSession, now: number) => {
             if (shouldEnforceTimeControl(game)) {
                 game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
                 game.turnStartTime = now;
+            }
+        } else if (!game.animation || game.animation.type !== 'dice_roll_main') {
+            // 애니 payload 유실: stonesToPlace가 있으면 placing으로 복구
+            if (game.stonesToPlace != null && Number(game.stonesToPlace) !== 0) {
+                console.warn(`[updateThiefState] Orphan thief_rolling_animating without anim, forcing placing gameId=${game.id}`);
+                game.animation = null;
+                game.gameStatus = 'thief_placing';
+                game.stonesPlacedThisTurn = game.stonesPlacedThisTurn ?? [];
+                if (shouldEnforceTimeControl(game)) {
+                    game.turnDeadline = now + DICE_GO_MAIN_PLACE_TIME * 1000;
+                    game.turnStartTime = now;
+                }
             }
         }
     } else if (game.gameStatus === 'thief_placing') {

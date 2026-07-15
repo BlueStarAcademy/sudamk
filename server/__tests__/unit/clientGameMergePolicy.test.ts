@@ -159,6 +159,7 @@ describe('mergeGameUpdateByArena', () => {
             gameCategory: 'singleplayer',
             gameStatus: 'hidden_reveal_animating',
             revealAnimationEndTime: endTime,
+            serverRevision: 10,
             animation: {
                 type: 'hidden_reveal',
                 stones: [{ point: { x: 1, y: 1 }, player: Player.Black }],
@@ -171,12 +172,168 @@ describe('mergeGameUpdateByArena', () => {
             isSinglePlayer: true,
             gameCategory: 'singleplayer',
             gameStatus: 'playing',
+            serverRevision: 10,
         });
         delete (incoming as any).animation;
         const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
         expect(merged.gameStatus).toBe('hidden_reveal_animating');
         expect(merged.animation).toEqual(existing.animation);
         expect(merged.revealAnimationEndTime).toBe(endTime);
+    });
+
+    it('accepts server playing when incoming serverRevision is ahead of local hidden_reveal', () => {
+        const endTime = Date.now() + 3000;
+        const existing = minimalSession({
+            mode: GameMode.Hidden,
+            isAiGame: false,
+            gameCategory: 'normal',
+            gameStatus: 'hidden_reveal_animating',
+            revealAnimationEndTime: endTime,
+            serverRevision: 10,
+            animation: {
+                type: 'hidden_reveal',
+                stones: [{ point: { x: 1, y: 1 }, player: Player.Black }],
+                startTime: Date.now(),
+                duration: 3000,
+            } as any,
+        });
+        const incoming = minimalSession({
+            mode: GameMode.Hidden,
+            isAiGame: false,
+            gameCategory: 'normal',
+            gameStatus: 'playing',
+            serverRevision: 12,
+            currentPlayer: Player.White,
+        });
+        delete (incoming as any).animation;
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.gameStatus).toBe('playing');
+        expect(merged.currentPlayer).toBe(Player.White);
+    });
+
+    it('adventure accepts newer capture hidden_reveal while local is still playing', () => {
+        const existing = minimalSession({
+            mode: GameMode.Hidden,
+            gameCategory: 'adventure',
+            isAiGame: true,
+            gameStatus: 'playing',
+            serverRevision: 5,
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+            permanentlyRevealedStones: [],
+            pendingCapture: null,
+        });
+        const endTime = Date.now() + 2000;
+        const incoming = minimalSession({
+            mode: GameMode.Hidden,
+            gameCategory: 'adventure',
+            isAiGame: true,
+            gameStatus: 'hidden_reveal_animating',
+            serverRevision: 6,
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.Black },
+            ],
+            revealAnimationEndTime: endTime,
+            pendingCapture: {
+                stones: [{ x: 2, y: 2 }],
+                move: { x: 1, y: 1, player: Player.Black },
+                hiddenContributors: [{ x: 0, y: 0 }],
+            },
+            animation: {
+                type: 'hidden_reveal',
+                stones: [
+                    { point: { x: 0, y: 0 }, player: Player.Black },
+                    { point: { x: 1, y: 1 }, player: Player.Black },
+                ],
+                startTime: Date.now(),
+                duration: 2000,
+            } as any,
+        });
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.gameStatus).toBe('hidden_reveal_animating');
+        expect(merged.animation?.type).toBe('hidden_reveal');
+        expect((merged.animation as any).stones).toHaveLength(2);
+        expect(merged.pendingCapture).toBeTruthy();
+    });
+
+    it('adventure accepts overdue AI user-hidden full reveal and refreshes endTime', () => {
+        const existing = minimalSession({
+            mode: GameMode.Hidden,
+            gameCategory: 'adventure',
+            isAiGame: true,
+            gameStatus: 'playing',
+            serverRevision: 6,
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+            permanentlyRevealedStones: [],
+            pendingCapture: null,
+        });
+        const pastEnd = Date.now() - 500;
+        const incoming = minimalSession({
+            mode: GameMode.Hidden,
+            gameCategory: 'adventure',
+            isAiGame: true,
+            gameStatus: 'hidden_reveal_animating',
+            serverRevision: 6,
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+            permanentlyRevealedStones: [{ x: 0, y: 0 }],
+            revealAnimationEndTime: pastEnd,
+            pendingCapture: null,
+            animation: {
+                type: 'hidden_reveal',
+                stones: [{ point: { x: 0, y: 0 }, player: Player.Black }],
+                startTime: pastEnd - 1500,
+                duration: 1500,
+            } as any,
+        });
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.gameStatus).toBe('hidden_reveal_animating');
+        expect(merged.animation?.type).toBe('hidden_reveal');
+        expect(Number(merged.revealAnimationEndTime)).toBeGreaterThan(Date.now());
+    });
+
+    it('adventure ignores stale equal-revision hidden_reveal replay after local finalize', () => {
+        const endTime = Date.now() - 1000;
+        const existing = minimalSession({
+            mode: GameMode.Hidden,
+            gameCategory: 'adventure',
+            isAiGame: true,
+            gameStatus: 'playing',
+            serverRevision: 6,
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.Black },
+            ],
+            permanentlyRevealedStones: [
+                { x: 0, y: 0 },
+                { x: 1, y: 1 },
+            ],
+            pendingCapture: null,
+        });
+        const incoming = minimalSession({
+            mode: GameMode.Hidden,
+            gameCategory: 'adventure',
+            isAiGame: true,
+            gameStatus: 'hidden_reveal_animating',
+            serverRevision: 6,
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.Black },
+            ],
+            revealAnimationEndTime: endTime,
+            animation: {
+                type: 'hidden_reveal',
+                stones: [
+                    { point: { x: 0, y: 0 }, player: Player.Black },
+                    { point: { x: 1, y: 1 }, player: Player.Black },
+                ],
+                startTime: endTime - 2000,
+                duration: 2000,
+            } as any,
+        });
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.gameStatus).toBe('playing');
+        expect(merged.animation).toBeNull();
+        expect(merged.pendingCapture).toBeNull();
     });
 
     it('keeps active hidden_reveal presentation when slim playing packet omits animation (tower)', () => {

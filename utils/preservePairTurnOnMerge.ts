@@ -12,6 +12,11 @@ export function preservePairTurnIfExistingAhead(
     const mpg = merged.settings?.pairGame;
     if (!epg?.turnOrder?.length || !mpg?.turnOrder?.length) return merged;
 
+    // 서버 revision이 앞선 패킷은 권위 — 낙관적 로컬 자리/턴으로 덮지 않는다.
+    const incomingRev = merged.serverRevision ?? 0;
+    const existingRev = existing.serverRevision ?? 0;
+    if (incomingRev > existingRev) return merged;
+
     const em = existing.moveHistory?.length ?? 0;
     const mm = merged.moveHistory?.length ?? 0;
     if (em > mm) {

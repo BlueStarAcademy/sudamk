@@ -721,12 +721,12 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
             }
             if (
-                (actionTypeStr === 'START_SCANNING' ||
+                actionTypeStr === 'START_SCANNING' ||
                     actionTypeStr === 'START_HIDDEN_PLACEMENT' ||
-                    actionTypeStr === 'SCAN_BOARD') &&
-                preItemPolicy.matchAxis !== 'pvp'
+                    actionTypeStr === 'SCAN_BOARD'
             ) {
                 // HTTP 액션은 타이머 루프 없이 들어올 수 있어 scanning_animating이 남으면 playing이 아니라 400이 난다.
+                // PVP도 동일하게 hidden/missile 언스틱만 수행. clientSync는 PVE 전용.
                 const nowSync = Date.now();
                 if (preItemPolicy.kind === 'tower') {
                     const { updateTowerPlayerHiddenState } = await import('./modes/towerPlayerHidden.js');
@@ -734,32 +734,35 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 } else if (preItemPolicy.kind === 'singleplayer') {
                     const { updateSinglePlayerHiddenState } = await import('./modes/singlePlayerHidden.js');
                     await updateSinglePlayerHiddenState(game, nowSync);
-                } else if (preItemPolicy.kind === 'adventure' || preItemPolicy.kind === 'guildwar') {
+                } else {
+                    // 모험·길드전·일반 PVP·페어 등: 메인전략 히든/미사일 상태머신
                     const { updateHiddenState } = await import('./modes/hidden.js');
                     const { updateMissileState } = await import('./modes/missile.js');
                     await updateHiddenState(game, nowSync);
                     updateMissileState(game, nowSync);
                 }
-                applyPveItemActionClientSync(game, payload, { preserveServerHiddenPlacementMeta: true });
-                if (preItemPolicy.kind === 'tower' && actionTypeStr === 'SCAN_BOARD' && game.gameStatus === 'scanning') {
-                    towerScanBoardRevert = {
-                        scans_p1: game.scans_p1,
-                        scans_p2: game.scans_p2,
-                        gameStatus: String(game.gameStatus),
-                        animation: game.animation,
-                        currentPlayer: game.currentPlayer,
-                        itemUseDeadline: game.itemUseDeadline,
-                        pausedTurnTimeLeft: game.pausedTurnTimeLeft,
-                        revealedHiddenMoves: game.revealedHiddenMoves
-                            ? (JSON.parse(JSON.stringify(game.revealedHiddenMoves)) as types.LiveGameSession['revealedHiddenMoves'])
-                            : undefined,
-                        scannedAiInitialHiddenByUser: (game as { scannedAiInitialHiddenByUser?: Record<string, boolean> })
-                            .scannedAiInitialHiddenByUser
-                            ? (JSON.parse(
-                                  JSON.stringify((game as { scannedAiInitialHiddenByUser?: Record<string, boolean> }).scannedAiInitialHiddenByUser)
-                              ) as Record<string, boolean>)
-                            : undefined,
-                    };
+                if (preItemPolicy.matchAxis !== 'pvp') {
+                    applyPveItemActionClientSync(game, payload, { preserveServerHiddenPlacementMeta: true });
+                    if (preItemPolicy.kind === 'tower' && actionTypeStr === 'SCAN_BOARD' && game.gameStatus === 'scanning') {
+                        towerScanBoardRevert = {
+                            scans_p1: game.scans_p1,
+                            scans_p2: game.scans_p2,
+                            gameStatus: String(game.gameStatus),
+                            animation: game.animation,
+                            currentPlayer: game.currentPlayer,
+                            itemUseDeadline: game.itemUseDeadline,
+                            pausedTurnTimeLeft: game.pausedTurnTimeLeft,
+                            revealedHiddenMoves: game.revealedHiddenMoves
+                                ? (JSON.parse(JSON.stringify(game.revealedHiddenMoves)) as types.LiveGameSession['revealedHiddenMoves'])
+                                : undefined,
+                            scannedAiInitialHiddenByUser: (game as { scannedAiInitialHiddenByUser?: Record<string, boolean> })
+                                .scannedAiInitialHiddenByUser
+                                ? (JSON.parse(
+                                      JSON.stringify((game as { scannedAiInitialHiddenByUser?: Record<string, boolean> }).scannedAiInitialHiddenByUser)
+                                  ) as Record<string, boolean>)
+                                : undefined,
+                        };
+                    }
                 }
             }
             // 모험·길드전: 클라 sync 후 전략 핸들러로 즉시 처리 (타워와 동일 — PVE 게이트 이중 경로·빈 응답 방지)
@@ -2091,40 +2094,152 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 }
             }
 
-            // 알까기 공격: 서버 애니 duration(2500ms)과 맞춰 시뮬 완료 후 AI 턴 스케줄
-            const ALKKAGI_FLICK_DURATION_MS = 2500;
-            const isAlkkagiHumanFlick =
-                type === 'ALKKAGI_FLICK_STONE' &&
-                game.mode === GameMode.Alkkagi &&
-                arenaPolicy.matchAxis !== 'pvp' &&
-                game.gameStatus === 'alkkagi_animating' &&
-                game.animation?.type === 'alkkagi_flick';
-            if (isAlkkagiHumanFlick) {
+            // 놀이바둑 공격/굴림 애니: 메인 루프에만 맡기면 PVP에서 animating 고착 → 턴·아이템 UI 정지.
+            // duration+여유 후 전용 타이머로 확정·브로드캐스트. AI 후속 수만 PVE.
+            const schedulePlayfulPostAnimFinalize = (opts: {
+                label: string;
+                delayMs: number;
+                stillAnimating: (g: types.LiveGameSession) => boolean;
+                aiPlayingStatuses: string[];
+            }) => {
                 const gameId = game.id;
-                const { getCachedGame } = await import('./gameCache.js');
-                const { updatePlayfulGameState } = await import('./modes/playful.js');
-                const { makeAiMove, aiUserId } = await import('./aiPlayer.js');
+                const scheduleAiFollowUp = arenaPolicy.matchAxis !== 'pvp';
                 setTimeout(async () => {
                     try {
+                        const { getCachedGame } = await import('./gameCache.js');
+                        const { updatePlayfulGameState } = await import('./modes/playful.js');
                         const g = await getCachedGame(gameId);
-                        if (!g || g.gameStatus !== 'alkkagi_animating' || (g.animation?.type !== 'alkkagi_flick')) return;
-                        const now = Date.now();
-                        await updatePlayfulGameState(g, now);
+                        if (!g || !opts.stillAnimating(g)) return;
+                        await updatePlayfulGameState(g, Date.now());
                         const { broadcastToGameParticipants } = await import('./socket.js');
                         updateGameCache(g);
                         await db.saveGame(g);
                         broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: g } }, g);
+                        if (!scheduleAiFollowUp) return;
+                        const { makeAiMove, aiUserId } = await import('./aiPlayer.js');
                         const currentPlayerId = g.currentPlayer === types.Player.Black ? g.blackPlayerId : g.whitePlayerId;
-                        if ((g.gameStatus as string) === 'alkkagi_playing' && currentPlayerId === aiUserId) {
+                        if (opts.aiPlayingStatuses.includes(String(g.gameStatus)) && currentPlayerId === aiUserId) {
                             await makeAiMove(g);
                             updateGameCache(g);
                             await db.saveGame(g);
                             broadcastToGameParticipants(gameId, { type: 'GAME_UPDATE', payload: { [gameId]: g } }, g);
                         }
                     } catch (e: any) {
-                        console.error('[GameActions] Alkkagi post-flick AI move failed:', e?.message);
+                        console.error(`[GameActions] ${opts.label} post-anim finalize failed:`, e?.message);
                     }
-                }, ALKKAGI_FLICK_DURATION_MS + 500);
+                }, opts.delayMs);
+            };
+
+            const ALKKAGI_FLICK_DURATION_MS = 2500;
+            if (
+                type === 'ALKKAGI_FLICK_STONE' &&
+                game.mode === GameMode.Alkkagi &&
+                game.gameStatus === 'alkkagi_animating' &&
+                game.animation?.type === 'alkkagi_flick'
+            ) {
+                schedulePlayfulPostAnimFinalize({
+                    label: 'Alkkagi',
+                    delayMs: ALKKAGI_FLICK_DURATION_MS + 500,
+                    stillAnimating: (g) => g.gameStatus === 'alkkagi_animating' && g.animation?.type === 'alkkagi_flick',
+                    aiPlayingStatuses: ['alkkagi_playing'],
+                });
+            }
+
+            const CURLING_FLICK_DURATION_MS = 3000;
+            if (
+                type === 'CURLING_FLICK_STONE' &&
+                game.mode === GameMode.Curling &&
+                game.gameStatus === 'curling_animating' &&
+                game.animation?.type === 'curling_flick'
+            ) {
+                schedulePlayfulPostAnimFinalize({
+                    label: 'Curling',
+                    delayMs: CURLING_FLICK_DURATION_MS + 500,
+                    stillAnimating: (g) => g.gameStatus === 'curling_animating' && g.animation?.type === 'curling_flick',
+                    aiPlayingStatuses: ['curling_playing', 'curling_tiebreaker_playing'],
+                });
+            }
+
+            const PLAYFUL_DICE_ROLL_DURATION_MS = 1500;
+            if (
+                type === 'DICE_ROLL' &&
+                game.mode === GameMode.Dice &&
+                game.gameStatus === 'dice_rolling_animating' &&
+                game.animation?.type === 'dice_roll_main'
+            ) {
+                schedulePlayfulPostAnimFinalize({
+                    label: 'Dice',
+                    delayMs: PLAYFUL_DICE_ROLL_DURATION_MS + 500,
+                    stillAnimating: (g) =>
+                        g.gameStatus === 'dice_rolling_animating' && g.animation?.type === 'dice_roll_main',
+                    aiPlayingStatuses: ['dice_rolling', 'dice_placing'],
+                });
+            }
+
+            if (
+                type === 'THIEF_ROLL_DICE' &&
+                game.mode === GameMode.Thief &&
+                game.gameStatus === 'thief_rolling_animating' &&
+                game.animation?.type === 'dice_roll_main'
+            ) {
+                schedulePlayfulPostAnimFinalize({
+                    label: 'Thief',
+                    delayMs: PLAYFUL_DICE_ROLL_DURATION_MS + 500,
+                    stillAnimating: (g) =>
+                        g.gameStatus === 'thief_rolling_animating' && g.animation?.type === 'dice_roll_main',
+                    aiPlayingStatuses: ['thief_rolling', 'thief_placing'],
+                });
+            }
+
+            // 전략 아이템 애니(스캔/히든리빌/미사일): 메인 루프 지연 시 PVP가 animating에 고착되지 않게 duration 후 tick
+            const scheduleStrategicItemPhaseFinalize = (opts: {
+                label: string;
+                delayMs: number;
+                stillInPhase: (g: types.LiveGameSession) => boolean;
+            }) => {
+                const gameId = game.id;
+                setTimeout(async () => {
+                    try {
+                        const { getCachedGame } = await import('./gameCache.js');
+                        const g = await getCachedGame(gameId);
+                        if (!g || !opts.stillInPhase(g)) return;
+                        const { tickStrategicItemPhaseIfNeeded } = await import('./utils/strategicItemPhaseTick.js');
+                        const changed = await tickStrategicItemPhaseIfNeeded(g, Date.now());
+                        if (!changed) return;
+                        updateGameCache(g);
+                        await db.saveGame(g);
+                    } catch (e: any) {
+                        console.error(`[GameActions] ${opts.label} item-phase finalize failed:`, e?.message);
+                    }
+                }, opts.delayMs);
+            };
+
+            if (!(result as any)?.error) {
+                if (game.gameStatus === 'scanning_animating') {
+                    const anim = game.animation as { duration?: number } | null;
+                    const dur = Math.max(0, Number(anim?.duration) || 1500);
+                    scheduleStrategicItemPhaseFinalize({
+                        label: 'Scan',
+                        delayMs: dur + 500,
+                        stillInPhase: (g) => g.gameStatus === 'scanning_animating',
+                    });
+                } else if (game.gameStatus === 'hidden_reveal_animating') {
+                    const end = Number(game.revealAnimationEndTime) || 0;
+                    const delayMs = end > 0 ? Math.max(500, end - Date.now() + 500) : 2000;
+                    scheduleStrategicItemPhaseFinalize({
+                        label: 'HiddenReveal',
+                        delayMs,
+                        stillInPhase: (g) => g.gameStatus === 'hidden_reveal_animating',
+                    });
+                } else if (game.gameStatus === 'missile_animating') {
+                    const anim = game.animation as { duration?: number } | null;
+                    const dur = Math.max(0, Number(anim?.duration) || 2000);
+                    scheduleStrategicItemPhaseFinalize({
+                        label: 'Missile',
+                        delayMs: dur + 500,
+                        stillInPhase: (g) => g.gameStatus === 'missile_animating',
+                    });
+                }
             }
 
             if (type === 'CONFIRM_CAPTURE_REVEAL' && !(result as any)?.error) {

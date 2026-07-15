@@ -316,22 +316,11 @@ let lastTimeoutResetTime = 0;
 const MAX_CONSECUTIVE_TIMEOUTS = 10; // 연속 타임아웃 10회 초과 시 크래시 가능성
 const TIMEOUT_RESET_WINDOW_MS = 60000; // 1분 내 타임아웃이 연속 발생하면 카운트
 
-/** 게임 변경 감지용 경량 시그니처 (전체 JSON 직렬화 대체, MainLoop 경량화). 초읽기/제한시간 갱신 감지에 turnDeadline·남은시간·초읽기 횟수 포함 */
+import { computeLiveGameBroadcastSignature } from './utils/liveGameBroadcastSignature.js';
+
+/** 게임 변경 감지용 경량 시그니처 (전체 JSON 직렬화 대체, MainLoop 경량화) */
 function getGameSignature(g: types.LiveGameSession): string {
-    if (!g?.id) return '';
-    const rev = g.serverRevision ?? 0;
-    const moves = (g.moveHistory?.length) ?? 0;
-    const status = g.gameStatus ?? '';
-    const synced = g.lastSyncedAt ?? 0;
-    const turn = g.turnDeadline ?? 0;
-    const winner = g.winner ?? '';
-    const blackTime = g.blackTimeLeft ?? 0;
-    const whiteTime = g.whiteTimeLeft ?? 0;
-    const blackByo = g.blackByoyomiPeriodsLeft ?? 0;
-    const whiteByo = g.whiteByoyomiPeriodsLeft ?? 0;
-    const capB = g.captures?.[Player.Black] ?? 0;
-    const capW = g.captures?.[Player.White] ?? 0;
-    return `${g.id}\t${rev}\t${moves}\t${status}\t${synced}\t${turn}\t${winner}\t${blackTime}\t${whiteTime}\t${blackByo}\t${whiteByo}\t${capB}\t${capW}`;
+    return computeLiveGameBroadcastSignature(g);
 }
 
 // 만료된 negotiation 정리 함수

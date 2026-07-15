@@ -46,6 +46,24 @@ describe('preservePairTurnIfExistingAhead', () => {
         expect(result.currentPlayer).toBe(Player.Black);
     });
 
+    it('accepts server turn index when incoming serverRevision is ahead', () => {
+        const existing = makePairGame({ serverRevision: 5 });
+        const merged = makePairGame({
+            serverRevision: 8,
+            currentPlayer: Player.White,
+            settings: {
+                ...makePairGame().settings,
+                pairGame: {
+                    ...makePairGame().settings!.pairGame!,
+                    currentTurnIndex: 1,
+                },
+            },
+        });
+        const result = preservePairTurnIfExistingAhead(existing, merged);
+        expect(result.settings?.pairGame?.currentTurnIndex).toBe(1);
+        expect(result.currentPlayer).toBe(Player.White);
+    });
+
     it('preserves client board when server moveHistory is shorter with matching prefix', () => {
         const existing = makePairGame({
             moveHistory: [

@@ -10712,6 +10712,22 @@ export const useApp = () => {
                                 const isMissileSelectExitToPlaying =
                                     existingForThrottle?.gameStatus === 'missile_selecting' &&
                                     game.gameStatus === 'playing';
+                                // 히든 공개: moveHistory가 늘지 않는 PVP reveal-only 공격 — 쓰로틀에 걸리면 연출/턴 복귀가 고착됨
+                                const isHiddenRevealAnimEntry =
+                                    game.gameStatus === 'hidden_reveal_animating' &&
+                                    existingForThrottle?.gameStatus !== 'hidden_reveal_animating';
+                                const isHiddenRevealAnimExitToPlaying =
+                                    existingForThrottle?.gameStatus === 'hidden_reveal_animating' &&
+                                    game.gameStatus === 'playing';
+                                // 전략 PVP: 수순 길이 변화 없이 currentPlayer·gameStatus만 바뀌는 패킷
+                                const isStrategicPvpTurnOrPhaseChanged =
+                                    !!existingForThrottle &&
+                                    !PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode) &&
+                                    !PLAYFUL_GAME_MODES.some((m) => m.mode === existingForThrottle.mode) &&
+                                    (existingForThrottle.currentPlayer !== game.currentPlayer ||
+                                        existingForThrottle.gameStatus !== game.gameStatus) &&
+                                    (resolveArenaSessionPolicy(game as any).matchAxis === 'pvp' ||
+                                        resolveArenaSessionPolicy(existingForThrottle as any).matchAxis === 'pvp');
                                 // 주사위/도둑 오버샷(또는 굴림 애니 종료) 후 rolling 단계로 복귀할 때
                                 // moveHistory 변화가 없어도 currentPlayer가 바뀔 수 있으므로 반드시 반영
                                 const isDiceThiefAnimExitToRolling =
@@ -10796,6 +10812,9 @@ export const useApp = () => {
                                     !isMissileAnimatingEntry &&
                                     !isMissileAnimExitToPlaying &&
                                     !isMissileSelectExitToPlaying &&
+                                    !isHiddenRevealAnimEntry &&
+                                    !isHiddenRevealAnimExitToPlaying &&
+                                    !isStrategicPvpTurnOrPhaseChanged &&
                                     !disconnectStateChanged &&
                                     !isAiHiddenItemPresentationUpdate &&
                                     !incomingHasSubstantiveBoard &&

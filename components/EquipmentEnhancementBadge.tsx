@@ -2,6 +2,7 @@ import React from 'react';
 import {
     ENHANCE_MARKER_IMAGES,
     ENHANCE_MARKER_NUMBER_CLASS,
+    ENHANCE_MARKER_NUMBER_CQMIN,
     ENHANCE_MARKER_SIZE_PCT,
     getEnhanceMarkerTier,
 } from '../shared/constants/equipmentEnhanceMarker.js';
@@ -17,9 +18,20 @@ interface EquipmentEnhancementBadgeProps {
     emphasize?: boolean;
 }
 
+const NUMBER_STROKE: Record<1 | 2 | 3 | 4, string> = {
+    /** 은백 별 위 남색 — 밝은 테두리 */
+    1: '0 0 1px rgba(255,255,255,0.95), 0 1px 0 rgba(255,255,255,0.9), 1px 0 0 rgba(255,255,255,0.85), -1px 0 0 rgba(255,255,255,0.85), 0 -1px 0 rgba(255,255,255,0.85), 0 1px 2px rgba(0,0,0,0.45)',
+    /** 금색 별 위 인디고 — 밝은 하늘 테두리 */
+    2: '0 0 1px rgba(224,242,254,0.95), 0 1px 0 rgba(186,230,253,0.9), 1px 0 0 rgba(186,230,253,0.85), -1px 0 0 rgba(186,230,253,0.85), 0 -1px 0 rgba(186,230,253,0.85), 0 1px 2px rgba(0,0,0,0.4)',
+    /** 보라 별 위 노랑 — 어두운 테두리 */
+    3: '0 0 1px rgba(0,0,0,0.95), 0 1px 0 rgba(0,0,0,0.9), 1px 0 0 rgba(0,0,0,0.85), -1px 0 0 rgba(0,0,0,0.85), 0 -1px 0 rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.55)',
+    /** 프리즘 — 검정 외곽으로 전 구간 가독성 */
+    4: '0 0 2px rgba(0,0,0,1), 0 1px 0 rgba(0,0,0,1), 1px 0 0 rgba(0,0,0,1), -1px 0 0 rgba(0,0,0,1), 0 -1px 0 rgba(0,0,0,1), 1px 1px 0 rgba(0,0,0,0.95), -1px -1px 0 rgba(0,0,0,0.95), 0 0 4px rgba(255,0,255,0.45)',
+};
+
 /**
  * 장비 슬롯 우측 상단 강화 마커.
- * 코너 정사각 별 + 중앙 숫자. 장착 마커와 같이 슬롯 %로 스케일 (장비 아이콘을 거의 가리지 않음).
+ * 코너 정사각 별 + 중앙(광학) 숫자. 장착 마커와 같이 슬롯 %로 스케일.
  */
 const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
     stars,
@@ -32,17 +44,18 @@ const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
     const tier = getEnhanceMarkerTier(n);
     if (!tier) return null;
 
-    const pct = Math.max(16, Math.min(28, sizePct));
+    const pct = Math.max(18, Math.min(30, sizePct));
     const isPrism = tier === 4;
     const isDoubleDigit = n >= 10;
+    const cqmin = isDoubleDigit ? ENHANCE_MARKER_NUMBER_CQMIN.double : ENHANCE_MARKER_NUMBER_CQMIN.single;
 
     return (
         <div
-            className={`${inline ? 'relative' : 'absolute right-[2%] top-[2%] z-10'} pointer-events-none aspect-square overflow-visible ${
+            className={`${inline ? 'relative' : 'absolute right-[1.5%] top-[1.5%] z-10'} pointer-events-none aspect-square overflow-hidden ${
                 emphasize ? 'animate-pulse' : ''
             } ${className}`.trim()}
             style={{
-                ...(inline ? { width: 18, height: 'auto' } : { width: `${pct}%`, height: 'auto' }),
+                ...(inline ? { width: 20, height: 'auto' } : { width: `${pct}%`, height: 'auto' }),
                 containerType: 'size',
             }}
             aria-label={`+${n}`}
@@ -66,16 +79,14 @@ const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
                 decoding="async"
             />
             <span
-                className={`absolute inset-0 flex items-center justify-center font-black leading-none tabular-nums ${ENHANCE_MARKER_NUMBER_CLASS[tier]} ${
-                    emphasize ? 'scale-110' : ''
-                }`}
+                className={`absolute inset-0 flex items-center justify-center font-black leading-none tabular-nums ${ENHANCE_MARKER_NUMBER_CLASS[tier]}`}
                 style={{
-                    fontSize: isDoubleDigit ? '42cqmin' : '48cqmin',
-                    letterSpacing: isDoubleDigit ? '-0.06em' : '0',
-                    paddingInline: isDoubleDigit ? '6%' : '0',
-                    textShadow: isPrism
-                        ? '0 0 3px rgba(0,0,0,1), 0 1px 2px rgba(0,0,0,1), 1px 1px 0 rgba(0,0,0,0.95), -1px -1px 0 rgba(0,0,0,0.85)'
-                        : '0 0 2px rgba(0,0,0,1), 0 1px 1px rgba(0,0,0,0.95), 1px 1px 2px rgba(0,0,0,0.9)',
+                    fontSize: `${cqmin}cqmin`,
+                    letterSpacing: isDoubleDigit ? '-0.08em' : '0',
+                    // 오각별 광학 중심에 맞춤(기하 중심보다 살짝 아래) + 별 안쪽만 점유
+                    transform: emphasize ? 'translateY(7%) scale(1.08)' : 'translateY(7%)',
+                    textShadow: NUMBER_STROKE[tier],
+                    WebkitTextStroke: tier === 3 || tier === 4 ? '0.35px rgba(0,0,0,0.65)' : '0.35px rgba(255,255,255,0.35)',
                 }}
             >
                 {n}

@@ -413,13 +413,26 @@ function adventureRevealAllHumanHiddensIfInvolved(
     if (!uniqueStonesToReveal.some(s => s.player === humanEnum)) return;
     if (!game.moveHistory || !game.hiddenMoves) return;
     if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
+    const pushRevealStone = (x: number, y: number) => {
+        if (game.boardState?.[y]?.[x] !== humanEnum) return;
+        if (!game.permanentlyRevealedStones!.some(p => p.x === x && p.y === y)) {
+            game.permanentlyRevealedStones!.push({ x, y });
+        }
+        // 전체공개 연출 목록에도 반드시 넣어 애니메이션에 모두 보이게 한다.
+        if (!uniqueStonesToReveal.some(s => s.point.x === x && s.point.y === y)) {
+            uniqueStonesToReveal.push({ point: { x, y }, player: humanEnum });
+        }
+    };
     for (let i = 0; i < game.moveHistory.length; i++) {
         if (!game.hiddenMoves[i]) continue;
         const m = game.moveHistory[i];
         if (!m || m.player !== humanEnum || m.x < 0 || m.y < 0) continue;
-        if (!game.permanentlyRevealedStones.some(p => p.x === m.x && p.y === m.y)) {
-            game.permanentlyRevealedStones.push({ x: m.x, y: m.y });
-        }
+        pushRevealStone(m.x, m.y);
+    }
+    const humanPoints = ((game as any).humanHiddenStonePoints ?? []) as Array<types.Point & { player?: types.Player }>;
+    for (const point of humanPoints) {
+        if (point.player !== undefined && point.player !== humanEnum) continue;
+        pushRevealStone(point.x, point.y);
     }
 }
 
