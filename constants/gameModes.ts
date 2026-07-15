@@ -1,7 +1,6 @@
 export {
     BASE_GO_MODE_DESCRIPTION,
     CASTLE_GO_MODE_DESCRIPTION,
-    COMING_SOON_GAME_MODE_DESCRIPTION,
     filterPlayableLobbyGameModes,
     HIDDEN_GO_MODE_DESCRIPTION,
     isPlayableLobbyGameMode,

@@ -302,6 +302,10 @@ const AppContent: React.FC = () => {
      * 인증·대국·행동-only 화면은 제외.
      */
     const profileTab = ((currentRoute.params?.tab as string | undefined) ?? 'home');
+    /**
+     * pvp/ai/tower 로비는 매칭 대기·입장 카드 위주라 실질 콘텐츠가 없어 whitelist에서 제외.
+     * 실질 콘텐츠(가이드/미션/스토리 등)를 제공하는 뷰만 남긴다.
+     */
     const isContentView = Boolean(
         (currentRoute.view === 'profile' &&
             ['home', 'arena'].includes(profileTab) &&
@@ -309,16 +313,20 @@ const AppContent: React.FC = () => {
         currentRoute.view === 'help' ||
         (currentUser && (
             currentRoute.view === 'singleplayer' ||
-            currentRoute.view === 'tower' ||
-            currentRoute.view === 'pvp' ||
-            currentRoute.view === 'ai' ||
             currentRoute.view === 'adventure' ||
             currentRoute.view === 'guild' ||
             currentRoute.view === 'guildboss' ||
             currentRoute.view === 'tournament'
         ))
     );
+    /**
+     * AdSense 승인 심사 기간에는 앱 광고를 전면 OFF (게임 앱은 콘텐츠 사이트가 아님).
+     * `.env`에 `VITE_ADSENSE_APPROVAL_MODE=true` 설정 시 활성. 승인 후 false 또는 미설정으로 되돌리면 광고 자동 복구.
+     */
+    const isAdSenseApprovalMode =
+        (import.meta.env.VITE_ADSENSE_APPROVAL_MODE as string | undefined) === 'true';
     const showLobbySideAds = Boolean(
+        !isAdSenseApprovalMode &&
         isContentView && !isGameView && !isNativeMobile && !currentUserWithStatus?.removeAdsPurchased,
     );
     const isChampionshipDungeonVenueType =
@@ -503,7 +511,7 @@ const AppContent: React.FC = () => {
                                     {!isGameView && !hideAppHeader && (
                                         <>
                                             <NativeMobileDock />
-                                            {isContentView && !currentUserWithStatus?.removeAdsPurchased && (
+                                            {!isAdSenseApprovalMode && isContentView && !currentUserWithStatus?.removeAdsPurchased && (
                                                 <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
                                                     <AdBanner position="bottom" className="py-1" />
                                                 </div>

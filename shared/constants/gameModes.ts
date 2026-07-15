@@ -29,9 +29,6 @@ export const CASTLE_GO_MODE_DESCRIPTION =
 export const CHESS_GO_MODE_DESCRIPTION =
     '체스 기물과 바둑을 결합한 전략 바둑입니다. 기물 이동(선택) 후 바둑돌을 놓아 턴을 마칩니다.';
 
-/** 아직 출시 전인 모드 로비 설명 */
-export const COMING_SOON_GAME_MODE_DESCRIPTION = '추가 업데이트 준비중';
-
 export type LobbyGameModeDefinition = {
     mode: GameMode;
     name: string;

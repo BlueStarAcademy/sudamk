@@ -94,13 +94,20 @@ export const INTERSTITIAL_LIMITS = {
   maxPerSession: 5,
 } as const;
 
-/** 배너 숨김 대상 게임 상태 */
+/**
+ * 배너 숨김 대상 게임 상태.
+ * AdSense 정책(가치 없는 페이지에 광고 금지)에 맞춰 대국 라이프사이클 전 구간을 커버한다.
+ * — 대기/협상/대국/스코어링/결과 화면 모두 콘텐츠보다 인터랙션 중심이므로 배너 비노출.
+ */
 export const BANNER_HIDDEN_GAME_STATUSES = [
+  'waiting',
+  'negotiating',
   'playing',
   'scoring',
   'base_placement',
   'hidden_placing',
   'scanning',
+  'finished',
 ] as const;
 
 /** 인게임·사이드바 배너를 숨겨야 하는 대국 상태인지 */
