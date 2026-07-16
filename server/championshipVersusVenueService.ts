@@ -228,6 +228,19 @@ export async function applyChampionshipVersusConditionPotion(
         applyConditionPotionPatchInPlace,
         CONDITION_POTION_USE_BROADCAST_FIELDS,
     } = await import('../shared/conditionPotion/apply.js');
+    const { findConditionPotionInInventory } = await import('../shared/utils/conditionPotionInventory.js');
+
+    // 호출부가 이미 재수화했을 수 있으나, 단독 호출·캐시 경량 조회 대비로 한 번 더 보장한다.
+    const invMissingPotion =
+        !Array.isArray(user.inventory) ||
+        user.inventory.length === 0 ||
+        findConditionPotionInInventory(user.inventory, potionType) === -1;
+    if (invMissingPotion) {
+        const freshInvUser = await db.getUser(user.id, { includeEquipment: true, includeInventory: true });
+        if (freshInvUser?.inventory) {
+            user.inventory = freshInvUser.inventory;
+        }
+    }
 
     resolveChampionshipVersusConditionForDay(user, venue, now);
     const recovery = rollConditionPotionRecovery(potionType);

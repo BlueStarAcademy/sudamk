@@ -1295,8 +1295,55 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     
     // 게임 상태를 sessionStorage에서 복원 (종료 후에도 결과 모달 동안 종료된 화면 유지를 위해 ended/scoring에서도 복원 허용)
     const restoredBoardState = useMemo(() => {
-        // 체스 바둑 수순 0: sessionStorage의 측면 폰 boardState를 쓰지 않고 표준 초기 판만 사용
+        // 체스 바둑: rejoin 슬림 패킷이 바둑 수순을 빠뜨리면 sessionStorage에서 복원 후 normalize
         if (usesChessGo) {
+            try {
+                const storedState = sessionStorage.getItem(GAME_STATE_STORAGE_KEY);
+                if (storedState) {
+                    const parsed = JSON.parse(storedState);
+                    if (parsed.gameId === gameId) {
+                        const serverMoveCount = session.moveHistory?.length ?? 0;
+                        const storedMoveCount = Array.isArray(parsed.moveHistory) ? parsed.moveHistory.length : 0;
+                        const storedGoPlaced = (parsed.moveHistory ?? []).filter(
+                            (m: { x?: number; y?: number }) =>
+                                m && typeof m.x === 'number' && typeof m.y === 'number' && m.x >= 0 && m.y >= 0,
+                        ).length;
+                        if (
+                            storedGoPlaced > 0 &&
+                            (storedMoveCount > serverMoveCount ||
+                                !session.boardState?.some((row: Player[]) =>
+                                    row?.some((c) => c !== Player.None),
+                                ))
+                        ) {
+                            const reconciled = normalizeChessGoSession({
+                                ...session,
+                                moveHistory:
+                                    storedMoveCount > serverMoveCount
+                                        ? parsed.moveHistory
+                                        : session.moveHistory,
+                                chessPieces:
+                                    Array.isArray(parsed.chessPieces) && parsed.chessPieces.length > 0
+                                        ? parsed.chessPieces
+                                        : session.chessPieces,
+                                chessGoRemovedPoints:
+                                    parsed.chessGoRemovedPoints ?? session.chessGoRemovedPoints,
+                                chessPieceMovedThisTurn:
+                                    parsed.chessPieceMovedThisTurn ?? session.chessPieceMovedThisTurn,
+                                chessCaptureScore: parsed.chessCaptureScore ?? session.chessCaptureScore,
+                                currentPlayer:
+                                    storedMoveCount > serverMoveCount
+                                        ? (parsed.currentPlayer ?? session.currentPlayer)
+                                        : session.currentPlayer,
+                            } as LiveGameSession);
+                            if (reconciled.boardState?.length) {
+                                return reconciled.boardState;
+                            }
+                        }
+                    }
+                }
+            } catch {
+                // ignore
+            }
             const reconciled = normalizeChessGoSession(session);
             if (reconciled.boardState?.length) {
                 return reconciled.boardState;
@@ -2286,11 +2333,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             if (!(isSinglePlayer || isTower || isAdventureGame) || !isMyTurn || myPlayerEnum === Player.None) return false;
             if (!isUnrevealedOpponentHiddenStoneAt(boardStateToUse, session, x, y, myPlayerEnum)) return false;
             const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
+            // 모험은 서버 권위: 로컬만 공개하면 다음 GAME_UPDATE에 permanently가 롤백된다.
+            if (isAdventureGame) {
+                handlers.handleAction({
+                    type: 'REVEAL_OPPONENT_HIDDEN',
+                    payload: { gameId: session.id, x, y },
+                } as ServerAction);
+                return true;
+            }
             handlers.handleAction({
                 type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
                 payload: {
                     gameId: session.id,
-                    gameType: isTower ? 'tower' : isAdventureGame ? 'adventure' : 'singleplayer',
+                    gameType: isTower ? 'tower' : 'singleplayer',
                     point: { x, y },
                     player: opponentPlayerEnum,
                     keepTurn: true,

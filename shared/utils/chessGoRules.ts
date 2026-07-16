@@ -365,9 +365,9 @@ export function hasChessPiecesMovedFromStandardOpening(pieces: ChessPieceState[]
 
 /** 본게임 중 chessPieces·기물 이동을 초기 배치로 되돌리면 안 되는 상태 */
 export function shouldPreserveChessGoMidgameState(
-    session: Pick<LiveGameSession, 'mode' | 'chessPieces' | 'chessPieceMovedThisTurn'>,
+    session: Pick<LiveGameSession, 'mode' | 'settings' | 'chessPieces' | 'chessPieceMovedThisTurn'>,
 ): boolean {
-    if (session.mode !== GameMode.Chess) return false;
+    if (!sessionUsesChessGo(session)) return false;
     if (session.chessPieceMovedThisTurn === true) return true;
     return hasChessPiecesMovedFromStandardOpening(session.chessPieces);
 }
@@ -521,7 +521,7 @@ export function applyNormalizedChessGoInPlace(
         | 'chessPieceMovedThisTurn'
     >,
 ): void {
-    if (!isChessMode(game.mode)) return;
+    if (!sessionUsesChessGo(game as LiveGameSession)) return;
     const normalized = normalizeChessGoSession(game as LiveGameSession);
     game.chessPieces = normalized.chessPieces;
     game.boardState = normalized.boardState;
@@ -534,7 +534,7 @@ export function applyNormalizedChessGoInPlace(
 export function syncChessGoBoardFromPiecesAndMoves(
     session: Pick<LiveGameSession, 'mode' | 'settings' | 'moveHistory' | 'boardState' | 'chessPieces'>,
 ): void {
-    if (session.mode !== GameMode.Chess || !session.chessPieces?.length) return;
+    if (!sessionUsesChessGo(session) || !session.chessPieces?.length) return;
     applyChessGoBoardSizeSetting(session);
     session.boardState = rebuildChessGoBoardFromSession(session);
 }
@@ -546,7 +546,7 @@ export function ensureChessGoOpeningLayout(
         'mode' | 'settings' | 'moveHistory' | 'boardState' | 'chessPieces' | 'chessCaptureScore' | 'chessPieceMovedThisTurn'
     >,
 ): boolean {
-    if (session.mode !== GameMode.Chess) return false;
+    if (!sessionUsesChessGo(session)) return false;
     if (countChessGoPlacedMoves(session) > 0) return false;
     if (hasChessPiecesMovedFromStandardOpening(session.chessPieces)) return false;
     const beforePieces = JSON.stringify(session.chessPieces ?? []);
@@ -663,7 +663,7 @@ export function repairChessOpeningWhilePreservingGoStones(
         'mode' | 'settings' | 'moveHistory' | 'boardState' | 'chessPieces' | 'chessCaptureScore' | 'chessPieceMovedThisTurn'
     >,
 ): boolean {
-    if (session.mode !== GameMode.Chess) return false;
+    if (!sessionUsesChessGo(session)) return false;
     if (shouldPreserveChessGoMidgameState(session)) return false;
     const before = JSON.stringify(session.chessPieces ?? []);
     const normalized = normalizeChessGoSession(session as LiveGameSession);

@@ -186,7 +186,18 @@ import { normalizeInventoryAfterLoad } from '../utils/inventoryUtils.js';
 import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeInventorySync.js';
 import { stripReappearedRemovedInventoryItems } from '../shared/utils/inventoryStaleGuard.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
-import { applyChessCaptureScoreForRemovedStones, applyChessMoveToSession, commitChessGoPlacementCaptures, getChessGoStoneCapturePointValue, normalizeChessGoSession, resolveChessCapturesByLiberty, validateChessMove } from '../shared/utils/chessGoRules.js';
+import { applyChessCaptureScoreForRemovedStones, applyChessMoveToSession, commitChessGoPlacementCaptures, getChessGoStoneCapturePointValue, normalizeChessGoSession, resolveChessCapturesByLiberty, sessionUsesChessGo, validateChessMove } from '../shared/utils/chessGoRules.js';
+import {
+    draftToChessPieceStates,
+    generateRandomChessSetupDraftForRemainingBudget,
+    getChessSetupBudgetFromSettings,
+    validateChessPlacementDraft,
+} from '../shared/utils/chessGoPlacement.js';
+import {
+    resolvePairChessSetupDraftKey,
+    resolvePairChessSetupPlayerColor,
+    resolvePairChessSideDraftKeys,
+} from '../shared/utils/pairChessSetup.js';
 import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
 import {
     coerceAdventureLiveGameScoringTurnLimit,
@@ -1208,7 +1219,7 @@ function overlayChessPlayingFieldsFromExisting(
     merged: LiveGameSession,
     existing: LiveGameSession,
 ): LiveGameSession {
-    if (merged.mode !== GameMode.Chess) return merged;
+    if (!sessionUsesChessGo(merged)) return merged;
     const mergedHasPieces = (merged.chessPieces?.length ?? 0) > 0;
     return {
         ...merged,
@@ -1227,7 +1238,7 @@ function applyStrategicPlayingBoardAndMoveHistoryResolve(
     clientSnapshot: LiveGameSession | undefined,
 ): LiveGameSession {
     if (merged.gameStatus !== 'playing') return merged;
-    if (merged.mode === GameMode.Chess) {
+    if (sessionUsesChessGo(merged)) {
         const policy = resolveArenaSessionPolicy(merged as any);
         if (policy.matchAxis === 'pve') {
             return resolveChessPvePlayingSession(merged, clientSnapshot);
@@ -1714,14 +1725,21 @@ function sanitizeSessionBoardOverlayMarkers(merged: LiveGameSession): LiveGameSe
         Array.isArray(board) &&
         board.length > 0
     ) {
+        const humanHiddenPts = ((merged as any).humanHiddenStonePoints ?? []) as Array<{
+            x: number;
+            y: number;
+        }>;
+        const aiHiddenPts = ((merged as any).aiHiddenStonePoints ?? []) as Array<{ x: number; y: number }>;
         const f = merged.permanentlyRevealedStones.filter((p) => {
             const row = board[p.y];
             const cell = row?.[p.x];
             if (!cell) return false;
+            if (aiH && aiH.x === p.x && aiH.y === p.y) return true;
+            if (humanHiddenPts.some((hp) => hp.x === p.x && hp.y === p.y)) return true;
+            if (aiHiddenPts.some((hp) => hp.x === p.x && hp.y === p.y)) return true;
             const idx = lastMoveHistoryIndexAt(hist, p.x, p.y);
             if (idx < 0) return false;
             if (hm?.[idx]) return true;
-            if (aiH && aiH.x === p.x && aiH.y === p.y) return true;
             return false;
         });
         if (f.length !== merged.permanentlyRevealedStones.length) {
@@ -1836,7 +1854,7 @@ function hasHydratedBoardGridForRejoin(game: LiveGameSession | undefined): boole
  */
 function shouldSkipRejoinBecauseBoardHydrated(game: LiveGameSession | undefined): boolean {
     if (!hasHydratedBoardGridForRejoin(game)) return false;
-    if (game?.mode === GameMode.Chess) return false;
+    if (game && sessionUsesChessGo(game)) return false;
     return true;
 }
 
@@ -1879,12 +1897,12 @@ function mergePveRejoinResponseWithExistingBoard(
     incoming: LiveGameSession,
 ): LiveGameSession {
     if (!existing) {
-        if (incoming.mode === GameMode.Chess) {
+        if (sessionUsesChessGo(incoming)) {
             return normalizeChessGoSession(incoming);
         }
         return incoming;
     }
-    if (incoming.mode === GameMode.Chess && incoming.gameStatus === 'playing') {
+    if (sessionUsesChessGo(incoming) && incoming.gameStatus === 'playing') {
         return mergeLiveRejoinResponseWithExistingBoard(existing, incoming);
     }
     const isPve = isSessionPveArena(incoming);
@@ -3979,7 +3997,7 @@ export const useApp = () => {
                 Number.isFinite(toY)
             ) {
                 const chessMoveMutate = (game: LiveGameSession): LiveGameSession | null => {
-                    if (game.mode !== GameMode.Chess || game.gameStatus !== 'playing') return null;
+                    if (!sessionUsesChessGo(game) || game.gameStatus !== 'playing') return null;
                     let myPlayer: Player | null = null;
                     if (isPairClassicGame(game.settings, game.mode)) {
                         const seat = getCurrentPairTurnSeat(game.settings);
@@ -4015,6 +4033,130 @@ export const useApp = () => {
                     return normalized;
                 };
                 setLiveGames((c) => patchLiveGameInMapById(c, gameId, chessMoveMutate));
+            }
+        }
+
+        // PVP 체스 기물 배치: draft/ready를 HTTP·WS 왕복 전에 즉시 반영
+        {
+            const chessSetupType = (action as any).type as string;
+            const chessSetupActions = new Set([
+                'PLACE_CHESS_SETUP_PIECE',
+                'REMOVE_CHESS_SETUP_PIECE',
+                'RESET_CHESS_SETUP_PLACEMENT',
+                'FILL_CHESS_SETUP_RANDOMLY',
+                'CONFIRM_CHESS_SETUP_PLACEMENT',
+            ]);
+            if (chessSetupActions.has(chessSetupType)) {
+                const payload = (action as any).payload as {
+                    gameId?: string;
+                    pieceType?: string;
+                    x?: number;
+                    y?: number;
+                } | undefined;
+                const gameId = payload?.gameId;
+                const uid = currentUserRef.current?.id;
+                if (gameId && uid != null) {
+                    const chessSetupMutate = (game: LiveGameSession): LiveGameSession | null => {
+                        if (!sessionUsesChessGo(game) || game.gameStatus !== 'chess_piece_placement') {
+                            return null;
+                        }
+                        const draftKey = isPairClassicGame(game.settings, game.mode)
+                            ? resolvePairChessSetupDraftKey(game, uid)
+                            : uid === game.blackPlayerId || uid === game.whitePlayerId
+                              ? uid
+                              : null;
+                        if (!draftKey) return null;
+                        if (game.chessPiecePlacementReady?.[draftKey] && chessSetupType !== 'CONFIRM_CHESS_SETUP_PLACEMENT') {
+                            return null;
+                        }
+                        const boardSize = game.settings.boardSize ?? 13;
+                        const budget = getChessSetupBudgetFromSettings(
+                            boardSize,
+                            game.settings.chessPieceTotalScore,
+                            Boolean((game as { isRanked?: boolean }).isRanked),
+                        );
+                        const playerColor = isPairClassicGame(game.settings, game.mode)
+                            ? resolvePairChessSetupPlayerColor(game, uid)
+                            : uid === game.blackPlayerId
+                              ? Player.Black
+                              : uid === game.whitePlayerId
+                                ? Player.White
+                                : null;
+                        if (playerColor == null) return null;
+
+                        let nextDraft = [...(game.chessPiecePlacementDraft?.[draftKey] ?? [])];
+                        let nextReady = { ...(game.chessPiecePlacementReady ?? {}) };
+
+                        if (chessSetupType === 'PLACE_CHESS_SETUP_PIECE') {
+                            const pieceType = String(payload?.pieceType ?? '');
+                            const x = Number(payload?.x);
+                            const y = Number(payload?.y);
+                            if (!pieceType || pieceType === 'king' || !Number.isFinite(x) || !Number.isFinite(y)) {
+                                return null;
+                            }
+                            nextDraft.push({ type: pieceType as any, x, y });
+                            if (!validateChessPlacementDraft(nextDraft, playerColor, boardSize, budget).ok) {
+                                return null;
+                            }
+                        } else if (chessSetupType === 'REMOVE_CHESS_SETUP_PIECE') {
+                            const x = Number(payload?.x);
+                            const y = Number(payload?.y);
+                            if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+                            nextDraft = nextDraft.filter((p) => !(p.x === x && p.y === y));
+                        } else if (chessSetupType === 'RESET_CHESS_SETUP_PLACEMENT') {
+                            nextDraft = [];
+                            nextReady[draftKey] = false;
+                        } else if (chessSetupType === 'FILL_CHESS_SETUP_RANDOMLY') {
+                            nextDraft = generateRandomChessSetupDraftForRemainingBudget(
+                                nextDraft,
+                                budget,
+                                boardSize,
+                                playerColor,
+                            );
+                        } else if (chessSetupType === 'CONFIRM_CHESS_SETUP_PLACEMENT') {
+                            if (!validateChessPlacementDraft(nextDraft, playerColor, boardSize, budget).ok) {
+                                return null;
+                            }
+                            nextReady[draftKey] = true;
+                        }
+
+                        const nextDraftMap = {
+                            ...(game.chessPiecePlacementDraft ?? {}),
+                            [draftKey]: nextDraft,
+                        };
+                        const sideKeys =
+                            resolvePairChessSideDraftKeys(game) ??
+                            (game.blackPlayerId && game.whitePlayerId
+                                ? { blackKey: game.blackPlayerId, whiteKey: game.whitePlayerId }
+                                : null);
+                        const board = Array.from({ length: boardSize }, () =>
+                            Array(boardSize).fill(Player.None),
+                        ) as LiveGameSession['boardState'];
+                        const pieces = [
+                            ...draftToChessPieceStates(
+                                nextDraftMap[sideKeys?.blackKey ?? ''] ?? [],
+                                Player.Black,
+                                boardSize,
+                            ),
+                            ...draftToChessPieceStates(
+                                nextDraftMap[sideKeys?.whiteKey ?? ''] ?? [],
+                                Player.White,
+                                boardSize,
+                            ),
+                        ];
+                        for (const piece of pieces) {
+                            board[piece.y]![piece.x] = piece.owner;
+                        }
+                        return {
+                            ...game,
+                            chessPiecePlacementDraft: nextDraftMap,
+                            chessPiecePlacementReady: nextReady,
+                            chessPieces: pieces,
+                            boardState: board,
+                        };
+                    };
+                    setLiveGames((c) => patchLiveGameInMapById(c, gameId, chessSetupMutate));
+                }
             }
         }
 
@@ -4602,9 +4744,10 @@ export const useApp = () => {
                 const game = currentGames[gameId];
                 if (!game || game.gameStatus === 'ended' || game.gameStatus === 'no_contest' || game.gameStatus === 'scoring') return currentGames;
 
+                const usesChessGo = sessionUsesChessGo(game);
                 if (!game.isAiGame && !isSessionSingleOrTower(game)) {
                     pvpPlaceStoneRevertRef.current[gameId] = JSON.parse(JSON.stringify(game)) as LiveGameSession;
-                } else if (game.mode === GameMode.Chess) {
+                } else if (usesChessGo) {
                     pvpPlaceStoneRevertRef.current[gameId] = JSON.parse(JSON.stringify(game)) as LiveGameSession;
                 }
 
@@ -4615,7 +4758,7 @@ export const useApp = () => {
                     movePlayer === Player.Black ? Player.White : Player.Black;
 
                 if (
-                    game.mode !== GameMode.Chess &&
+                    !usesChessGo &&
                     game.mode !== GameMode.Castle &&
                     capturedStones.length > 0
                 ) {
@@ -4644,7 +4787,7 @@ export const useApp = () => {
                 }
 
                 const weighted =
-                    game.mode === GameMode.Chess && capturedStones.length > 0
+                    usesChessGo && capturedStones.length > 0
                         ? (() => {
                               let totalPoints = 0;
                               const entries = capturedStones.map((stone) => {
@@ -4679,7 +4822,7 @@ export const useApp = () => {
                     itemUseDeadline: undefined,
                     pausedTurnTimeLeft: undefined,
                 };
-                if (game.mode === GameMode.Chess) {
+                if (usesChessGo) {
                     updatedGame.chessPieceMovedThisTurn = false;
                     commitChessGoPlacementCaptures(updatedGame, x, y, capturedStones);
                     if (capturedStones.length > 0) {
@@ -4736,8 +4879,9 @@ export const useApp = () => {
                 };
                 const moveHistory = [...(game.moveHistory || []), moveEntry];
 
+                const usesChessGo = sessionUsesChessGo(game);
                 if (
-                    game.mode !== GameMode.Chess &&
+                    !usesChessGo &&
                     game.mode !== GameMode.Castle &&
                     capturedStones.length > 0
                 ) {
@@ -4768,7 +4912,7 @@ export const useApp = () => {
                 const opponentPlayer =
                     movePlayer === Player.Black ? Player.White : Player.Black;
                 const weighted =
-                    game.mode === GameMode.Chess && capturedStones.length > 0
+                    usesChessGo && capturedStones.length > 0
                         ? (() => {
                               let totalPoints = 0;
                               const entries = capturedStones.map((stone: { x: number; y: number }) => {
@@ -4820,7 +4964,7 @@ export const useApp = () => {
                     itemUseDeadline: undefined,
                     pausedTurnTimeLeft: undefined,
                 };
-                if (game.mode === GameMode.Chess) {
+                if (usesChessGo) {
                     updatedGame.chessPieceMovedThisTurn = false;
                     commitChessGoPlacementCaptures(updatedGame, x, y, capturedStones);
                     if (capturedStones.length > 0) {
@@ -7482,7 +7626,7 @@ export const useApp = () => {
                             setLiveGames((prev) => {
                                 const prevG = prev[gid];
                                 let liveMerged = mergePveHttpActionGameResponse(merged, prevG, action.type);
-                                if (liveMerged.mode === GameMode.Chess) {
+                                if (sessionUsesChessGo(liveMerged)) {
                                     liveMerged = normalizeChessGoSession(liveMerged);
                                 }
                                 return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...liveMerged } };
@@ -8595,7 +8739,7 @@ export const useApp = () => {
                                         action.type,
                                     );
                                 }
-                                if (mergedForSlot.mode === GameMode.Chess) {
+                                if (sessionUsesChessGo(mergedForSlot)) {
                                     mergedForSlot = normalizeChessGoSession(mergedForSlot);
                                 }
                                 return {
@@ -9556,7 +9700,7 @@ export const useApp = () => {
                                     /* ignore */
                                 }
                                 let coerced = coerceAdventureLiveGameScoringTurnLimit(mergedLive);
-                                if (coerced.mode === GameMode.Chess) {
+                                if (sessionUsesChessGo(coerced)) {
                                     coerced = normalizeChessGoSession(coerced);
                                 }
                                 next[id] = coerced;
@@ -12199,7 +12343,27 @@ export const useApp = () => {
                                             mergedGame = { ...game, boardState: existingGame!.boardState, moveHistory: existingGame?.moveHistory && Array.isArray(existingGame.moveHistory) && existingGame.moveHistory.length > 0 ? existingGame.moveHistory : game.moveHistory };
                                         } else if (
                                             !isDiceOrThiefMode &&
-                                            game.mode !== GameMode.Chess &&
+                                            sessionUsesChessGo(game) &&
+                                            !hasServerBoard &&
+                                            incomingMoveCount > existingMoveCount &&
+                                            Array.isArray(game.moveHistory) &&
+                                            game.moveHistory.length > 0
+                                        ) {
+                                            mergedGame = normalizeChessGoSession({
+                                                ...mergedGame,
+                                                moveHistory: game.moveHistory,
+                                                chessPieces:
+                                                    mergedGame.chessPieces ??
+                                                    existingGame?.chessPieces ??
+                                                    game.chessPieces,
+                                                chessGoRemovedPoints:
+                                                    mergedGame.chessGoRemovedPoints ??
+                                                    existingGame?.chessGoRemovedPoints ??
+                                                    game.chessGoRemovedPoints,
+                                            });
+                                        } else if (
+                                            !isDiceOrThiefMode &&
+                                            !sessionUsesChessGo(game) &&
                                             !hasServerBoard &&
                                             moveHistoryToDerive &&
                                             moveHistoryToDerive.length > 0 &&
@@ -12518,16 +12682,13 @@ export const useApp = () => {
                                             isPairClassicGame(game.settings, game.mode) &&
                                             pairTurnOrder.length > 0 &&
                                             isPairAiMoveInHistory(lastMove, pairTurnOrder);
-                                        // 체스 바둑: 서버가 기물 이동 후 2초 뒤 돌을 반영하므로 클라에서 또 미루면 간격이 2배가 된다.
-                                        const isChessGoStoneAfterPieceMove =
-                                            game.mode === GameMode.Chess &&
-                                            hasNewMoves &&
-                                            existingGame?.chessPieceMovedThisTurn === true &&
-                                            mergedGame.chessPieceMovedThisTurn === false;
+                                        // 체스 바둑: AI 수를 1초 지연하면 currentPlayer는 서버와 같이 앞서는데
+                                        // moveHistory·boardState는 뒤처져 내 차례인데 AI 돌이 안 보이는 치명적 불일치가 난다.
+                                        // (서버는 기물 이동 후 돌 반영까지 자체 지연이 있음)
                                         // 모험/길드전: 서버가 유저 착수 후 1초 뒤 AI를 반영하므로 클라에서 또 1초 미루면 체감이 2초가 된다.
                                         const deferStrategicAiMoveForEffect =
                                             (isNewAiMoveLive || isNewPairAiMoveLive) &&
-                                            !isChessGoStoneAfterPieceMove &&
+                                            game.mode !== GameMode.Chess &&
                                             game.gameCategory !== 'adventure' &&
                                             game.gameCategory !== 'guildwar' &&
                                             !shouldApplyPveAiMoveSnapshotImmediately(mergedGame) &&
@@ -13232,14 +13393,15 @@ export const useApp = () => {
         if (!currentUser?.id || !gameId) return;
         const shell = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
         const chessGoOpeningReady =
-            shell?.mode === GameMode.Chess &&
+            !!shell &&
+            sessionUsesChessGo(shell) &&
             ((shell.chessPieces?.length ?? 0) > 0 || boardGridHasAnyStones(shell.boardState));
         const needsRecovery =
             !shell ||
             (!boardGridHasAnyStones(shell.boardState) && !chessGoOpeningReady) ||
             (shell.gameStatus === 'pending' &&
                 (shell.moveHistory?.length ?? 0) === 0 &&
-                shell.mode !== GameMode.Chess);
+                !sessionUsesChessGo(shell));
         if (!needsRecovery) return;
         recoverPveGameFromSessionStorage(gameId);
     }, [

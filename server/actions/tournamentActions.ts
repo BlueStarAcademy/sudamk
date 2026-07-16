@@ -877,29 +877,34 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 return { error: '유효하지 않은 회복제 타입입니다.' };
             }
             const potionType = rawPayload.potionType;
+            const def = getConditionPotionDefinition(potionType);
+
+            // 캐시에 인벤이 비거나 해당 회복제가 없으면(경량 조회 잔재) DB에서 다시 읽어 소모가 스킵되지 않게 한다.
+            // PVP·펫·페어 versus 경로는 예전에 이 재수화가 빠져 «회복제가 없다»로 실패했다.
+            {
+                const { findConditionPotionInInventory } = await import('../../shared/utils/conditionPotionInventory.js');
+                const invMissingPotion =
+                    !Array.isArray(user.inventory) ||
+                    user.inventory.length === 0 ||
+                    findConditionPotionInInventory(user.inventory, potionType) === -1;
+                if (invMissingPotion) {
+                    const freshInvUser = await db.getUser(user.id, { includeEquipment: true, includeInventory: true });
+                    if (freshInvUser?.inventory) {
+                        user.inventory = freshInvUser.inventory;
+                    }
+                }
+            }
 
             if (rawPayload.versusVenue === 'pvp' || rawPayload.versusVenue === 'pet' || rawPayload.versusVenue === 'petpair') {
-                const { resolveChampionshipVersusConditionForDay } = await import('../championshipVersusVenueService.js');
-                resolveChampionshipVersusConditionForDay(user, rawPayload.versusVenue, now);
-                const recovery = rollConditionPotionRecovery(potionType);
-                const result = buildConditionPotionUserPatch(
+                const { applyChampionshipVersusConditionPotion } = await import('../championshipVersusVenueService.js');
+                const versusResult = await applyChampionshipVersusConditionPotion(
                     user,
-                    { kind: 'versus', venue: rawPayload.versusVenue },
+                    rawPayload.versusVenue,
                     potionType,
-                    recovery,
+                    now,
                 );
-                if (!result.ok) return { error: result.error };
-                applyConditionPotionPatchInPlace(user, result.patch);
-                try {
-                    updateUserCache(user);
-                    await db.updateUser(user, { allowInventoryEquipmentClear: true });
-                } catch (error: any) {
-                    console.error(`[USE_CONDITION_POTION] Error updating user ${user.id}:`, error);
-                    return { error: '데이터 저장 중 오류가 발생했습니다.' };
-                }
-                const { broadcastUserUpdate } = await import('../socket.js');
-                broadcastUserUpdate(user, [...CONDITION_POTION_USE_BROADCAST_FIELDS]);
-                return { clientResponse: { updatedUser: user } };
+                if (versusResult.error) return { error: versusResult.error };
+                return { clientResponse: { updatedUser: versusResult.user ?? user } };
             }
 
             const { tournamentType } = rawPayload;
@@ -914,14 +919,6 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                 case 'world': stateKey = 'lastWorldTournament'; break;
             }
 
-            const def = getConditionPotionDefinition(potionType);
-            // 캐시에 인벤이 비어 있으면(경량 조회 잔재) DB에서 다시 읽어 소모가 스킵되지 않게 한다.
-            if (!Array.isArray(user.inventory) || user.inventory.length === 0) {
-                const freshInvUser = await db.getUser(user.id, { includeEquipment: true, includeInventory: true });
-                if (freshInvUser?.inventory) {
-                    user.inventory = freshInvUser.inventory;
-                }
-            }
             if (!canAffordConditionPotionUse(user, potionType)) {
                 return { error: `골드가 부족합니다. (필요: ${def.shopGold} 골드)` };
             }

@@ -6,6 +6,8 @@ export type PlacementOccupancySession = Pick<
     'moveHistory' | 'hiddenMoves' | 'permanentlyRevealedStones' | 'baseStones' | 'baseStones_p1' | 'baseStones_p2' | 'gameStatus'
 > & {
     aiInitialHiddenStone?: Point | null;
+    aiHiddenStonePoints?: Array<Point & { player?: Player }> | null;
+    humanHiddenStonePoints?: Array<Point & { player?: Player }> | null;
 };
 
 export function isPermanentlyRevealedAt(
@@ -67,6 +69,17 @@ export function isUnrevealedOpponentHiddenStoneAt(
 
     const opponent = myPlayer === Player.Black ? Player.White : Player.Black;
     if (isUnrevealedAiInitialHiddenAt(session, x, y)) return true;
+
+    const aiHiddenPoints = session.aiHiddenStonePoints;
+    if (
+        Array.isArray(aiHiddenPoints) &&
+        aiHiddenPoints.some(
+            (p) => p.x === x && p.y === y && (p.player === undefined || p.player === opponent),
+        ) &&
+        boardState[y]?.[x] === opponent
+    ) {
+        return true;
+    }
 
     if (!session.moveHistory?.length || !session.hiddenMoves) return false;
     const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(

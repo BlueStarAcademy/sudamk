@@ -7,6 +7,7 @@ import {
 } from '../../../utils/pveSessionStorageRestore.js';
 import type { LiveGameSession } from '../../../types/index.js';
 import { aiUserId } from '../../../shared/constants/auth.js';
+import { generateChessGoInitialPieces } from '../../../shared/utils/chessGoRules.js';
 
 const shell = (id: string): LiveGameSession =>
     ({
@@ -114,5 +115,36 @@ describe('pveSessionStorageRestore', () => {
         } finally {
             Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: prev });
         }
+    });
+
+    it('체스 바둑 진행 중: sessionStorage 수순이 서버보다 길면 바둑돌을 복원', () => {
+        const pieces = generateChessGoInitialPieces(13);
+        const incoming = {
+            ...shell('ai-chess-2'),
+            mode: GameMode.Chess,
+            isSinglePlayer: false,
+            gameCategory: undefined,
+            chessPieces: pieces,
+            moveHistory: [{ x: 6, y: 6, player: Player.Black }],
+            boardState: Array.from({ length: 13 }, () => Array(13).fill(Player.None)),
+            gameStatus: 'playing',
+            currentPlayer: Player.White,
+        } as LiveGameSession;
+        const parsed = {
+            gameId: 'ai-chess-2',
+            mode: GameMode.Chess,
+            isAiGame: true,
+            chessPieces: pieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            gameStatus: 'playing',
+        };
+        const merged = augmentPveFromSessionStorageSnapshot(incoming, parsed);
+        expect(merged.moveHistory).toHaveLength(2);
+        expect(merged.boardState![7]![7]).toBe(Player.White);
+        expect(merged.currentPlayer).toBe(Player.Black);
     });
 });

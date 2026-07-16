@@ -88,8 +88,8 @@ import {
     useAiInitialHiddenCellTracking,
     useAiInitialHiddenSyntheticCaptureHistory,
 } from './hiddenRevealPolicy.js';
+import { tryStartRevealOnlyOpponentHiddenAttack } from './startOpponentHiddenReveal.js';
 import { getPlacementOccupancyBlockReason } from '../../shared/utils/hiddenStonePlacementOccupancy.js';
-import { isHiddenMoveIndexSoftRevealedByAnyPlayer } from './hiddenScanShared.js';
 import { expandToAllUnrevealedHiddenStonesForPlayers } from '../../shared/utils/expandHiddenRevealStones.js';
 import { PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../../shared/constants/gameSettings.js';
 import {
@@ -390,7 +390,7 @@ async function finalizePveHiddenPlacementFromAuthoritativeClient(
 function updatePairOrderRevealState(game: types.LiveGameSession, now: number): void {
     if (game.gameStatus !== 'pair_order_reveal' || !isPairClassicGame(game.settings, game.mode)) return;
     if (pairOrderRevealNeedsConfirmation(game.settings)) return;
-    if (game.mode === types.GameMode.Chess) {
+    if (sessionUsesChessGo(game)) {
         enterChessPiecePlacement(game, now);
         return;
     }
@@ -448,7 +448,8 @@ function expandHiddenRevealStonesForGame(
 ): { point: types.Point; player: types.Player }[] {
     return expandToAllUnrevealedHiddenStonesForPlayers(game, seedStones, {
         aiPlayerEnum: resolveAiPlayerEnum(game),
-        isHiddenMoveIndexSoftRevealed: isHiddenMoveIndexSoftRevealedByAnyPlayer,
+        // 따내기 전체공개는 스캔(몰래공개) 상태도 permanently로 승격한다.
+        isHiddenMoveIndexSoftRevealed: () => false,
     });
 }
 
@@ -1396,6 +1397,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     myPlayerEnum,
                 );
                 if (placementBlockReason === 'opponent') {
+                    if (tryStartRevealOnlyOpponentHiddenAttack(game, myPlayerEnum, x, y, now)) {
+                        return {};
+                    }
                     console.error(
                         `[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on opponent stone at (${x}, ${y}), gameId=${game.id}, stoneAtTarget=${stoneAtTarget}, opponentPlayerEnum=${opponentPlayerEnum}, isSinglePlayer=${game.isSinglePlayer}, gameCategory=${game.gameCategory}`,
                     );
@@ -1432,6 +1436,9 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             // 싱글플레이/도전의 탑/AI 대국에서 상대 돌 위 착점은 숨김돌 공개 케이스 외에는 차단
             if (game.isSinglePlayer || game.gameCategory === GameCategory.Tower || game.isAiGame) {
                 if (finalStoneCheck === opponentPlayerEnum) {
+                    if (tryStartRevealOnlyOpponentHiddenAttack(game, myPlayerEnum, x, y, now)) {
+                        return {};
+                    }
                     console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: AI stone detected at (${x}, ${y}) before processMove, gameId=${game.id}, finalStoneCheck=${finalStoneCheck}, opponentPlayerEnum=${opponentPlayerEnum}`);
                     return { error: 'AI가 둔 자리에는 돌을 놓을 수 없습니다.' };
                 }

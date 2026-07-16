@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GameCategory, GameMode, Player } from '../../../shared/types/enums.js';
 import type { LiveGameSession } from '../../../shared/types/index.js';
 import {
+    allowsServerRevealOnlyOpponentHiddenAttack,
     isAdventureCategory,
     shouldPreserveDiscovererTurnAfterOpponentHiddenReveal,
     shouldPreserveDiscovererTurnWhenAiRevealsUserHiddenStone,
@@ -57,5 +58,28 @@ describe('hiddenRevealPolicy', () => {
     it('isAdventureCategory detects adventure only', () => {
         expect(isAdventureCategory(base({ gameCategory: GameCategory.Adventure }))).toBe(true);
         expect(isAdventureCategory(base({ gameCategory: GameCategory.Tower }))).toBe(false);
+    });
+
+    it('allows server reveal-only attack for adventure AI and human PVP', () => {
+        expect(
+            allowsServerRevealOnlyOpponentHiddenAttack(
+                base({ gameCategory: GameCategory.Adventure, isAiGame: true }),
+            ),
+        ).toBe(true);
+        expect(
+            allowsServerRevealOnlyOpponentHiddenAttack(
+                base({
+                    gameCategory: GameCategory.Normal as any,
+                    isAiGame: false,
+                    blackPlayerId: 'u1',
+                    whitePlayerId: 'u2',
+                }),
+            ),
+        ).toBe(true);
+        expect(
+            allowsServerRevealOnlyOpponentHiddenAttack(
+                base({ gameCategory: GameCategory.Tower, isAiGame: true }),
+            ),
+        ).toBe(false);
     });
 });

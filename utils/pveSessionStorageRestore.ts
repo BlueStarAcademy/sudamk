@@ -1,6 +1,7 @@
 import { Player, GameMode } from '../types/enums.js';
 import type { LiveGameSession } from '../types/index.js';
 import { aiUserId } from '../shared/constants/auth.js';
+import { normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
 import {
     getArenaStateBucket,
     resolveArenaSessionPolicy,
@@ -92,6 +93,63 @@ export function isRecoverablePveSessionStorageSnapshot(parsed: Record<string, un
     return moves > 0 || totalTurns > 0 || hasCaptures || hasBoard || hasPattern;
 }
 
+function countPlacedGoMovesInHistory(
+    moveHistory: LiveGameSession['moveHistory'] | undefined,
+): number {
+    if (!Array.isArray(moveHistory)) return 0;
+    return moveHistory.filter(
+        (m) => m && typeof m.x === 'number' && typeof m.y === 'number' && m.x >= 0 && m.y >= 0,
+    ).length;
+}
+
+/**
+ * 체스 바둑: rejoin·INITIAL_STATE 슬림 패킷이 바둑 수순을 빠뜨릴 때 sessionStorage에서 복원한다.
+ * 오프닝(바둑 수순 0)·totalTurns만 있는 레거시 스냅샷은 건너뛴다.
+ */
+function augmentChessGoFromSessionStorageSnapshot(
+    incoming: LiveGameSession,
+    parsed: Record<string, unknown>,
+): LiveGameSession {
+    const pm = (parsed as { moveHistory?: LiveGameSession['moveHistory'] }).moveHistory;
+    const stPlacedGoMoves = countPlacedGoMovesInHistory(pm);
+    if (stPlacedGoMoves === 0) return incoming;
+
+    const incMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
+    const stMoves = Array.isArray(pm) ? pm.length : 0;
+    const incHasGoStones = boardGridHasAnyStones(incoming.boardState);
+    const storedPieces = (parsed as { chessPieces?: LiveGameSession['chessPieces'] }).chessPieces;
+    const hasStoredPieces = Array.isArray(storedPieces) && storedPieces.length > 0;
+
+    const shouldPreferStored =
+        stMoves > incMoves || (stPlacedGoMoves > 0 && !incHasGoStones && stMoves >= incMoves);
+    if (!shouldPreferStored) return incoming;
+
+    const out: LiveGameSession = {
+        ...incoming,
+        moveHistory: Array.isArray(pm) ? pm : incoming.moveHistory,
+    };
+    if (hasStoredPieces) {
+        out.chessPieces = storedPieces;
+    }
+    const removed = (parsed as { chessGoRemovedPoints?: LiveGameSession['chessGoRemovedPoints'] })
+        .chessGoRemovedPoints;
+    if (Array.isArray(removed) && removed.length > 0) {
+        out.chessGoRemovedPoints = removed;
+    }
+    if (typeof (parsed as { chessPieceMovedThisTurn?: boolean }).chessPieceMovedThisTurn === 'boolean') {
+        out.chessPieceMovedThisTurn = (parsed as { chessPieceMovedThisTurn: boolean }).chessPieceMovedThisTurn;
+    }
+    const ccs = (parsed as { chessCaptureScore?: LiveGameSession['chessCaptureScore'] }).chessCaptureScore;
+    if (ccs) out.chessCaptureScore = ccs;
+    if (stMoves > incMoves && typeof (parsed as { currentPlayer?: Player }).currentPlayer === 'number') {
+        out.currentPlayer = (parsed as { currentPlayer: Player }).currentPlayer;
+    }
+    const cap = (parsed as { captures?: LiveGameSession['captures'] }).captures;
+    if (cap && stMoves > incMoves) out.captures = cap;
+
+    return normalizeChessGoSession(out);
+}
+
 /**
  * INITIAL_STATE·rejoin가 빈 판으로 올 때 sessionStorage 스냅샷으로 PVE 진행 상태를 복원한다.
  */
@@ -100,8 +158,9 @@ export function augmentPveFromSessionStorageSnapshot(
     parsed: Record<string, unknown> | null | undefined,
 ): LiveGameSession {
     if (!parsed || (parsed as { gameId?: string }).gameId !== incoming.id) return incoming;
-    // 체스 바둑: sessionStorage의 레거시 측면 폰·totalTurns를 복원하면 normalize가 무효화됨
-    if (incoming.mode === GameMode.Chess) return incoming;
+    if (incoming.mode === GameMode.Chess) {
+        return augmentChessGoFromSessionStorageSnapshot(incoming, parsed);
+    }
 
     const stMoves = Array.isArray((parsed as { moveHistory?: unknown }).moveHistory)
         ? ((parsed as { moveHistory: unknown[] }).moveHistory?.length ?? 0)
@@ -243,7 +302,9 @@ export function augmentLiveSessionFromSessionStorageSnapshot(
     parsed: Record<string, unknown> | null | undefined,
 ): LiveGameSession {
     if (!parsed || (parsed as { gameId?: string }).gameId !== incoming.id) return incoming;
-    if (incoming.mode === GameMode.Chess) return incoming;
+    if (incoming.mode === GameMode.Chess) {
+        return augmentChessGoFromSessionStorageSnapshot(incoming, parsed);
+    }
 
     const policy = resolveArenaSessionPolicy(incoming);
     if (policy.matchAxis === 'pve') {

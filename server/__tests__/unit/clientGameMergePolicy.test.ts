@@ -13,6 +13,7 @@ import {
     buildOptimisticPveStartConfirmSession,
     resolveAiLobbyHumanPlayerColor,
     shouldIgnoreStalePendingAiLobbyStartRegression,
+    shouldIgnoreStalePvpChessPrePlayRegression,
 } from '../../../utils/clientGameMergePolicy.js';
 import { resolveArenaSessionPolicy } from '../../../shared/utils/liveSessionArenaKind.js';
 import { GameMode, Player } from '../../../shared/types/enums.js';
@@ -865,6 +866,73 @@ describe('buildOptimisticPveStartConfirmSession', () => {
         const optimistic = buildOptimisticPveStartConfirmSession(pending);
         expect(optimistic?.gameStatus).toBe('base_placement');
         expect(optimistic?.startTime).toBeDefined();
+    });
+});
+
+describe('shouldIgnoreStalePvpChessPrePlayRegression', () => {
+    it('ignores playing without chessPieces during chess_piece_placement', () => {
+        const existing = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'chess_piece_placement',
+            chessPiecePlacementDraft: { p1: [{ type: 'pawn', x: 3, y: 2 }] },
+            chessPiecePlacementDeadline: Date.now() + 60_000,
+            serverRevision: 2,
+        });
+        const incoming = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'playing',
+            chessPieces: [],
+            serverRevision: 1,
+        });
+        expect(shouldIgnoreStalePvpChessPrePlayRegression(incoming, existing)).toBe(true);
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.gameStatus).toBe('chess_piece_placement');
+        expect(merged.chessPiecePlacementDraft?.p1).toEqual([{ type: 'pawn', x: 3, y: 2 }]);
+    });
+
+    it('allows playing when chessPieces are present after placement', () => {
+        const pieces = generateChessGoInitialPieces(CHESS_GO_BOARD_SIZE);
+        const existing = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'chess_piece_placement',
+            chessPiecePlacementDraft: { p1: [] },
+            serverRevision: 2,
+        });
+        const incoming = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'playing',
+            chessPieces: pieces,
+            currentPlayer: Player.Black,
+            serverRevision: 3,
+            settings: { boardSize: 13, komi: 6.5 },
+            boardState: Array.from({ length: 13 }, () => Array(13).fill(Player.None)),
+        });
+        expect(shouldIgnoreStalePvpChessPrePlayRegression(incoming, existing)).toBe(false);
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.gameStatus).toBe('playing');
+        expect(merged.chessPieces?.length).toBeGreaterThan(0);
+        expect(merged.chessPiecePlacementDraft).toBeUndefined();
+    });
+
+    it('protects Mix+Chess nigiri_reveal from empty playing', () => {
+        const existing = minimalSession({
+            mode: GameMode.Mix,
+            isAiGame: false,
+            gameStatus: 'nigiri_reveal',
+            settings: { boardSize: 13, mixedModes: [GameMode.Chess, GameMode.Hidden] },
+        });
+        const incoming = minimalSession({
+            mode: GameMode.Mix,
+            isAiGame: false,
+            gameStatus: 'playing',
+            chessPieces: [],
+            settings: { boardSize: 13, mixedModes: [GameMode.Chess, GameMode.Hidden] },
+        });
+        expect(shouldIgnoreStalePvpChessPrePlayRegression(incoming, existing)).toBe(true);
     });
 });
 

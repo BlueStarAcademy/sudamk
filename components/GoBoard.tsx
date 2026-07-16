@@ -16,7 +16,7 @@ import {
 import { mapStoneToUniformDisplay, resolveTerritoryMarkerDisplayPlayer, resolveUniformStoneDisplayColorForBoard, territoryMarkerRgba } from '../shared/utils/uniformGoRules.js';
 import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
 import type { ChessPieceState, ChessPieceType, ChessLastMoveMarker } from '../shared/types/entities.js';
-import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
+import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession, sessionUsesChessGo } from '../shared/utils/chessGoRules.js';
 import { buildBoardCellStoneLookup } from '../utils/boardCellLookup.js';
 import { tx } from '../shared/i18n/runtimeText.js';
 import {
@@ -876,12 +876,17 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         uniformStoneDisplayColor = null,
     } = props;
 
+    const usesChessGo = sessionUsesChessGo({
+        mode,
+        settings: { mixedModes, boardSize: boardSizeProp } as LiveGameSession['settings'],
+    });
+
     /** 체스 바둑: 레거시 측면 폰·y=0/12 배치가 props로 들어와도 렌더 직전 표준 28기물로 교정 */
     const chessNormalizedSlice = useMemo(() => {
-        if (mode !== GameMode.Chess) return null;
+        if (!usesChessGo) return null;
         return normalizeChessGoSession({
-            mode: GameMode.Chess,
-            settings: { boardSize: boardSizeProp } as LiveGameSession['settings'],
+            mode,
+            settings: { boardSize: boardSizeProp, mixedModes } as LiveGameSession['settings'],
             moveHistory: moveHistory ?? [],
             boardState: boardStateProp,
             chessPieces: chessPiecesProp,
@@ -890,7 +895,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             chessPieceMovedThisTurn: chessPieceMovedThisTurnProp,
         });
     }, [
+        usesChessGo,
         mode,
+        mixedModes,
         boardSizeProp,
         moveHistory,
         boardStateProp,
@@ -901,7 +908,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
     const boardState = chessNormalizedSlice?.boardState ?? boardStateProp;
     const chessPieces = chessNormalizedSlice?.chessPieces ?? chessPiecesProp;
-    const boardSize = mode === GameMode.Chess ? (boardSizeProp ?? CHESS_GO_BOARD_SIZE) : boardSizeProp;
+    const boardSize = usesChessGo ? (boardSizeProp ?? CHESS_GO_BOARD_SIZE) : boardSizeProp;
 
     const baseHiddenMoveCtx = useMemo<BaseStoneOverlayContext>(
         () => ({ baseStones, baseStones_p1, baseStones_p2, gameStatus }),

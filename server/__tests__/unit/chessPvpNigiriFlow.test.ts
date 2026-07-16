@@ -74,3 +74,51 @@ describe('handleSharedAction CONFIRM_COLOR_START', () => {
         expect(game.gameStatus).toBe('chess_piece_placement');
     });
 });
+
+describe('pair Mix with Chess order reveal', () => {
+    it('enters chess_piece_placement via sessionUsesChessGo (not mode===Chess only)', async () => {
+        const { updateStrategicGameState } = await import('../../../server/modes/standard.js');
+        const p1 = makeUser('owner-a');
+        const p2 = makeUser('owner-b');
+        const game = {
+            ...makePvpSession(GameMode.Mix, [GameMode.Chess, GameMode.Hidden]),
+            id: 'game-pair-mix-chess',
+            gameStatus: 'pair_order_reveal',
+            player1: p1,
+            player2: p2,
+            blackPlayerId: p1.id,
+            whitePlayerId: p2.id,
+            settings: {
+                boardSize: 13,
+                komi: 6.5,
+                chessPieceTotalScore: 15,
+                mixedModes: [GameMode.Chess, GameMode.Hidden],
+                pairGame: {
+                    roomId: 'room',
+                    pairMode: 'pvp',
+                    pairLobbyOwnerId: p1.id,
+                    teamA: {
+                        name: 'A',
+                        members: [{ id: p1.id, name: 'A', kind: 'user', slot: 'owner' }],
+                    },
+                    teamB: {
+                        name: 'B',
+                        members: [{ id: p2.id, name: 'B', kind: 'user', slot: 'owner' }],
+                    },
+                    turnOrder: [
+                        { seatId: 'black1', teamId: 'teamA', kind: 'user', participantId: p1.id, player: Player.Black },
+                        { seatId: 'white1', teamId: 'teamB', kind: 'user', participantId: p2.id, player: Player.White },
+                        { seatId: 'black2', teamId: 'teamA', kind: 'user', participantId: p1.id, player: Player.Black },
+                        { seatId: 'white2', teamId: 'teamB', kind: 'user', participantId: p2.id, player: Player.White },
+                    ],
+                    currentTurnIndex: 0,
+                    orderRevealConfirmed: { [p1.id]: true, [p2.id]: true },
+                },
+            },
+        } as LiveGameSession;
+
+        await updateStrategicGameState(game, Date.now());
+        expect(game.gameStatus).toBe('chess_piece_placement');
+        expect(game.chessPiecePlacementDeadline).toBeDefined();
+    });
+});

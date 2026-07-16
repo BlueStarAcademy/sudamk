@@ -14,7 +14,8 @@ import {
     removeCapturedBaseStoneMarkersFromSession,
 } from '../../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
-import { useAiInitialHiddenCellTracking, useTowerStyleHiddenRevealAnimatingResolution, isPvpRevealOnlyOpponentHiddenAttack } from './hiddenRevealPolicy.js';
+import { useAiInitialHiddenCellTracking, useTowerStyleHiddenRevealAnimatingResolution, allowsServerRevealOnlyOpponentHiddenAttack } from './hiddenRevealPolicy.js';
+import { tryStartRevealOnlyOpponentHiddenAttack } from './startOpponentHiddenReveal.js';
 import { applyPreserveDiscovererTurnIfPending } from './hiddenRevealPreserve.js';
 import { runTowerStyleHiddenRevealAnimatingIfDue } from './towerStyleHiddenRevealAnimating.js';
 import { tryEndGameWhenCaptureTargetReached } from '../utils/captureTargets.js';
@@ -32,7 +33,6 @@ import {
     mixGoShouldUnstickHiddenItemSelectionPhase,
 } from '../../shared/utils/mixGoRules.js';
 import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
-import { isUnrevealedOpponentHiddenStoneAt } from '../../shared/utils/hiddenStonePlacementOccupancy.js';
 import { applyPairTurnAfterHiddenRevealCaptureResolved } from '../utils/pairTurnAfterHiddenRevealAnim.js';
 import {
     clearItemPhasePresentationFields,
@@ -442,7 +442,7 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             markItemPhaseStateChanged(game);
             return { clientResponse: { gameUpdated: true } };
         case 'REVEAL_OPPONENT_HIDDEN': {
-            if (!isPvpRevealOnlyOpponentHiddenAttack(game)) {
+            if (!allowsServerRevealOnlyOpponentHiddenAttack(game)) {
                 return { error: 'Reveal-only hidden attack is not available in this game.' };
             }
             if (!canUseItem) return { error: 'Not your turn.' };
@@ -450,32 +450,9 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
                 return { error: 'Cannot reveal hidden stones now.' };
             }
             const { x, y } = payload as { x: number; y: number };
-            if (
-                !isUnrevealedOpponentHiddenStoneAt(game.boardState, game, x, y, myPlayerEnum)
-            ) {
+            if (!tryStartRevealOnlyOpponentHiddenAttack(game, myPlayerEnum, x, y, now)) {
                 return { error: 'No unrevealed hidden stone at that point.' };
             }
-            const opponentPlayerEnum =
-                myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-            const returnStatus = game.gameStatus;
-            if (returnStatus === 'playing' && shouldEnforceTimeControl(game)) {
-                freezeMainTurnClock(game, now);
-            }
-            if (!game.permanentlyRevealedStones) game.permanentlyRevealedStones = [];
-            if (!game.permanentlyRevealedStones.some((p) => p.x === x && p.y === y)) {
-                game.permanentlyRevealedStones.push({ x, y });
-            }
-            (game as any).pvpHiddenRevealReturnStatus = returnStatus;
-            game.pendingCapture = null;
-            game.gameStatus = 'hidden_reveal_animating';
-            game.animation = {
-                type: 'hidden_reveal',
-                stones: [{ point: { x, y }, player: opponentPlayerEnum }],
-                startTime: now,
-                duration: 1500,
-            };
-            game.revealAnimationEndTime = now + 1500;
-            markItemPhaseStateChanged(game);
             return { clientResponse: { gameUpdated: true } };
         }
     }

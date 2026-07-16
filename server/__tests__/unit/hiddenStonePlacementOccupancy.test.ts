@@ -64,4 +64,20 @@ describe('hiddenStonePlacementOccupancy', () => {
             ),
         ).toBe(true);
     });
+
+    it('detects unrevealed opponent hidden via aiHiddenStonePoints without hiddenMoves', () => {
+        const board = emptyBoard.map((row) => [...row]);
+        board[2][5] = Player.White;
+        expect(
+            isUnrevealedOpponentHiddenStoneAt(
+                board,
+                {
+                    aiHiddenStonePoints: [{ x: 5, y: 2, player: Player.White }],
+                },
+                5,
+                2,
+                Player.Black,
+            ),
+        ).toBe(true);
+    });
 });

@@ -2,13 +2,14 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { tx } from '../../shared/i18n/runtimeText.js';
 import { useI18nLanguage } from '../../shared/i18n/useI18nLanguage.js';
 import type { ChessPieceType, LiveGameSession, ServerAction, User } from '../../types.js';
-import { GameMode, Player } from '../../types/enums.js';
+import { Player } from '../../types/enums.js';
 import {
     CHESS_SETUP_PIECE_LIMITS,
     computeChessSetupDraftScore,
     countChessSetupDraftByType,
     getChessSetupBudgetFromSettings,
 } from '../../shared/utils/chessGoPlacement.js';
+import { sessionUsesChessGo } from '../../shared/utils/chessGoRules.js';
 import ChessSetupPieceStonePreview, {
     getChessPieceCaptureValue,
     getInitialRemainingMoves,
@@ -165,7 +166,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
         [budget, counts, myReady, onSelectPieceType, selectedPieceType, stoneColor, usedScore, isMobile],
     );
 
-    if (session.mode !== GameMode.Chess || session.gameStatus !== 'chess_piece_placement') {
+    if (!sessionUsesChessGo(session) || session.gameStatus !== 'chess_piece_placement') {
         return null;
     }
 

@@ -1,6 +1,7 @@
-import { GameMode, Player, type GameSettings, type LiveGameSession } from '../types/index.js';
+import { Player, type GameSettings, type LiveGameSession } from '../types/index.js';
 import { getEffectivePairLobbyOwnerId } from './effectivePairLobbyOwnerId.js';
 import { isPairClassicGame, pairTeamIdForUserId } from './pairGameTurn.js';
+import { sessionUsesChessGo } from './chessGoRules.js';
 
 type PairChessSetupSession = Pick<
     LiveGameSession,
@@ -134,7 +135,7 @@ export function isPairChessSetupWaitingGuest(
     session: PairChessSetupSession,
     userId: string,
 ): boolean {
-    if (session.mode !== GameMode.Chess) return false;
+    if (!sessionUsesChessGo(session)) return false;
     if (!isPairClassicGame(session.settings, session.mode)) return false;
     const humans =
         session.settings?.pairGame?.turnOrder?.filter((s) => s.kind === 'user').map((s) => s.participantId) ?? [];

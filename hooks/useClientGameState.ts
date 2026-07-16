@@ -352,7 +352,7 @@ export function tryBuildHiddenCaptureRevealState(
             ]),
         ).values(),
     );
-    const stonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(
+    let stonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(
         {
             ...game,
             boardState: newBoardState,
@@ -360,8 +360,41 @@ export function tryBuildHiddenCaptureRevealState(
             hiddenMoves: reconciledHiddenMoves,
         } as LiveGameSession,
         revealSeed,
-        { aiPlayerEnum },
+        {
+            aiPlayerEnum,
+            isHiddenMoveIndexSoftRevealed: () => false,
+        },
     );
+    // 모험: 유저 히든이 따내기에 기여하면 남은 유저 히든도 같은 연출에 포함
+    if (
+        String((game as { gameCategory?: string }).gameCategory || '') === 'adventure' &&
+        stonesToReveal.some((s) => !isAiControlledPlayerId(getPlayerIdForEnum(game, s.player)))
+    ) {
+        const humanEnum = stonesToReveal.find(
+            (s) => !isAiControlledPlayerId(getPlayerIdForEnum(game, s.player)),
+        )?.player;
+        if (humanEnum === Player.Black || humanEnum === Player.White) {
+            const revealByPoint = new Map(
+                stonesToReveal.map((s) => [`${s.point.x},${s.point.y}`, s] as const),
+            );
+            const pushHuman = (hx: number, hy: number) => {
+                if (newBoardState[hy]?.[hx] !== humanEnum) return;
+                if (hasPoint(game.permanentlyRevealedStones, { x: hx, y: hy })) return;
+                revealByPoint.set(`${hx},${hy}`, { point: { x: hx, y: hy }, player: humanEnum });
+            };
+            for (let i = 0; i < moveHistory.length; i++) {
+                if (!reconciledHiddenMoves?.[i]) continue;
+                const m = moveHistory[i];
+                if (!m || m.player !== humanEnum || m.x < 0 || m.y < 0) continue;
+                pushHuman(m.x, m.y);
+            }
+            for (const point of humanHiddenStonePoints || []) {
+                if (point.player !== undefined && point.player !== humanEnum) continue;
+                pushHuman(point.x, point.y);
+            }
+            stonesToReveal = Array.from(revealByPoint.values());
+        }
+    }
     if (stonesToReveal.length === 0) return null;
 
     const now = Date.now();

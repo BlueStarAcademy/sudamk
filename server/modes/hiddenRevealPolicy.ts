@@ -50,6 +50,14 @@ export const isPvpRevealOnlyOpponentHiddenAttack = (game: types.LiveGameSession)
     !game.isAiGame;
 
 /**
+ * 서버 권위 공개 연출(착수 없이 상대 히든 공개)을 허용하는 세션.
+ * PVP + 모험(AI) — 모험은 로컬 LOCAL_HIDDEN_REVEAL만으로는 서버 permanently가 안 남아 공개가 롤백된다.
+ */
+export const allowsServerRevealOnlyOpponentHiddenAttack = (game: types.LiveGameSession): boolean =>
+    isPvpRevealOnlyOpponentHiddenAttack(game) ||
+    (isAdventureCategory(game) && (!!game.isAiGame || gameSessionIncludesAiPlayer(game)));
+
+/**
  * 전략 로비 AI·길드전(AI): 봇이 유저 미공개 히든 칸을 찍어 공개할 때는 착수·수순·계가 턴 카운트에 반영하지 않고
  * 연출 후 같은 턴에서 다른 좌표로 두게 한다. (유저가 AI 초기 히든을 찍는 `isAiInitialHiddenStone` 분기는 제외)
  */

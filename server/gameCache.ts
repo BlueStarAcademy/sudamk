@@ -1,4 +1,4 @@
-import { LiveGameSession, User, GameMode } from '../types/index.js';
+import { LiveGameSession, User } from '../types/index.js';
 import { volatileState } from './state.js';
 import * as db from './db.js';
 import { isPairClassicGame } from '../shared/utils/pairGameTurn.js';
@@ -96,7 +96,7 @@ function isPvpPreStartModalGame(game: LiveGameSession | undefined): boolean {
         return false;
     }
     if (st === 'pair_order_reveal' && isPairClassicGame(game.settings, game.mode)) return true;
-    if (st === 'color_start_confirmation' || st === 'nigiri_reveal') return true;
+    if (st === 'color_start_confirmation' || st === 'nigiri_reveal' || st === 'chess_piece_placement') return true;
     return false;
 }
 
@@ -149,14 +149,16 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
     const now = Date.now();
 
     if (cached && (now - cached.lastUpdated) < CACHE_TTL_MS) {
-        if (cached.game.mode === GameMode.Chess) {
-            const { normalizeChessGoSession } = await import('../shared/utils/chessGoRules.js');
-            const normalized = normalizeChessGoSession(cached.game);
-            cached.game.chessPieces = normalized.chessPieces;
-            cached.game.boardState = normalized.boardState;
-            cached.game.settings = normalized.settings;
-            cached.game.chessCaptureScore = normalized.chessCaptureScore;
-            cached.game.chessPieceMovedThisTurn = normalized.chessPieceMovedThisTurn;
+        {
+            const { normalizeChessGoSession, sessionUsesChessGo } = await import('../shared/utils/chessGoRules.js');
+            if (sessionUsesChessGo(cached.game)) {
+                const normalized = normalizeChessGoSession(cached.game);
+                cached.game.chessPieces = normalized.chessPieces;
+                cached.game.boardState = normalized.boardState;
+                cached.game.settings = normalized.settings;
+                cached.game.chessCaptureScore = normalized.chessCaptureScore;
+                cached.game.chessPieceMovedThisTurn = normalized.chessPieceMovedThisTurn;
+            }
         }
         return cached.game;
     }

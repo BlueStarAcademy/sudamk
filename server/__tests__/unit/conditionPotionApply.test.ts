@@ -85,6 +85,50 @@ describe('conditionPotion apply', () => {
         expect(patch!.dungeonConditionSnapshot?.neighborhood?.condition).toBeGreaterThan(40);
     });
 
+    it('buildConditionPotionUserPatch updates versus venue snapshot', () => {
+        const versusUser = {
+            id: 'u1',
+            gold: smallPotionGold + 250,
+            inventory: [{ id: 'p1', name: '컨디션 회복제(소)', type: 'consumable', quantity: 2 }],
+            championshipVersusConditionSnapshot: {
+                pvp: { condition: 35, dateStartOfDayKST: 1 },
+            },
+        } as unknown as User;
+
+        const result = buildConditionPotionUserPatch(
+            versusUser,
+            { kind: 'versus', venue: 'pvp' },
+            'small',
+            12,
+        );
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.newCondition).toBe(47);
+        expect(result.patch.championshipVersusConditionSnapshot?.pvp?.condition).toBe(47);
+        expect(result.patch.inventory).toHaveLength(1);
+        expect(result.patch.gold).toBe(250);
+    });
+
+    it('buildOptimisticConditionPotionPatch accepts versusVenue payload', () => {
+        const mediumGold = getConditionPotionDefinition('medium').shopGold;
+        const versusUser = {
+            id: 'u1',
+            gold: mediumGold + 100,
+            inventory: [{ id: 'p1', name: '컨디션회복제(중)', type: 'consumable', quantity: 1 }],
+            championshipVersusConditionSnapshot: {
+                pvp: { condition: 50, dateStartOfDayKST: 1 },
+            },
+        } as unknown as User;
+
+        const patch = buildOptimisticConditionPotionPatch(versusUser, {
+            potionType: 'medium',
+            versusVenue: 'pvp',
+        });
+        expect(patch).not.toBeNull();
+        expect(patch!.championshipVersusConditionSnapshot?.pvp?.condition).toBeGreaterThan(50);
+        expect(patch!.inventory).toEqual([]);
+    });
+
     it('rollConditionPotionRecovery stays within catalog bounds', () => {
         for (let i = 0; i < 20; i++) {
             const amount = rollConditionPotionRecovery('medium', () => 0.5);

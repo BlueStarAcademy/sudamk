@@ -778,6 +778,33 @@ function incomingUsesChessGo(session: LiveGameSession): boolean {
     );
 }
 
+/** PVP 체스바둑 사전 단계: 기물 없는 stale `playing` 패킷이 배치/니기리를 덮지 않게 한다 */
+const PVP_CHESS_PRE_PLAY_STATUSES = new Set([
+    'nigiri_reveal',
+    'chess_piece_placement',
+    'pair_order_reveal',
+]);
+
+/**
+ * 로컬이 니기리·기물 배치 중인데, chessPieces 없는 playing 슬림/구패킷이 오면 무시한다.
+ * 배치 완료 후 정상 전환(chessPieces 있음)은 허용한다.
+ */
+export function shouldIgnoreStalePvpChessPrePlayRegression(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): boolean {
+    if (!existing) return false;
+    if (!incomingUsesChessGo(existing) && !incomingUsesChessGo(incoming)) return false;
+    if (!PVP_CHESS_PRE_PLAY_STATUSES.has(String(existing.gameStatus))) return false;
+    if (incoming.gameStatus !== 'playing') return false;
+    if ((incoming.chessPieces?.length ?? 0) > 0) return false;
+    const ir = incoming.serverRevision ?? 0;
+    const er = existing.serverRevision ?? 0;
+    // 서버 revision이 확실히 앞선 playing+기물 없는 패킷은 거의 없으나, 기물 없으면 항상 보호
+    if (ir > 0 && er > 0 && ir > er && (incoming.chessPieces?.length ?? 0) > 0) return false;
+    return true;
+}
+
 function mergeChessSessionFieldsOnMerge(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined,
@@ -791,6 +818,18 @@ function mergeChessSessionFieldsOnMerge(
         merged.gameStatus === 'playing' &&
         existing?.gameStatus === 'chess_piece_placement'
     ) {
+        // 기물 없는 playing은 배치 완료가 아님 — 로컬 배치 상태 유지
+        if (!(incoming.chessPieces?.length)) {
+            return {
+                ...existing,
+                chessPiecePlacementDraft:
+                    incoming.chessPiecePlacementDraft ?? existing.chessPiecePlacementDraft,
+                chessPiecePlacementReady:
+                    incoming.chessPiecePlacementReady ?? existing.chessPiecePlacementReady,
+                chessPiecePlacementDeadline:
+                    incoming.chessPiecePlacementDeadline ?? existing.chessPiecePlacementDeadline,
+            };
+        }
         merged = {
             ...merged,
             chessPiecePlacementDraft: undefined,
@@ -1006,6 +1045,9 @@ export function mergeGameUpdateByArena(
     existing: LiveGameSession | undefined,
     _context: ClientGameMergeContext,
 ): LiveGameSession {
+    if (shouldIgnoreStalePvpChessPrePlayRegression(incoming, existing)) {
+        return existing as LiveGameSession;
+    }
     /** 들어온 패킷이 좌석 잠금을 비운 채 오면 기존 잠금을 살려 두어, 좌석 보호 근거를 잃지 않게 한다. */
     const incomingWithLock = preserveExistingBaseSeatLockAgainstSlimDrop(incoming, existing);
     let merged = existing ? ({ ...existing, ...incomingWithLock } as LiveGameSession) : incomingWithLock;
