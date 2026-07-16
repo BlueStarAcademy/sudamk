@@ -655,6 +655,31 @@ describe('preserveTerminalGameSessionOnMerge', () => {
         const merged = preserveTerminalGameSessionOnMerge(incoming, existing);
         expect(merged.summary).toEqual({ u1: { gold: 100 } });
     });
+
+    it('accepts ended packet when ad gold double flags advance with same summary key count', () => {
+        const existing = minimalSession({
+            isAiGame: true,
+            gameStatus: 'ended',
+            winner: Player.Black,
+            winReason: 'resign',
+            summary: {
+                p1: { gold: 100, matchGold: 100, adGoldDoubled: false, adGoldBonus: 0 },
+            } as any,
+        });
+        const incoming = minimalSession({
+            isAiGame: true,
+            gameStatus: 'ended',
+            winner: Player.Black,
+            winReason: 'resign',
+            summary: {
+                p1: { gold: 200, matchGold: 200, adGoldDoubled: true, adGoldBonus: 100 },
+            } as any,
+        });
+        const merged = preserveTerminalGameSessionOnMerge(incoming, existing);
+        expect(merged.summary?.p1?.adGoldDoubled).toBe(true);
+        expect(merged.summary?.p1?.adGoldBonus).toBe(100);
+        expect(merged.summary?.p1?.gold).toBe(200);
+    });
 });
 
 describe('isPveAwaitingStartConfirmModal / isPvePostStartConfirmPrePlayPhase', () => {

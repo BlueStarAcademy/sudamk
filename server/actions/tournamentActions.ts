@@ -920,7 +920,7 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
             }
 
             if (!canAffordConditionPotionUse(user, potionType)) {
-                return { error: `골드가 부족합니다. (필요: ${def.shopGold} 골드)` };
+                return { error: `골드가 부족합니다. (필요: ${def.useGold} 골드)` };
             }
 
             const tournamentState = (user as any)[stateKey] as TournamentState | null;

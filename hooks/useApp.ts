@@ -8855,6 +8855,11 @@ export const useApp = () => {
                         return result;
                     }
 
+                    // 광고 골드 2배: adGoldBonus·summary가 있어야 결과 모달이 낙관 표시만 하지 않고 실지급을 검증한다
+                    if (action.type === 'CLAIM_RESULT_AD_GOLD_DOUBLE') {
+                        return { ...result, gameId: effectiveGameId };
+                    }
+
                     if (
                         action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||
                         action.type === 'CONFIRM_TOWER_GAME_START' ||

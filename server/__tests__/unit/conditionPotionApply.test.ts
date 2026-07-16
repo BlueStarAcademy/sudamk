@@ -8,11 +8,11 @@ import {
 } from '../../../shared/conditionPotion/apply.js';
 import { getConditionPotionDefinition, rollConditionPotionRecovery } from '../../../shared/constants/conditionPotion.js';
 
-const smallPotionGold = getConditionPotionDefinition('small').shopGold;
+const smallPotionUseGold = getConditionPotionDefinition('small').useGold;
 
 const baseUser = {
     id: 'u1',
-    gold: smallPotionGold + 250,
+    gold: smallPotionUseGold + 250,
     inventory: [{ id: 'p1', name: '컨디션 회복제(소)', type: 'consumable', quantity: 2 }],
     dungeonConditionSnapshot: {
         neighborhood: { condition: 40, dateStartOfDayKST: 1 },
@@ -88,7 +88,7 @@ describe('conditionPotion apply', () => {
     it('buildConditionPotionUserPatch updates versus venue snapshot', () => {
         const versusUser = {
             id: 'u1',
-            gold: smallPotionGold + 250,
+            gold: smallPotionUseGold + 250,
             inventory: [{ id: 'p1', name: '컨디션 회복제(소)', type: 'consumable', quantity: 2 }],
             championshipVersusConditionSnapshot: {
                 pvp: { condition: 35, dateStartOfDayKST: 1 },
@@ -110,10 +110,10 @@ describe('conditionPotion apply', () => {
     });
 
     it('buildOptimisticConditionPotionPatch accepts versusVenue payload', () => {
-        const mediumGold = getConditionPotionDefinition('medium').shopGold;
+        const mediumUseGold = getConditionPotionDefinition('medium').useGold;
         const versusUser = {
             id: 'u1',
-            gold: mediumGold + 100,
+            gold: mediumUseGold + 100,
             inventory: [{ id: 'p1', name: '컨디션회복제(중)', type: 'consumable', quantity: 1 }],
             championshipVersusConditionSnapshot: {
                 pvp: { condition: 50, dateStartOfDayKST: 1 },
@@ -127,6 +127,42 @@ describe('conditionPotion apply', () => {
         expect(patch).not.toBeNull();
         expect(patch!.championshipVersusConditionSnapshot?.pvp?.condition).toBeGreaterThan(50);
         expect(patch!.inventory).toEqual([]);
+    });
+
+    it('allows use when gold is above useGold but below shopGold', () => {
+        const small = getConditionPotionDefinition('small');
+        expect(small.useGold).toBeLessThan(small.shopGold);
+        const user = {
+            id: 'u1',
+            gold: small.useGold,
+            inventory: [{ id: 'p1', name: '컨디션회복제(소)', type: 'consumable', quantity: 1 }],
+            championshipVersusConditionSnapshot: {
+                pvp: { condition: 40, dateStartOfDayKST: 1 },
+            },
+        } as unknown as User;
+
+        const result = buildConditionPotionUserPatch(user, { kind: 'versus', venue: 'pvp' }, 'small', 10);
+        expect(result.ok).toBe(true);
+        if (!result.ok) return;
+        expect(result.patch.gold).toBe(0);
+        expect(result.newCondition).toBe(50);
+    });
+
+    it('rejects use when gold is below useGold even if inventory has potion', () => {
+        const small = getConditionPotionDefinition('small');
+        const user = {
+            id: 'u1',
+            gold: small.useGold - 1,
+            inventory: [{ id: 'p1', name: '컨디션회복제(소)', type: 'consumable', quantity: 1 }],
+            championshipVersusConditionSnapshot: {
+                pvp: { condition: 40, dateStartOfDayKST: 1 },
+            },
+        } as unknown as User;
+
+        const result = buildConditionPotionUserPatch(user, { kind: 'versus', venue: 'pvp' }, 'small', 10);
+        expect(result.ok).toBe(false);
+        if (result.ok) return;
+        expect(result.error).toContain(String(small.useGold));
     });
 
     it('rollConditionPotionRecovery stays within catalog bounds', () => {

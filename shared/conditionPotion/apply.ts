@@ -85,7 +85,7 @@ export function consumeConditionPotionInventory(
 
 export function canAffordConditionPotionUse(user: User, potionType: ConditionPotionType): boolean {
     if (user.isAdmin) return true;
-    return (user.gold ?? 0) >= getConditionPotionDefinition(potionType).shopGold;
+    return (user.gold ?? 0) >= getConditionPotionDefinition(potionType).useGold;
 }
 
 /**
@@ -104,13 +104,13 @@ export function buildConditionPotionUserPatch(
         return { ok: false, error: `${def.name}이(가) 없습니다.` };
     }
     if (!canAffordConditionPotionUse(user, potionType)) {
-        return { ok: false, error: `골드가 부족합니다. (필요: ${def.shopGold} 골드)` };
+        return { ok: false, error: `골드가 부족합니다. (필요: ${def.useGold} 골드)` };
     }
 
     const todayStart = getStartOfDayKST(Date.now());
     const patch: Partial<User> = {
         inventory,
-        gold: user.isAdmin ? user.gold : (user.gold ?? 0) - def.shopGold,
+        gold: user.isAdmin ? user.gold : (user.gold ?? 0) - def.useGold,
     };
 
     if (context.kind === 'versus') {

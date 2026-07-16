@@ -829,6 +829,7 @@
       "adGoldDoubleAdFree": "Double gold",
       "adGoldDoubleClaiming": "Granting gold...",
       "adGoldDoubleHint": "Complete the ad to receive double gold for this match.",
+      "adGoldDoubleFailed": "Failed to grant double gold. Please try again shortly.",
       "gameContent": "Match details",
       "resultSection": "Game result",
       "rewardsSection": "Rewards & records",

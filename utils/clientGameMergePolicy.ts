@@ -643,6 +643,23 @@ export function shouldIgnoreStaleLiveTerminalGameUpdate(
  * ended/no_contest/scoring 등으로 이미 진행된 로컬 상태를 playing/pending 등으로 되돌리지 않는다.
  * WS GAME_UPDATE뿐 아니라 HTTP·아레나 병합 경로에도 동일한 판단을 적용한다.
  */
+function summaryHasNewerResultAdGold(
+    incoming: LiveGameSession['summary'],
+    existing: LiveGameSession['summary'],
+): boolean {
+    if (!incoming || typeof incoming !== 'object' || !existing || typeof existing !== 'object') {
+        return false;
+    }
+    for (const userId of Object.keys(incoming as object)) {
+        const inc = (incoming as Record<string, { adGoldDoubled?: boolean; adGoldBonus?: number } | undefined>)[userId];
+        const ext = (existing as Record<string, { adGoldDoubled?: boolean; adGoldBonus?: number } | undefined>)[userId];
+        if (!inc) continue;
+        if (inc.adGoldDoubled && !ext?.adGoldDoubled) return true;
+        if ((inc.adGoldBonus ?? 0) > (ext?.adGoldBonus ?? 0)) return true;
+    }
+    return false;
+}
+
 export function preserveTerminalGameSessionOnMerge(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined,
@@ -662,7 +679,10 @@ export function preserveTerminalGameSessionOnMerge(
             existing.summary && typeof existing.summary === 'object'
                 ? Object.keys(existing.summary as object)
                 : [];
-        if (incomingSummaryKeys.length > existingSummaryKeys.length) {
+        if (
+            incomingSummaryKeys.length > existingSummaryKeys.length ||
+            summaryHasNewerResultAdGold(incoming.summary, existing.summary)
+        ) {
             return { ...existing, ...incoming };
         }
     }

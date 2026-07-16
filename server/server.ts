@@ -1658,28 +1658,36 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         const batch = usersToProcess.slice(i, i + OFFLINE_REGEN_BATCH_SIZE);
                         await Promise.allSettled(batch.map(async (user) => {
                             try {
-                                let updatedUser = user;
-                                
-                                // 매일 0시에만 토너먼트 상태 리셋 (로그인하지 않은 사용자도 포함)
+                                // listUsers(includeInventory:false)도 status.inventoryRaw/serializedUser로
+                                // 인벤·대장간 레벨을 싣는다. 이 스냅샷으로 updateUser하면 합성 직후
+                                // 최신 저장을 덮어써 레벨·재료가 롤백될 수 있다.
+                                let probe = user;
                                 if (isMidnightForReset) {
-                                    updatedUser = await resetAndGenerateQuests(updatedUser);
+                                    probe = await resetAndGenerateQuests(probe);
                                 }
-                                
-                                updatedUser = await regenerateActionPoints(updatedUser);
-                                updatedUser = processSinglePlayerMissions(updatedUser);
-                                
-                                // 봇 점수 업데이트 제거됨 - 던전 시스템으로 변경
-                                // const { updateBotLeagueScores } = await import('./scheduledTasks.js');
-                                // updatedUser = await updateBotLeagueScores(updatedUser);
-                                
-                                // 최적화: 간단한 필드 비교로 변경 (JSON.stringify 대신)
-                                const hasChanges = user.actionPoints !== updatedUser.actionPoints ||
-                                    user.gold !== updatedUser.gold ||
-                                    user.singlePlayerMissions !== updatedUser.singlePlayerMissions;
-                                    // user.weeklyCompetitors 제거됨 - 던전 시스템으로 변경
-                                if (hasChanges) {
-                                    await db.updateUser(updatedUser);
+                                probe = await regenerateActionPoints(probe);
+                                probe = processSinglePlayerMissions(probe);
+
+                                const hasChanges =
+                                    isMidnightForReset ||
+                                    user.actionPoints !== probe.actionPoints ||
+                                    user.gold !== probe.gold ||
+                                    user.singlePlayerMissions !== probe.singlePlayerMissions;
+                                if (!hasChanges) return;
+
+                                const fresh = await db.getUser(user.id, {
+                                    includeEquipment: true,
+                                    includeInventory: true,
+                                });
+                                if (!fresh) return;
+
+                                let toSave = fresh;
+                                if (isMidnightForReset) {
+                                    toSave = await resetAndGenerateQuests(toSave);
                                 }
+                                toSave = await regenerateActionPoints(toSave);
+                                toSave = processSinglePlayerMissions(toSave);
+                                await db.updateUser(toSave);
                             } catch (userError: any) {
                                 // 개별 사용자 처리 실패는 조용히 무시 (다음 사용자 계속 처리)
                                 console.warn(`[MainLoop] Failed to process user ${user.id} for offline regen:`, userError?.message);
@@ -5122,18 +5130,37 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         material: currentMaterialSlots,
                     };
                     user.inventorySlotsMigrated = true;
-                    // DB 업데이트는 비동기로 처리하여 응답 지연 최소화
-                    db.updateUser(user).catch(err => {
-                        console.error(`[API] Failed to migrate inventory slots for user ${userId}:`, err);
-                    });
+                    // 캐시 스냅샷 전체 저장 금지 — 합성·대장간 등 최신 status를 덮어쓸 수 있음
+                    void (async () => {
+                        try {
+                            const fresh = await db.getUser(userId, { includeEquipment: true, includeInventory: true });
+                            if (!fresh) return;
+                            fresh.inventorySlots = {
+                                equipment: currentEquipmentSlots,
+                                consumable: currentConsumableSlots,
+                                material: currentMaterialSlots,
+                            };
+                            fresh.inventorySlotsMigrated = true;
+                            await db.updateUser(fresh);
+                        } catch (err) {
+                            console.error(`[API] Failed to migrate inventory slots for user ${userId}:`, err);
+                        }
+                    })();
                 }
             }
             // --- End Migration Logic ---
 
             if (maybeResetStatAllocationAfterLevelStructureChange(user)) {
-                db.updateUser(user).catch((err) =>
-                    console.error(`[API] Failed to save stat allocation migration for user ${userId}:`, err)
-                );
+                void (async () => {
+                    try {
+                        const fresh = await db.getUser(userId, { includeEquipment: true, includeInventory: true });
+                        if (!fresh) return;
+                        if (!maybeResetStatAllocationAfterLevelStructureChange(fresh)) return;
+                        await db.updateUser(fresh);
+                    } catch (err) {
+                        console.error(`[API] Failed to save stat allocation migration for user ${userId}:`, err);
+                    }
+                })();
             }
 
             const actionIp = await ensureClientIpAllowsSession(volatileState, req, res, userId, !!user.isAdmin);
@@ -5147,8 +5174,20 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 console.log(`[Auth] Re-establishing connection on action for user: ${user.nickname} (${userId})`);
                 volatileState.userConnections[userId] = Date.now();
                 volatileState.userStatuses[userId] = { status: types.UserStatus.Online };
-                user.lastLoginAt = Date.now();
-                db.updateUser(user).catch(err => console.warn(`[API] Failed to update lastLoginAt for user ${userId}:`, err?.message));
+                const loginAt = Date.now();
+                user.lastLoginAt = loginAt;
+                // 프로세스별 userConnections — 다른 인스턴스/재접속마다 캐시 user 전체 persist는
+                // 직전 COMBINE 등의 인벤·대장간 레벨을 롤백시킬 수 있다. lastLoginAt만 최신 행에 반영.
+                void (async () => {
+                    try {
+                        const fresh = await db.getUser(userId, { includeEquipment: true, includeInventory: true });
+                        if (!fresh) return;
+                        fresh.lastLoginAt = loginAt;
+                        await db.updateUser(fresh);
+                    } catch (err: any) {
+                        console.warn(`[API] Failed to update lastLoginAt for user ${userId}:`, err?.message);
+                    }
+                })();
             }
             
             volatileState.userConnections[userId] = Date.now();

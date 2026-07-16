@@ -9,7 +9,13 @@ export type ConditionPotionDefinition = {
     itemId: string;
     minRecovery: number;
     maxRecovery: number;
+    /** 상점 구매가 */
     shopGold: number;
+    /**
+     * 가방에서 1회 사용할 때 추가 차감 골드.
+     * 상점가(`shopGold`)와 분리 — 상점가만 올려도 사용비가 같이 오르지 않게 한다.
+     */
+    useGold: number;
     image: string;
     grade: ConditionPotionGrade;
     dailyShopLimit: number;
@@ -24,6 +30,7 @@ export const CONDITION_POTION_BY_TYPE: Record<ConditionPotionType, ConditionPoti
         minRecovery: 5,
         maxRecovery: 15,
         shopGold: 750,
+        useGold: 100,
         image: '/images/use/con1.webp',
         grade: 'normal',
         dailyShopLimit: 3,
@@ -34,6 +41,7 @@ export const CONDITION_POTION_BY_TYPE: Record<ConditionPotionType, ConditionPoti
         minRecovery: 15,
         maxRecovery: 25,
         shopGold: 1000,
+        useGold: 150,
         image: '/images/use/con2.webp',
         grade: 'uncommon',
         dailyShopLimit: 3,
@@ -44,6 +52,7 @@ export const CONDITION_POTION_BY_TYPE: Record<ConditionPotionType, ConditionPoti
         minRecovery: 25,
         maxRecovery: 35,
         shopGold: 1500,
+        useGold: 200,
         image: '/images/use/con3.webp',
         grade: 'rare',
         dailyShopLimit: 3,

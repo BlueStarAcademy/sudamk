@@ -797,6 +797,7 @@
       "adGoldDoubleAdFree": "골드 2배받기",
       "adGoldDoubleClaiming": "골드 지급 중...",
       "adGoldDoubleHint": "광고 시청을 완료하면 이번 경기 골드를 2배로 받을 수 있습니다.",
+      "adGoldDoubleFailed": "광고 골드 2배 지급에 실패했습니다. 잠시 후 다시 시도해 주세요.",
       "gameContent": "경기 내용",
       "resultSection": "대국 결과",
       "rewardsSection": "보상·기록",

@@ -182,7 +182,17 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             const adGoldBonus = getResultAdGoldBase(summary);
             if (adGoldBonus <= 0) return { error: '추가로 받을 골드 보상이 없습니다.' };
 
-            user.gold = Math.max(0, Number(user.gold ?? 0)) + adGoldBonus;
+            // 경기 종료 정산이 DB에는 반영됐는데 요청 user/슬림 캐시가 정산 전 골드면,
+            // 캐시 잔액+보너스가 정산 후 잔액과 같아져 실제 지급이 없는 것처럼 보인다.
+            // includeInventory로 슬림 userCache를 우회해 DB 스냅샷을 기준으로 가산·저장한다.
+            const freshUser = await db.getUser(user.id, { includeEquipment: true, includeInventory: true });
+            if (freshUser) {
+                const nextGold = Math.max(0, Number(freshUser.gold ?? 0)) + adGoldBonus;
+                Object.assign(user, freshUser);
+                user.gold = nextGold;
+            } else {
+                user.gold = Math.max(0, Number(user.gold ?? 0)) + adGoldBonus;
+            }
             summary.gold = Math.max(0, Number(summary.gold ?? 0)) + adGoldBonus;
             if (typeof summary.matchGold === 'number' && Number.isFinite(summary.matchGold)) {
                 summary.matchGold += adGoldBonus;
@@ -202,6 +212,8 @@ export const handleRewardAction = async (volatileState: VolatileState, action: S
             await db.updateUser(user);
             await db.saveGame(game, true);
             updateGameCache(game);
+            const { updateUserCache } = await import('../gameCache.js');
+            updateUserCache(user);
 
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_RESULT_AD_GOLD_DOUBLE');
             const { broadcastUserUpdate } = await import('../socket.js');

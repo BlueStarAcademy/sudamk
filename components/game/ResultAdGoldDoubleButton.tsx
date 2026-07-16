@@ -63,8 +63,14 @@ const ResultAdGoldDoubleButton: React.FC<ResultAdGoldDoubleButtonProps> = ({
                     window.alert(String(anyResult.error));
                     return;
                 }
-                const adGoldBonus = Number(anyResult?.clientResponse?.adGoldBonus ?? anyResult?.adGoldBonus ?? baseGold);
-                const safeBonus = Number.isFinite(adGoldBonus) && adGoldBonus > 0 ? Math.floor(adGoldBonus) : baseGold;
+                // 서버가 실제 지급한 금액만 반영한다. 응답에 adGoldBonus가 없으면 낙관적 2배 표시하지 않음.
+                const rawBonus = anyResult?.clientResponse?.adGoldBonus ?? anyResult?.adGoldBonus;
+                const adGoldBonus = Number(rawBonus);
+                if (!Number.isFinite(adGoldBonus) || adGoldBonus <= 0) {
+                    window.alert(t('game:summary.adGoldDoubleFailed'));
+                    return;
+                }
+                const safeBonus = Math.floor(adGoldBonus);
                 setClaimedLocally(true);
                 onClaimed?.(safeBonus);
             })

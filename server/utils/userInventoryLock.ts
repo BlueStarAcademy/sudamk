@@ -35,6 +35,13 @@ export async function hydrateUserFromLatestInventory(user: User): Promise<void> 
     user.equipmentPresets = fresh.equipmentPresets;
     user.gold = fresh.gold;
     user.diamonds = fresh.diamonds;
+    // 연속 COMBINE: /api/action이 잠금 전에 잡은 user 스냅샷은 직전 합성의 레벨업을 모를 수 있다.
+    if (typeof fresh.blacksmithLevel === 'number') {
+        user.blacksmithLevel = fresh.blacksmithLevel;
+    }
+    if (typeof fresh.blacksmithXp === 'number') {
+        user.blacksmithXp = fresh.blacksmithXp;
+    }
     if (fresh.exchangeState !== undefined) {
         user.exchangeState = fresh.exchangeState;
     }

@@ -5,10 +5,10 @@ import type { User } from '../../../types.js';
 
 describe('conditionPotionOptimistic', () => {
     it('builds dungeon patch with inventory, gold, snapshot, and player condition', () => {
-        const smallPotionGold = getConditionPotionDefinition('small').shopGold;
+        const smallPotionUseGold = getConditionPotionDefinition('small').useGold;
         const user = {
             id: 'u1',
-            gold: smallPotionGold + 250,
+            gold: smallPotionUseGold + 250,
             inventory: [{ id: 'p1', name: '컨디션회복제(소)', type: 'consumable', quantity: 2 }],
             dungeonConditionSnapshot: {
                 neighborhood: { condition: 40, dateStartOfDayKST: 1 },
