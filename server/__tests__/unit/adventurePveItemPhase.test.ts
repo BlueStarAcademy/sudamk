@@ -61,6 +61,35 @@ describe('tickStrategicItemPhaseIfNeeded', () => {
         expect(changed).toBe(false);
         expect(broadcastMock).not.toHaveBeenCalled();
     });
+
+    it('finalizes expired singleplayer missile_animating via SP missile updater', async () => {
+        const startTime = Date.now() - 5000;
+        const game = makeAdventureAiGame({
+            id: 'sp-missile-tick',
+            isSinglePlayer: true,
+            isAiGame: true,
+            gameCategory: 'singleplayer',
+            mode: GameMode.Missile,
+            gameStatus: 'missile_animating',
+            settings: { boardSize: 9, missileCount: 2 },
+            missiles_p1: 1,
+            missiles_p2: 2,
+            animation: {
+                type: 'missile',
+                from: { x: 1, y: 1 },
+                to: { x: 1, y: 3 },
+                player: Player.Black,
+                startTime,
+                duration: 400,
+            } as any,
+            lastProcessedMissileAnimationTime: undefined,
+        } as any);
+        const changed = await tickStrategicItemPhaseIfNeeded(game, Date.now());
+        expect(changed).toBe(true);
+        expect(game.gameStatus).toBe('playing');
+        expect(game.animation).toBeNull();
+        expect(broadcastMock).toHaveBeenCalled();
+    });
 });
 
 describe('schedulePveStrategicAiTurnIfNeeded', () => {

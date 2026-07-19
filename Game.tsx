@@ -110,6 +110,7 @@ import {
     resolvePairChessSetupPlayerColor,
 } from './shared/utils/pairChessSetup.js';
 import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from './shared/utils/liveSessionArenaKind.js';
+import { isItemPhaseAiBlockingPresentationActive } from './shared/utils/itemPhaseAnimationTypes.js';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from './shared/utils/liveSessionSinglePlayerStage.js';
 import { getPairPetDefinition } from './shared/constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from './shared/utils/pairEquippedPet.js';
@@ -4914,9 +4915,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const isTower = sessionPolicy.kind === 'tower';
         const isPlayfulAiGame = session.isAiGame && PLAYFUL_GAME_MODES.some(m => m.mode === mode);
         const isPlayfulModeForAiTrigger = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
-        const missileFlightAnimType = (session.animation as { type?: string } | undefined)?.type;
-        const isMissileFlightPresentationActive =
-            missileFlightAnimType === 'missile' || missileFlightAnimType === 'hidden_missile';
+        const isItemPhasePresentationBlockingAi = isItemPhaseAiBlockingPresentationActive(session);
         const gameStatusAllowsAiTrigger = isPlayfulModeForAiTrigger
             ? PLAYFUL_AI_CLIENT_TRIGGER_STATUSES.has(gameStatus)
             : gameStatus === 'playing' && !STRATEGIC_ITEM_PHASE_AI_BLOCK_STATUSES.has(gameStatus);
@@ -4929,7 +4928,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             isPaused ||
             !gameStatusAllowsAiTrigger ||
             STRATEGIC_ITEM_PHASE_AI_BLOCK_STATUSES.has(gameStatus) ||
-            isMissileFlightPresentationActive
+            isItemPhasePresentationBlockingAi
         ) {
             lastAiMoveRef.current = null;
             return;
@@ -5074,8 +5073,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (timeSinceLastMove > 3000) {
                     const blockedByItemPhase =
                         STRATEGIC_ITEM_PHASE_AI_BLOCK_STATUSES.has(session.gameStatus) ||
-                        session.animation?.type === 'missile' ||
-                        session.animation?.type === 'hidden_missile';
+                        isItemPhaseAiBlockingPresentationActive(session);
                     if (blockedByItemPhase) {
                         return;
                     }
@@ -5657,7 +5655,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return base;
     }, [useRefreshSessionStorageMerge, chessGoSession, restoredBoardState]);
 
-    const isServerAiHiddenPresentationActive = session.animation?.type === 'ai_thinking';
+    const isServerAiHiddenPresentationActive = isItemPhaseAiBlockingPresentationActive(session) &&
+        (session.animation as { type?: string } | null | undefined)?.type === 'ai_thinking';
     const isClientAiHiddenPresentationActive =
         aiHiddenItemEffectEndTime != null && Date.now() < aiHiddenItemEffectEndTime;
     const isAiHiddenPresentationActive =

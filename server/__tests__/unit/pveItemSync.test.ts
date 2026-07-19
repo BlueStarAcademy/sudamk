@@ -652,4 +652,74 @@ describe('PVE item client sync', () => {
         expect(game.hiddenStoneCaptures[Player.White]).toBe(1);
         expect(game.captures[Player.Black]).toBe(10);
     });
+
+    it('does not let stale playing clientSync unwind server missile_selecting', () => {
+        const board = emptyBoard(9);
+        board[2][2] = Player.Black;
+        const game: any = {
+            id: 'pve-missile-selecting-guard',
+            isSinglePlayer: true,
+            isAiGame: true,
+            gameCategory: 'singleplayer',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            player1: { id: 'human-1' },
+            player2: { id: 'ai-player-01' },
+            boardState: board,
+            moveHistory: [{ x: 2, y: 2, player: Player.Black }],
+            currentPlayer: Player.Black,
+            gameStatus: 'missile_selecting',
+            itemUseDeadline: Date.now() + 20000,
+            mode: 'missile',
+            settings: { boardSize: 9, missileCount: 2 },
+            missiles_p1: 2,
+            captures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board,
+                moveHistory: [{ x: 2, y: 2, player: Player.Black }],
+                currentPlayer: Player.Black,
+                gameStatus: 'playing',
+            },
+        });
+
+        expect(game.gameStatus).toBe('missile_selecting');
+        expect(game.itemUseDeadline).toBeDefined();
+    });
+
+    it('does not let stale playing clientSync unwind adventure scanning', () => {
+        const board = emptyBoard(9);
+        const game: any = {
+            id: 'pve-adv-scanning-guard',
+            isSinglePlayer: false,
+            isAiGame: true,
+            gameCategory: 'adventure',
+            blackPlayerId: 'human-1',
+            whitePlayerId: 'ai-player-01',
+            player1: { id: 'human-1' },
+            player2: { id: 'ai-player-01' },
+            boardState: board,
+            moveHistory: [],
+            currentPlayer: Player.Black,
+            gameStatus: 'scanning',
+            itemUseDeadline: Date.now() + 20000,
+            mode: 'hidden',
+            settings: { boardSize: 9, hiddenStoneCount: 2, scanCount: 2 },
+            scans_p1: 2,
+            captures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
+        };
+
+        applyPveItemActionClientSync(game, {
+            clientSync: {
+                boardState: board,
+                moveHistory: [],
+                currentPlayer: Player.Black,
+                gameStatus: 'playing',
+            },
+        });
+
+        expect(game.gameStatus).toBe('scanning');
+    });
 });

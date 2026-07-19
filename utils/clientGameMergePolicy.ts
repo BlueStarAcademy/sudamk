@@ -20,6 +20,7 @@ import { getAdventureDesignScoringTurnLimit } from '../shared/utils/adventureBat
 import {
     isItemPhasePresentationStillActive,
     isItemPhaseTransientAnimationType,
+    isTransientItemFlightOrScanAnimation,
     wasItemPhaseAnimatingStatus,
 } from '../shared/utils/itemPhaseAnimationTypes.js';
 import {
@@ -120,17 +121,35 @@ export function shouldClearItemPhaseAnimationOnPlayingMerge(
     if (!existing || incoming.gameStatus !== 'playing') return false;
     const policy = resolveArenaSessionPolicy(incoming as any);
     if (!policy.clearsItemPhaseAnimationOnPlaying) return false;
-    const prevWasItemPhaseAnimating =
-        wasItemPhaseAnimatingStatus(existing.gameStatus) ||
-        isItemPhaseTransientAnimationType(existing.animation as any);
-    if (!prevWasItemPhaseAnimating) return false;
+
+    // 모험 등: 아직 재생 중인 hidden_reveal / ai_thinking은 지우지 않는다
+    if (isItemPhasePresentationStillActive(existing as LiveGameSession)) return false;
+    if (isItemPhasePresentationStillActive(incoming as LiveGameSession)) return false;
+
     const incomingRev = incoming.serverRevision ?? 0;
     const existingRev = existing.serverRevision ?? 0;
     // PVP only: ahead playing revision wins over local animation clock.
     // Applying this to adventure PVE skips capture full-reveal presentation.
     if (policy.matchAxis === 'pvp' && incomingRev > existingRev) return true;
-    if (isItemPhasePresentationStillActive(existing as LiveGameSession)) return false;
+
     const incomingAnim = (incoming as { animation?: LiveGameSession['animation'] }).animation;
+
+    // playing + 미사일/스캔 연출이 실려 오면 항상 제거 (이미 playing인 클라에 늦은 패킷 재유입 포함)
+    if (isTransientItemFlightOrScanAnimation(incomingAnim as { type?: string } | null | undefined)) {
+        return true;
+    }
+    // playing + 만료된 ai_thinking 잔존도 제거 (활성 연출은 위에서 stillActive로 보호됨)
+    if ((incomingAnim as { type?: string } | null | undefined)?.type === 'ai_thinking') {
+        return true;
+    }
+
+    const prevWasItemPhaseAnimating =
+        wasItemPhaseAnimatingStatus(existing.gameStatus) ||
+        isItemPhaseTransientAnimationType(existing.animation as any) ||
+        (existing.gameStatus === 'playing' &&
+            isTransientItemFlightOrScanAnimation(existing.animation as { type?: string } | null | undefined));
+    if (!prevWasItemPhaseAnimating) return false;
+    // 슬림 패킷: animation 필드 생략/null → leftover clear
     return incomingAnim === undefined || incomingAnim === null;
 }
 

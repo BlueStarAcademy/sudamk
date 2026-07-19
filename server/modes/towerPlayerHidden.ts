@@ -11,6 +11,10 @@ import {
     scanInventoryKeyForPlayer,
 } from './hiddenScanShared.js';
 import { aiUserId } from '../aiPlayer.js';
+import {
+    mixGoClearHiddenItemPhaseTimers,
+    mixGoShouldUnstickHiddenItemSelectionPhase,
+} from '../../shared/utils/mixGoRules.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -230,6 +234,35 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
     if (game.gameCategory !== 'tower') return;
 
     const isItemMode = ['hidden_placing', 'scanning'].includes(game.gameStatus);
+
+    // deadline 누락 시 선택 페이즈 영구 고착 방지 (SP/live updateHiddenState와 동일)
+    if (mixGoShouldUnstickHiddenItemSelectionPhase(game)) {
+        const stuckStatus = game.gameStatus;
+        const stuckPlayer = game.currentPlayer;
+        console.warn(
+            `[updateTowerPlayerHiddenState] Recovering stuck item phase (missing itemUseDeadline): status=${stuckStatus}, gameId=${game.id}`,
+        );
+        game.gameStatus = 'playing';
+        mixGoClearHiddenItemPhaseTimers(game);
+        if (stuckStatus === 'hidden_placing' && stuckPlayer !== types.Player.None) {
+            const stuckPlayerId =
+                stuckPlayer === types.Player.Black ? game.blackPlayerId : game.whitePlayerId;
+            const hiddenKey =
+                stuckPlayerId === game.player1?.id ? 'hidden_stones_p1' : 'hidden_stones_p2';
+            const currentHidden = (game as any)[hiddenKey] ?? 0;
+            if (currentHidden > 0) {
+                (game as any)[hiddenKey] = currentHidden - 1;
+                const usedKey =
+                    hiddenKey === 'hidden_stones_p1' ? 'hidden_stones_used_p1' : 'hidden_stones_used_p2';
+                (game as any)[usedKey] = ((game as any)[usedKey] || 0) + 1;
+            }
+        }
+        if (stuckPlayer !== types.Player.None) {
+            resumeGameTimer(game, now, stuckPlayer);
+        }
+        (game as any)._itemTimeoutStateChanged = true;
+        return;
+    }
 
     if (game.gameStatus === 'scanning_animating' && game.itemUseDeadline && now > game.itemUseDeadline) {
         game.animation = null;

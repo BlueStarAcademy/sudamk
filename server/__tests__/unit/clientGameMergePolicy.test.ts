@@ -476,7 +476,7 @@ describe('mergeGameUpdateByArena', () => {
         expect(merged.boardState![7]![7]).toBe(Player.White);
     });
 
-    it('does not clear missile animation when incoming explicitly includes it', () => {
+    it('clears missile animation when incoming is playing even if animation is still attached', () => {
         const anim = {
             type: 'missile',
             from: { x: 2, y: 2 },
@@ -494,7 +494,61 @@ describe('mergeGameUpdateByArena', () => {
             animation: anim as any,
         });
         const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
-        expect(merged.animation).toEqual(anim);
+        expect(merged.animation).toBeNull();
+        expect(merged.gameStatus).toBe('playing');
+    });
+
+    it('clears stale missile animation reintroduced onto an already-playing client', () => {
+        const anim = {
+            type: 'missile',
+            from: { x: 0, y: 0 },
+            to: { x: 0, y: 2 },
+            player: Player.Black,
+            startTime: Date.now() - 5000,
+            duration: 400,
+        };
+        const existing = minimalSession({
+            gameCategory: 'singleplayer',
+            isSinglePlayer: true,
+            gameStatus: 'playing',
+            animation: null,
+        });
+        const incoming = minimalSession({
+            gameCategory: 'singleplayer',
+            isSinglePlayer: true,
+            gameStatus: 'playing',
+            animation: anim as any,
+        });
+        expect(shouldClearMissileFlightAnimationOnPlayingMerge(existing, incoming)).toBe(true);
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.animation).toBeNull();
+    });
+
+    it('clears stale scan animation on playing merge for adventure', () => {
+        const existing = minimalSession({
+            gameCategory: 'adventure',
+            mode: GameMode.Hidden,
+            gameStatus: 'scanning_animating',
+            animation: {
+                type: 'scan',
+                playerId: 'p1',
+                startTime: Date.now() - 3000,
+                duration: 500,
+            } as any,
+        });
+        const incoming = minimalSession({
+            gameCategory: 'adventure',
+            mode: GameMode.Hidden,
+            gameStatus: 'playing',
+            animation: {
+                type: 'scan',
+                playerId: 'p1',
+                startTime: Date.now() - 3000,
+                duration: 500,
+            } as any,
+        });
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.animation).toBeNull();
     });
 
     it('strips stale justCaptured when moveHistory advances without capture score change', () => {

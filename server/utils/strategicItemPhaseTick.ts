@@ -30,8 +30,9 @@ export async function tickStrategicItemPhaseIfNeeded(
     if (policy.kind === GameCategory.SinglePlayer) {
         const { updateSinglePlayerHiddenState } = await import('../modes/singlePlayerHidden.js');
         hiddenChanged = await updateSinglePlayerHiddenState(game, now);
-        const { updateMissileState } = await import('../modes/missile.js');
-        missileChanged = updateMissileState(game, now);
+        // 메인 루프(strategicItemAdapters)와 동일: 학원은 SP 미사일 상태머신 사용
+        const { updateSinglePlayerMissileState } = await import('../modes/singlePlayerMissile.js');
+        missileChanged = await updateSinglePlayerMissileState(game, now);
     } else if (policy.kind === GameCategory.Tower) {
         const { updateTowerPlayerHiddenState } = await import('../modes/towerPlayerHidden.js');
         hiddenChanged = await updateTowerPlayerHiddenState(game, now);

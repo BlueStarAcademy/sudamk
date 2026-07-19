@@ -231,6 +231,10 @@ import {
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
 import { markPveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSettleSignal.js';
 import { computeGameSessionFingerprint } from '../utils/gameSessionFingerprint.js';
+import {
+    isTransientItemFlightOrScanAnimation,
+    stripStaleFlightOrScanAnimationIfPlaying,
+} from '../shared/utils/itemPhaseAnimationTypes.js';
 
 const pveAutoScoringScheduledStorageKey = (gameId: string) => `pveAutoScoringScheduled:${gameId}`;
 import {
@@ -382,7 +386,7 @@ function mergeGameWithMonotonicCounters(
         prev?.settings,
         merged.settings as LiveGameSession['settings']
     );
-    return merged;
+    return stripStaleFlightOrScanAnimationIfPlaying(merged);
 }
 
 /**
@@ -1281,6 +1285,7 @@ function mergePveGameUpdateFromWs(
     }
     next = mergeGameUpdateByArena(next, richerExisting, { source: 'game_update' });
     next = preserveLiveStrategicMainClockOnMerge(next, richerExisting, incoming);
+    next = stripStaleFlightOrScanAnimationIfPlaying(next);
     if (
         richerExisting &&
         (next.gameStatus === 'scoring' || next.gameStatus === 'ended' || next.gameStatus === 'no_contest')
@@ -1315,6 +1320,7 @@ function mergePveHttpActionGameResponse(
     let next = applyPvePlayingBoardAndMoveHistoryResolve(merged, prevG);
     next = mergeGameUpdateByArena(next, prevG, { source: 'http_action', actionType });
     next = preserveLiveStrategicMainClockOnMerge(next, prevG, merged);
+    next = stripStaleFlightOrScanAnimationIfPlaying(next);
     if (isPveStartConfirm) {
         return next;
     }
@@ -12645,6 +12651,14 @@ export const useApp = () => {
                                         ) {
                                             liveMerged = { ...liveMerged, animation: null };
                                         }
+                                        if (
+                                            existingGame?.gameStatus === 'scanning_animating' &&
+                                            liveMerged.gameStatus === 'playing' &&
+                                            isTransientItemFlightOrScanAnimation(liveMerged.animation as any)
+                                        ) {
+                                            liveMerged = { ...liveMerged, animation: null };
+                                        }
+                                        liveMerged = stripStaleFlightOrScanAnimationIfPlaying(liveMerged);
                                         liveMerged = preserveTerminalAnalysisResultOnMerge(
                                             liveMerged,
                                             liveRicherExisting ?? existingGame,
