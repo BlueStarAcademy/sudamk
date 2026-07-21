@@ -60,7 +60,6 @@ export function buildScheduledBroadcastMailSpec(
                 title: '주말 점심 선물',
                 message: '즐거운 주말 보내세요!\n\n1일 이내에 수령해 주세요.',
                 attachments: {
-                    actionPoints: 30,
                     gold: 3000,
                     items: [{ itemId: '장비상자4', quantity: 1 }],
                 },
@@ -70,7 +69,6 @@ export function buildScheduledBroadcastMailSpec(
             title: '점심 선물',
             message: '즐거운 점심시간 되세요!\n\n1일 이내에 수령해 주세요.',
             attachments: {
-                actionPoints: 10,
                 gold: 1000,
             },
         };

@@ -33,10 +33,10 @@ describe('scheduledBroadcastMails', () => {
         expect(resolveScheduledBroadcastSlot(WEEKDAY_LUNCH_MS - 60 * 60 * 1000)).toBeNull();
     });
 
-    it('builds weekday lunch mail with 10 action points and gold', () => {
+    it('builds weekday lunch mail with gold only (no action points)', () => {
         const spec = buildScheduledBroadcastMailSpec('lunch', false);
         expect(spec.message).toContain('즐거운 점심시간 되세요!');
-        expect(spec.attachments.actionPoints).toBe(10);
+        expect(spec.attachments.actionPoints).toBeUndefined();
         expect(spec.attachments.gold).toBe(1000);
         expect(spec.attachments.items).toBeUndefined();
     });
@@ -48,10 +48,10 @@ describe('scheduledBroadcastMails', () => {
         expect(spec.attachments.items).toEqual([{ itemId: '재료상자2', quantity: 1 }]);
     });
 
-    it('builds weekend lunch mail with AP, equipment box IV, and gold', () => {
+    it('builds weekend lunch mail with equipment box IV and gold (no action points)', () => {
         const spec = buildScheduledBroadcastMailSpec('lunch', true);
         expect(spec.message).toContain('즐거운 주말 보내세요!');
-        expect(spec.attachments.actionPoints).toBe(30);
+        expect(spec.attachments.actionPoints).toBeUndefined();
         expect(spec.attachments.gold).toBe(3000);
         expect(spec.attachments.items).toEqual([{ itemId: '장비상자4', quantity: 1 }]);
     });
