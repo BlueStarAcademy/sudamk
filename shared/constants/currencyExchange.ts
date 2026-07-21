@@ -27,12 +27,13 @@ export const CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH = {
 /** 바로환전: 다이아→골드 최소 환전량 (골드→다이아는 1다이아 상당 골드부터) */
 export const CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS = 50;
 
-/** 일일 바로환전 한도: 골드→다이아 (골드 지출 상한, 100다이아 × 매입가) */
-export const CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_SPENT =
-    CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY * 100;
+/** 일일 바로환전 한도: 골드→다이아 (골드 지출 상한, 고정 50만) */
+export const CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_SPENT = 500_000;
 
-/** 일일 바로환전 한도: 골드→다이아 (다이아 수령 상한, 수수료 전) */
-export const CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_FROM_GOLD = 100;
+/** 일일 바로환전 한도: 골드→다이아 (다이아 수령 상한 — 50만 골드가 모두 쓰이도록 ceil) */
+export const CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_FROM_GOLD = Math.ceil(
+    CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_SPENT / CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY,
+);
 
 /** 일일 바로환전 한도: 다이아→골드 (다이아 지출 상한) */
 export const CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_SPENT = 100;

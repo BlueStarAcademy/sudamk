@@ -535,9 +535,6 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
         'border-cyan-300/55 bg-gradient-to-b from-cyan-500/25 via-cyan-900/40 to-slate-950 text-cyan-50 shadow-[0_0_24px_-8px_rgba(34,211,238,0.45),inset_0_1px_0_rgba(255,255,255,0.12)]';
     const directionBtnIdle =
         'border-slate-600/50 bg-slate-950/40 text-slate-400 hover:border-slate-500/70 hover:text-slate-200';
-    const instantCtaClass = mobileExchange
-        ? '!w-full !rounded-lg !border !border-cyan-400/20 !bg-gradient-to-b !from-cyan-500/90 !via-cyan-600/85 !to-cyan-950 !py-2.5 !text-sm !font-bold !text-white !shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition hover:!brightness-110 active:scale-[0.99]'
-        : '!w-full !rounded-lg !border !border-cyan-400/20 !bg-gradient-to-b !from-cyan-500/90 !via-cyan-600/85 !to-cyan-950 !py-2.5 !text-base !font-bold !text-white !shadow-[inset_0_1px_0_rgba(255,255,255,0.2)] transition hover:!brightness-110 active:scale-[0.99]';
     const marketOrderListCols = mobileExchange
         ? 'grid-cols-[minmax(4.5rem,auto)_minmax(3.25rem,1fr)_minmax(3.75rem,1fr)_minmax(3.75rem,1fr)_3.75rem] gap-1'
         : 'grid-cols-[minmax(4.75rem,auto)_minmax(4.5rem,1fr)_minmax(5.5rem,1fr)_minmax(5.5rem,1fr)_5.5rem] gap-2';
@@ -1002,68 +999,60 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-3 px-3 py-3 sm:flex-row sm:items-stretch">
-                                <div className="grid min-w-0 flex-1 grid-cols-[1fr_auto_1fr] items-center gap-2 self-center sm:self-stretch">
-                                    <div className="rounded-lg border border-amber-400/20 bg-amber-950/30 px-2 py-2 text-center">
-                                        <p className={`mb-1 ${exchTy.metaLabel} text-amber-200/70`}>
-                                            {t('currency.pay')}
-                                        </p>
-                                        <CurrencyAmountDisplay
-                                            amount={instantPreview.pay}
-                                            currency={instantPreview.payCurrency}
-                                            iconClassName={mobileExchange ? 'h-5 w-5' : 'h-6 w-6'}
-                                            amountClassName={`${exchTy.amount} text-amber-100`}
-                                            className="justify-center"
-                                        />
+                            <div className="flex flex-col gap-2.5 px-3 py-3">
+                                <div className="space-y-2.5">
+                                    <div className="flex items-end justify-center gap-2">
+                                        <div className="min-w-0 flex-1 text-center">
+                                            <label className={`mb-1.5 flex items-center justify-center gap-1 ${exchTy.subLabel}`}>
+                                                {t('currency.inputAmount')}
+                                                <CurrencyIcon currency={instantInputCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
+                                            </label>
+                                            <input
+                                                className={`${inputClass} !text-center`}
+                                                value={instantAmount}
+                                                onChange={(e) => handleInstantAmountChange(e.target.value)}
+                                                inputMode="numeric"
+                                                disabled={instantInputMax <= 0}
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                        <div className="shrink-0 pb-2 text-center">
+                                            <p className={`mb-1 ${exchTy.metaLabel}`}>
+                                                {t('currency.feePercent')}
+                                            </p>
+                                            <CurrencyAmountDisplay
+                                                amount={instantPreview.fee}
+                                                currency={instantPreview.feeCurrency}
+                                                iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                amountClassName={`${exchTy.amountSm} text-rose-300/90`}
+                                                className="justify-center"
+                                            />
+                                        </div>
                                     </div>
-                                    <span className={`${mobileExchange ? 'text-xl' : 'text-2xl'} text-cyan-400/80`}>→</span>
-                                    <div className="rounded-lg border border-violet-400/20 bg-violet-950/30 px-2 py-2 text-center">
-                                        <p className={`mb-1 ${exchTy.metaLabel} text-violet-200/70`}>
+                                    <div className="text-center">
+                                        <p className={`mb-1.5 flex items-center justify-center gap-1 ${exchTy.subLabel}`}>
                                             {t('currency.receive')}
+                                            <CurrencyIcon currency={instantPreview.receiveCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
                                         </p>
-                                        <CurrencyAmountDisplay
-                                            amount={instantPreview.receive}
-                                            currency={instantPreview.receiveCurrency}
-                                            iconClassName={mobileExchange ? 'h-5 w-5' : 'h-6 w-6'}
-                                            amountClassName={`${exchTy.amount} text-violet-100`}
-                                            className="justify-center"
-                                        />
+                                        <div className="flex min-h-[2.75rem] items-center justify-center rounded-lg border border-white/[0.08] bg-black/25 px-3 py-2">
+                                            <CurrencyAmountDisplay
+                                                amount={instantPreview.receive}
+                                                currency={instantPreview.receiveCurrency}
+                                                iconClassName={mobileExchange ? 'h-5 w-5' : 'h-6 w-6'}
+                                                amountClassName={`${exchTy.amount} text-violet-100`}
+                                                className="justify-center"
+                                            />
+                                        </div>
                                     </div>
                                 </div>
 
-                                <div className="flex min-w-0 flex-1 items-stretch gap-2">
-                                    <div className="flex w-[5.5rem] shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-rose-400/15 bg-rose-950/20 px-1.5 py-2 text-center sm:w-28">
-                                        <span className={`${exchTy.metaLabel} text-rose-200/80`}>{t('currency.feePercent')}</span>
-                                        <CurrencyAmountDisplay
-                                            amount={instantPreview.fee}
-                                            currency={instantPreview.feeCurrency}
-                                            iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
-                                            amountClassName={`${exchTy.amountSm} text-rose-300/90`}
-                                            className="justify-center"
-                                        />
-                                    </div>
-                                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
-                                        <label className={`flex items-center justify-center gap-1.5 ${exchTy.label}`}>
-                                            {t('currency.inputAmount')}
-                                            <CurrencyIcon currency={instantInputCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
-                                        </label>
-                                        <input
-                                            className={`${inputClass} !text-center`}
-                                            value={instantAmount}
-                                            onChange={(e) => handleInstantAmountChange(e.target.value)}
-                                            inputMode="numeric"
-                                            disabled={instantInputMax <= 0}
-                                            placeholder="0"
-                                        />
-                                        <Button
-                                            onClick={() => void handleInstantExchange()}
-                                            className={instantCtaClass}
-                                            disabled={instantInputMax <= 0 || instantPreview.receive <= 0}
-                                        >
-                                            {t('currency.instantExchange')}
-                                        </Button>
-                                    </div>
-                                </div>
+                                <Button
+                                    onClick={() => void handleInstantExchange()}
+                                    className={`${primaryButtonClass} !w-full !rounded-lg`}
+                                    disabled={instantInputMax <= 0 || instantPreview.receive <= 0}
+                                >
+                                    {t('currency.instantExchange')}
+                                </Button>
                             </div>
                         </div>
                     </div>

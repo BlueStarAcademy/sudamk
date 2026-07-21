@@ -13,6 +13,8 @@ import {
     validateInstantExchangeDailyLimit,
 } from '../../../shared/utils/currencyExchange.js';
 import {
+    CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_FROM_GOLD,
+    CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_SPENT,
     CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY,
     CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL,
     CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS,
@@ -23,6 +25,15 @@ describe('instant daily exchange limits', () => {
     const now = getStartOfDayKST(Date.UTC(2026, 6, 5, 12, 0, 0)) + 60_000;
     const buyRate = CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY;
     const sellRate = CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL;
+
+    it('fixes gold→diamond daily gold cap at 500_000', () => {
+        expect(CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_SPENT).toBe(500_000);
+        expect(CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_FROM_GOLD).toBe(
+            Math.ceil(500_000 / buyRate),
+        );
+        const fresh = getInstantDailyRemaining(undefined, now);
+        expect(fresh.maxGoldInput).toBe(500_000);
+    });
 
     it('resets usage on a new KST day', () => {
         const yesterday = now - 24 * 60 * 60 * 1000;
@@ -35,15 +46,15 @@ describe('instant daily exchange limits', () => {
     });
 
     it('caps gold instant exchange at daily gold / diamond limits', () => {
-        const usage = { lastResetDayKST: getStartOfDayKST(now), goldSpent: buyRate * 90, diamondsSpent: 0 };
-        const err = validateInstantExchangeDailyLimit('gold_to_diamonds', usage, buyRate * 20, 0, 20, 0, now);
+        const usage = { lastResetDayKST: getStartOfDayKST(now), goldSpent: 432_000, diamondsSpent: 0 };
+        const err = validateInstantExchangeDailyLimit('gold_to_diamonds', usage, 96_000, 0, 20, 0, now);
         expect(err).toMatch(/골드 한도|다이아 수령 한도/);
 
-        const ok = validateInstantExchangeDailyLimit('gold_to_diamonds', usage, buyRate * 10, 0, 10, 0, now);
+        const ok = validateInstantExchangeDailyLimit('gold_to_diamonds', usage, 68_000, 0, 14, 0, now);
         expect(ok).toBeNull();
 
-        const updated = applyInstantDailyUsage(usage, 'gold_to_diamonds', buyRate * 10, 0, now);
-        expect(updated.goldSpent).toBe(buyRate * 100);
+        const updated = applyInstantDailyUsage(usage, 'gold_to_diamonds', 68_000, 0, now);
+        expect(updated.goldSpent).toBe(500_000);
     });
 
     it('caps diamond instant exchange at daily diamond / gold limits', () => {
@@ -57,9 +68,9 @@ describe('instant daily exchange limits', () => {
     });
 
     it('clamps requested amount down to 100% of remaining daily limit', () => {
-        const usage = { lastResetDayKST: getStartOfDayKST(now), goldSpent: buyRate * 90, diamondsSpent: 0 };
+        const usage = { lastResetDayKST: getStartOfDayKST(now), goldSpent: 432_000, diamondsSpent: 0 };
         const remaining = getInstantDailyRemaining(usage, now);
-        expect(remaining.maxGoldInput).toBe(buyRate * 10);
+        expect(remaining.maxGoldInput).toBe(68_000);
 
         expect(clampInstantExchangeInputToDailyLimit('gold_to_diamonds', buyRate * 50, usage, now)).toBe(
             remaining.maxGoldInput,
