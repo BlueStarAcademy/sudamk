@@ -8,6 +8,7 @@ import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { getApiUrl } from '../../utils/apiConfig.js';
 import { clampDigitsOnlyInputString, clampGameInt, exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
 import {
+    clampInstantExchangeInputToDailyLimit,
     computeInstantDiamondsToGold,
     computeInstantGoldToDiamonds,
     computeDesiredExchangeAmountFromMarketRate,
@@ -15,6 +16,7 @@ import {
     getInstantDailyRemaining,
     instantGoldPerDiamondWhenBuyingDiamonds,
     instantGoldPerDiamondWhenSellingDiamonds,
+    maxInstantBasePayAffordable,
     resolveMarketDisplayGoldPerDiamond,
     validateInstantExchangeDailyLimit,
 } from '../../shared/utils/currencyExchange.js';
@@ -23,8 +25,9 @@ import {
     CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_SPENT,
     CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_FROM_DIAMONDS,
     CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_SPENT,
-    CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY,
-    CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL,
+    CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH,
+    CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH,
+    CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS,
     CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER,
 } from '../../shared/constants/currencyExchange.js';
 import { formatWalletCurrencyAmount, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
@@ -188,27 +191,54 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
         void refreshMarketOrders();
     }, [refreshMarketOrders]);
 
-    const instantPreview = useMemo(() => {
-        const amount = Math.max(0, Math.floor(Number(instantAmount) || 0));
-        if (instantDirection === 'gold_to_diamonds') {
-            const { diamonds, goldSpent } = computeInstantGoldToDiamonds(amount);
-            return { pay: goldSpent, payCurrency: 'gold' as const, receive: diamonds, receiveCurrency: 'diamonds' as const };
-        }
-        const { gold, diamondsSpent } = computeInstantDiamondsToGold(amount);
-        return { pay: diamondsSpent, payCurrency: 'diamonds' as const, receive: gold, receiveCurrency: 'gold' as const };
-    }, [instantAmount, instantDirection]);
-
     const instantDailyRemaining = useMemo(
         () => getInstantDailyRemaining(currentUser.exchangeState?.instantDaily, Date.now()),
         [currentUser.exchangeState?.instantDaily],
     );
 
+    const instantPreview = useMemo(() => {
+        const rawAmount = Math.max(0, Math.floor(Number(instantAmount) || 0));
+        const amount = clampInstantExchangeInputToDailyLimit(
+            instantDirection,
+            rawAmount,
+            currentUser.exchangeState?.instantDaily,
+        );
+        if (instantDirection === 'gold_to_diamonds') {
+            const { diamonds, diamondsGross, goldSpent, fee, totalGoldPaid } = computeInstantGoldToDiamonds(amount);
+            return {
+                pay: goldSpent,
+                payCurrency: 'gold' as const,
+                receive: diamonds,
+                receiveGross: diamondsGross,
+                receiveCurrency: 'diamonds' as const,
+                fee,
+                feeCurrency: 'gold' as const,
+                totalPay: totalGoldPaid,
+                cappedAmount: amount,
+            };
+        }
+        const { gold, goldGross, diamondsSpent, fee, totalDiamondsPaid } = computeInstantDiamondsToGold(amount);
+        return {
+            pay: diamondsSpent,
+            payCurrency: 'diamonds' as const,
+            receive: gold,
+            receiveGross: goldGross,
+            receiveCurrency: 'gold' as const,
+            fee,
+            feeCurrency: 'diamonds' as const,
+            totalPay: totalDiamondsPaid,
+            cappedAmount: amount,
+        };
+    }, [instantAmount, instantDirection, currentUser.exchangeState?.instantDaily]);
+
     const instantInputMax = useMemo(() => {
         const listCap = maxExchangeListPrice(instantDirection === 'gold_to_diamonds' ? 'gold' : 'diamonds');
         if (instantDirection === 'gold_to_diamonds') {
-            return Math.min(listCap, walletGold, instantDailyRemaining.maxGoldInput);
+            const affordable = maxInstantBasePayAffordable(walletGold);
+            return Math.min(listCap, affordable, instantDailyRemaining.maxGoldInput);
         }
-        return Math.min(listCap, walletDiamonds, instantDailyRemaining.maxDiamondsInput);
+        const affordable = maxInstantBasePayAffordable(walletDiamonds);
+        return Math.min(listCap, affordable, instantDailyRemaining.maxDiamondsInput);
     }, [instantDirection, walletGold, walletDiamonds, instantDailyRemaining.maxGoldInput, instantDailyRemaining.maxDiamondsInput]);
 
     const instantDailyUsed = useMemo(() => {
@@ -237,10 +267,10 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
 
     const orderToCurrency: SaleCurrency = orderFromCurrency === 'gold' ? 'diamonds' : 'gold';
 
-    const orderInstantGoldPerDiamond =
+    const orderInstantRateBatch =
         orderFromCurrency === 'gold'
-            ? CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY
-            : CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL;
+            ? CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH
+            : CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH;
 
     const orderMarketRate = useMemo(
         () => resolveMarketDisplayGoldPerDiamond(marketOrders, orderFromCurrency),
@@ -279,20 +309,33 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
     };
 
     const handleInstantExchange = async () => {
-        const amount = Math.max(0, Math.floor(Number(instantAmount) || 0));
-        if (amount <= 0) {
+        const rawAmount = Math.max(0, Math.floor(Number(instantAmount) || 0));
+        if (rawAmount <= 0) {
             window.alert(t('currency.alerts.invalidAmount'));
+            return;
+        }
+        const amount = clampInstantExchangeInputToDailyLimit(
+            instantDirection,
+            rawAmount,
+            currentUser.exchangeState?.instantDaily,
+        );
+        if (amount <= 0) {
+            window.alert(t('currency.alerts.dailyInstantLimitExceeded'));
+            return;
+        }
+        if (instantDirection === 'diamonds_to_gold' && amount < CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS) {
+            window.alert(t('currency.alerts.instantMinDiamonds', { count: CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS }));
             return;
         }
         if (instantPreview.receive <= 0) {
             window.alert(t('currency.alerts.instantTooSmall'));
             return;
         }
-        if (instantPreview.payCurrency === 'gold' && walletGold < instantPreview.pay) {
+        if (instantPreview.payCurrency === 'gold' && walletGold < instantPreview.totalPay) {
             window.alert(t('alerts.insufficientGold'));
             return;
         }
-        if (instantPreview.payCurrency === 'diamonds' && walletDiamonds < instantPreview.pay) {
+        if (instantPreview.payCurrency === 'diamonds' && walletDiamonds < instantPreview.totalPay) {
             window.alert(t('alerts.insufficientDiamonds'));
             return;
         }
@@ -301,8 +344,8 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
             currentUser.exchangeState?.instantDaily,
             instantPreview.payCurrency === 'gold' ? instantPreview.pay : 0,
             instantPreview.payCurrency === 'diamonds' ? instantPreview.pay : 0,
-            instantPreview.receiveCurrency === 'diamonds' ? instantPreview.receive : 0,
-            instantPreview.receiveCurrency === 'gold' ? instantPreview.receive : 0,
+            instantPreview.receiveCurrency === 'diamonds' ? instantPreview.receiveGross : 0,
+            instantPreview.receiveCurrency === 'gold' ? instantPreview.receiveGross : 0,
         );
         if (dailyError) {
             window.alert(dailyError);
@@ -891,24 +934,27 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                     <div className="flex justify-center">
                                         {instantDirection === 'gold_to_diamonds' ? (
                                             <CurrencyArrowPair
-                                                fromAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY}
+                                                fromAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH.gold}
                                                 fromCurrency="gold"
-                                                toAmount={1}
+                                                toAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH.diamonds}
                                                 toCurrency="diamonds"
                                                 iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
                                                 amountClassName={`${exchTy.amountSm} text-slate-100`}
                                             />
                                         ) : (
                                             <CurrencyArrowPair
-                                                fromAmount={1}
+                                                fromAmount={CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH.diamonds}
                                                 fromCurrency="diamonds"
-                                                toAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL}
+                                                toAmount={CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH.gold}
                                                 toCurrency="gold"
                                                 iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
                                                 amountClassName={`${exchTy.amountSm} text-slate-100`}
                                             />
                                         )}
                                     </div>
+                                    <p className={`mt-1 ${exchTy.metaLabel} text-rose-300/80`}>
+                                        {t('currency.feePercent')}
+                                    </p>
                                 </div>
 
                                 <div className="hidden w-px self-stretch bg-white/[0.06] sm:block" aria-hidden />
@@ -986,10 +1032,24 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                 </div>
 
                                 <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+                                    <div className="flex items-center justify-center gap-2 rounded-lg border border-rose-400/15 bg-rose-950/20 px-2 py-1.5">
+                                        <span className={`${exchTy.metaLabel} text-rose-200/80`}>{t('currency.feePercent')}</span>
+                                        <CurrencyAmountDisplay
+                                            amount={instantPreview.fee}
+                                            currency={instantPreview.feeCurrency}
+                                            iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                            amountClassName={`${exchTy.amountSm} text-rose-300/90`}
+                                        />
+                                    </div>
                                     <label className={`flex items-center justify-center gap-1.5 ${exchTy.label}`}>
                                         {t('currency.inputAmount')}
                                         <CurrencyIcon currency={instantInputCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
                                     </label>
+                                    {instantDirection === 'diamonds_to_gold' ? (
+                                        <p className={`text-center ${exchTy.metaLabel} text-slate-400`}>
+                                            {t('currency.instantMinDiamondsHint', { count: CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS })}
+                                        </p>
+                                    ) : null}
                                     <input
                                         className={`${inputClass} !text-center`}
                                         value={instantAmount}
@@ -1026,18 +1086,18 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                             <div className="flex justify-center">
                                                 {orderFromCurrency === 'gold' ? (
                                                     <CurrencyArrowPair
-                                                        fromAmount={orderInstantGoldPerDiamond}
+                                                        fromAmount={orderInstantRateBatch.gold}
                                                         fromCurrency="gold"
-                                                        toAmount={1}
+                                                        toAmount={orderInstantRateBatch.diamonds}
                                                         toCurrency="diamonds"
                                                         iconClassName={mobileExchange ? 'h-4 w-4' : 'h-4 w-4'}
                                                         amountClassName={`${exchTy.amountSm} text-slate-100`}
                                                     />
                                                 ) : (
                                                     <CurrencyArrowPair
-                                                        fromAmount={1}
+                                                        fromAmount={orderInstantRateBatch.diamonds}
                                                         fromCurrency="diamonds"
-                                                        toAmount={orderInstantGoldPerDiamond}
+                                                        toAmount={orderInstantRateBatch.gold}
                                                         toCurrency="gold"
                                                         iconClassName={mobileExchange ? 'h-4 w-4' : 'h-4 w-4'}
                                                         amountClassName={`${exchTy.amountSm} text-slate-100`}

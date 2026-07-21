@@ -3,9 +3,10 @@ import * as db from '../db.js';
 import type * as types from '../../types/index.js';
 import type { HandleActionResult } from '../../types/api.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
-import { CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER } from '../../shared/constants/currencyExchange.js';
+import { CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS, CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER } from '../../shared/constants/currencyExchange.js';
 import {
     applyInstantDailyUsage,
+    clampInstantExchangeInputToDailyLimit,
     computeInstantDiamondsToGold,
     computeInstantGoldToDiamonds,
     validateCurrencyExchangeOrderAmounts,
@@ -79,25 +80,35 @@ export async function handleCurrencyExchangeAction(
 
             const exchange = ensureExchangeState(user);
             const now = Date.now();
+            // 요청량이 일일 남은 한도보다 크면 남은 한도(100%)만 환전
+            const cappedAmount = clampInstantExchangeInputToDailyLimit(
+                direction,
+                inputAmount,
+                exchange.instantDaily,
+                now,
+            );
+            if (cappedAmount <= 0) {
+                return { error: '일일 바로환전 한도를 모두 사용했습니다.' };
+            }
 
             if (direction === 'gold_to_diamonds') {
-                const { diamonds, goldSpent } = computeInstantGoldToDiamonds(inputAmount);
-                if (diamonds <= 0) return { error: '환전 가능한 다이아 수량이 없습니다.' };
+                const { diamonds, diamondsGross, goldSpent, fee, totalGoldPaid } = computeInstantGoldToDiamonds(cappedAmount);
+                if (diamondsGross <= 0 || diamonds <= 0) return { error: '환전 가능한 다이아 수량이 없습니다.' };
                 const dailyError = validateInstantExchangeDailyLimit(
                     direction,
                     exchange.instantDaily,
                     goldSpent,
                     0,
-                    diamonds,
+                    diamondsGross,
                     0,
                     now,
                 );
                 if (dailyError) return { error: dailyError };
-                if ((user.gold ?? 0) < goldSpent) return { error: '골드가 부족합니다.' };
-                if (diamonds > maxExchangeListPrice('diamonds')) {
+                if ((user.gold ?? 0) < totalGoldPaid) return { error: '골드가 부족합니다.' };
+                if (diamondsGross > maxExchangeListPrice('diamonds')) {
                     return { error: '한 번에 환전할 수 있는 다이아 한도를 초과했습니다.' };
                 }
-                user.gold = Math.max(0, (user.gold ?? 0) - goldSpent);
+                user.gold = Math.max(0, (user.gold ?? 0) - totalGoldPaid);
                 user.diamonds = Math.max(0, (user.diamonds ?? 0) + diamonds);
                 exchange.instantDaily = applyInstantDailyUsage(exchange.instantDaily, direction, goldSpent, 0, now);
                 appendExchangeHistoryLine(
@@ -108,27 +119,34 @@ export async function handleCurrencyExchangeAction(
                         payCurrency: 'gold',
                         receiveAmount: diamonds,
                         receiveCurrency: 'diamonds',
+                        feeAmount: fee,
+                        feeCurrency: 'gold',
                     }),
                     now,
                 );
             } else {
-                const { gold, diamondsSpent } = computeInstantDiamondsToGold(inputAmount);
-                if (gold <= 0) return { error: '환전 가능한 골드 수량이 없습니다.' };
+                if (cappedAmount < CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS) {
+                    return {
+                        error: `다이아→골드 바로환전은 최소 ${CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS}다이아부터 가능합니다.`,
+                    };
+                }
+                const { gold, goldGross, diamondsSpent, fee, totalDiamondsPaid } = computeInstantDiamondsToGold(cappedAmount);
+                if (goldGross <= 0 || gold <= 0) return { error: '환전 가능한 골드 수량이 없습니다.' };
                 const dailyError = validateInstantExchangeDailyLimit(
                     direction,
                     exchange.instantDaily,
                     0,
                     diamondsSpent,
                     0,
-                    gold,
+                    goldGross,
                     now,
                 );
                 if (dailyError) return { error: dailyError };
-                if ((user.diamonds ?? 0) < diamondsSpent) return { error: '다이아가 부족합니다.' };
-                if (gold > maxExchangeListPrice('gold')) {
+                if ((user.diamonds ?? 0) < totalDiamondsPaid) return { error: '다이아가 부족합니다.' };
+                if (goldGross > maxExchangeListPrice('gold')) {
                     return { error: '한 번에 환전할 수 있는 골드 한도를 초과했습니다.' };
                 }
-                user.diamonds = Math.max(0, (user.diamonds ?? 0) - diamondsSpent);
+                user.diamonds = Math.max(0, (user.diamonds ?? 0) - totalDiamondsPaid);
                 user.gold = Math.max(0, (user.gold ?? 0) + gold);
                 exchange.instantDaily = applyInstantDailyUsage(exchange.instantDaily, direction, 0, diamondsSpent, now);
                 appendExchangeHistoryLine(
@@ -139,6 +157,8 @@ export async function handleCurrencyExchangeAction(
                         payCurrency: 'diamonds',
                         receiveAmount: gold,
                         receiveCurrency: 'gold',
+                        feeAmount: fee,
+                        feeCurrency: 'diamonds',
                     }),
                     now,
                 );

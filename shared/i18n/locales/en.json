@@ -5352,6 +5352,7 @@
       "instantRate": "Instant rate",
       "averageMarketRate": "Average market rate",
       "feePercent": "Fee (10%)",
+      "instantMinDiamondsHint": "Minimum {{count}} diamonds to convert",
       "myExchangeRequest": "My convert request",
       "noMyExchangeRequest": "No convert request",
       "postOrderConfirmTitle": "Confirm convert request",
@@ -5395,6 +5396,7 @@
       "alerts": {
         "invalidAmount": "Enter an amount to convert.",
         "instantTooSmall": "Amount is below the minimum for instant convert.",
+        "instantMinDiamonds": "Diamond→gold instant convert requires at least {{count}} diamonds.",
         "dailyInstantLimitExceeded": "Daily instant convert limit exceeded.",
         "maxOpenOrders": "You can have at most {{count}} open convert requests.",
         "cannotFulfillOwn": "You cannot fill your own convert request."

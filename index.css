@@ -781,19 +781,21 @@ input, textarea {
   letter-spacing: 0.05em;
 }
 
+/* 프리즘 별: brightness/사각 클립 없이 별 실 글로우만 (흰 사각 플레이트 방지) */
 @keyframes prism-star-pulse {
   0%, 100% {
-    filter: drop-shadow(0 0 8px rgba(255, 0, 255, 0.8)) drop-shadow(0 0 12px rgba(0, 255, 255, 0.6)) drop-shadow(0 0 16px rgba(255, 255, 0, 0.4));
+    filter: drop-shadow(0 0 3px rgba(255, 0, 255, 0.55)) drop-shadow(0 0 6px rgba(0, 255, 255, 0.35));
     transform: scale(1);
   }
   50% {
-    filter: drop-shadow(0 0 12px rgba(255, 0, 255, 1)) drop-shadow(0 0 18px rgba(0, 255, 255, 0.8)) drop-shadow(0 0 24px rgba(255, 255, 0, 0.6));
-    transform: scale(1.1);
+    filter: drop-shadow(0 0 5px rgba(255, 0, 255, 0.7)) drop-shadow(0 0 9px rgba(0, 255, 255, 0.45));
+    transform: scale(1.06);
   }
 }
 
 .prism-star-glow {
   animation: prism-star-pulse 2s ease-in-out infinite;
+  background: transparent;
 }
 
 

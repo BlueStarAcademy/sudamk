@@ -19,14 +19,14 @@ interface EquipmentEnhancementBadgeProps {
 }
 
 const NUMBER_STROKE: Record<1 | 2 | 3 | 4, string> = {
-    /** 은백 별 위 남색 — 밝은 테두리 */
-    1: '0 0 1px rgba(255,255,255,0.95), 0 1px 0 rgba(255,255,255,0.9), 1px 0 0 rgba(255,255,255,0.85), -1px 0 0 rgba(255,255,255,0.85), 0 -1px 0 rgba(255,255,255,0.85), 0 1px 2px rgba(0,0,0,0.45)',
-    /** 금색 별 위 인디고 — 밝은 하늘 테두리 */
-    2: '0 0 1px rgba(224,242,254,0.95), 0 1px 0 rgba(186,230,253,0.9), 1px 0 0 rgba(186,230,253,0.85), -1px 0 0 rgba(186,230,253,0.85), 0 -1px 0 rgba(186,230,253,0.85), 0 1px 2px rgba(0,0,0,0.4)',
-    /** 보라 별 위 노랑 — 어두운 테두리 */
-    3: '0 0 1px rgba(0,0,0,0.95), 0 1px 0 rgba(0,0,0,0.9), 1px 0 0 rgba(0,0,0,0.85), -1px 0 0 rgba(0,0,0,0.85), 0 -1px 0 rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.55)',
-    /** 프리즘 — 검정 외곽으로 전 구간 가독성 */
-    4: '0 0 2px rgba(0,0,0,1), 0 1px 0 rgba(0,0,0,1), 1px 0 0 rgba(0,0,0,1), -1px 0 0 rgba(0,0,0,1), 0 -1px 0 rgba(0,0,0,1), 1px 1px 0 rgba(0,0,0,0.95), -1px -1px 0 rgba(0,0,0,0.95), 0 0 4px rgba(255,0,255,0.45)',
+    /** 은백 별 위 남색 — 흰 외곽 + 어두운 그림자 */
+    1: '0 0 1.5px #fff, 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff, 1px 1px 0 rgba(255,255,255,0.95), -1px -1px 0 rgba(255,255,255,0.95), 0 0 3px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.75)',
+    /** 금색 별 위 인디고 */
+    2: '0 0 1.5px #f0f9ff, 0 1px 0 #e0f2fe, 1px 0 0 #e0f2fe, -1px 0 0 #e0f2fe, 0 -1px 0 #e0f2fe, 1px 1px 0 rgba(224,242,254,0.95), -1px -1px 0 rgba(224,242,254,0.95), 0 0 3px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.7)',
+    /** 보라 별 위 노랑 — 검정 외곽 */
+    3: '0 0 2px #000, 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 -1px 0 #000, 1px 1px 0 #000, -1px -1px 0 #000, 0 0 3px rgba(0,0,0,0.9)',
+    /** 프리즘 — 검정 숫자 + 흰 외곽(무지개 위 가독성) */
+    4: '0 0 2px #fff, 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff, 1px 1px 0 #fff, -1px -1px 0 #fff, 0 0 3px rgba(0,0,0,0.95), 0 1px 2px rgba(0,0,0,0.85)',
 };
 
 /**
@@ -51,11 +51,11 @@ const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
 
     return (
         <div
-            className={`${inline ? 'relative' : 'absolute right-[1.5%] top-[1.5%] z-10'} pointer-events-none aspect-square overflow-hidden ${
+            className={`${inline ? 'relative' : 'absolute right-[1.5%] top-[1.5%] z-10'} pointer-events-none aspect-square overflow-visible ${
                 emphasize ? 'animate-pulse' : ''
             } ${className}`.trim()}
             style={{
-                ...(inline ? { width: 20, height: 'auto' } : { width: `${pct}%`, height: 'auto' }),
+                ...(inline ? { width: 22, height: 'auto' } : { width: `${pct}%`, height: 'auto' }),
                 containerType: 'size',
             }}
             aria-label={`+${n}`}
@@ -64,29 +64,32 @@ const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
             <img
                 src={ENHANCE_MARKER_IMAGES[tier]}
                 alt=""
-                className={`pointer-events-none absolute inset-0 h-full w-full object-contain drop-shadow-[0_1px_1px_rgba(0,0,0,0.9)] ${
+                className={`pointer-events-none absolute inset-0 h-full w-full object-contain drop-shadow-[0_1px_1px_rgba(0,0,0,0.95)] ${
                     isPrism ? 'prism-star-glow' : ''
                 } ${emphasize ? 'scale-110' : ''}`}
-                style={
-                    isPrism
-                        ? {
-                              filter:
-                                  'drop-shadow(0 0 6px rgba(255, 0, 255, 0.75)) drop-shadow(0 0 10px rgba(0, 255, 255, 0.5)) brightness(1.25) saturate(1.3)',
-                          }
-                        : undefined
-                }
                 draggable={false}
                 decoding="async"
             />
+            {/* 숫자 가독용 어두운 원판 — 별 색에 숫자가 묻히지 않게 */}
             <span
-                className={`absolute inset-0 flex items-center justify-center font-black leading-none tabular-nums ${ENHANCE_MARKER_NUMBER_CLASS[tier]}`}
+                aria-hidden
+                className="pointer-events-none absolute left-1/2 top-[54%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/55"
+                style={{ width: '46%', height: '46%' }}
+            />
+            <span
+                className={`absolute inset-0 z-[1] flex items-center justify-center font-black leading-none tabular-nums ${ENHANCE_MARKER_NUMBER_CLASS[tier]}`}
                 style={{
                     fontSize: `${cqmin}cqmin`,
-                    letterSpacing: isDoubleDigit ? '-0.08em' : '0',
-                    // 오각별 광학 중심에 맞춤(기하 중심보다 살짝 아래) + 별 안쪽만 점유
+                    letterSpacing: isDoubleDigit ? '-0.06em' : '0',
+                    // 오각별 광학 중심에 맞춤(기하 중심보다 살짝 아래)
                     transform: emphasize ? 'translateY(7%) scale(1.08)' : 'translateY(7%)',
                     textShadow: NUMBER_STROKE[tier],
-                    WebkitTextStroke: tier === 3 || tier === 4 ? '0.35px rgba(0,0,0,0.65)' : '0.35px rgba(255,255,255,0.35)',
+                    WebkitTextStroke:
+                        tier === 4
+                            ? '0.55px rgba(255,255,255,0.95)'
+                            : tier === 3
+                              ? '0.45px rgba(0,0,0,0.85)'
+                              : '0.45px rgba(255,255,255,0.55)',
                 }}
             >
                 {n}

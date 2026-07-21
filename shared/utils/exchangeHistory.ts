@@ -27,9 +27,19 @@ export function buildCurrencyExchangeDoneHistoryLine(params: {
     payCurrency: ExchangeHistoryCurrency;
     receiveAmount: number;
     receiveCurrency: ExchangeHistoryCurrency;
+    feeAmount?: number;
+    feeCurrency?: ExchangeHistoryCurrency;
 }): string {
     const label = params.kind === 'instant' ? HX_INSTANT_LABEL : HX_MARKET_LABEL;
-    return `${HX_CURRENCY_DONE}: ${label} / ${formatExchangeHistoryCurrencyAmount(params.payAmount, params.payCurrency)} \u2192 ${formatExchangeHistoryCurrencyAmount(params.receiveAmount, params.receiveCurrency)}`;
+    const base = `${HX_CURRENCY_DONE}: ${label} / ${formatExchangeHistoryCurrencyAmount(params.payAmount, params.payCurrency)} \u2192 ${formatExchangeHistoryCurrencyAmount(params.receiveAmount, params.receiveCurrency)}`;
+    if (
+        typeof params.feeAmount === 'number' &&
+        params.feeAmount > 0 &&
+        (params.feeCurrency === 'gold' || params.feeCurrency === 'diamonds')
+    ) {
+        return `${base} (${HX_FEE} ${formatExchangeHistoryCurrencyAmount(params.feeAmount, params.feeCurrency)})`;
+    }
+    return base;
 }
 
 export function buildCurrencyExchangeClaimHistoryLine(params: {

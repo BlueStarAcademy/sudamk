@@ -4,7 +4,7 @@
  * 슬롯 한 변 대비 마커 한 변 비율(%).
  * 별 중앙에 숫자가 들어오도록 살짝 키움 (상태 배지 ~24%와 비슷한 체감).
  */
-export const ENHANCE_MARKER_SIZE_PCT = 25;
+export const ENHANCE_MARKER_SIZE_PCT = 28;
 
 export type EnhanceMarkerTier = 1 | 2 | 3 | 4;
 
@@ -26,17 +26,17 @@ export const ENHANCE_MARKER_IMAGES: Record<EnhanceMarkerTier, string> = {
 
 /**
  * 별 본체 보색·고대비 숫자.
- * 1 은백 → 남색, 2 금색 → 인디고, 3 보라 → 노랑, 4 프리즘 → 흰색(+강한 외곽)
+ * 1 은백 → 남색, 2 금색 → 인디고, 3 보라 → 노랑, 4 프리즘 → 검정(+흰 외곽)
  */
 export const ENHANCE_MARKER_NUMBER_CLASS: Record<EnhanceMarkerTier, string> = {
-    1: 'text-[#0b1f4a]',
-    2: 'text-[#1e1b8a]',
-    3: 'text-[#ffe566]',
-    4: 'text-white',
+    1: 'text-[#061433]',
+    2: 'text-[#120f5c]',
+    3: 'text-[#fff1a8]',
+    4: 'text-[#0a0a0a]',
 };
 
-/** 별 내 중앙 안전 영역용 기본 숫자 크기 (cqmin) — 별 점 밖으로 새지 않게 억제 */
+/** 별 내 중앙 안전 영역용 기본 숫자 크기 (cqmin) */
 export const ENHANCE_MARKER_NUMBER_CQMIN = {
-    single: 32,
-    double: 26,
+    single: 38,
+    double: 30,
 } as const;

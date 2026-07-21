@@ -5374,6 +5374,7 @@
       "instantRate": "바로환전 시세",
       "averageMarketRate": "평균 시세",
       "feePercent": "수수료(10%)",
+      "instantMinDiamondsHint": "최소 {{count}}다이아부터 환전 가능",
       "myExchangeRequest": "나의 환전 요청",
       "noMyExchangeRequest": "환전 요청 없음",
       "postOrderConfirmTitle": "환전 요청 등록 확인",
@@ -5417,6 +5418,7 @@
       "alerts": {
         "invalidAmount": "환전 수량을 입력해 주세요.",
         "instantTooSmall": "환전 가능한 최소 수량에 미달합니다.",
+        "instantMinDiamonds": "다이아→골드 바로환전은 최소 {{count}}다이아부터 가능합니다.",
         "dailyInstantLimitExceeded": "일일 바로환전 한도를 초과했습니다.",
         "maxOpenOrders": "동시에 등록할 수 있는 환전 요청은 {{count}}건까지입니다.",
         "cannotFulfillOwn": "본인이 등록한 환전 요청은 체결할 수 없습니다."
