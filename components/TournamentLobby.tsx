@@ -1498,7 +1498,7 @@ const TournamentLobby: React.FC = () => {
                                                 availablePoints={availablePoints}
                                                 framed
                                                 joinShopBelow
-                                                compactLayout
+                                                compactLayout={false}
                                                 championshipPhaseAbilityScores={championshipPhaseAbilityScores}
                                             />
                                         ) : equippedPairPetRowNative ? (

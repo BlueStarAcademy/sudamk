@@ -557,11 +557,22 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
         </>
     );
 
+    const syncPendingStageAfterAdminSave = async () => {
+        if (!onAction || !session.isSinglePlayer || session.gameStatus !== 'pending') return;
+        const syncResult = (await onAction({
+            type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
+            payload: { gameId: session.id, regenerateBoard: true },
+        } as ServerAction)) as { error?: string } | void;
+        if (syncResult && typeof syncResult === 'object' && syncResult.error) {
+            throw new Error(String(syncResult.error));
+        }
+    };
+
     const towerShopPortal =
         canOpenTowerShop &&
         towerShopOpen &&
         createPortal(
-            <div className="fixed inset-0 z-[220]">
+            <div className="fixed inset-0 z-[220]" data-draggable-satellite="game-description-modal">
                 <TowerItemShopModal
                     currentUser={currentUser!}
                     initialSelectedItemId={towerShopInitialItemId}
@@ -583,6 +594,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                 open={editorOpen}
                 scope="singleplayer"
                 stage={stage}
+                draggableSatelliteWindowId="game-description-modal"
                 onClose={() => setEditorOpen(false)}
                 onSave={async (nextStage) => {
                     if (!onAction) return;
@@ -593,16 +605,7 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                     } as ServerAction)) as any;
                     if (result?.error) throw new Error(result.error);
                     setSinglePlayerStagesFromServer(result?.clientResponse?.singlePlayerStages ?? nextStages);
-                    if (session.isSinglePlayer && session.gameStatus === 'pending') {
-                        try {
-                            await onAction({
-                                type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
-                                payload: { gameId: session.id },
-                            } as ServerAction);
-                        } catch (error) {
-                            console.warn('[StageDefinitionEditorShell] pending stage sync failed:', error);
-                        }
-                    }
+                    await syncPendingStageAfterAdminSave();
                     setEditorOpen(false);
                 }}
                 onResetAllToDefault={async () => {
@@ -611,16 +614,10 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
                         type: 'ADMIN_RESET_SINGLE_PLAYER_STAGES',
                     } as ServerAction)) as any;
                     if (result?.error) throw new Error(result.error);
-                    if (session.isSinglePlayer && session.gameStatus === 'pending') {
-                        try {
-                            await onAction({
-                                type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
-                                payload: { gameId: session.id },
-                            } as ServerAction);
-                        } catch (e) {
-                            console.warn('[SinglePlayerGameDescriptionModal] pending sync after reset:', e);
-                        }
+                    if (result?.clientResponse?.singlePlayerStages) {
+                        setSinglePlayerStagesFromServer(result.clientResponse.singlePlayerStages);
                     }
+                    await syncPendingStageAfterAdminSave();
                 }}
             />,
             document.body
@@ -658,7 +655,12 @@ const SinglePlayerGameDescriptionModal: React.FC<SinglePlayerGameDescriptionModa
             initialHeight={isCompactUi ? 2800 : frameHeight}
             modal={true}
             transparentModalBackdrop
-            closeOnOutsideClick={!!(readOnly ? onClose : onExit ?? onClose)}
+            closeOnOutsideClick={
+                !editorOpen &&
+                !orderEditorOpen &&
+                !towerShopOpen &&
+                !!(readOnly ? onClose : onExit ?? onClose)
+            }
             uniformPcScale={!isCompactUi}
             bodyAvoidVerticalStretch={true}
             mobileViewportFit={isCompactUi}

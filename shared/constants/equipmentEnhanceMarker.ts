@@ -1,4 +1,4 @@
-/** 장비 슬롯 강화(+N) 코너 마커 — 단계별 별 이미지 + 중앙 숫자 */
+/** 장비 슬롯 강화(+N) 코너 마커 — 단계별 별 이미지 + 중앙 숫자(+10은 Star4에 숫자 베이크) */
 
 /**
  * 슬롯 한 변 대비 마커 한 변 비율(%).
@@ -38,5 +38,4 @@ export const ENHANCE_MARKER_NUMBER_CLASS: Record<EnhanceMarkerTier, string> = {
 /** 별 내 중앙 안전 영역용 기본 숫자 크기 (cqmin) */
 export const ENHANCE_MARKER_NUMBER_CQMIN = {
     single: 38,
-    double: 30,
 } as const;

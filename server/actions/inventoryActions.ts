@@ -41,7 +41,6 @@ import {
     formatEquipLevelRequirement,
     ENHANCEMENT_FAIL_BONUS_RATES,
     BLACKSMITH_COMBINATION_GREAT_SUCCESS_RATES,
-    BLACKSMITH_COMBINATION_XP_GAIN,
     BLACKSMITH_MAX_LEVEL,
     BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP,
     BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL,
@@ -59,8 +58,7 @@ import { sellGoldTenPercentOfShopGold } from '../../shared/constants/shopSellGol
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 import { exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
 import {
-    BLACKSMITH_ENHANCEMENT_XP_GAIN,
-    BLACKSMITH_DISASSEMBLY_XP_GAIN,
+    computeBlacksmithXpGain,
     BLACKSMITH_DISASSEMBLY_JACKPOT_RATES,
     calculateRefinementGoldCost,
 } from '../../constants/rules.js';
@@ -328,8 +326,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             await guildService.recordGuildEpicPlusEquipmentAcquisition(user, [actualAddedItem]);
 
             // 6. Add blacksmith XP
-            const xpGainRange = BLACKSMITH_COMBINATION_XP_GAIN[grade];
-            let xpGained = getRandomInt(xpGainRange[0], xpGainRange[1]);
+            let xpGained = computeBlacksmithXpGain({ action: 'combine', grade });
             if (isFunctionVipActive(user)) {
                 xpGained = Math.floor(xpGained * 1.5);
             }
@@ -1497,6 +1494,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
             
             const originalItemState = JSON.parse(JSON.stringify(item));
+            const starsBeforeEnhance = item.stars ?? 0;
 
             const costs = ENHANCEMENT_COSTS[item.grade]?.[item.stars];
             if (!costs) return { error: '강화 정보를 찾을 수 없습니다.' };
@@ -1575,20 +1573,20 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 resultMessage = `강화에 실패했습니다. (실패 보너스: +${newFailBonus.toFixed(1).replace(/\.0$/, '')}%)`;
             }
 
-            // Add blacksmith XP
-            let xpGained = 0;
-            const xpGainRange = BLACKSMITH_ENHANCEMENT_XP_GAIN[item.grade];
-            if (xpGainRange) {
-                xpGained = getRandomInt(xpGainRange[0], xpGainRange[1]);
-                if (isFunctionVipActive(user)) {
-                    xpGained = Math.floor(xpGained * 1.5);
-                }
-                user.blacksmithXp = (user.blacksmithXp || 0) + xpGained;
+            // Add blacksmith XP (attempt-time stars for STAR_FACTOR)
+            let xpGained = computeBlacksmithXpGain({
+                action: 'enhance',
+                grade: item.grade,
+                stars: starsBeforeEnhance,
+            });
+            if (isFunctionVipActive(user)) {
+                xpGained = Math.floor(xpGained * 1.5);
+            }
+            user.blacksmithXp = (user.blacksmithXp || 0) + xpGained;
 
-                while (user.blacksmithLevel < BLACKSMITH_MAX_LEVEL && user.blacksmithXp >= BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(user.blacksmithLevel)) {
-                    user.blacksmithXp -= BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(user.blacksmithLevel);
-                    user.blacksmithLevel++;
-                }
+            while (user.blacksmithLevel < BLACKSMITH_MAX_LEVEL && user.blacksmithXp >= BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(user.blacksmithLevel)) {
+                user.blacksmithXp -= BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(user.blacksmithLevel);
+                user.blacksmithLevel++;
             }
             
             // 인벤토리를 깊은 복사하여 새로운 배열로 할당 (참조 문제 방지)
@@ -1997,10 +1995,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 }
 
                 // Add blacksmith XP for disassembly
-                const xpGainRange = BLACKSMITH_DISASSEMBLY_XP_GAIN[item.grade];
-                if (xpGainRange) {
-                    totalXpGained += getRandomInt(xpGainRange[0], xpGainRange[1]);
-                }
+                totalXpGained += computeBlacksmithXpGain({ action: 'disassemble', grade: item.grade });
 
                 itemsToRemove.push(itemId);
             }

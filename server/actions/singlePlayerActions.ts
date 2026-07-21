@@ -912,7 +912,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             return { clientResponse: { updatedUser: user, game } };
         }
         case 'SINGLE_PLAYER_SYNC_PENDING_STAGE': {
-            const { gameId } = payload;
+            const { gameId, regenerateBoard } = payload as { gameId?: string; regenerateBoard?: boolean };
             const { getCachedGame, updateGameCache } = await import('../gameCache.js');
             let game = await getCachedGame(gameId);
             if (!game) game = await db.getLiveGame(gameId);
@@ -932,7 +932,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 return { error: 'Stage data not found.' };
             }
 
-            await applyLatestPendingSinglePlayerStage(game, stage, { preserveExistingPlacement: true });
+            await applyLatestPendingSinglePlayerStage(game, stage, {
+                preserveExistingPlacement: regenerateBoard !== true,
+            });
 
             await db.saveGame(game, true);
             updateGameCache(game);

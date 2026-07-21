@@ -2,7 +2,7 @@
 // 배포마다 `new Date().getTime()`으로 캐시 이름을 바꾸면 activate 시 이전 sudam-* 캐시가
 // 전부 삭제되어, 이미지가 매번 네트워크에서 다시 받혀지는 것처럼 느려진다.
 // 캐시를 비우고 싶을 때만 아래 버전 문자열을 올린다.
-const CACHE_VERSION = '20260721';
+const CACHE_VERSION = '20260721b';
 const CACHE_NAME = 'sudam-v' + CACHE_VERSION;
 const IMAGE_CACHE_NAME = 'sudam-images-v' + CACHE_VERSION;
 const urlsToCache = [

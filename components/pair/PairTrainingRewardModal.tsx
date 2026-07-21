@@ -507,13 +507,16 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                 xpChange: summary.pairPetXp?.change,
             }),
     );
-    const canClaimAdDouble = Boolean(
-        summary?.adDoubleClaimId &&
+    /** 미리보기 요약에는 claimId가 없고 서버 수령 후에만 생김 — 레이아웃 점프 없이 버튼 슬롯은 처음부터 유지 */
+    const hasAdDoubleEligibleRewards = Boolean(
+        summary &&
             !summary.adDoubled &&
             ((summary.goldGain ?? 0) > 0 ||
                 (summary.pairPetXp?.change ?? summary.xpGain ?? 0) > 0 ||
                 (summary.soulDrop?.quantity ?? 0) > 0),
     );
+    const adDoubleClaimReady = Boolean(summary?.adDoubleClaimId);
+    const canClaimAdDouble = hasAdDoubleEligibleRewards && adDoubleClaimReady;
 
     return (
         <DraggableWindow
@@ -676,11 +679,11 @@ const PairTrainingRewardModal: React.FC<PairTrainingRewardModalProps> = ({
                                 )
                             ) : null}
 
-                            {canClaimAdDouble ? (
+                            {hasAdDoubleEligibleRewards ? (
                                 <div className="mx-auto mt-3 flex w-full max-w-sm justify-center sm:mt-4">
                                     <button
                                         type="button"
-                                        disabled={adDoublePending || isBusy}
+                                        disabled={adDoublePending || isBusy || !canClaimAdDouble}
                                         onClick={handleAdDoubleClaim}
                                         className="min-h-[38px] w-full rounded-full border border-amber-300/60 bg-gradient-to-r from-amber-500 to-yellow-400 px-4 py-2 text-xs font-black text-slate-950 shadow-[0_10px_28px_-14px_rgba(251,191,36,0.9)] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-70 sm:text-sm"
                                     >

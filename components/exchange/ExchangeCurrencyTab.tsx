@@ -1031,40 +1031,38 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                     </div>
                                 </div>
 
-                                <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
-                                    <div className="flex items-center justify-center gap-2 rounded-lg border border-rose-400/15 bg-rose-950/20 px-2 py-1.5">
+                                <div className="flex min-w-0 flex-1 items-stretch gap-2">
+                                    <div className="flex w-[5.5rem] shrink-0 flex-col items-center justify-center gap-1 rounded-lg border border-rose-400/15 bg-rose-950/20 px-1.5 py-2 text-center sm:w-28">
                                         <span className={`${exchTy.metaLabel} text-rose-200/80`}>{t('currency.feePercent')}</span>
                                         <CurrencyAmountDisplay
                                             amount={instantPreview.fee}
                                             currency={instantPreview.feeCurrency}
                                             iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
                                             amountClassName={`${exchTy.amountSm} text-rose-300/90`}
+                                            className="justify-center"
                                         />
                                     </div>
-                                    <label className={`flex items-center justify-center gap-1.5 ${exchTy.label}`}>
-                                        {t('currency.inputAmount')}
-                                        <CurrencyIcon currency={instantInputCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
-                                    </label>
-                                    {instantDirection === 'diamonds_to_gold' ? (
-                                        <p className={`text-center ${exchTy.metaLabel} text-slate-400`}>
-                                            {t('currency.instantMinDiamondsHint', { count: CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS })}
-                                        </p>
-                                    ) : null}
-                                    <input
-                                        className={`${inputClass} !text-center`}
-                                        value={instantAmount}
-                                        onChange={(e) => handleInstantAmountChange(e.target.value)}
-                                        inputMode="numeric"
-                                        disabled={instantInputMax <= 0}
-                                        placeholder="0"
-                                    />
-                                    <Button
-                                        onClick={() => void handleInstantExchange()}
-                                        className={instantCtaClass}
-                                        disabled={instantInputMax <= 0 || instantPreview.receive <= 0}
-                                    >
-                                        {t('currency.instantExchange')}
-                                    </Button>
+                                    <div className="flex min-w-0 flex-1 flex-col justify-center gap-2">
+                                        <label className={`flex items-center justify-center gap-1.5 ${exchTy.label}`}>
+                                            {t('currency.inputAmount')}
+                                            <CurrencyIcon currency={instantInputCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
+                                        </label>
+                                        <input
+                                            className={`${inputClass} !text-center`}
+                                            value={instantAmount}
+                                            onChange={(e) => handleInstantAmountChange(e.target.value)}
+                                            inputMode="numeric"
+                                            disabled={instantInputMax <= 0}
+                                            placeholder="0"
+                                        />
+                                        <Button
+                                            onClick={() => void handleInstantExchange()}
+                                            className={instantCtaClass}
+                                            disabled={instantInputMax <= 0 || instantPreview.receive <= 0}
+                                        >
+                                            {t('currency.instantExchange')}
+                                        </Button>
+                                    </div>
                                 </div>
                             </div>
                         </div>

@@ -129,37 +129,58 @@ export const RANKED_ELO_MAX_CHANGE = 32;
 export const RANKED_MATCH_MAX_RATING_DIFF = 400;
 
 // --- Blacksmith XP Gain ---
+// XP = ACTION_BASE × GRADE_MULT × STAR_FACTOR × Uniform(1−V, 1+V); VIP ×1.5 is applied by callers.
 export const BLACKSMITH_MAX_LEVEL = 20;
 
-export const BLACKSMITH_COMBINATION_XP_GAIN: Record<ItemGrade, [number, number]> = {
-    [ItemGrade.Normal]: [15, 45],
-    [ItemGrade.Uncommon]: [30, 75],
-    [ItemGrade.Rare]: [45, 120],
-    [ItemGrade.Epic]: [75, 225],
-    [ItemGrade.Legendary]: [150, 450],
-    [ItemGrade.Mythic]: [300, 750],
-    [ItemGrade.Transcendent]: [375, 900],
+export type BlacksmithXpAction = 'enhance' | 'disassemble' | 'combine';
+
+export const BLACKSMITH_XP_GRADE_MULT: Record<ItemGrade, number> = {
+    [ItemGrade.Normal]: 1,
+    [ItemGrade.Uncommon]: 2,
+    [ItemGrade.Rare]: 4,
+    [ItemGrade.Epic]: 7,
+    [ItemGrade.Legendary]: 12,
+    [ItemGrade.Mythic]: 22,
+    [ItemGrade.Transcendent]: 30,
 };
 
-export const BLACKSMITH_ENHANCEMENT_XP_GAIN: Record<ItemGrade, [number, number]> = {
-    [ItemGrade.Normal]: [1, 10],
-    [ItemGrade.Uncommon]: [5, 20],
-    [ItemGrade.Rare]: [10, 30],
-    [ItemGrade.Epic]: [20, 50],
-    [ItemGrade.Legendary]: [50, 100],
-    [ItemGrade.Mythic]: [100, 300],
-    [ItemGrade.Transcendent]: [120, 350],
+export const BLACKSMITH_XP_ACTION_BASE: Record<BlacksmithXpAction, number> = {
+    enhance: 2,
+    disassemble: 1,
+    combine: 8, // Normal combine expected ≤10 (±15% variance)
 };
 
-export const BLACKSMITH_DISASSEMBLY_XP_GAIN: Record<ItemGrade, [number, number]> = {
-    [ItemGrade.Normal]: [1, 5],
-    [ItemGrade.Uncommon]: [5, 10],
-    [ItemGrade.Rare]: [10, 20],
-    [ItemGrade.Epic]: [20, 40],
-    [ItemGrade.Legendary]: [50, 100],
-    [ItemGrade.Mythic]: [100, 300],
-    [ItemGrade.Transcendent]: [120, 350],
-};
+/** Enhance only: STAR_FACTOR = 1 + bonus × stars (attempt-time stars). */
+export const BLACKSMITH_XP_STAR_BONUS_PER_LEVEL = 0.08;
+
+/** Half-width of uniform variance around baseXp (±15%). */
+export const BLACKSMITH_XP_VARIANCE = 0.15;
+
+/**
+ * Rolls blacksmith XP for one action (before Function VIP).
+ * For enhance, pass attempt-time `stars` (before success mutation).
+ */
+export function computeBlacksmithXpGain(params: {
+    action: BlacksmithXpAction;
+    grade: ItemGrade;
+    stars?: number;
+    random?: () => number;
+}): number {
+    const { action, grade, stars = 0, random = Math.random } = params;
+    const gradeMult = BLACKSMITH_XP_GRADE_MULT[grade];
+    const actionBase = BLACKSMITH_XP_ACTION_BASE[action];
+    if (!Number.isFinite(gradeMult) || !Number.isFinite(actionBase) || gradeMult <= 0 || actionBase <= 0) {
+        return 1;
+    }
+    const starFactor =
+        action === 'enhance'
+            ? 1 + BLACKSMITH_XP_STAR_BONUS_PER_LEVEL * Math.max(0, Math.floor(Number(stars) || 0))
+            : 1;
+    const baseXp = actionBase * gradeMult * starFactor;
+    const v = BLACKSMITH_XP_VARIANCE;
+    const roll = 1 - v + random() * (2 * v);
+    return Math.max(1, Math.round(baseXp * roll));
+}
 
 export const BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL: ItemGrade[] = [
     ItemGrade.Uncommon, // Level 1: 고급 이하 (Uncommon or lower)
@@ -217,24 +238,11 @@ export const BLACKSMITH_DISASSEMBLY_JACKPOT_RATES: number[] = [
     22, 24, 26, 28, 30, 32, 34, 36, 38, 40,
 ];
 
+/** XP to advance from `level` → level+1. Quadratic curve; slightly heavier late game than the old piecewise table. */
 export const BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP = (level: number): number => {
     if (level < 1) return 0;
     if (level >= BLACKSMITH_MAX_LEVEL) return Infinity;
-
-    if (level <= 5) {
-        return 1000 + level * 200;
-    }
-    if (level <= 10) {
-        return 1300 + level * 250;
-    }
-    if (level <= 15) {
-        return 1500 + level * 300;
-    }
-    if (level <= 20) {
-        return 2000 + level * 350;
-    }
-
-    return 2000 + level * 350;
+    return Math.round(900 + 280 * level + 12 * level * level);
 };
 
 // --- Equipment Refinement Costs ---

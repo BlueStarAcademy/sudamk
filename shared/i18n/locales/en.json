@@ -2093,7 +2093,7 @@
           "step1Title": "Build territory",
           "step1Body": "Secure more territory than your opponent.",
           "step2Title": "Scoring",
-          "step2Body": "When both pass, scoring decides the result."
+          "step2Body": "When both pass, or when the set move count for scoring is reached, scoring decides the winner."
         },
         "survival": {
           "tab": "Survival Go",

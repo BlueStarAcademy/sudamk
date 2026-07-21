@@ -3016,7 +3016,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 volatileState.gameCache?.delete(gameId);
                 await db.deleteGame(gameId);
                 if (volatileState.gameChats) delete volatileState.gameChats[gameId];
-                broadcast({ type: 'GAME_DELETED', payload: { gameId } });
+                broadcast({ type: 'GAME_DELETED', payload: { gameId, gameCategory: 'singleplayer' } });
                 return {};
             }
             

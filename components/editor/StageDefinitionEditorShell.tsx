@@ -39,6 +39,8 @@ interface Props {
     onClose: () => void;
     onSave: (next: SinglePlayerStageInfo) => Promise<void>;
     onResetAllToDefault?: () => Promise<void>;
+    /** 부모 DraggableWindow 바깥 클릭 닫기에서 제외할 satellite windowId */
+    draggableSatelliteWindowId?: string;
 }
 
 const cloneStageInfo = (value: SinglePlayerStageInfo): SinglePlayerStageInfo =>
@@ -412,7 +414,15 @@ const normalizeHiddenPlacementsFromCsv = (raw: string, boardSize: number): { x: 
 type ForcedAiResponseRow = NonNullable<SinglePlayerStageInfo['forcedAiResponses']>[number];
 const pointKey = (x: number, y: number): string => `${x},${y}`;
 
-const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClose, onSave, onResetAllToDefault }) => {
+const StageDefinitionEditorShell: React.FC<Props> = ({
+    open,
+    scope,
+    stage,
+    onClose,
+    onSave,
+    onResetAllToDefault,
+    draggableSatelliteWindowId,
+}) => {
     const [draft, setDraft] = useState<SinglePlayerStageInfo>(() => {
         const c = cloneStageInfo(stage);
         return { ...c, boardSize: clampStageBoardSize(c.boardSize) };
@@ -783,7 +793,12 @@ const StageDefinitionEditorShell: React.FC<Props> = ({ open, scope, stage, onClo
     if (!open) return null;
 
     return (
-        <div className="fixed inset-0 z-[280] bg-black/70 p-3 sm:p-5">
+        <div
+            className="fixed inset-0 z-[280] bg-black/70 p-3 sm:p-5"
+            {...(draggableSatelliteWindowId
+                ? { 'data-draggable-satellite': draggableSatelliteWindowId }
+                : {})}
+        >
             <div
                 ref={modalRef}
                 className="mx-auto flex h-full w-full max-w-[min(99vw,72rem)] flex-col overflow-hidden rounded-2xl border border-amber-400/35 bg-zinc-950 text-zinc-100 shadow-2xl"

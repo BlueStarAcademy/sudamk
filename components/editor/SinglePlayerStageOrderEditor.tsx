@@ -170,13 +170,12 @@ const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> 
                 setSinglePlayerStagesFromServer(payload);
             }
             if (pendingSinglePlayerGameId) {
-                try {
-                    await onAction({
-                        type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
-                        payload: { gameId: pendingSinglePlayerGameId },
-                    } as ServerAction);
-                } catch (e) {
-                    console.warn('[SinglePlayerStageOrderEditor] pending sync after order save:', e);
+                const syncResult = (await onAction({
+                    type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE',
+                    payload: { gameId: pendingSinglePlayerGameId, regenerateBoard: true },
+                } as ServerAction)) as { error?: string } | void;
+                if (syncResult && typeof syncResult === 'object' && syncResult.error) {
+                    throw new Error(String(syncResult.error));
                 }
             }
             onClose();

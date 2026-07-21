@@ -714,7 +714,7 @@ export type ServerAction =
     | { type: 'START_SINGLE_PLAYER_GAME', payload: { stageId: string } }
     | { type: 'CONFIRM_SINGLE_PLAYER_GAME_START', payload: { gameId: string } }
     | { type: 'SINGLE_PLAYER_REFRESH_PLACEMENT', payload: { gameId: string } }
-    | { type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE', payload: { gameId: string } }
+    | { type: 'SINGLE_PLAYER_SYNC_PENDING_STAGE', payload: { gameId: string; regenerateBoard?: boolean } }
     | { type: 'SINGLE_PLAYER_ADMIN_JUMP_PENDING_STAGE', payload: { gameId: string; direction: 'prev' | 'next' } }
     | { type: 'START_TOWER_GAME', payload: { floor: number; useClientSideAi?: boolean } }
     | { type: 'CONFIRM_TOWER_GAME_START', payload: { gameId: string } }

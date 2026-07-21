@@ -209,27 +209,18 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
     const bannerSplit = Boolean(bannerAside);
     const getItemForSlot = (slot: EquipmentSlot) => equippedItems.find((it) => it.slot === slot);
 
-    const mergeEquipScale = gb
-        ? 1.58
-        : joinShopBelow
-          ? championshipPhaseAbilityScores != null
-              ? 0.96
-              : 0.93
-          : ch
-            ? 0.82
-            : 1.18;
-    const lobbyChampionshipUser = Boolean(joinShopBelow && championshipPhaseAbilityScores != null);
+    const mergeEquipScale = gb ? 1.58 : ch ? 0.82 : 1.18;
+    /** 상점 연접 시 높이 맞춤용 레이아웃만 분기 (장비·텍스트 크기는 홈과 동일) */
+    const joinShopLayout = Boolean(joinShopBelow);
     const homeEquipGrid = gb
         ? 'grid w-full grid-cols-3 auto-rows-auto gap-0.5'
         : ch
-          ? `grid w-full grid-cols-3 auto-rows-auto ${lobbyChampionshipUser ? 'gap-x-1.5 gap-y-1 sm:gap-x-2 sm:gap-y-1' : 'gap-x-1 gap-y-0.5 sm:gap-x-1.5 sm:gap-y-1'}`
+          ? 'grid w-full grid-cols-3 auto-rows-auto gap-x-1 gap-y-0.5 sm:gap-x-1.5 sm:gap-y-1'
           : 'grid w-full grid-cols-3 gap-1.5 auto-rows-auto sm:gap-2';
     const mergeSlotCapClass = gb
         ? 'w-full'
         : ch
-          ? lobbyChampionshipUser
-              ? 'mx-auto w-full max-w-[min(100%,5.35rem)]'
-              : 'mx-auto w-full max-w-[min(100%,5rem)]'
+          ? 'mx-auto w-full max-w-[min(100%,5rem)]'
           : 'w-full';
 
     const equipmentBlock = (
@@ -331,11 +322,9 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                 className={`relative min-w-0 w-full rounded-xl border border-amber-600/45 bg-gradient-to-r from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
                     gb
                         ? 'px-2 py-1 sm:px-2.5'
-                        : lobbyChampionshipUser
-                          ? 'px-2 py-1.5 sm:px-2.5 sm:py-2'
-                          : ch
-                            ? 'px-1.5 py-1 sm:px-2 sm:py-1.5'
-                            : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
+                        : ch
+                          ? 'px-1.5 py-1 sm:px-2 sm:py-1.5'
+                          : 'px-2 py-1.5 sm:px-2.5 sm:py-2'
                 }`}
             >
                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/40 to-transparent" aria-hidden />
@@ -343,7 +332,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                     <div className={`flex min-w-0 items-baseline ${ch ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
                         <span
                             className={`shrink-0 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text font-bold tracking-tight text-transparent drop-shadow-[0_0_20px_rgba(251,191,36,0.22)] ${
-                                gb ? 'text-base sm:text-lg' : lobbyChampionshipUser ? 'text-sm sm:text-base' : ch ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                                gb ? 'text-base sm:text-lg' : ch ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                             }`}
                             title={t('coreAbility.coreTotal')}
                         >
@@ -351,7 +340,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         </span>
                         <span
                             className={`min-w-0 font-mono font-black tabular-nums leading-none text-amber-100 drop-shadow-[0_1px_0_rgba(0,0,0,0.35)] ${
-                                gb ? 'text-2xl sm:text-3xl' : lobbyChampionshipUser ? 'text-xl sm:text-2xl' : ch ? 'text-lg sm:text-xl' : 'text-2xl sm:text-[1.75rem]'
+                                gb ? 'text-2xl sm:text-3xl' : ch ? 'text-lg sm:text-xl' : 'text-2xl sm:text-[1.75rem]'
                             }`}
                             title={t('coreAbility.coreTotal')}
                         >
@@ -361,7 +350,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                     <div className={`flex shrink-0 items-center ${ch ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
                         <span
                             className={`whitespace-nowrap font-medium text-amber-100/90 ${
-                                gb ? 'text-sm sm:text-base' : lobbyChampionshipUser ? 'text-xs sm:text-sm' : ch ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                                gb ? 'text-sm sm:text-base' : ch ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
                             }`}
                             title={t('coreAbility.bonusPoints', { points: availablePoints })}
                         >
@@ -400,29 +389,23 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         const label = CORE_STATS_DATA[stat]?.name ?? stat;
         const statLabelClass = gb
             ? 'shrink-0 whitespace-nowrap text-left text-sm font-semibold leading-snug text-slate-300'
-            : lobbyChampionshipUser
-              ? 'max-w-[46%] truncate text-left text-[10px] font-semibold leading-tight text-slate-300 sm:text-[11px]'
-              : ch
-                ? 'max-w-[58%] truncate text-left text-xs font-semibold leading-snug text-slate-300 sm:text-sm'
-                : 'max-w-[58%] truncate text-left text-[11px] font-semibold leading-snug text-slate-300 sm:text-xs';
+            : ch
+              ? 'max-w-[58%] truncate text-left text-xs font-semibold leading-snug text-slate-300 sm:text-sm'
+              : 'max-w-[58%] truncate text-left text-[11px] font-semibold leading-snug text-slate-300 sm:text-xs';
         const statValueClass = gb
             ? 'font-mono text-sm font-bold tabular-nums text-amber-100 sm:text-base'
-            : lobbyChampionshipUser
-              ? 'font-mono text-[11px] font-bold tabular-nums text-amber-100 sm:text-xs'
-              : ch
-                ? 'font-mono text-sm font-bold tabular-nums text-amber-100 sm:text-base'
-                : 'font-mono text-xs font-bold tabular-nums text-amber-100 sm:text-sm';
+            : ch
+              ? 'font-mono text-sm font-bold tabular-nums text-amber-100 sm:text-base'
+              : 'font-mono text-xs font-bold tabular-nums text-amber-100 sm:text-sm';
         const statBonusClass = gb
             ? 'shrink-0 font-mono text-xs font-semibold tabular-nums text-emerald-400/95 sm:text-sm'
-            : lobbyChampionshipUser
-              ? 'shrink-0 font-mono text-[9px] font-semibold tabular-nums text-emerald-400/95 sm:text-[10px]'
-              : ch
-                ? 'shrink-0 font-mono text-[11px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs'
-                : 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs';
+            : ch
+              ? 'shrink-0 font-mono text-[11px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs'
+              : 'shrink-0 font-mono text-[10px] font-semibold tabular-nums text-emerald-400/95 sm:text-xs';
         const rowShell = gb
             ? 'flex flex-row flex-nowrap items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-0.5 sm:px-2 sm:py-1'
-            : lobbyChampionshipUser
-              ? 'flex min-h-0 min-w-0 flex-1 basis-0 flex-row items-center justify-between gap-0.5 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:gap-1 sm:px-1.5 sm:py-0.5'
+            : joinShopLayout
+              ? 'flex min-h-0 min-w-0 flex-1 basis-0 flex-row items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-1 sm:px-2'
               : ch
                 ? 'flex min-w-0 flex-row items-center justify-between gap-1 rounded-md border border-white/10 bg-black/30 px-1 py-0.5 sm:px-1.5 sm:py-1'
                 : 'flex min-w-0 flex-row items-center justify-between gap-1.5 rounded-md border border-white/10 bg-black/30 px-1.5 py-1 sm:px-2';
@@ -447,8 +430,8 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         );
     });
 
-    const coreStatsGrid = lobbyChampionshipUser ? (
-        <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-0.5 overflow-hidden sm:gap-1">{coreStatRows}</div>
+    const coreStatsGrid = joinShopLayout ? (
+        <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col gap-1 sm:gap-1.5 overflow-hidden">{coreStatRows}</div>
     ) : gb ? (
         <div className="grid w-full min-w-0 shrink-0 grid-cols-1 gap-0.5">{coreStatRows}</div>
     ) : (
@@ -460,13 +443,13 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
         championshipPhaseAbilityScores != null ? (
             <div
                 className={`w-full shrink-0 rounded-lg border border-amber-500/35 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${
-                    lobbyChampionshipUser
+                    joinShopLayout
                         ? 'mt-1.5 px-1.5 py-1.5 sm:px-2 sm:py-2'
                         : 'mt-2 px-2 py-2 sm:px-2.5 sm:py-2.5'
                 }`}
                 aria-label={t('coreAbility.phaseScoreAria')}
             >
-                <div className={`grid w-full grid-cols-3 ${lobbyChampionshipUser ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
+                <div className={`grid w-full grid-cols-3 ${joinShopLayout ? 'gap-1 sm:gap-1.5' : 'gap-1.5 sm:gap-2'}`}>
                     {(
                         [
                             { key: 'opening' as const, label: t('coreAbility.opening') },
@@ -477,19 +460,19 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         <div
                             key={key}
                             className={`flex min-w-0 flex-row items-center justify-center gap-1 rounded-md border border-white/12 bg-black/40 px-1.5 py-1 sm:gap-1.5 sm:px-2 sm:py-1.5 ${
-                                lobbyChampionshipUser ? 'min-h-[2.1rem] sm:min-h-[2.35rem]' : 'min-h-[2.5rem] sm:min-h-[2.75rem]'
+                                joinShopLayout ? 'min-h-[2.1rem] sm:min-h-[2.35rem]' : 'min-h-[2.5rem] sm:min-h-[2.75rem]'
                             }`}
                         >
                             <span
                                 className={`shrink-0 font-extrabold leading-none text-slate-400 ${
-                                    lobbyChampionshipUser ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'
+                                    joinShopLayout ? 'text-[10px] sm:text-xs' : 'text-xs sm:text-sm'
                                 }`}
                             >
                                 {label}
                             </span>
                             <span
                                 className={`min-w-0 truncate font-mono font-black tabular-nums leading-none text-amber-100 ${
-                                    lobbyChampionshipUser ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
+                                    joinShopLayout ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                                 }`}
                             >
                                 {championshipPhaseAbilityScores[key]}
@@ -513,9 +496,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         gb
                             ? 'min-w-0 basis-[60%] shrink-0'
                             : compactLayout
-                              ? lobbyChampionshipUser
-                                  ? 'w-[min(16.25rem,100%)]'
-                                  : 'w-[min(15.5rem,100%)]'
+                              ? 'w-[min(15.5rem,100%)]'
                               : 'w-[min(18rem,100%)]'
                     }`}
                 >
@@ -530,7 +511,7 @@ const HomeNativeMergedEquipmentAbilityPanel: React.FC<HomeNativeMergedEquipmentA
                         gb
                             ? 'min-w-0 basis-[40%] shrink-0 overflow-x-visible overflow-y-auto justify-start py-0'
                             : `flex-1 ${
-                                  lobbyChampionshipUser
+                                  joinShopLayout
                                       ? 'overflow-hidden py-0.5 sm:py-1'
                                       : `overflow-y-auto ${joinShopBelow ? 'justify-evenly py-1 sm:py-1.5' : 'justify-center py-0.5'}`
                               }`

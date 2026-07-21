@@ -27,11 +27,16 @@ const TAB_IDLE = 'text-amber-100/85 hover:bg-white/10 border-transparent';
 
 export type ChampionshipShopPanelLayoutVariant = 'default' | 'asideIntrinsic';
 
-const ASIDE_SHOP_GRID_MIN_H = 'min-h-[30.5rem] sm:min-h-[21.5rem]';
+const ASIDE_SHOP_GRID_MIN_H = 'min-h-[35.5rem] sm:min-h-[25.5rem]';
 
-const CARD_H_COMPACT = 'h-[10.85rem] sm:h-[11.35rem]';
-const CARD_H_DEFAULT = 'h-[11.35rem] sm:h-[11.85rem]';
+const CARD_H_COMPACT = 'h-[12.35rem] sm:h-[13rem]';
+const CARD_H_DEFAULT = 'h-[12.85rem] sm:h-[13.5rem]';
 const BTN_MIN_H = 'min-h-[3.15rem] sm:min-h-[3.25rem]';
+
+const IMAGE_FRAME_COMPACT = 'flex h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem]';
+const IMAGE_FRAME_DEFAULT = 'flex h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20';
+const IMAGE_IMG_COMPACT = 'max-h-14 max-w-14 sm:max-h-16 sm:max-w-16';
+const IMAGE_IMG_DEFAULT = 'max-h-16 max-w-16 sm:max-h-[4.5rem] sm:max-w-[4.5rem]';
 
 function weeklyUsedThisWeek(
     purchases: UserWithStatus['championshipShopWeekPurchases'],
@@ -113,7 +118,7 @@ const ChampionshipSimpleShopCard: React.FC<{
                 ref={imageAnchorRef}
                 title={imageTitle}
                 className={`relative mb-1 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_18px_-8px_rgba(251,191,36,0.35)] transition-transform hover:scale-105 ${
-                    compact ? 'flex h-12 w-12 sm:h-14 sm:w-14' : 'flex h-14 w-14 sm:h-16 sm:w-16'
+                    compact ? IMAGE_FRAME_COMPACT : IMAGE_FRAME_DEFAULT
                 }`}
                 onClick={() => setShowDescription(!showDescription)}
                 onMouseEnter={() => {
@@ -126,7 +131,7 @@ const ChampionshipSimpleShopCard: React.FC<{
                 <img
                     src={p.image}
                     alt=""
-                    className={`object-contain p-0.5 ${compact ? 'max-h-10 max-w-10 sm:max-h-12 sm:max-w-12' : 'max-h-12 max-w-12 sm:max-h-14 sm:max-w-14'}`}
+                    className={`object-contain p-0.5 ${compact ? IMAGE_IMG_COMPACT : IMAGE_IMG_DEFAULT}`}
                     loading="lazy"
                     decoding="async"
                 />
@@ -265,7 +270,7 @@ const ChampionshipSpecialShopCard: React.FC<{
             <div
                 ref={imageAnchorRef}
                 className={`relative mb-1 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_18px_-8px_rgba(251,191,36,0.35)] transition-transform hover:scale-105 ${
-                    compact ? 'flex h-12 w-12 sm:h-14 sm:w-14' : 'flex h-14 w-14 sm:h-16 sm:w-16'
+                    compact ? IMAGE_FRAME_COMPACT : IMAGE_FRAME_DEFAULT
                 }`}
                 onClick={() => setShowDescription(!showDescription)}
                 onMouseEnter={() => {
@@ -278,7 +283,7 @@ const ChampionshipSpecialShopCard: React.FC<{
                 <img
                     src={p.image}
                     alt=""
-                    className={`object-contain p-0.5 ${compact ? 'max-h-10 max-w-10 sm:max-h-12 sm:max-w-12' : 'max-h-12 max-w-12 sm:max-h-14 sm:max-w-14'}`}
+                    className={`object-contain p-0.5 ${compact ? IMAGE_IMG_COMPACT : IMAGE_IMG_DEFAULT}`}
                     loading="lazy"
                     decoding="async"
                 />

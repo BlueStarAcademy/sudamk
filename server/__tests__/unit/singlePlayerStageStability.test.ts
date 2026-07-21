@@ -317,6 +317,30 @@ describe('single-player stage stability', () => {
         expect(resolveSinglePlayerStageKataServerLevel(stage)).toBe(9);
     });
 
+    it('preserves admin-edited gold/exp rewards through normalize round-trip', () => {
+        const base = DEFAULT_SINGLE_PLAYER_STAGES[0]!;
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...base,
+                rewards: {
+                    firstClear: {
+                        gold: 12345,
+                        exp: 678,
+                        items: [{ itemId: '테스트재료', quantity: 2 }],
+                    },
+                    repeatClear: { gold: 11, exp: 22 },
+                },
+            },
+        ]);
+        const stage = normalized.find((s) => s.id === base.id)!;
+
+        expect(stage.rewards.firstClear.gold).toBe(12345);
+        expect(stage.rewards.firstClear.exp).toBe(678);
+        expect(stage.rewards.firstClear.items).toEqual([{ itemId: '테스트재료', quantity: 2 }]);
+        expect(stage.rewards.repeatClear.gold).toBe(11);
+        expect(stage.rewards.repeatClear.exp).toBe(22);
+    });
+
     it('auto preset + baseStones infers Base (not Capture from ever-present targetScore)', () => {
         const template = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.id === '중급-11')!;
         const stage = {

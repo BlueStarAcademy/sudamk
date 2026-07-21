@@ -9,14 +9,14 @@ export const CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY = 4800;
 /** 바로환전: 다이아→골드 (1다이아 = 2,000골드) */
 export const CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL = 2000;
 
-/** 바로환전 UI·안내용 기준 묶음 다이아 수 */
-export const CURRENCY_EXCHANGE_INSTANT_RATE_DISPLAY_DIAMONDS = 50;
-
-/** 바로환전 UI·안내용 기준 묶음 (골드→다이아) */
+/** 바로환전 UI·안내용 기준 묶음 (골드→다이아): 1다이아 단위 */
 export const CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH = {
-    gold: CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY * CURRENCY_EXCHANGE_INSTANT_RATE_DISPLAY_DIAMONDS,
-    diamonds: CURRENCY_EXCHANGE_INSTANT_RATE_DISPLAY_DIAMONDS,
+    gold: CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY,
+    diamonds: 1,
 } as const;
+
+/** 바로환전 UI·안내용 기준 묶음 다이아 수 (다이아→골드 시세·최소 단위) */
+export const CURRENCY_EXCHANGE_INSTANT_RATE_DISPLAY_DIAMONDS = 50;
 
 /** 바로환전 UI·안내용 기준 묶음 (다이아→골드) */
 export const CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH = {
@@ -24,7 +24,7 @@ export const CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH = {
     gold: CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL * CURRENCY_EXCHANGE_INSTANT_RATE_DISPLAY_DIAMONDS,
 } as const;
 
-/** 바로환전: 다이아→골드 최소 환전량 */
+/** 바로환전: 다이아→골드 최소 환전량 (골드→다이아는 1다이아 상당 골드부터) */
 export const CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS = 50;
 
 /** 일일 바로환전 한도: 골드→다이아 (골드 지출 상한, 100다이아 × 매입가) */

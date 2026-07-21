@@ -10,7 +10,7 @@ const SINGLE_PLAYER_STAGE_OVERRIDE_KV_KEY = 'singlePlayerStagesOverride';
 
 type StageRow = (typeof DEFAULT_SINGLE_PLAYER_STAGES)[number];
 
-/** KV·관리자 편집은 스테이지 파라미터만 바꾸고, 골드·EXP·아이템·보너스 보상은 코드 기본값만 사용 */
+/** 관리자 편집 시 보상(골드·EXP·아이템·보너스)도 저장. 미지정 칸만 코드 기본값. */
 const CANONICAL_SINGLE_PLAYER_REWARDS_BY_ID = new Map(
     SINGLE_PLAYER_STAGES_BASE.map((s) => [s.id, s.rewards] as const)
 );
@@ -474,21 +474,36 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         missileCount: normalizeOptionalPositiveIntFromRow(row, 'missileCount', 99),
         autoScoringTurns: normalizeOptionalPositiveIntFromRow(row, 'autoScoringTurns', 999),
         rewards: (() => {
-            const src = CANONICAL_SINGLE_PLAYER_REWARDS_BY_ID.get(fallback.id) ?? fallback.rewards;
-            const cloneCell = (cell: SinglePlayerStageInfo['rewards']['firstClear']): SinglePlayerStageInfo['rewards']['firstClear'] => {
+            const canonical = CANONICAL_SINGLE_PLAYER_REWARDS_BY_ID.get(fallback.id) ?? fallback.rewards;
+            const rowRewards =
+                row.rewards && typeof row.rewards === 'object'
+                    ? (row.rewards as Record<string, unknown>)
+                    : null;
+            const normalizeCell = (
+                cellRaw: unknown,
+                fallbackCell: SinglePlayerStageInfo['rewards']['firstClear']
+            ): SinglePlayerStageInfo['rewards']['firstClear'] => {
+                const cell =
+                    cellRaw && typeof cellRaw === 'object'
+                        ? (cellRaw as Record<string, unknown>)
+                        : null;
                 const out: SinglePlayerStageInfo['rewards']['firstClear'] = {
-                    gold: cell.gold,
-                    exp: cell.exp,
+                    gold: clampInt(cell?.gold, 0, 9_999_999, fallbackCell.gold ?? 0),
+                    exp: clampInt(cell?.exp, 0, 9_999_999, fallbackCell.exp ?? 0),
                 };
-                if (typeof cell.bonus === 'string' && cell.bonus.length > 0) out.bonus = cell.bonus;
-                if (Array.isArray(cell.items) && cell.items.length > 0) {
-                    out.items = cell.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity }));
-                }
+                const bonusRaw = cell?.bonus ?? fallbackCell.bonus;
+                if (typeof bonusRaw === 'string' && bonusRaw.length > 0) out.bonus = bonusRaw;
+                const items =
+                    normalizeItemRewardList(cell?.items) ??
+                    (Array.isArray(fallbackCell.items) && fallbackCell.items.length > 0
+                        ? fallbackCell.items.map((i) => ({ itemId: i.itemId, quantity: i.quantity }))
+                        : undefined);
+                if (items?.length) out.items = items;
                 return out;
             };
             return {
-                firstClear: cloneCell(src.firstClear),
-                repeatClear: cloneCell(src.repeatClear),
+                firstClear: normalizeCell(rowRewards?.firstClear, canonical.firstClear),
+                repeatClear: normalizeCell(rowRewards?.repeatClear, canonical.repeatClear),
             };
         })(),
         baseStones: normalizeOptionalPositiveIntFromRow(row, 'baseStones', 20),
