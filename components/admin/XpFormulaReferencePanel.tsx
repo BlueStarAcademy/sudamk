@@ -232,8 +232,8 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
                         {`유저/놀이 레벨 바 (getXpRequirementForLevel):
 Lv 1–10: 200 + Lv×100
 Lv 11–20: 300 + Lv×150
-Lv 21–50: 이전 구간 값에서 매 레벨 ×1.2
-Lv 51–100: ×1.3
+Lv 21–50: 이전 구간 값에서 매 레벨 ×1.12
+Lv 51–100: ×1.15
 
 대표펫 레벨 바 (getPairPetXpRequirementForLevel): 위 구간별 필요치의 절반(올림, 최소 1).`}
                     </div>

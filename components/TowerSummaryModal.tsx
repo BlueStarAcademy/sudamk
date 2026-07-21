@@ -19,6 +19,7 @@ import {
 import { StrategyXpResultBar } from './game/StrategyXpResultBar.js';
 import { getTowerSessionFloor, isTowerHumanWinnerFromSession } from '../utils/towerPreGameDisplay.js';
 import { formatScoreDetailNumber, hasRenderableScoreDetails } from '../shared/utils/scoreDetailsGuards.js';
+import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
@@ -74,37 +75,6 @@ const RewardItemDisplay: React.FC<{ item: any; isMobile: boolean }> = ({ item, i
         </span>
     </div>
 );
-
-const getXpRequirementForLevel = (level: number): number => {
-    if (level < 1) return 0;
-    if (level > 100) return Infinity; // Max level
-    
-    // 레벨 1~10: 200 + (레벨 x 100)
-    if (level <= 10) {
-        return 200 + (level * 100);
-    }
-    
-    // 레벨 11~20: 300 + (레벨 x 150)
-    if (level <= 20) {
-        return 300 + (level * 150);
-    }
-    
-    // 레벨 21~50: 이전 필요경험치 x 1.2
-    // 레벨 51~100: 이전 필요경험치 x 1.3
-    // 레벨 20의 필요 경험치를 먼저 계산
-    let xp = 300 + (20 * 150); // 레벨 20의 필요 경험치
-    
-    // 레벨 21부터 현재 레벨까지 반복
-    for (let l = 21; l <= level; l++) {
-        if (l <= 50) {
-            xp = Math.round(xp * 1.2);
-        } else {
-            xp = Math.round(xp * 1.3);
-        }
-    }
-    
-    return xp;
-};
 
 // 계가 결과 표시 컴포넌트 (SinglePlayerSummaryModal에서 가져옴)
 const ScoreDetailsComponent: React.FC<{

@@ -1,5 +1,6 @@
 /**
  * 전략바둑 / 놀이바둑 레벨업에 쓰이는 구간별 필요 경험치 (프로필·대국 결과와 동일 규칙).
+ * Lv21–50: ×1.12, Lv51–100: ×1.15 (중·후반 복리 완화).
  */
 export function getXpRequirementForLevel(level: number): number {
     if (level < 1) return 0;
@@ -16,9 +17,9 @@ export function getXpRequirementForLevel(level: number): number {
     let xp = 300 + 20 * 150;
     for (let l = 21; l <= level; l += 1) {
         if (l <= 50) {
-            xp = Math.round(xp * 1.2);
+            xp = Math.round(xp * 1.12);
         } else {
-            xp = Math.round(xp * 1.3);
+            xp = Math.round(xp * 1.15);
         }
     }
     return xp;

@@ -1530,29 +1530,29 @@ const TournamentLobby: React.FC = () => {
                             >
                                 <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
                                 <div className="pointer-events-none absolute inset-0 rounded-b-xl rounded-t-none ring-1 ring-inset ring-white/8" aria-hidden />
-                                <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1.5">
-                                    <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-base font-bold tracking-tight text-transparent sm:text-lg">
+                                <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1">
+                                    <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-sm font-bold tracking-tight text-transparent sm:text-base">
                                         {t('lobby.shopTab')}
                                     </h2>
                                     <div
-                                        className="flex shrink-0 items-center gap-1.5 rounded-full border border-amber-400/35 bg-black/35 py-1 pl-1.5 pr-2 shadow-inner"
+                                        className="flex shrink-0 items-center gap-1 rounded-full border border-amber-400/35 bg-black/35 py-0.5 pl-1 pr-1.5 shadow-inner"
                                         title={t('lobby.champCoin')}
                                     >
-                                        <div className="flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
+                                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
                                             <img
                                                 src={specialResourceIcons.champCoins}
                                                 alt={t('lobby.champCoin')}
-                                                className="h-5 w-5 object-contain"
+                                                className="h-4 w-4 object-contain"
                                                 loading="lazy"
                                                 decoding="async"
                                             />
                                         </div>
-                                        <span className="font-bold tabular-nums text-amber-100">
+                                        <span className="text-sm font-bold tabular-nums text-amber-100">
                                             {(currentUserWithStatus.champCoins ?? 0).toLocaleString()}
                                         </span>
                                     </div>
                                 </div>
-                                <div className="flex flex-col overflow-hidden px-2 pb-1.5 pt-0">
+                                <div className="flex flex-col overflow-hidden px-1.5 pb-1 pt-0">
                                     <ChampionshipShopPanel
                                         currentUser={currentUserWithStatus}
                                         onAction={handlers.handleAction}

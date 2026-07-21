@@ -89,7 +89,7 @@ import {
     PAIR_PET_MAX_LEVEL,
     pairPetXpGainBlockedByGrade,
 } from '../shared/constants/pairPetGrade.js';
-import { getPairPetXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
+import { getPairPetXpRequirementForLevel, getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
 import {
     STRATEGIC_RANKED_STAT_KEY,
     PAIR_RANKED_STAT_KEY,
@@ -162,37 +162,6 @@ function liveSessionHasChampionshipDungeonBot(game: LiveGameSession): boolean {
     }
     return pid(game.player1).startsWith('dungeon-bot-') || pid(game.player2).startsWith('dungeon-bot-');
 }
-
-const getXpForLevel = (level: number): number => {
-    if (level < 1) return 0;
-    if (level > 100) return Infinity; // Max level
-    
-    // 레벨 1~10: 200 + (레벨 x 100)
-    if (level <= 10) {
-        return 200 + (level * 100);
-    }
-    
-    // 레벨 11~20: 300 + (레벨 x 150)
-    if (level <= 20) {
-        return 300 + (level * 150);
-    }
-    
-    // 레벨 21~50: 이전 필요경험치 x 1.2
-    // 레벨 51~100: 이전 필요경험치 x 1.3
-    // 레벨 20의 필요 경험치를 먼저 계산
-    let xp = 300 + (20 * 150); // 레벨 20의 필요 경험치
-    
-    // 레벨 21부터 현재 레벨까지 반복
-    for (let l = 21; l <= level; l++) {
-        if (l <= 50) {
-            xp = Math.round(xp * 1.2);
-        } else {
-            xp = Math.round(xp * 1.3);
-        }
-    }
-    
-    return xp;
-};
 
 const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     // 캐시 무효화 후 DB에서 최신 사용자 조회 (첫 클리어 vs 재도전 판정 정확도)
@@ -357,11 +326,11 @@ const processSinglePlayerGameSummary = async (game: LiveGameSession) => {
     // Handle level up logic after potentially adding XP
     let currentLevel = user.userLevel;
     let currentXp = user.userXp;
-    let requiredXp = getXpForLevel(currentLevel);
+    let requiredXp = getXpRequirementForLevel(currentLevel);
     while (currentXp >= requiredXp) {
         currentXp -= requiredXp;
         currentLevel++;
-        requiredXp = getXpForLevel(currentLevel);
+        requiredXp = getXpRequirementForLevel(currentLevel);
     }
     user.userLevel = currentLevel;
     user.userXp = currentXp;
@@ -628,11 +597,11 @@ const processTowerGameSummary = async (game: LiveGameSession) => {
     if (isWinner) {
         let currentLevel = Math.max(1, Number(user.userLevel) || 1);
         let currentXp = Math.max(0, Number(user.userXp) || 0);
-        let requiredXp = getXpForLevel(currentLevel);
+        let requiredXp = getXpRequirementForLevel(currentLevel);
         while (requiredXp > 0 && currentXp >= requiredXp) {
             currentXp -= requiredXp;
             currentLevel++;
-            requiredXp = getXpForLevel(currentLevel);
+            requiredXp = getXpRequirementForLevel(currentLevel);
         }
         user.userLevel = currentLevel;
         user.userXp = currentXp;
@@ -1852,18 +1821,18 @@ const processPlayerSummary = async (
 
     let currentXp = initialXp + xpGain;
     let currentLevel = initialLevel;
-    const requiredXpForInitialLevel = getXpForLevel(currentLevel);
+    const requiredXpForInitialLevel = getXpRequirementForLevel(currentLevel);
 
     let requiredXpForCurrentLevel = requiredXpForInitialLevel;
     while (currentXp >= requiredXpForCurrentLevel) {
         currentXp -= requiredXpForCurrentLevel;
         currentLevel++;
-        requiredXpForCurrentLevel = getXpForLevel(currentLevel);
+        requiredXpForCurrentLevel = getXpRequirementForLevel(currentLevel);
     }
     
     const xpSummary: StatChange = { initial: initialXp, change: xpGain, final: currentXp };
     const leveledUp = currentLevel > initialLevel;
-    const maxForProgress = leveledUp ? getXpForLevel(currentLevel) : requiredXpForInitialLevel;
+    const maxForProgress = leveledUp ? getXpRequirementForLevel(currentLevel) : requiredXpForInitialLevel;
     const initialForProgress = leveledUp ? 0 : initialXp;
     const safeMaxForProgress =
         Number.isFinite(maxForProgress) && maxForProgress > 0
@@ -2579,12 +2548,12 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         user.gold += goldGain + vipGoldBonus;
         let currentXp = initialStrategyXp + strategyXpGain;
         let currentLevel = initialStrategyLevel;
-        const requiredXpForInitialLevel = getXpForLevel(currentLevel);
+        const requiredXpForInitialLevel = getXpRequirementForLevel(currentLevel);
         let requiredXpForCurrentLevel = requiredXpForInitialLevel;
         while (requiredXpForCurrentLevel > 0 && currentXp >= requiredXpForCurrentLevel) {
             currentXp -= requiredXpForCurrentLevel;
             currentLevel += 1;
-            requiredXpForCurrentLevel = getXpForLevel(currentLevel);
+            requiredXpForCurrentLevel = getXpRequirementForLevel(currentLevel);
         }
         user.userLevel = currentLevel;
         user.userXp = currentXp;
@@ -2663,7 +2632,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
 
         const xpSummary: StatChange = { initial: initialStrategyXp, change: strategyXpGain, final: currentXp };
         const pairLeveledUp = currentLevel > initialStrategyLevel;
-        const maxForPairProgress = pairLeveledUp ? getXpForLevel(currentLevel) : requiredXpForInitialLevel;
+        const maxForPairProgress = pairLeveledUp ? getXpRequirementForLevel(currentLevel) : requiredXpForInitialLevel;
         const initialForPairProgress = pairLeveledUp ? 0 : initialStrategyXp;
         const safePairMax =
             Number.isFinite(maxForPairProgress) && maxForPairProgress > 0

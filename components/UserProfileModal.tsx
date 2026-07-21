@@ -32,39 +32,9 @@ import {
     gradeSlotBorderOverlayClass,
     itemSlotIconStyleForGrade,
 } from '../shared/constants/itemSlotIconLayout.js';
+import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
 
 // Re-using components from Profile.tsx for consistency.
-const getXpRequirementForLevel = (level: number): number => {
-    if (level < 1) return 0;
-    if (level > 100) return Infinity; // Max level
-    
-    // 레벨 1~10: 200 + (레벨 x 100)
-    if (level <= 10) {
-        return 200 + (level * 100);
-    }
-    
-    // 레벨 11~20: 300 + (레벨 x 150)
-    if (level <= 20) {
-        return 300 + (level * 150);
-    }
-    
-    // 레벨 21~50: 이전 필요경험치 x 1.2
-    // 레벨 51~100: 이전 필요경험치 x 1.3
-    // 레벨 20의 필요 경험치를 먼저 계산
-    let xp = 300 + (20 * 150); // 레벨 20의 필요 경험치
-    
-    // 레벨 21부터 현재 레벨까지 반복
-    for (let l = 21; l <= level; l++) {
-        if (l <= 50) {
-            xp = Math.round(xp * 1.2);
-        } else {
-            xp = Math.round(xp * 1.3);
-        }
-    }
-    
-    return xp;
-};
-
 const XpBar: React.FC<{ level: number; currentXp: number; colorClass: string }> = ({ level, currentXp, colorClass }) => {
     const safeLevel = Math.max(1, Math.floor(Number(level) || 1));
     const safeXp = Math.max(0, Math.floor(Number(currentXp) || 0));

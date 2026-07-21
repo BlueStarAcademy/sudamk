@@ -21,22 +21,23 @@ import { specialResourceIcons } from '../resourceIcons.js';
 import { formatShopItemDescription, ShopMobileImageDescriptionPortal } from '../shopImageDescriptionPopover.js';
 
 const TAB_BTN =
-    'min-h-[2.125rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:min-h-[2.25rem] sm:text-sm border border-transparent';
+    'min-h-[1.95rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:min-h-[2.1rem] sm:text-sm border border-transparent';
 const TAB_ACTIVE = 'bg-amber-500/90 text-slate-950 shadow border-amber-400/50';
 const TAB_IDLE = 'text-amber-100/85 hover:bg-white/10 border-transparent';
 
 export type ChampionshipShopPanelLayoutVariant = 'default' | 'asideIntrinsic';
 
-const ASIDE_SHOP_GRID_MIN_H = 'min-h-[35.5rem] sm:min-h-[25.5rem]';
+/** PC 좌측 연접: 프로필(홈 크기) + 상점 6칸이 뷰포트에 스크롤 없이 들어가도록 맞춤 */
+const ASIDE_SHOP_GRID_MIN_H = 'min-h-[32.75rem] sm:min-h-[22.75rem]';
 
-const CARD_H_COMPACT = 'h-[12.35rem] sm:h-[13rem]';
-const CARD_H_DEFAULT = 'h-[12.85rem] sm:h-[13.5rem]';
-const BTN_MIN_H = 'min-h-[3.15rem] sm:min-h-[3.25rem]';
+const CARD_H_COMPACT = 'h-[11.15rem] sm:h-[11.65rem]';
+const CARD_H_DEFAULT = 'h-[11.65rem] sm:h-[12.15rem]';
+const BTN_MIN_H = 'min-h-[2.85rem] sm:min-h-[3rem]';
 
-const IMAGE_FRAME_COMPACT = 'flex h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem]';
-const IMAGE_FRAME_DEFAULT = 'flex h-[4.5rem] w-[4.5rem] sm:h-20 sm:w-20';
-const IMAGE_IMG_COMPACT = 'max-h-14 max-w-14 sm:max-h-16 sm:max-w-16';
-const IMAGE_IMG_DEFAULT = 'max-h-16 max-w-16 sm:max-h-[4.5rem] sm:max-w-[4.5rem]';
+const IMAGE_FRAME_COMPACT = 'flex h-14 w-14 sm:h-16 sm:w-16';
+const IMAGE_FRAME_DEFAULT = 'flex h-16 w-16 sm:h-[4.5rem] sm:w-[4.5rem]';
+const IMAGE_IMG_COMPACT = 'max-h-12 max-w-12 sm:max-h-14 sm:max-w-14';
+const IMAGE_IMG_DEFAULT = 'max-h-14 max-w-14 sm:max-h-16 sm:max-w-16';
 
 function weeklyUsedThisWeek(
     purchases: UserWithStatus['championshipShopWeekPurchases'],
@@ -112,12 +113,14 @@ const ChampionshipSimpleShopCard: React.FC<{
 
     return (
         <div
-            className={`group relative flex w-full min-w-0 shrink-0 flex-col items-center overflow-hidden rounded-lg border border-amber-500/25 bg-black/30 p-1.5 text-center shadow-inner sm:p-2 ${cardH}`}
+            className={`group relative flex w-full min-w-0 shrink-0 flex-col items-center overflow-hidden rounded-lg border border-amber-500/25 bg-black/30 text-center shadow-inner ${
+                compact ? 'p-1 sm:p-1.5' : 'p-1.5 sm:p-2'
+            } ${cardH}`}
         >
             <div
                 ref={imageAnchorRef}
                 title={imageTitle}
-                className={`relative mb-1 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_18px_-8px_rgba(251,191,36,0.35)] transition-transform hover:scale-105 ${
+                className={`relative mb-0.5 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_18px_-8px_rgba(251,191,36,0.35)] transition-transform hover:scale-105 ${
                     compact ? IMAGE_FRAME_COMPACT : IMAGE_FRAME_DEFAULT
                 }`}
                 onClick={() => setShowDescription(!showDescription)}
@@ -138,7 +141,7 @@ const ChampionshipSimpleShopCard: React.FC<{
             </div>
             <h3
                 className={`line-clamp-2 flex min-h-0 flex-1 w-full flex-col justify-center px-0.5 text-center font-bold leading-snug tracking-tight text-amber-50 ${
-                    compact ? 'min-h-[1.75rem] text-[9px] sm:min-h-[2rem] sm:text-[10px]' : `min-h-[2.25rem] ${mobile ? 'text-[10px]' : 'text-[11px] sm:text-xs'}`
+                    compact ? 'min-h-[1.4rem] text-[9px] sm:min-h-[1.55rem] sm:text-[10px]' : `min-h-[2rem] ${mobile ? 'text-[10px]' : 'text-[11px] sm:text-xs'}`
                 }`}
                 title={p.label}
             >
@@ -265,11 +268,13 @@ const ChampionshipSpecialShopCard: React.FC<{
 
     return (
         <div
-            className={`group relative flex w-full min-w-0 shrink-0 flex-col items-center overflow-hidden rounded-lg border border-amber-500/25 bg-black/30 p-1.5 text-center shadow-inner sm:p-2 ${cardH}`}
+            className={`group relative flex w-full min-w-0 shrink-0 flex-col items-center overflow-hidden rounded-lg border border-amber-500/25 bg-black/30 text-center shadow-inner ${
+                compact ? 'p-1 sm:p-1.5' : 'p-1.5 sm:p-2'
+            } ${cardH}`}
         >
             <div
                 ref={imageAnchorRef}
-                className={`relative mb-1 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_18px_-8px_rgba(251,191,36,0.35)] transition-transform hover:scale-105 ${
+                className={`relative mb-0.5 shrink-0 cursor-pointer items-center justify-center rounded-lg border border-white/10 bg-gradient-to-br from-[#312e81]/35 via-[#1e1b4b]/20 to-transparent shadow-[0_0_18px_-8px_rgba(251,191,36,0.35)] transition-transform hover:scale-105 ${
                     compact ? IMAGE_FRAME_COMPACT : IMAGE_FRAME_DEFAULT
                 }`}
                 onClick={() => setShowDescription(!showDescription)}
@@ -290,7 +295,7 @@ const ChampionshipSpecialShopCard: React.FC<{
             </div>
             <h3
                 className={`line-clamp-2 flex min-h-0 shrink-0 w-full flex-col justify-center px-0.5 text-center font-bold leading-snug tracking-tight text-amber-50 ${
-                    compact ? 'min-h-[1.75rem] text-[9px] sm:min-h-[2rem] sm:text-[10px]' : `min-h-[2.25rem] ${mobile ? 'text-[10px]' : 'text-[11px] sm:text-xs'}`
+                    compact ? 'min-h-[1.4rem] text-[9px] sm:min-h-[1.55rem] sm:text-[10px]' : `min-h-[2rem] ${mobile ? 'text-[10px]' : 'text-[11px] sm:text-xs'}`
                 }`}
                 title={p.label}
             >
@@ -453,14 +458,14 @@ const ChampionshipShopPanel: React.FC<{
         <div
             className={
                 isAsideIntrinsic
-                    ? 'flex w-full min-w-0 flex-none flex-col gap-1 overflow-hidden'
+                    ? 'flex w-full min-w-0 flex-none flex-col gap-0.5 overflow-hidden'
                     : 'flex min-h-0 flex-1 flex-col gap-2 overflow-hidden'
             }
         >
             <div
                 role="tablist"
                 aria-label={t('championship.shop.categoryAria')}
-                className="flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/35 bg-black/40 p-0.5 shadow-inner"
+                className={`flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/35 bg-black/40 p-0.5 shadow-inner`}
             >
                 {(
                     [
@@ -484,7 +489,7 @@ const ChampionshipShopPanel: React.FC<{
             <div
                 className={
                     isAsideIntrinsic
-                        ? `grid w-full shrink-0 grid-cols-2 grid-rows-3 grid-flow-row content-start gap-1.5 overflow-hidden sm:grid-cols-3 sm:grid-rows-2 sm:gap-2 ${ASIDE_SHOP_GRID_MIN_H}`
+                        ? `grid w-full shrink-0 grid-cols-2 grid-rows-3 grid-flow-row content-start gap-1 overflow-hidden sm:grid-cols-3 sm:grid-rows-2 sm:gap-1.5 ${ASIDE_SHOP_GRID_MIN_H}`
                         : 'grid min-h-0 flex-1 auto-rows-auto grid-cols-2 content-start gap-2 overflow-y-auto overflow-x-hidden sm:grid-cols-3 [-webkit-overflow-scrolling:touch]'
                 }
             >
