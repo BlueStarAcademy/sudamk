@@ -112,4 +112,38 @@ describe('PVE strategic item actions via handleAction', () => {
         expect(game.hidden_stones_p1).toBe(1);
         expect(game.gameStatus).toBe('playing');
     });
+
+    it('REVEAL_OPPONENT_HIDDEN reveals AI hidden stone for adventure (not swallowed by PVE gate)', async () => {
+        const x = 4;
+        const y = 4;
+        const game = makeAdventureHiddenGame({
+            boardState: Array.from({ length: 9 }, () => Array(9).fill(Player.None)),
+            moveHistory: [{ x, y, player: Player.White }],
+            hiddenMoves: { 0: true },
+            aiHiddenStonePoints: [{ x, y, player: Player.White }],
+            permanentlyRevealedStones: [],
+            currentPlayer: Player.Black,
+        });
+        game.boardState[y][x] = Player.White;
+        gameCache.set(game.id, game);
+        const { handleAction } = await import('../../gameActions.js');
+
+        const res = await handleAction(
+            volatileState,
+            {
+                type: 'REVEAL_OPPONENT_HIDDEN',
+                payload: { gameId: game.id, x, y },
+                userId: user.id,
+            } as any,
+            user,
+        );
+
+        expect(res?.error).toBeUndefined();
+        // Regression: PVE allowlist used to return {} and leave status as playing
+        expect(game.gameStatus).toBe('hidden_reveal_animating');
+        expect(game.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y)).toBe(true);
+        expect(game.moveHistory.length).toBe(1);
+        expect(game.currentPlayer).toBe(Player.Black);
+        expect((res as any)?.clientResponse?.game?.gameStatus).toBe('hidden_reveal_animating');
+    });
 });

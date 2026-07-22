@@ -654,8 +654,14 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
         }
         
         // 싱글플레이·도전의 탑 히든/스캔 액션 먼저 처리 (게임을 찾기 전에)
+        // REVEAL_OPPONENT_HIDDEN: 모험 AI 히든 클릭 공개 — PVE 게이트에서 {}로 삼키지 않도록 동일 경로로 통과
         const actionTypeStr = type as string;
-        if (actionTypeStr === 'START_HIDDEN_PLACEMENT' || actionTypeStr === 'START_SCANNING' || actionTypeStr === 'SCAN_BOARD') {
+        if (
+            actionTypeStr === 'START_HIDDEN_PLACEMENT' ||
+            actionTypeStr === 'START_SCANNING' ||
+            actionTypeStr === 'SCAN_BOARD' ||
+            actionTypeStr === 'REVEAL_OPPONENT_HIDDEN'
+        ) {
             const { getCachedGame, updateGameCache } = await import('./gameCache.js');
             /** 타워 SCAN_BOARD: 핸들러는 세션을 먼저 깎는데 인벤 소비가 실패하면 sync가 세션을 다시 올려 '스캔이 돌아오는' 현상이 난다 → 소비 실패 시 롤백 */
             let towerScanBoardRevert: {
@@ -1708,6 +1714,8 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 'START_HIDDEN_PLACEMENT',
                 'START_SCANNING',
                 'SCAN_BOARD',
+                // 모험 등 PVE: 클라가 상대 히든 칸 클릭 시 PLACE_STONE 대신 보내는 서버 권위 공개
+                'REVEAL_OPPONENT_HIDDEN',
             ]);
             const shouldHandleStrategicItemPhaseOnServer = strategicItemPhaseActionTypes.has(type);
             // 펫 힌트/힌트 보너스는 아래 `handleStrategicGameAction`으로 넘긴다.
