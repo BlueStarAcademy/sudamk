@@ -7726,7 +7726,9 @@ export const useApp = () => {
                 const immediateCraftResult = result.clientResponse?.craftResult || result.craftResult;
                 const immediateCombinationResult = result.clientResponse?.combinationResult || result.combinationResult;
                 const immediateRefinementResult =
-                    action.type === 'REFINE_EQUIPMENT' ? result.clientResponse?.refinementResult : null;
+                    action.type === 'REFINE_EQUIPMENT'
+                        ? (result.clientResponse?.refinementResult || result.refinementResult || null)
+                        : null;
                 const immediateEnhancementOutcome = result.clientResponse?.enhancementOutcome || result.enhancementOutcome;
                 const immediateEnhancementAnimationTarget =
                     result.clientResponse?.enhancementAnimationTarget || result.enhancementAnimationTarget;
@@ -8136,8 +8138,12 @@ export const useApp = () => {
                  if (scoreChange) setTournamentScoreChange(scoreChange);
                 
                  // 제련 결과 처리
-                 if (!immediateBlacksmithFeedbackHandled.refinement && action.type === 'REFINE_EQUIPMENT' && result.clientResponse?.refinementResult) {
-                     setRefinementResult(result.clientResponse.refinementResult);
+                 if (!immediateBlacksmithFeedbackHandled.refinement && action.type === 'REFINE_EQUIPMENT') {
+                     const fallbackRefinementResult =
+                         result.clientResponse?.refinementResult || result.refinementResult;
+                     if (fallbackRefinementResult) {
+                         setRefinementResult(fallbackRefinementResult);
+                     }
                  }
                 
                  // 보상 수령 모달 처리 (즉시 표시를 위해 flushSync 사용)
