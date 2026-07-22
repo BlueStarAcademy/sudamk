@@ -134,14 +134,15 @@ export const BLACKSMITH_MAX_LEVEL = 20;
 
 export type BlacksmithXpAction = 'enhance' | 'disassemble' | 'combine';
 
+/** Grade scale for XP; high tiers grow slower than a pure exponential so late gear does not flood XP. */
 export const BLACKSMITH_XP_GRADE_MULT: Record<ItemGrade, number> = {
     [ItemGrade.Normal]: 1,
     [ItemGrade.Uncommon]: 2,
-    [ItemGrade.Rare]: 4,
-    [ItemGrade.Epic]: 7,
-    [ItemGrade.Legendary]: 12,
-    [ItemGrade.Mythic]: 22,
-    [ItemGrade.Transcendent]: 30,
+    [ItemGrade.Rare]: 3,
+    [ItemGrade.Epic]: 5,
+    [ItemGrade.Legendary]: 8,
+    [ItemGrade.Mythic]: 12,
+    [ItemGrade.Transcendent]: 16,
 };
 
 export const BLACKSMITH_XP_ACTION_BASE: Record<BlacksmithXpAction, number> = {
