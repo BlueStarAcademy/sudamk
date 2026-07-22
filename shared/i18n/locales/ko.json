@@ -3199,7 +3199,7 @@
     "towerUnlockModal": "탑 해금 모달",
     "statBaseDisplay": "기본 {{base}} → 표시 {{display}} (장비·보너스 +{{bonus}})",
     "statBaseOnly": "기본 {{base}} · 장비·보너스 반영",
-    "presetDefault": "프리셋 {{index}}",
+    "presetDefault": "장비세트 {{index}}",
     "coreStats": {
       "concentration": "집중",
       "thinkingSpeed": "사고",
@@ -4272,7 +4272,7 @@
     "presetRename": "프리셋 이름 변경",
     "presetSave": "프리셋 저장",
     "presetPlaceholder": "예: 공격 세트",
-    "presetDefault": "프리셋 {{index}}",
+    "presetDefault": "장비세트 {{index}}",
     "boundInfo": "장비 귀속 안내",
     "unbindConfirm": "귀속 해제 확인",
     "unbindGuide": "귀속 해제 안내",
@@ -5622,7 +5622,7 @@
       "userTab": "유저",
       "petTab": "펫",
       "quickMenuAria": "퀵 메뉴",
-      "presetName": "프리셋 {{index}}"
+      "presetName": "장비세트 {{index}}"
     },
     "definitions": {
       "neighborhood": {
@@ -7496,7 +7496,7 @@
       "challenge": "도전하기 ({{left}}/{{max}})",
       "recommendedStatsAria": "보스 공략 추천 능력치: {{stats}}",
       "inactive": "비활성",
-      "presetName": "프리셋 {{index}}",
+      "presetName": "장비세트 {{index}}",
       "battleResultTitle": "전투 결과",
       "battleResultHeading": "{{bossName}} 전투 결과",
       "totalDamageDealt": "총 피해량: {{damage}}",

@@ -953,7 +953,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             onClick={() => handleLevelUpClick(quest.id)}
                                                             colorScheme="none"
                                                             className={`${PREMIUM_QUEST_BTN.upgrade}${embeddedQuestBtnTight}`}
-                                                            disabled={isMaxLevel}
+                                                            disabled={isMaxLevel || !(levelUpInfo?.hasEnoughXp ?? false)}
                                                         >
                                                             {t('singleplayer.enhance')}
                                                         </Button>
@@ -1166,7 +1166,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             onClick={() => handleLevelUpClick(quest.id)}
                                                             colorScheme="none"
                                                             className={PREMIUM_QUEST_BTN.upgrade}
-                                                            disabled={isMaxLevel}
+                                                            disabled={isMaxLevel || !(levelUpInfo?.hasEnoughXp ?? false)}
                                                         >
                                                             {t('singleplayer.enhance')}
                                                         </Button>

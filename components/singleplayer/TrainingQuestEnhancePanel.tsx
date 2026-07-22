@@ -112,7 +112,7 @@ const statRow = (
 
 /** 중간 열: 다음 레벨 효과 미리보기 */
 export const TrainingQuestNextLevelEffects: React.FC<TrainingQuestEnhancePanelProps> = (props) => {
-    const { mission, currentLevel, canLevelUp, nextLevelUnlockStage, compact = false, hideHeader = false } = props;
+    const { mission, currentLevel, compact = false, hideHeader = false } = props;
     const { t } = useTranslation('lobby');
     const model = buildTrainingQuestEnhanceModel(props);
 
@@ -199,15 +199,6 @@ export const TrainingQuestNextLevelEffects: React.FC<TrainingQuestEnhancePanelPr
                     </span>
                 </div>
             </div>
-
-            {nextLevelUnlockStage ? (
-                <p
-                    className={`truncate whitespace-nowrap leading-tight text-amber-200/90 ${compact ? 'text-[8px] sm:text-[9px]' : 'text-xs sm:text-sm'}`}
-                    title={nextLevelUnlockStage}
-                >
-                    {t('singleplayer.enhanceAfterClear', { stageId: nextLevelUnlockStage })}
-                </p>
-            ) : null}
         </div>
     );
 };
@@ -307,16 +298,14 @@ export const TrainingQuestEnhanceActions: React.FC<TrainingQuestEnhancePanelProp
         }, ENHANCE_GAUGE_DURATION);
     };
 
-    const canStartEnhance = hasEnoughXp && hasUnlockStage && model.hasEnoughGold;
-
     return (
         <>
             <div className={`flex w-full shrink-0 flex-col justify-center gap-1 ${compact ? '' : 'gap-1.5'}`}>
                 <Button
                     onClick={() => void handleEnhance()}
                     colorScheme="none"
-                    className={`${PREMIUM_QUEST_BTN.upgrade} !w-full !flex-none ${compact ? '!py-1 !text-[9px] sm:!text-[10px]' : '!py-2.5 !text-sm sm:!text-base'} ${isEnhancing ? '!cursor-wait !opacity-70' : !canStartEnhance ? '!opacity-90' : ''}`}
-                    disabled={isEnhancing}
+                    className={`${PREMIUM_QUEST_BTN.upgrade} !w-full !flex-none ${compact ? '!py-1 !text-[9px] sm:!text-[10px]' : '!py-2.5 !text-sm sm:!text-base'}`}
+                    disabled={isEnhancing || !hasEnoughXp}
                 >
                     {isEnhancing ? (
                         t('singleplayer.enhancing')

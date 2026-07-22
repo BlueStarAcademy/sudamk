@@ -8,6 +8,7 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../utils/strategicPvpGameRecord.js';
 import { useGameRecordSaveLock } from '../hooks/useGameRecordSaveLock.js';
 import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
+import GameResultModalConfirmFooter from './game/GameResultModalConfirmFooter.js';
 
 interface NoContestModalProps {
     session: LiveGameSession;
@@ -41,7 +42,7 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
             windowId="no-contest"
             viewportPortal
             {...commonResultWindowProps}
-            hideFooter={isMobile}
+            hideFooter
         >
             <>
             <div className="text-white">
@@ -95,6 +96,11 @@ const NoContestModal: React.FC<NoContestModalProps> = ({ session, currentUser, o
                     </div>
                 )}
             </div>
+            <GameResultModalConfirmFooter
+                label={t('summary.confirm')}
+                onConfirm={onConfirm}
+                isMobile={isMobile}
+            />
             </>
         </DraggableWindow>
     );

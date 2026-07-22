@@ -43,6 +43,7 @@ import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import ResultAdGoldDoubleButton from './game/ResultAdGoldDoubleButton.js';
+import GameResultModalConfirmFooter from './game/GameResultModalConfirmFooter.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import {
@@ -1630,6 +1631,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     session,
     currentUser,
     onConfirm,
+    confirmLabel,
     secondaryConfirmAction: _secondaryConfirmAction,
     onLeaveToAdventureMap,
     onAction,
@@ -2527,16 +2529,6 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                     </>
                 )}
             </div>
-            {!isSpectator && mySummary ? (
-                <ResultAdGoldDoubleButton
-                    session={session}
-                    summary={mySummary}
-                    isWinner={isWinner === true}
-                    onAction={onAction}
-                    onClaimed={(amount) => setLocalAdGoldBonus((prev) => prev + amount)}
-                    className="pt-1"
-                />
-            ) : null}
         </div>
     );
 
@@ -2551,7 +2543,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             {...commonResultWindowProps}
             bodyShrinkToContent={!isMobile}
             bodyAvoidVerticalStretch={!isMobile}
-            hideFooter={isMobile}
+            hideFooter
             windowId="game-summary"
             variant="store"
             modalBackdrop={isMobile && !adventureResultChrome}
@@ -2925,6 +2917,22 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 )}
             </div>
             </div>
+            <GameResultModalConfirmFooter
+                label={confirmLabel || t('summary.confirm')}
+                onConfirm={onConfirm}
+                isMobile={isMobile}
+                leadingAction={
+                    !isSpectator && mySummary ? (
+                        <ResultAdGoldDoubleButton
+                            session={session}
+                            summary={mySummary}
+                            isWinner={isWinner === true}
+                            onAction={onAction}
+                            onClaimed={(amount) => setLocalAdGoldBonus((prev) => prev + amount)}
+                        />
+                    ) : null
+                }
+            />
         </DraggableWindow>
     );
 };

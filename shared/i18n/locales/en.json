@@ -3149,7 +3149,7 @@
     "towerUnlockModal": "Tower unlock modal",
     "statBaseDisplay": "Base {{base}} → shown {{display}} (gear/bonus +{{bonus}})",
     "statBaseOnly": "Base {{base}} · includes gear/bonus",
-    "presetDefault": "Preset {{index}}",
+    "presetDefault": "Equipment Set {{index}}",
     "coreStats": {
       "concentration": "Focus",
       "thinkingSpeed": "Speed",
@@ -4222,7 +4222,7 @@
     "presetRename": "Rename preset",
     "presetSave": "Save preset",
     "presetPlaceholder": "e.g. Attack set",
-    "presetDefault": "Preset {{index}}",
+    "presetDefault": "Equipment Set {{index}}",
     "boundInfo": "Gear binding info",
     "unbindConfirm": "Confirm unbinding",
     "unbindGuide": "Unbinding guide",
@@ -5572,7 +5572,7 @@
       "userTab": "User",
       "petTab": "Pet",
       "quickMenuAria": "Quick menu",
-      "presetName": "Preset {{index}}"
+      "presetName": "Equipment Set {{index}}"
     },
     "definitions": {
       "neighborhood": {
@@ -7447,7 +7447,7 @@
       "challenge": "Challenge ({{left}}/{{max}})",
       "recommendedStatsAria": "Recommended stats: {{stats}}",
       "inactive": "Inactive",
-      "presetName": "Preset {{index}}",
+      "presetName": "Equipment Set {{index}}",
       "battleResultTitle": "Battle result",
       "battleResultHeading": "{{bossName}} battle result",
       "totalDamageDealt": "Total damage: {{damage}}",

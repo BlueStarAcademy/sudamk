@@ -15,6 +15,7 @@ import { rollPairPetMetaForHatch } from '../shared/utils/pairPetRoll.js';
 // FIX: Import createDefaultBaseStats from shared utils.
 import { createDefaultBaseStats } from '../utils/statUtils.js';
 import { getDefaultGuildMissionProgress } from './guildService.js';
+import { createEmptyEquipmentPresets } from '../shared/utils/equipmentPresetDefaults.js';
 
 // Re-export for convenience
 export { createDefaultBaseStats };
@@ -165,7 +166,7 @@ export const createDefaultUser = (id: string, username: string, nickname: string
             material: 30,
         },
         equipment: {},
-        equipmentPresets: Array(5).fill(null).map((_, i) => ({ name: `프리셋 ${i + 1}`, equipment: {} })),
+        equipmentPresets: createEmptyEquipmentPresets(),
         actionPoints: { current: 30, max: 30 },
         lastActionPointUpdate: now,
         actionPointPurchasesToday: 0,

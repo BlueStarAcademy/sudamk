@@ -31,6 +31,7 @@ import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
 import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 import ResultAdGoldDoubleButton from './game/ResultAdGoldDoubleButton.js';
+import GameResultModalConfirmFooter from './game/GameResultModalConfirmFooter.js';
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
     'relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12';
@@ -532,16 +533,6 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     외 {displaySummary.items.length - 2}개 아이템
                 </p>
             )}
-            {displaySummary ? (
-                <ResultAdGoldDoubleButton
-                    session={session}
-                    summary={summary ?? displaySummary}
-                    isWinner={isWinner === true}
-                    onAction={onAction}
-                    onClaimed={(amount) => setLocalAdGoldBonus((prev) => prev + amount)}
-                    className="pt-1"
-                />
-            ) : null}
         </div>
     );
 
@@ -553,7 +544,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
             viewportPortal
             skipSavedPosition
             {...commonResultWindowProps}
-            hideFooter={isMobile}
+            hideFooter
             modal={!modalLayerUsesDesignPixels}
             closeOnOutsideClick={!modalLayerUsesDesignPixels}
             containerExtraClassName="sudamr-panel-edge-host !rounded-2xl !shadow-[0_26px_85px_rgba(0,0,0,0.72)] ring-1 ring-amber-400/22"
@@ -749,6 +740,24 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     </GameResultModalFitContent>
                 )}
             </div>
+            {!isScoring ? (
+                <GameResultModalConfirmFooter
+                    label={t('summary.confirm')}
+                    onConfirm={() => handleClose(session, onClose)}
+                    isMobile={isMobile}
+                    leadingAction={
+                        displaySummary ? (
+                            <ResultAdGoldDoubleButton
+                                session={session}
+                                summary={summary ?? displaySummary}
+                                isWinner={isWinner === true}
+                                onAction={onAction}
+                                onClaimed={(amount) => setLocalAdGoldBonus((prev) => prev + amount)}
+                            />
+                        ) : null
+                    }
+                />
+            ) : null}
         </DraggableWindow>
     );
 };

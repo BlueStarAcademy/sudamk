@@ -88,7 +88,7 @@ const verifyUserData = async (nickname: string) => {
                 console.log(`  총 ${presets.length}개 프리셋:`);
                 presets.forEach((preset: any, index: number) => {
                     const equipmentCount = preset.equipment ? Object.keys(preset.equipment).length : 0;
-                    console.log(`    ${index + 1}. ${preset.name || `프리셋 ${index + 1}`}: ${equipmentCount}개 장비`);
+                    console.log(`    ${index + 1}. ${preset.name || `장비세트 ${index + 1}`}: ${equipmentCount}개 장비`);
                 });
             } else {
                 console.log(`  프리셋 없음`);

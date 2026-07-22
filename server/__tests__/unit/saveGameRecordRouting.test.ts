@@ -62,7 +62,7 @@ describe('SAVE_GAME_RECORD routing', () => {
         expect((result as { clientResponse?: { success?: boolean } }).clientResponse?.success).toBe(true);
     });
 
-    it('resolves ended playful PVP from client snapshot when DB misses', async () => {
+    it('rejects SAVE_GAME_RECORD for playful PVP even with client snapshot', async () => {
         const volatileState = { endedPvpGameRecordSnapshots: new Map() } as VolatileState;
         const game = {
             id: 'pvp-save-route-omok',
@@ -90,7 +90,7 @@ describe('SAVE_GAME_RECORD routing', () => {
             userId: 'u1',
         } as any);
 
-        expect(result.error).toBeUndefined();
-        expect((result as { clientResponse?: { success?: boolean } }).clientResponse?.success).toBe(true);
+        expect(result.error).toBeTruthy();
+        expect((result as { clientResponse?: { success?: boolean } }).clientResponse?.success).not.toBe(true);
     });
 });

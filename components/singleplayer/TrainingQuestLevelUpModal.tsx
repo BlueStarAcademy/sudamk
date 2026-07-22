@@ -262,7 +262,6 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
         </div>
     );
 
-    const canStartEnhance = hasEnoughXp && hasUnlockStage && hasEnoughGold;
     const enhanceButtonLabel = isEnhancing ? (
         t('singleplayer.enhancing')
     ) : (
@@ -283,12 +282,12 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                 <Button
                     onClick={handleEnhance}
                     colorScheme="none"
-                    className={`${PREMIUM_QUEST_BTN.upgrade} ${isEnhancing ? 'cursor-wait opacity-70' : !canStartEnhance ? 'opacity-90' : ''} !mx-auto !w-auto !max-w-[min(9.5rem,88vw)] !min-w-0 !shrink-0 !whitespace-normal !px-[clamp(0.5rem,3vw,0.75rem)] !py-[clamp(0.375rem,2vw,0.5rem)] !text-center !leading-tight ${
+                    className={`${PREMIUM_QUEST_BTN.upgrade} ${isEnhancing ? 'cursor-wait' : ''} !mx-auto !w-auto !max-w-[min(9.5rem,88vw)] !min-w-0 !shrink-0 !whitespace-normal !px-[clamp(0.5rem,3vw,0.75rem)] !py-[clamp(0.375rem,2vw,0.5rem)] !text-center !leading-tight ${
                         isCompactUi
                             ? '!text-[clamp(0.8125rem,3.5vw,0.9375rem)]'
                             : '!text-base'
                     }`}
-                    disabled={isEnhancing}
+                    disabled={isEnhancing || !hasEnoughXp}
                 >
                     {enhanceButtonLabel}
                 </Button>
@@ -455,18 +454,8 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                                     )}
                                 </div>
                             </div>
-
-                            {nextLevelUnlockStage && (
-                                <div className="flex min-h-[2rem] items-center gap-1 rounded-lg border border-amber-500/20 bg-amber-950/25 px-2 py-1 leading-tight text-amber-100/95 text-[clamp(0.625rem,2.9vw,0.75rem)]">
-                                    <span className="shrink-0 text-[clamp(0.8125rem,3.4vw,0.9375rem)]" aria-hidden>
-                                        ⚠️
-                                    </span>
-                                    <p className="min-w-0 truncate">
-                                        {t('singleplayer.enhanceAfterClear', { stageId: nextLevelUnlockStage })}
-                                    </p>
-                                </div>
-                            )}
                         </div>
+
                     </div>
 
                     <div className="relative shrink-0 space-y-[clamp(0.375rem,2vw,0.5rem)] border-t border-white/[0.06] bg-[#080b10]/95 px-[clamp(0.625rem,3.5vw,0.875rem)] py-[clamp(0.5rem,2.5vw,0.75rem)] pb-[max(0.75rem,env(safe-area-inset-bottom,0px))] backdrop-blur-md">
@@ -579,16 +568,6 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                             </div>
                         </div>
 
-                        {nextLevelUnlockStage && (
-                            <div className="mx-auto mt-2 flex w-full max-w-md items-center gap-2 rounded-lg border border-amber-500/30 bg-amber-950/35 px-3 py-2 text-[15px] leading-snug text-amber-50">
-                                <span className="shrink-0 text-xl" aria-hidden>
-                                    ⚠️
-                                </span>
-                                <p className="min-w-0">
-                                    {t('singleplayer.enhanceAfterClearFull', { stageId: nextLevelUnlockStage })}
-                                </p>
-                            </div>
-                        )}
                     </div>
 
                     <div className="relative flex shrink-0 flex-col gap-2 rounded-b-2xl border-t border-white/[0.08] bg-[#080b10]/95 px-4 py-2.5 backdrop-blur-sm">
@@ -604,8 +583,8 @@ const TrainingQuestLevelUpModal: React.FC<TrainingQuestLevelUpModalProps> = ({
                             <Button
                                 onClick={handleEnhance}
                                 colorScheme="none"
-                                className={`${PREMIUM_QUEST_BTN.upgrade} !text-base !py-2.5 ${isEnhancing ? 'cursor-wait opacity-70' : !canStartEnhance ? 'opacity-90' : ''}`}
-                                disabled={isEnhancing}
+                                className={`${PREMIUM_QUEST_BTN.upgrade} !text-base !py-2.5 ${isEnhancing ? 'cursor-wait' : ''}`}
+                                disabled={isEnhancing || !hasEnoughXp}
                             >
                                 {enhanceButtonLabel}
                             </Button>

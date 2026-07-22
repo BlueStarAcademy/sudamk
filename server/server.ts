@@ -3864,14 +3864,18 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // --- Equipment Presets Migration Logic ---
             let presetsMigrated = false;
             if (!updatedUser.equipmentPresets || updatedUser.equipmentPresets.length === 0) { // Check for empty array too
-                updatedUser.equipmentPresets = [
-                    { name: '프리셋 1', equipment: updatedUser.equipment || {} }, // Initialize with current equipment
-                    { name: '프리셋 2', equipment: {} },
-                    { name: '프리셋 3', equipment: {} },
-                    { name: '프리셋 4', equipment: {} },
-                    { name: '프리셋 5', equipment: {} },
-                ];
+                const { createEmptyEquipmentPresets } = await import('../shared/utils/equipmentPresetDefaults.js');
+                updatedUser.equipmentPresets = createEmptyEquipmentPresets(
+                    (updatedUser.equipment || {}) as Record<string, string>,
+                );
                 presetsMigrated = true;
+            } else {
+                const { migrateEquipmentPresetDefaultNames } = await import('../shared/utils/equipmentPresetDefaults.js');
+                const renamed = migrateEquipmentPresetDefaultNames(updatedUser.equipmentPresets);
+                if (renamed.changed) {
+                    updatedUser.equipmentPresets = renamed.presets;
+                    presetsMigrated = true;
+                }
             }
             // --- End Equipment Presets Migration Logic ---
 
@@ -4907,14 +4911,18 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // --- Equipment Presets Migration Logic ---
             let presetsMigrated = false;
             if (!updatedUser.equipmentPresets || updatedUser.equipmentPresets.length === 0) { // Check for empty array too
-                updatedUser.equipmentPresets = [
-                    { name: '프리셋 1', equipment: updatedUser.equipment || {} }, // Initialize with current equipment
-                    { name: '프리셋 2', equipment: {} },
-                    { name: '프리셋 3', equipment: {} },
-                    { name: '프리셋 4', equipment: {} },
-                    { name: '프리셋 5', equipment: {} },
-                ];
+                const { createEmptyEquipmentPresets } = await import('../shared/utils/equipmentPresetDefaults.js');
+                updatedUser.equipmentPresets = createEmptyEquipmentPresets(
+                    (updatedUser.equipment || {}) as Record<string, string>,
+                );
                 presetsMigrated = true;
+            } else {
+                const { migrateEquipmentPresetDefaultNames } = await import('../shared/utils/equipmentPresetDefaults.js');
+                const renamed = migrateEquipmentPresetDefaultNames(updatedUser.equipmentPresets);
+                if (renamed.changed) {
+                    updatedUser.equipmentPresets = renamed.presets;
+                    presetsMigrated = true;
+                }
             }
             // --- End Equipment Presets Migration Logic ---
 

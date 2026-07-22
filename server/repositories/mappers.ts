@@ -1,6 +1,7 @@
 import { createDefaultQuests, createDefaultBaseStats, createDefaultSpentStatPoints, defaultStats } from '../initialData.js';
 import * as types from '../../types/index.js';
 import { normalizeQuestLogProgressCaps } from '../../utils/questProgressCap.js';
+import { createEmptyEquipmentPresets } from '../../shared/utils/equipmentPresetDefaults.js';
 
 const safeParse = (jsonString: string | null, defaultValue: any, contextId: string, fieldName: string) => {
     if (jsonString === null || jsonString === undefined) return defaultValue;
@@ -85,13 +86,7 @@ export const rowToUser = (row: any): types.User | null => {
                 const parsed = safeParse(row.equipmentPresets, [], row.id, 'equipmentPresets');
                 // 프리셋이 없거나 빈 배열이면 기본 프리셋 생성
                 if (!parsed || parsed.length === 0) {
-                    return [
-                        { name: '프리셋 1', equipment: {} },
-                        { name: '프리셋 2', equipment: {} },
-                        { name: '프리셋 3', equipment: {} },
-                        { name: '프리셋 4', equipment: {} },
-                        { name: '프리셋 5', equipment: {} },
-                    ];
+                    return createEmptyEquipmentPresets();
                 }
                 return parsed;
             })(),

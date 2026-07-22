@@ -1,5 +1,6 @@
-import { GameMode } from '../types/index.js';
+import { GameCategory, GameMode } from '../types/index.js';
 import type { GameRecord, LiveGameSession } from '../types/index.js';
+import { PLAYFUL_GAME_MODES } from '../shared/constants/gameModes.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 
 /** 해당 대국(gameId)이 이미 기보 목록에 있으면 중복 저장 방지·버튼 비활성화에 사용 */
@@ -26,8 +27,14 @@ export type SessionLikeForGameRecord = {
     shortGameNoContest?: boolean;
 };
 
-/** 사람 vs 사람 PVP 대국(전략·놀이·페어). AI·PVE·모험·탑·길드전 제외 */
+/** 놀이바둑(주사위·오목·알까기 등) — 기보 저장/관리 대상 아님 */
+export function isPlayfulGameRecordMode(mode: GameMode): boolean {
+    return PLAYFUL_GAME_MODES.some((m) => m.mode === mode);
+}
+
+/** 사람 vs 사람 PVP 중 전략·페어만 기보 가능. 놀이바둑·AI·PVE·모험·탑·길드전 제외 */
 export function isPvpHumanGameRecordEligible(session: SessionLikeForGameRecord): boolean {
+    if (isPlayfulGameRecordMode(session.mode)) return false;
     return resolveArenaSessionPolicy(session as LiveGameSession).matchAxis === 'pvp';
 }
 

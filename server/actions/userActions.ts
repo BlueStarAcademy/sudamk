@@ -42,7 +42,7 @@ import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
 import { exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
-import { isPvpHumanGameRecordEligible, isGameStatusSaveableForRecord, isShortGameStrategicNoContest, isGameRecordParticipant, resolveClientRecordSessionSnapshot } from '../../utils/strategicPvpGameRecord.js';
+import { isPvpHumanGameRecordEligible, isPlayfulGameRecordMode, isGameStatusSaveableForRecord, isShortGameStrategicNoContest, isGameRecordParticipant, resolveClientRecordSessionSnapshot } from '../../utils/strategicPvpGameRecord.js';
 import { resolveGameSessionForRecordSave } from '../gameRecordSnapshot.js';
 import { randomUUID } from 'crypto';
 import * as effectService from '../effectService.js';
@@ -997,6 +997,9 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             }
             
             if (!isPvpHumanGameRecordEligible(game)) {
+                if (isPlayfulGameRecordMode(game.mode)) {
+                    return { error: '놀이바둑 대국은 기보를 저장할 수 없습니다.' };
+                }
                 return { error: 'PVP 대국만 기보를 저장할 수 있습니다.' };
             }
 
