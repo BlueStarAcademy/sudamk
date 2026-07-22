@@ -3,8 +3,30 @@
 FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Install build dependencies (including autoconf/automake for mozjpeg)
-RUN apk add --no-cache python3 make g++ autoconf automake libtool pkgconfig nasm
+# Install build dependencies (including autoconf/automake for mozjpeg).
+# Retry + mirror fallback: Fly Metal builders sometimes hit Alpine CDN I/O errors
+# (APKINDEX fetch fails → "no such package" / masked in --no-network).
+RUN set -eux; \
+  apk_install() { \
+    apk add --no-cache python3 make g++ autoconf automake libtool pkgconfig nasm; \
+  }; \
+  ok=0; \
+  i=1; \
+  while [ "$i" -le 5 ]; do \
+    if apk_install; then ok=1; break; fi; \
+    echo "apk add failed (attempt $i/5); refreshing repos and retrying..."; \
+    # After CDN glitches, switch to an Asia-friendly mirror (builder is often asia-southeast)
+    if [ "$i" -ge 2 ]; then \
+      sed -i -E 's#https?://dl-cdn\.alpinelinux\.org/alpine#https://mirrors.aliyun.com/alpine#g' /etc/apk/repositories || true; \
+    fi; \
+    if [ "$i" -ge 4 ]; then \
+      sed -i -E 's#https?://mirrors\.aliyun\.com/alpine#https://mirror.rackspace.com/alpine#g' /etc/apk/repositories || true; \
+    fi; \
+    apk update || true; \
+    sleep $((i * 3)); \
+    i=$((i + 1)); \
+  done; \
+  [ "$ok" -eq 1 ]
 
 # Copy package files
 COPY package.json package-lock.json ./
