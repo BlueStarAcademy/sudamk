@@ -45,10 +45,7 @@ export const EquipmentBagStyleOptionRow: React.FC<EquipmentBagStyleOptionRowProp
                 {isMain ? (
                     mainLabel
                 ) : isMythic ? (
-                    <>
-                        <MythicOptionAbbrev option={opt} textClassName={resolvedColor} />
-                        <span className="ml-0.5">{`+${opt.value}${opt.isPercentage ? '%' : ''}`}</span>
-                    </>
+                    <MythicOptionAbbrev option={opt} textClassName={resolvedColor} />
                 ) : (
                     formatLocalizedBagOptionLabel(opt, itemStars, t)
                 )}

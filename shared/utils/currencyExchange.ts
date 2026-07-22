@@ -7,6 +7,8 @@ import {
     CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY,
     CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL,
     CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS,
+    CURRENCY_EXCHANGE_MARKET_VWAP_WINDOW_24H_MS,
+    CURRENCY_EXCHANGE_MARKET_VWAP_WINDOW_7D_MS,
     CURRENCY_EXCHANGE_MIN_DIAMONDS,
     CURRENCY_EXCHANGE_MIN_GOLD,
 } from '../constants/currencyExchange.js';
@@ -30,6 +32,28 @@ export type InstantDailyRemaining = {
 };
 
 export type CurrencyExchangeDirection = 'gold_to_diamonds' | 'diamonds_to_gold';
+
+/** P2P 체결 tick (바로환전 제외). goldAmount/diamondAmount는 해당 거래의 양측 총량 */
+export type CurrencyExchangeFilledTradeTick = {
+    filledAt: number;
+    fromCurrency: 'gold' | 'diamonds';
+    goldAmount: number;
+    diamondAmount: number;
+};
+
+export type CurrencyExchangeMarketRateSource = 'fills_24h' | 'fills_7d' | 'cached' | 'instant';
+
+export type CurrencyExchangeMarketRateSnapshot = {
+    buyGoldPerDiamond: number;
+    sellGoldPerDiamond: number;
+    buySource: CurrencyExchangeMarketRateSource;
+    sellSource: CurrencyExchangeMarketRateSource;
+    updatedAt: number;
+};
+
+export type CurrencyExchangeMarketStats = CurrencyExchangeMarketRateSnapshot & {
+    ticks: CurrencyExchangeFilledTradeTick[];
+};
 
 /** 평균 시세(기준): 1다이아당 필요 골드 */
 export function averageGoldPerDiamond(): number {
@@ -82,6 +106,9 @@ export function maxInstantBasePayAffordable(wallet: number): number {
 export function computeInstantGoldToDiamonds(goldAmount: number): InstantGoldToDiamondsResult {
     const gold = clampGameInt(goldAmount, { min: 0 });
     const rate = instantGoldPerDiamondWhenBuyingDiamonds();
+    if (gold < rate) {
+        return { diamonds: 0, diamondsGross: 0, goldSpent: 0, fee: 0, totalGoldPaid: 0 };
+    }
     const diamonds = Math.floor(gold / rate);
     const goldSpent = diamonds * rate;
     const fee = exchangeListingFeeFromPrice(goldSpent);
@@ -250,7 +277,7 @@ export function computeMarketAverageGoldPerDiamondFromOrders(
     return Math.round(totalGold / totalDiamonds);
 }
 
-/** 평균 시세(등록 요청 기준). 없으면 바로환전 시세 */
+/** 평균 시세(등록 요청 기준). 없으면 바로환전 시세 — 레거시/테스트용. 표시는 filled VWAP 사용 */
 export function resolveMarketDisplayGoldPerDiamond(
     orders: MarketOrderLike[],
     fromCurrency: 'gold' | 'diamonds',
@@ -265,6 +292,184 @@ export function resolveMarketDisplayGoldPerDiamond(
                 ? instantGoldPerDiamondWhenBuyingDiamonds()
                 : instantGoldPerDiamondWhenSellingDiamonds(),
         isFromMarket: false,
+    };
+}
+
+/** 체결 주문 → 시장 tick (바로환전은 호출하지 않음) */
+export function filledTradeTickFromOrder(
+    order: { fromCurrency: 'gold' | 'diamonds'; fromAmount: number; toAmount: number },
+    filledAt: number,
+): CurrencyExchangeFilledTradeTick | null {
+    const from = Math.max(0, Math.floor(order.fromAmount));
+    const to = Math.max(0, Math.floor(order.toAmount));
+    if (from <= 0 || to <= 0) return null;
+    if (order.fromCurrency === 'gold') {
+        return { filledAt, fromCurrency: 'gold', goldAmount: from, diamondAmount: to };
+    }
+    return { filledAt, fromCurrency: 'diamonds', goldAmount: to, diamondAmount: from };
+}
+
+/** 7일보다 오래된 tick 제거 */
+export function pruneFilledTradeTicks(
+    ticks: readonly CurrencyExchangeFilledTradeTick[],
+    now: number = Date.now(),
+): CurrencyExchangeFilledTradeTick[] {
+    const cutoff = now - CURRENCY_EXCHANGE_MARKET_VWAP_WINDOW_7D_MS;
+    return ticks.filter((t) => Number(t.filledAt) >= cutoff && t.diamondAmount > 0 && t.goldAmount > 0);
+}
+
+/**
+ * P2P 체결 거래량 가중평균: round(Σgold / Σdiamonds).
+ * fromCurrency 방향·window 안의 tick만 사용. 바로환전 tick은 저장 단계에서 넣지 않음.
+ */
+export function computeFilledTradeVwap(
+    ticks: readonly CurrencyExchangeFilledTradeTick[],
+    fromCurrency: 'gold' | 'diamonds',
+    now: number,
+    windowMs: number,
+): number | null {
+    const cutoff = now - Math.max(0, windowMs);
+    let totalGold = 0;
+    let totalDiamonds = 0;
+    for (const tick of ticks) {
+        if (tick.fromCurrency !== fromCurrency) continue;
+        if (Number(tick.filledAt) < cutoff) continue;
+        totalGold += Math.max(0, Math.floor(tick.goldAmount));
+        totalDiamonds += Math.max(0, Math.floor(tick.diamondAmount));
+    }
+    if (totalDiamonds <= 0) return null;
+    return Math.round(totalGold / totalDiamonds);
+}
+
+function resolveOneSideMarketRate(
+    ticks: readonly CurrencyExchangeFilledTradeTick[],
+    fromCurrency: 'gold' | 'diamonds',
+    cachedRate: number | null | undefined,
+    now: number,
+): { goldPerDiamond: number; source: CurrencyExchangeMarketRateSource } {
+    const v24 = computeFilledTradeVwap(ticks, fromCurrency, now, CURRENCY_EXCHANGE_MARKET_VWAP_WINDOW_24H_MS);
+    if (v24 != null && v24 > 0) return { goldPerDiamond: v24, source: 'fills_24h' };
+    const v7 = computeFilledTradeVwap(ticks, fromCurrency, now, CURRENCY_EXCHANGE_MARKET_VWAP_WINDOW_7D_MS);
+    if (v7 != null && v7 > 0) return { goldPerDiamond: v7, source: 'fills_7d' };
+    const cached = Math.round(Number(cachedRate) || 0);
+    if (cached > 0) return { goldPerDiamond: cached, source: 'cached' };
+    return {
+        goldPerDiamond:
+            fromCurrency === 'gold'
+                ? instantGoldPerDiamondWhenBuyingDiamonds()
+                : instantGoldPerDiamondWhenSellingDiamonds(),
+        source: 'instant',
+    };
+}
+
+/** 체결 tick 기반 buy/sell 시세 + 폴백 (24h → 7d → cached → instant) */
+export function resolveMarketRatesFromFilledTicks(
+    ticks: readonly CurrencyExchangeFilledTradeTick[],
+    cached: { buyGoldPerDiamond?: number; sellGoldPerDiamond?: number } | null | undefined,
+    now: number = Date.now(),
+): Omit<CurrencyExchangeMarketRateSnapshot, 'updatedAt'> {
+    const buy = resolveOneSideMarketRate(ticks, 'gold', cached?.buyGoldPerDiamond, now);
+    const sell = resolveOneSideMarketRate(ticks, 'diamonds', cached?.sellGoldPerDiamond, now);
+    return {
+        buyGoldPerDiamond: buy.goldPerDiamond,
+        sellGoldPerDiamond: sell.goldPerDiamond,
+        buySource: buy.source,
+        sellSource: sell.source,
+    };
+}
+
+export function buildCurrencyExchangeMarketStatsAfterFill(
+    prev: CurrencyExchangeMarketStats | null | undefined,
+    order: { fromCurrency: 'gold' | 'diamonds'; fromAmount: number; toAmount: number },
+    filledAt: number = Date.now(),
+): CurrencyExchangeMarketStats {
+    const tick = filledTradeTickFromOrder(order, filledAt);
+    const prevTicks = Array.isArray(prev?.ticks) ? prev!.ticks : [];
+    const ticks = pruneFilledTradeTicks(tick ? [...prevTicks, tick] : prevTicks, filledAt);
+    const rates = resolveMarketRatesFromFilledTicks(
+        ticks,
+        {
+            // 바로환전 기본값(instant)은 시장 캐시로 취급하지 않음
+            buyGoldPerDiamond: prev?.buySource && prev.buySource !== 'instant' ? prev.buyGoldPerDiamond : undefined,
+            sellGoldPerDiamond: prev?.sellSource && prev.sellSource !== 'instant' ? prev.sellGoldPerDiamond : undefined,
+        },
+        filledAt,
+    );
+    return {
+        ticks,
+        ...rates,
+        updatedAt: filledAt,
+    };
+}
+
+export function defaultCurrencyExchangeMarketStats(now: number = Date.now()): CurrencyExchangeMarketStats {
+    return {
+        ticks: [],
+        buyGoldPerDiamond: instantGoldPerDiamondWhenBuyingDiamonds(),
+        sellGoldPerDiamond: instantGoldPerDiamondWhenSellingDiamonds(),
+        buySource: 'instant',
+        sellSource: 'instant',
+        updatedAt: now,
+    };
+}
+
+export function normalizeCurrencyExchangeMarketStats(
+    raw: Partial<CurrencyExchangeMarketStats> | null | undefined,
+    now: number = Date.now(),
+): CurrencyExchangeMarketStats {
+    const base = defaultCurrencyExchangeMarketStats(now);
+    if (!raw || typeof raw !== 'object') return base;
+    const ticks = pruneFilledTradeTicks(
+        Array.isArray(raw.ticks)
+            ? raw.ticks.filter(
+                  (t): t is CurrencyExchangeFilledTradeTick =>
+                      !!t &&
+                      (t.fromCurrency === 'gold' || t.fromCurrency === 'diamonds') &&
+                      Number.isFinite(Number(t.filledAt)) &&
+                      Number.isFinite(Number(t.goldAmount)) &&
+                      Number.isFinite(Number(t.diamondAmount)),
+              )
+            : [],
+        now,
+    );
+    const rates = resolveMarketRatesFromFilledTicks(
+        ticks,
+        {
+            buyGoldPerDiamond: raw.buyGoldPerDiamond,
+            sellGoldPerDiamond: raw.sellGoldPerDiamond,
+        },
+        now,
+    );
+    return {
+        ticks,
+        ...rates,
+        updatedAt: Math.max(0, Math.floor(Number(raw.updatedAt) || now)),
+    };
+}
+
+/** 클라이언트 표시용: 서버 스냅샷 → 방향별 goldPerDiamond */
+export function resolveMarketDisplayGoldPerDiamondFromSnapshot(
+    snapshot: CurrencyExchangeMarketRateSnapshot | null | undefined,
+    fromCurrency: 'gold' | 'diamonds',
+): { goldPerDiamond: number; isFromMarket: boolean; source: CurrencyExchangeMarketRateSource } {
+    if (!snapshot) {
+        const instant =
+            fromCurrency === 'gold'
+                ? instantGoldPerDiamondWhenBuyingDiamonds()
+                : instantGoldPerDiamondWhenSellingDiamonds();
+        return { goldPerDiamond: instant, isFromMarket: false, source: 'instant' };
+    }
+    if (fromCurrency === 'gold') {
+        return {
+            goldPerDiamond: Math.max(1, Math.round(snapshot.buyGoldPerDiamond)),
+            isFromMarket: snapshot.buySource !== 'instant',
+            source: snapshot.buySource,
+        };
+    }
+    return {
+        goldPerDiamond: Math.max(1, Math.round(snapshot.sellGoldPerDiamond)),
+        isFromMarket: snapshot.sellSource !== 'instant',
+        source: snapshot.sellSource,
     };
 }
 

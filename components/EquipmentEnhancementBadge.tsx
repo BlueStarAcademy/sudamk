@@ -3,8 +3,10 @@ import {
     ENHANCE_MARKER_IMAGES,
     ENHANCE_MARKER_NUMBER_CLASS,
     ENHANCE_MARKER_NUMBER_CQMIN,
+    ENHANCE_MARKER_NUMBER_DISC,
     ENHANCE_MARKER_SIZE_PCT,
     getEnhanceMarkerTier,
+    type EnhanceMarkerTier,
 } from '../shared/constants/equipmentEnhanceMarker.js';
 
 interface EquipmentEnhancementBadgeProps {
@@ -18,13 +20,56 @@ interface EquipmentEnhancementBadgeProps {
     emphasize?: boolean;
 }
 
+/**
+ * 별 색상별 숫자 외곽 — Star4(+10) 베이크 스타일(검정 채움+흰 외곽)에 맞춤.
+ * 밝은 별(은/금)은 어두운 숫자+밝은 외곽, 어두운 별(보라)은 밝은 숫자+검정 외곽.
+ */
 const NUMBER_STROKE: Record<1 | 2 | 3, string> = {
-    /** 은백 별 위 남색 — 흰 외곽 + 어두운 그림자 */
-    1: '0 0 1.5px #fff, 0 1px 0 #fff, 1px 0 0 #fff, -1px 0 0 #fff, 0 -1px 0 #fff, 1px 1px 0 rgba(255,255,255,0.95), -1px -1px 0 rgba(255,255,255,0.95), 0 0 3px rgba(0,0,0,0.85), 0 1px 2px rgba(0,0,0,0.75)',
-    /** 금색 별 위 인디고 */
-    2: '0 0 1.5px #f0f9ff, 0 1px 0 #e0f2fe, 1px 0 0 #e0f2fe, -1px 0 0 #e0f2fe, 0 -1px 0 #e0f2fe, 1px 1px 0 rgba(224,242,254,0.95), -1px -1px 0 rgba(224,242,254,0.95), 0 0 3px rgba(0,0,0,0.8), 0 1px 2px rgba(0,0,0,0.7)',
-    /** 보라 별 위 노랑 — 검정 외곽 */
-    3: '0 0 2px #000, 0 1px 0 #000, 1px 0 0 #000, -1px 0 0 #000, 0 -1px 0 #000, 1px 1px 0 #000, -1px -1px 0 #000, 0 0 3px rgba(0,0,0,0.9)',
+    1: [
+        '0 0 1px #fff',
+        '0 1px 0 #fff',
+        '0 -1px 0 #fff',
+        '1px 0 0 #fff',
+        '-1px 0 0 #fff',
+        '1px 1px 0 #f8fafc',
+        '-1px -1px 0 #f8fafc',
+        '1px -1px 0 #f8fafc',
+        '-1px 1px 0 #f8fafc',
+        '0 0 2.5px rgba(255,255,255,0.95)',
+        '0 1px 2px rgba(0,0,0,0.55)',
+    ].join(', '),
+    2: [
+        '0 0 1px #fff7ed',
+        '0 1px 0 #fff7ed',
+        '0 -1px 0 #fff7ed',
+        '1px 0 0 #fff7ed',
+        '-1px 0 0 #fff7ed',
+        '1px 1px 0 #ffedd5',
+        '-1px -1px 0 #ffedd5',
+        '1px -1px 0 #ffedd5',
+        '-1px 1px 0 #ffedd5',
+        '0 0 2.5px rgba(255,247,237,0.95)',
+        '0 1px 2px rgba(0,0,0,0.55)',
+    ].join(', '),
+    3: [
+        '0 0 1.25px #000',
+        '0 1px 0 #000',
+        '0 -1px 0 #000',
+        '1px 0 0 #000',
+        '-1px 0 0 #000',
+        '1px 1px 0 #000',
+        '-1px -1px 0 #000',
+        '1px -1px 0 #000',
+        '-1px 1px 0 #000',
+        '0 0 3px rgba(0,0,0,0.95)',
+        '0 0 5px rgba(0,0,0,0.55)',
+    ].join(', '),
+};
+
+const NUMBER_STROKE_WIDTH: Record<1 | 2 | 3, string> = {
+    1: '0.55px rgba(255,255,255,0.9)',
+    2: '0.55px rgba(255,247,237,0.95)',
+    3: '0.65px rgba(0,0,0,0.95)',
 };
 
 /**
@@ -47,6 +92,7 @@ const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
     /** +10은 Star4 에셋에 숫자가 구워져 있음 — CSS 오버레이 생략 */
     const numberBakedInImage = n >= 10;
     const cqmin = ENHANCE_MARKER_NUMBER_CQMIN.single;
+    const overlayTier = (tier === 4 ? 3 : tier) as 1 | 2 | 3;
 
     return (
         <div
@@ -74,18 +120,19 @@ const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
                     {/* 숫자 가독용 어두운 원판 — 별 색에 숫자가 묻히지 않게 */}
                     <span
                         aria-hidden
-                        className="pointer-events-none absolute left-1/2 top-[54%] -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/55"
-                        style={{ width: '46%', height: '46%' }}
+                        className={`pointer-events-none absolute left-1/2 top-[54%] -translate-x-1/2 -translate-y-1/2 rounded-full ${
+                            ENHANCE_MARKER_NUMBER_DISC[tier as Exclude<EnhanceMarkerTier, 4>]
+                        }`}
+                        style={{ width: '52%', height: '52%' }}
                     />
                     <span
-                        className={`absolute inset-0 z-[1] flex items-center justify-center font-black leading-none tabular-nums ${ENHANCE_MARKER_NUMBER_CLASS[tier]}`}
+                        className={`absolute inset-0 z-[1] flex items-center justify-center font-black leading-none tabular-nums tracking-tight ${ENHANCE_MARKER_NUMBER_CLASS[tier]}`}
                         style={{
                             fontSize: `${cqmin}cqmin`,
                             // 오각별 광학 중심에 맞춤(기하 중심보다 살짝 아래)
                             transform: emphasize ? 'translateY(7%) scale(1.08)' : 'translateY(7%)',
-                            textShadow: NUMBER_STROKE[tier],
-                            WebkitTextStroke:
-                                tier === 3 ? '0.45px rgba(0,0,0,0.85)' : '0.45px rgba(255,255,255,0.55)',
+                            textShadow: NUMBER_STROKE[overlayTier],
+                            WebkitTextStroke: NUMBER_STROKE_WIDTH[overlayTier],
                         }}
                     >
                         {n}

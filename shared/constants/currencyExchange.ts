@@ -3,8 +3,8 @@ import { SHOP_DIAMOND_GOLD_EQUIV_FOR_SELL } from './shopSellGoldReference.js';
 /** 기준 시세: 1다이아 = N골드 (상점 환산과 동일) */
 export const CURRENCY_EXCHANGE_BASE_GOLD_PER_DIAMOND = SHOP_DIAMOND_GOLD_EQUIV_FOR_SELL;
 
-/** 바로환전: 골드→다이아 (4,800골드 = 1다이아) */
-export const CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY = 4800;
+/** 바로환전: 골드→다이아 (5,000골드 = 1다이아, 최소 단위 5,000골드) */
+export const CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY = 5000;
 
 /** 바로환전: 다이아→골드 (1다이아 = 2,000골드) */
 export const CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL = 2000;
@@ -24,8 +24,11 @@ export const CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH = {
     gold: CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_SELL * CURRENCY_EXCHANGE_INSTANT_RATE_DISPLAY_DIAMONDS,
 } as const;
 
-/** 바로환전: 다이아→골드 최소 환전량 (골드→다이아는 1다이아 상당 골드부터) */
+/** 바로환전: 다이아→골드 최소 환전량 (골드→다이아는 최소 1다이아 상당 골드 = CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY) */
 export const CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS = 50;
+
+/** 바로환전: 골드→다이아 최소 환전량 (시세 1단위) */
+export const CURRENCY_EXCHANGE_INSTANT_MIN_GOLD = CURRENCY_EXCHANGE_INSTANT_GOLD_PER_DIAMOND_BUY;
 
 /** 일일 바로환전 한도: 골드→다이아 (골드 지출 상한, 고정 50만) */
 export const CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_SPENT = 500_000;
@@ -48,3 +51,9 @@ export const CURRENCY_EXCHANGE_MIN_DIAMONDS = 1;
 
 /** 유저당 동시에 열 수 있는 P2P 환전 요청 수 */
 export const CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER = 1;
+
+/** P2P 체결 VWAP: 우선 반영 구간 (24시간) */
+export const CURRENCY_EXCHANGE_MARKET_VWAP_WINDOW_24H_MS = 24 * 60 * 60 * 1000;
+
+/** P2P 체결 VWAP: 폴백 구간 (7일) — tick 보관 상한과 동일 */
+export const CURRENCY_EXCHANGE_MARKET_VWAP_WINDOW_7D_MS = 7 * 24 * 60 * 60 * 1000;

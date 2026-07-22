@@ -8,7 +8,7 @@ import { normalizeAdventureProfile } from './adventureUnderstanding.js';
 
 export type { AdventureRegionalSpecialtyBuffEntry, AdventureRegionalSpecialtyBuffKind };
 
-/** 변경·강화 공통 골드 */
+/** 변경(리롤) 골드 비용. 강화·초기화는 무료(강화 포인트만). */
 export const ADVENTURE_REGIONAL_BUFF_ACTION_GOLD = 1000;
 
 /** @deprecated */

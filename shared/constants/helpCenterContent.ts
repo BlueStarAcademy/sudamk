@@ -1278,8 +1278,8 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             type: 'imageRow',
                             compact: true,
                             images: [
-                                { src: '/images/icon/Gold.webp', alt: '골드', caption: '변경·강화 비용' },
-                                { src: ADVENTURE_HELP_IMAGE, alt: '모험', caption: '효과 획득·변경' },
+                                { src: '/images/icon/Gold.webp', alt: '골드', caption: '변경 비용' },
+                                { src: ADVENTURE_HELP_IMAGE, alt: '모험', caption: '효과 획득·변경·강화' },
                             ],
                         },
                         {
@@ -1287,7 +1287,8 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             items: [
                                 '빈 슬롯: 「효과 획득」으로 무료 랜덤 1종이 들어갑니다.',
                                 `효과가 있는 슬롯: 「변경」 시 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()}골드로 다시 뽑습니다. 강화 단계가 있었다면 확인 후 1단계로 돌아가고 포인트가 환급됩니다.`,
-                                `「강화」는 ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()}골드와 강화 포인트 1을 써서 수치를 올립니다. 종류마다 최대 단계가 있습니다.`,
+                                '「강화」는 강화 포인트 1만 있으면 무료로 수치를 올립니다. 종류마다 최대 단계가 있습니다.',
+                                '「초기화」는 강화된 효과를 1단계로 되돌리고, 사용한 강화 포인트를 환급합니다(무료).',
                                 '이미 끼운 종류는 가능한 한 나오지 않도록 뽑힙니다.',
                             ],
                         },

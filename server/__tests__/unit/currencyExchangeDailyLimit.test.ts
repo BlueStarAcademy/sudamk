@@ -86,13 +86,14 @@ describe('instant daily exchange limits', () => {
 });
 
 describe('instant exchange rates and fees', () => {
-    it('buys diamonds at 4800 gold each and adds 10% fee on gold paid', () => {
-        const result = computeInstantGoldToDiamonds(4800 * 50);
+    it('buys diamonds at 5000 gold each and adds 10% fee on gold paid', () => {
+        const result = computeInstantGoldToDiamonds(5000 * 50);
         expect(result.diamonds).toBe(50);
         expect(result.diamondsGross).toBe(50);
-        expect(result.goldSpent).toBe(240_000);
-        expect(result.fee).toBe(24_000);
-        expect(result.totalGoldPaid).toBe(264_000);
+        expect(result.goldSpent).toBe(250_000);
+        expect(result.fee).toBe(25_000);
+        expect(result.totalGoldPaid).toBe(275_000);
+        expect(computeInstantGoldToDiamonds(4999).diamonds).toBe(0);
     });
 
     it('sells diamonds at 2000 gold each with min 50 and 10% fee on diamonds paid', () => {

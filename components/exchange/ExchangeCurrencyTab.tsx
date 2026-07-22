@@ -17,9 +17,10 @@ import {
     instantGoldPerDiamondWhenBuyingDiamonds,
     instantGoldPerDiamondWhenSellingDiamonds,
     maxInstantBasePayAffordable,
-    resolveMarketDisplayGoldPerDiamond,
+    resolveMarketDisplayGoldPerDiamondFromSnapshot,
     validateInstantExchangeDailyLimit,
 } from '../../shared/utils/currencyExchange.js';
+import type { CurrencyExchangeMarketRateSnapshot } from '../../shared/utils/currencyExchange.js';
 import {
     CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_FROM_GOLD,
     CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_DIAMONDS_SPENT,
@@ -28,6 +29,7 @@ import {
     CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH,
     CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH,
     CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS,
+    CURRENCY_EXCHANGE_INSTANT_MIN_GOLD,
     CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER,
 } from '../../shared/constants/currencyExchange.js';
 import { formatWalletCurrencyAmount, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
@@ -163,6 +165,7 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
     const [orderToAmount, setOrderToAmount] = useState('0');
     const [postOrderConfirmOpen, setPostOrderConfirmOpen] = useState(false);
     const [marketOrders, setMarketOrders] = useState<CurrencyExchangeOrder[]>([]);
+    const [marketRateSnapshot, setMarketRateSnapshot] = useState<CurrencyExchangeMarketRateSnapshot | null>(null);
     const [ordersLoaded, setOrdersLoaded] = useState(false);
     const [isRefreshingOrders, setIsRefreshingOrders] = useState(false);
 
@@ -177,10 +180,15 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
         try {
             const response = await fetch(getApiUrl('/api/exchange/currency-orders'));
             if (!response.ok) throw new Error('fetch failed');
-            const data = (await response.json()) as { orders?: CurrencyExchangeOrder[] };
+            const data = (await response.json()) as {
+                orders?: CurrencyExchangeOrder[];
+                marketRate?: CurrencyExchangeMarketRateSnapshot | null;
+            };
             setMarketOrders(Array.isArray(data.orders) ? data.orders : []);
+            setMarketRateSnapshot(data.marketRate && typeof data.marketRate === 'object' ? data.marketRate : null);
         } catch {
             setMarketOrders([]);
+            setMarketRateSnapshot(null);
         } finally {
             setOrdersLoaded(true);
             setIsRefreshingOrders(false);
@@ -273,8 +281,8 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
             : CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH;
 
     const orderMarketRate = useMemo(
-        () => resolveMarketDisplayGoldPerDiamond(marketOrders, orderFromCurrency),
-        [marketOrders, orderFromCurrency],
+        () => resolveMarketDisplayGoldPerDiamondFromSnapshot(marketRateSnapshot, orderFromCurrency),
+        [marketRateSnapshot, orderFromCurrency],
     );
 
     const orderFromParsed = useMemo(() => Math.max(0, Math.floor(Number(orderFromAmount) || 0)), [orderFromAmount]);
@@ -321,6 +329,10 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
         );
         if (amount <= 0) {
             window.alert(t('currency.alerts.dailyInstantLimitExceeded'));
+            return;
+        }
+        if (instantDirection === 'gold_to_diamonds' && amount < CURRENCY_EXCHANGE_INSTANT_MIN_GOLD) {
+            window.alert(t('currency.alerts.instantMinGold', { count: CURRENCY_EXCHANGE_INSTANT_MIN_GOLD }));
             return;
         }
         if (instantDirection === 'diamonds_to_gold' && amount < CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS) {

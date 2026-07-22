@@ -3,7 +3,7 @@ import * as db from '../db.js';
 import type * as types from '../../types/index.js';
 import type { HandleActionResult } from '../../types/api.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
-import { CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS, CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER } from '../../shared/constants/currencyExchange.js';
+import { CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS, CURRENCY_EXCHANGE_INSTANT_MIN_GOLD, CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER } from '../../shared/constants/currencyExchange.js';
 import {
     applyInstantDailyUsage,
     clampInstantExchangeInputToDailyLimit,
@@ -92,6 +92,11 @@ export async function handleCurrencyExchangeAction(
             }
 
             if (direction === 'gold_to_diamonds') {
+                if (cappedAmount < CURRENCY_EXCHANGE_INSTANT_MIN_GOLD) {
+                    return {
+                        error: `골드→다이아 바로환전은 최소 ${CURRENCY_EXCHANGE_INSTANT_MIN_GOLD.toLocaleString()}골드부터 가능합니다.`,
+                    };
+                }
                 const { diamonds, diamondsGross, goldSpent, fee, totalGoldPaid } = computeInstantGoldToDiamonds(cappedAmount);
                 if (diamondsGross <= 0 || diamonds <= 0) return { error: '환전 가능한 다이아 수량이 없습니다.' };
                 const dailyError = validateInstantExchangeDailyLimit(
@@ -306,6 +311,18 @@ export async function handleCurrencyExchangeAction(
                 },
                 ...(posterExchange.currencyReceipts ?? []),
             ];
+
+            try {
+                const { recordCurrencyExchangeFilledTrade } = await import('../currencyExchangeMarketStatsStore.js');
+                await recordCurrencyExchangeFilledTrade({
+                    fromCurrency: order.fromCurrency,
+                    fromAmount: order.fromAmount,
+                    toAmount: order.toAmount,
+                    filledAt: now,
+                });
+            } catch (marketStatsErr) {
+                console.warn('[FULFILL_CURRENCY_EXCHANGE_ORDER] market stats update (non-fatal):', marketStatsErr);
+            }
 
             try {
                 await db.updateUser(poster);

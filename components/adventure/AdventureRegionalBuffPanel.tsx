@@ -50,16 +50,18 @@ const RegionalBuffStackedActionButton: React.FC<{
     cost: React.ReactNode;
     disabled?: boolean;
     onClick: () => void;
-    variant: 'change' | 'changeEmpty' | 'enhance';
+    variant: 'change' | 'changeEmpty' | 'enhance' | 'reset';
     title?: string;
     'aria-label'?: string;
 }> = ({ label, cost, disabled, onClick, variant, title, 'aria-label': ariaLabel }) => {
     const variantClass =
         variant === 'enhance'
             ? 'border-fuchsia-500/45 bg-fuchsia-950/35 text-fuchsia-100 enabled:hover:bg-fuchsia-900/45'
-            : variant === 'changeEmpty'
-              ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100 enabled:hover:bg-emerald-900/45'
-              : 'border-amber-500/45 bg-amber-950/35 text-amber-100 enabled:hover:bg-amber-900/45';
+            : variant === 'reset'
+              ? 'border-slate-400/40 bg-slate-950/45 text-slate-100 enabled:hover:bg-slate-800/55'
+              : variant === 'changeEmpty'
+                ? 'border-emerald-500/50 bg-emerald-950/40 text-emerald-100 enabled:hover:bg-emerald-900/45'
+                : 'border-amber-500/45 bg-amber-950/35 text-amber-100 enabled:hover:bg-amber-900/45';
 
     return (
         <button
@@ -262,6 +264,22 @@ const AdventureRegionalBuffPanel: React.FC<{
         startEnhanceFlashAnimation(slotIndex);
         handlers.handleAction({
             type: 'ENHANCE_ADVENTURE_REGIONAL_BUFF',
+            payload: { stageId, slotIndex },
+        } as any);
+    };
+
+    const onReset = (slotIndex: number) => {
+        if (!stageChapterUnlocked) return;
+        const rawSlot = buffs[slotIndex];
+        if (!rawSlot) return;
+        const ent = migrateRegionalBuffEntry(rawSlot as any);
+        const st = Math.max(1, Math.floor(ent.stacks ?? 1));
+        if (st <= 1) return;
+        const ok = window.confirm(t('adventure.confirmResetEnhanced'));
+        if (!ok) return;
+        startEnhanceFlashAnimation(slotIndex);
+        handlers.handleAction({
+            type: 'RESET_ADVENTURE_REGIONAL_BUFF',
             payload: { stageId, slotIndex },
         } as any);
     };
@@ -482,16 +500,19 @@ const AdventureRegionalBuffPanel: React.FC<{
                                 </button>
                             );
 
+                            const stacks = e ? Math.max(1, Math.floor(e.stacks ?? 1)) : 1;
+                            const canReset =
+                                !!e && isRegionalBuffEnhanceable(e.kind) && stacks > 1 && !isSpinning;
+
                             const enhanceButton = (
                                 <button
                                     type="button"
                                     disabled={
-                                        !canAfford ||
                                         isSpinning ||
                                         !e ||
                                         !isRegionalBuffEnhanceable(e.kind) ||
                                         remainingPts < 1 ||
-                                        Math.floor(e.stacks ?? 1) >= getRegionalBuffMaxStacks(e.kind)
+                                        stacks >= getRegionalBuffMaxStacks(e.kind)
                                     }
                                     title={
                                         !e
@@ -504,10 +525,24 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     }
                                     onClick={() => onEnhance(slotIndex)}
                                     className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md border border-fuchsia-500/45 bg-fuchsia-950/35 px-2 py-1.5 text-[11px] font-bold text-fuchsia-100 transition-colors enabled:hover:bg-fuchsia-900/45 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
-                                    aria-label={t('adventure.enhanceCostAria', { gold: ADVENTURE_REGIONAL_BUFF_ACTION_GOLD })}
+                                    aria-label={t('adventure.enhanceFreeAria')}
                                 >
                                     <span>{t('adventure.enhance')}</span>
-                                    <GoldCostInline text={goldCostLabel} />
+                                    <span className="tabular-nums text-emerald-200/90">{t('adventure.free')}</span>
+                                </button>
+                            );
+
+                            const resetButton = (
+                                <button
+                                    type="button"
+                                    disabled={!canReset}
+                                    title={!canReset ? t('adventure.cannotResetBase') : undefined}
+                                    onClick={() => onReset(slotIndex)}
+                                    className="inline-flex shrink-0 items-center justify-center gap-1 rounded-md border border-slate-400/40 bg-slate-950/45 px-2 py-1.5 text-[11px] font-bold text-slate-100 transition-colors enabled:hover:bg-slate-800/55 disabled:cursor-not-allowed disabled:opacity-40 sm:text-xs"
+                                    aria-label={t('adventure.resetEffectAria')}
+                                >
+                                    <span>{t('adventure.resetEffect')}</span>
+                                    <span className="tabular-nums text-emerald-200/90">{t('adventure.free')}</span>
                                 </button>
                             );
 
@@ -535,14 +570,13 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     />
                                     <RegionalBuffStackedActionButton
                                         label={t('adventure.enhance')}
-                                        cost={<GoldCostInline text={goldCostLabel} compact />}
+                                        cost={<span className="text-emerald-200/90">{t('adventure.free')}</span>}
                                         disabled={
-                                            !canAfford ||
                                             isSpinning ||
                                             !e ||
                                             !isRegionalBuffEnhanceable(e.kind) ||
                                             remainingPts < 1 ||
-                                            Math.floor(e.stacks ?? 1) >= getRegionalBuffMaxStacks(e.kind)
+                                            stacks >= getRegionalBuffMaxStacks(e.kind)
                                         }
                                         variant="enhance"
                                         title={
@@ -555,8 +589,19 @@ const AdventureRegionalBuffPanel: React.FC<{
                                                     : undefined
                                         }
                                         onClick={() => onEnhance(slotIndex)}
-                                        aria-label={t('adventure.enhanceCostAria', { gold: ADVENTURE_REGIONAL_BUFF_ACTION_GOLD })}
+                                        aria-label={t('adventure.enhanceFreeAria')}
                                     />
+                                    {e && isRegionalBuffEnhanceable(e.kind) && stacks > 1 ? (
+                                        <RegionalBuffStackedActionButton
+                                            label={t('adventure.resetEffect')}
+                                            cost={<span className="text-emerald-200/90">{t('adventure.free')}</span>}
+                                            disabled={!canReset}
+                                            variant="reset"
+                                            title={!canReset ? t('adventure.cannotResetBase') : undefined}
+                                            onClick={() => onReset(slotIndex)}
+                                            aria-label={t('adventure.resetEffectAria')}
+                                        />
+                                    ) : null}
                                 </div>
                             );
 
@@ -574,10 +619,13 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     } ${panelCompact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'}`}
                                 >
                                     {effectLabel}
-                                    {embeddedInModal ? modalActionButtons : (
+                                    {embeddedInModal ? (
+                                        modalActionButtons
+                                    ) : (
                                         <>
                                             {changeButton}
                                             {enhanceButton}
+                                            {e && isRegionalBuffEnhanceable(e.kind) && stacks > 1 ? resetButton : null}
                                         </>
                                     )}
                                 </div>

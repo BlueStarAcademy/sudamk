@@ -113,7 +113,7 @@ export function changeSingleRegionalSlotBuff(user: User, stageId: string, slotIn
     return null;
 }
 
-/** 단일 슬롯 강화. 1000 골드 + 강화 포인트 1 */
+/** 단일 슬롯 강화. 강화 포인트 1소모, 골드 무료 */
 export function enhanceSingleRegionalSlotBuff(user: User, stageId: string, slotIndex: number): string | null {
     if (!isAdventureStageUnlocked(stageId, regionalBuffChapterUnlockCtx(user))) {
         return '아직 열리지 않은 지역입니다.';
@@ -129,9 +129,6 @@ export function enhanceSingleRegionalSlotBuff(user: User, stageId: string, slotI
     const n = list.length;
     if (n <= 0) return '해당 지역에 강화할 효과가 없습니다.';
     if (slotIndex < 0 || slotIndex >= n) return '잘못된 슬롯입니다.';
-    if ((user.gold ?? 0) < ADVENTURE_REGIONAL_BUFF_ACTION_GOLD) {
-        return `골드가 부족합니다. (필요: ${ADVENTURE_REGIONAL_BUFF_ACTION_GOLD.toLocaleString()})`;
-    }
 
     const raw = list[slotIndex];
     if (!raw) return '빈 슬롯입니다. 먼저 효과를 변경(뽑기)해 주세요.';
@@ -143,15 +140,12 @@ export function enhanceSingleRegionalSlotBuff(user: User, stageId: string, slotI
     const st = Math.max(1, Math.floor(ent.stacks ?? 1));
     if (st >= max) return '이미 최대 강화입니다.';
 
-    const tier = stageTier(user, stageId);
-    const grant = enhancementPointsGrantedTotalForTier(tier);
     const curPts = Math.max(0, Math.floor(p.regionalBuffEnhancePointsByStageId?.[stageId] ?? 0));
     if (curPts < 1) return '강화 포인트가 부족합니다.';
 
     const next = [...list];
     next[slotIndex] = { ...ent, stacks: st + 1 };
 
-    user.gold = (user.gold ?? 0) - ADVENTURE_REGIONAL_BUFF_ACTION_GOLD;
     user.adventureProfile = {
         ...p,
         regionalSpecialtyBuffsByStageId: {
@@ -161,6 +155,59 @@ export function enhanceSingleRegionalSlotBuff(user: User, stageId: string, slotI
         regionalBuffEnhancePointsByStageId: {
             ...p.regionalBuffEnhancePointsByStageId,
             [stageId]: curPts - 1,
+        },
+    };
+    user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile as AdventureProfile);
+    return null;
+}
+
+/**
+ * 단일 슬롯 강화 초기화: stacks를 1로 되돌리고 사용한 강화 포인트를 환급.
+ * 효과 종류는 유지하며 골드는 들지 않는다.
+ */
+export function resetSingleRegionalSlotBuff(user: User, stageId: string, slotIndex: number): string | null {
+    if (!isAdventureStageUnlocked(stageId, regionalBuffChapterUnlockCtx(user))) {
+        return '아직 열리지 않은 지역입니다.';
+    }
+    let p = normalizeAdventureProfile(user.adventureProfile);
+    p = syncRegionalSpecialtySlotsAndPoints(p);
+    const rawStageList = [...(p.regionalSpecialtyBuffsByStageId?.[stageId] ?? [])];
+    const list: (AdventureRegionalSpecialtyBuffEntry | undefined)[] = rawStageList.map((e) =>
+        e != null && typeof e === 'object' && String((e as { kind?: unknown }).kind ?? '').trim() !== ''
+            ? migrateRegionalBuffEntry(e as any)
+            : undefined,
+    );
+    const n = list.length;
+    if (n <= 0) return '해당 지역에 초기화할 효과가 없습니다.';
+    if (slotIndex < 0 || slotIndex >= n) return '잘못된 슬롯입니다.';
+
+    const raw = list[slotIndex];
+    if (!raw) return '빈 슬롯입니다.';
+    const ent = migrateRegionalBuffEntry(raw as any);
+    if (!isRegionalBuffEnhanceable(ent.kind)) {
+        return '이 효과는 강화할 수 없어 초기화할 수 없습니다.';
+    }
+    const st = Math.max(1, Math.floor(ent.stacks ?? 1));
+    if (st <= 1) return '강화되지 않은 효과입니다.';
+
+    const tier = stageTier(user, stageId);
+    const grant = enhancementPointsGrantedTotalForTier(tier);
+    const curPts = Math.max(0, Math.floor(p.regionalBuffEnhancePointsByStageId?.[stageId] ?? 0));
+    const refund = st - 1;
+    const nextPts = Math.min(grant, curPts + refund);
+
+    const next = [...list];
+    next[slotIndex] = { ...ent, stacks: 1 };
+
+    user.adventureProfile = {
+        ...p,
+        regionalSpecialtyBuffsByStageId: {
+            ...p.regionalSpecialtyBuffsByStageId,
+            [stageId]: next as AdventureRegionalSpecialtyBuffEntry[],
+        },
+        regionalBuffEnhancePointsByStageId: {
+            ...p.regionalBuffEnhancePointsByStageId,
+            [stageId]: nextPts,
         },
     };
     user.adventureProfile = syncRegionalSpecialtySlotsAndPoints(user.adventureProfile as AdventureProfile);

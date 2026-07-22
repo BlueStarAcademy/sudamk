@@ -73,7 +73,7 @@ import {
     getRegionalHiddenScanBonus,
     getRegionalMissileBonus,
 } from '../../utils/adventureRegionalSpecialtyBuff.js';
-import { changeSingleRegionalSlotBuff, enhanceSingleRegionalSlotBuff } from '../utils/adventureRegionalBuffReroll.js';
+import { changeSingleRegionalSlotBuff, enhanceSingleRegionalSlotBuff, resetSingleRegionalSlotBuff } from '../utils/adventureRegionalBuffReroll.js';
 import { requireArenaEntranceOpen } from '../arenaEntranceService.js';
 import { isRecognizedAdminUser } from '../../shared/utils/adminRecognition.js';
 import { handleShopAction } from './shopActions.js';
@@ -501,7 +501,28 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 console.error(`[UserAction] Failed to save user ${user.id} after ENHANCE_ADVENTURE_REGIONAL_BUFF`, e);
             });
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['adventureProfile', 'gold']);
+            broadcastUserUpdate(user, ['adventureProfile']);
+            return { clientResponse: { updatedUser } };
+        }
+        case 'RESET_ADVENTURE_REGIONAL_BUFF': {
+            const { stageId, slotIndex } = (payload || {}) as { stageId?: string; slotIndex?: number };
+            if (!stageId || typeof stageId !== 'string') {
+                return { error: '스테이지가 필요합니다.' };
+            }
+            const idx = Math.floor(Number(slotIndex));
+            if (!Number.isFinite(idx) || idx < 0) {
+                return { error: '슬롯이 필요합니다.' };
+            }
+            const err = resetSingleRegionalSlotBuff(user, stageId, idx);
+            if (err) {
+                return { error: err };
+            }
+            const updatedUser = getSelectiveUserUpdate(user, 'RESET_ADVENTURE_REGIONAL_BUFF');
+            db.updateUser(user).catch((e) => {
+                console.error(`[UserAction] Failed to save user ${user.id} after RESET_ADVENTURE_REGIONAL_BUFF`, e);
+            });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, ['adventureProfile']);
             return { clientResponse: { updatedUser } };
         }
         case 'CHANGE_NICKNAME': {

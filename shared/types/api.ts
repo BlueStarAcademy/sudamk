@@ -584,6 +584,7 @@ export type ServerAction =
       }
     | { type: 'REROLL_ADVENTURE_REGIONAL_BUFF'; payload: { stageId: string; slotIndex: number } }
     | { type: 'ENHANCE_ADVENTURE_REGIONAL_BUFF'; payload: { stageId: string; slotIndex: number } }
+    | { type: 'RESET_ADVENTURE_REGIONAL_BUFF'; payload: { stageId: string; slotIndex: number } }
     | { type: 'PREPARE_ADVENTURE_MAP_TREASURE_CHEST'; payload: { stageId: string } }
     | {
           type: 'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST';

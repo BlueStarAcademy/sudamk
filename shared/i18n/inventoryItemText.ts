@@ -114,8 +114,8 @@ export function formatLocalizedOptionValueLine(
 
 export function formatLocalizedBagOptionLabel(opt: ItemOption, itemStars: number, t: TFunction): string {
     if (isMythicStatType(opt.type)) {
-        const abbrev = translateMythicStatAbbrev(opt.type as MythicStat, t);
-        return formatLocalizedOptionValueLine(abbrev, Number(opt.value) || 0, Boolean(opt.isPercentage), t);
+        // abbrevLabel에 이미 수치(+1, 15% 등)가 포함되어 있어 value를 다시 붙이지 않음
+        return translateMythicStatAbbrev(opt.type as MythicStat, t);
     }
     const special = coerceSpecialStatType(opt.type);
     if (special) {

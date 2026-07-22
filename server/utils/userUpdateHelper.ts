@@ -94,7 +94,8 @@ export function getSelectiveUserUpdate(
         'CONFIRM_ADVENTURE_MAP_TREASURE_CHEST': ['adventureProfile', 'gold', 'inventory', 'actionPoints', 'lastActionPointUpdate'],
         'ABANDON_ADVENTURE_MAP_TREASURE_PICK': ['adventureProfile'],
         'REROLL_ADVENTURE_REGIONAL_BUFF': ['adventureProfile', 'gold'],
-        'ENHANCE_ADVENTURE_REGIONAL_BUFF': ['adventureProfile', 'gold'],
+        'ENHANCE_ADVENTURE_REGIONAL_BUFF': ['adventureProfile'],
+        'RESET_ADVENTURE_REGIONAL_BUFF': ['adventureProfile'],
         'SAVE_GAME_RECORD': ['savedGameRecords'],
         'DELETE_GAME_RECORD': ['savedGameRecords'],
         
