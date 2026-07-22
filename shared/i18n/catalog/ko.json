@@ -793,8 +793,8 @@
     "summary": {
       "title": "대국 결과",
       "guildWarTitle": "길드 전쟁 결과",
-      "adGoldDoubleButton": "광고보기 (골드 2배받기)",
-      "adGoldDoubleAdFree": "골드 2배받기",
+      "adGoldDoubleButton": "광고보기(골드x2)",
+      "adGoldDoubleAdFree": "골드x2",
       "adGoldDoubleClaiming": "골드 지급 중...",
       "adGoldDoubleHint": "광고 시청을 완료하면 이번 경기 골드를 2배로 받을 수 있습니다.",
       "adGoldDoubleFailed": "광고 골드 2배 지급에 실패했습니다. 잠시 후 다시 시도해 주세요.",

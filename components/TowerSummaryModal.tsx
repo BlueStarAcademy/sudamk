@@ -394,7 +394,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         {t('towerSummary.petXp', { current: petXpBarPercents.petFinal.toLocaleString(), max: petXpBarPercents.petMax.toLocaleString() })}
                     </span>
                     <span className="shrink-0 whitespace-nowrap font-semibold text-fuchsia-300">
-                        +{t('towerSummary.petXpGain', { gain: petXpBarPercents.gain.toLocaleString() })}
+                        {t('towerSummary.petXpGain', { gain: petXpBarPercents.gain.toLocaleString() })}
                     </span>
                 </div>
                 {displaySummary.pairPetLevelUpCoreBonuses ? (

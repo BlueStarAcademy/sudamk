@@ -91,7 +91,7 @@ const ResultAdGoldDoubleButton: React.FC<ResultAdGoldDoubleButtonProps> = ({
                         onDismissed: () => window.alert(t('common:ads.dismissedNoReward')),
                     });
                 }}
-                className="min-h-[40px] w-full rounded-[0.65rem] border border-amber-300/60 bg-gradient-to-r from-amber-500 to-yellow-400 px-3 py-2 text-xs font-black text-slate-950 shadow-[0_10px_28px_-14px_rgba(251,191,36,0.9)] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-70 sm:text-sm"
+                className="min-h-[40px] w-full whitespace-nowrap rounded-[0.65rem] border border-amber-300/60 bg-gradient-to-r from-amber-500 to-yellow-400 px-3 py-2 text-xs font-black text-slate-950 shadow-[0_10px_28px_-14px_rgba(251,191,36,0.9)] transition hover:brightness-110 disabled:cursor-wait disabled:opacity-70 sm:text-sm"
                 title={t('game:summary.adGoldDoubleHint')}
             >
                 {pending
