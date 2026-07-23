@@ -48,6 +48,7 @@ import {
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import { AI_HIDDEN_ITEM_THINKING_DURATION_MS, PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../shared/constants/gameSettings.js';
 import { expandToAllUnrevealedHiddenStonesForPlayers } from '../shared/utils/expandHiddenRevealStones.js';
+import { collectCapturingHiddenContributors } from '../shared/utils/capturingHiddenContributors.js';
 import { upsertHiddenStonePoint } from '../shared/utils/hiddenStonePointMarkers.js';
 import {
     consumeOpponentPatternStoneIfAny,
@@ -691,31 +692,20 @@ const collectContributingHiddenStones = (
 ): { point: Point; player: Player }[] => {
     if (capturedStones.length === 0) return [];
 
-    const contributingHiddenStones: { point: Point; player: Player }[] = [];
-    const seen = new Set<string>();
-    const logic = getGoLogic({ ...game, boardState: boardAfterMove });
-    const capturingGroupPoints = new Set<string>();
-    const queue: Point[] = [{ x: move.x, y: move.y }];
-    capturingGroupPoints.add(`${move.x},${move.y}`);
-
-    while (queue.length > 0) {
-        const cur = queue.shift()!;
-        for (const neighbor of logic.getNeighbors(cur.x, cur.y)) {
-            const key = `${neighbor.x},${neighbor.y}`;
-            if (capturingGroupPoints.has(key)) continue;
-            if (boardAfterMove[neighbor.y]?.[neighbor.x] !== aiPlayerEnum) continue;
-            capturingGroupPoints.add(key);
-            queue.push(neighbor);
-        }
-    }
-
     const aiInitialHidden = (game as { aiInitialHiddenStone?: Point }).aiInitialHiddenStone;
+    const aiHiddenStonePoints = (game as { aiHiddenStonePoints?: Array<{ x: number; y: number; player?: Player }> })
+        .aiHiddenStonePoints;
 
-    for (const key of capturingGroupPoints) {
-        const [nx, ny] = key.split(',').map(Number);
-        const isCurrentMove = nx === move.x && ny === move.y;
-        let isHiddenStone = isCurrentMove ? isCurrentMoveHidden : false;
-        if (!isCurrentMove) {
+    return collectCapturingHiddenContributors({
+        boardAfterMove,
+        move,
+        movePlayer: aiPlayerEnum,
+        capturedStones,
+        isUnrevealedHiddenAt: (nx, ny, isCurrentMove) => {
+            if (game.permanentlyRevealedStones?.some((point) => point.x === nx && point.y === ny)) {
+                return false;
+            }
+            if (isCurrentMove) return isCurrentMoveHidden;
             const moveIndex = findLatestMoveIndexAtExcludingRecordedBaseStones(
                 game.moveHistory,
                 nx,
@@ -723,39 +713,27 @@ const collectContributingHiddenStones = (
                 aiPlayerEnum,
                 game,
             );
-            isHiddenStone = moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex];
+            if (moveIndex !== -1 && !!game.hiddenMoves?.[moveIndex]) return true;
             if (
-                !isHiddenStone &&
-                (game as { aiHiddenStonePoints?: Array<{ x: number; y: number; player?: Player }> }).aiHiddenStonePoints?.some(
+                aiHiddenStonePoints?.some(
                     (point) =>
                         point.x === nx &&
                         point.y === ny &&
                         (point.player === undefined || point.player === aiPlayerEnum),
                 )
             ) {
-                isHiddenStone = true;
+                return true;
             }
             if (
-                !isHiddenStone &&
                 aiInitialHidden &&
                 nx === aiInitialHidden.x &&
-                ny === aiInitialHidden.y &&
-                !game.permanentlyRevealedStones?.some((p) => p.x === nx && p.y === ny)
+                ny === aiInitialHidden.y
             ) {
-                isHiddenStone = true;
+                return true;
             }
-        }
-        if (
-            isHiddenStone &&
-            !seen.has(key) &&
-            !game.permanentlyRevealedStones?.some((point) => point.x === nx && point.y === ny)
-        ) {
-            seen.add(key);
-            contributingHiddenStones.push({ point: { x: nx, y: ny }, player: aiPlayerEnum });
-        }
-    }
-
-    return contributingHiddenStones;
+            return false;
+        },
+    });
 };
 
 const applyAiCaptureOutcome = (

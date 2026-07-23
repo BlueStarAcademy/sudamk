@@ -18,6 +18,7 @@ import { mixGoClearHiddenItemPhaseTimers, mixGoSessionHasHiddenItems } from '../
 import { getSpeedPerMoveSeconds } from '../shared/utils/gameTimeControl.js';
 import { PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../shared/constants/gameSettings.js';
 import { expandToAllUnrevealedHiddenStonesForPlayers } from '../shared/utils/expandHiddenRevealStones.js';
+import { collectCapturingHiddenContributors } from '../shared/utils/capturingHiddenContributors.js';
 import {
     reconcileHiddenMovesFromStonePoints,
     upsertHiddenStonePoint,
@@ -88,15 +89,6 @@ const findMoveIndexAt = (
     return findLatestMoveIndexAtExcludingRecordedBaseStones(moveHistory, x, y, player, baseCtx);
 };
 
-const getNeighbors = (x: number, y: number, boardSize: number): Point[] => {
-    const neighbors: Point[] = [];
-    if (x > 0) neighbors.push({ x: x - 1, y });
-    if (x < boardSize - 1) neighbors.push({ x: x + 1, y });
-    if (y > 0) neighbors.push({ x, y: y - 1 });
-    if (y < boardSize - 1) neighbors.push({ x, y: y + 1 });
-    return neighbors;
-};
-
 const collectCapturingGroupHiddenStones = (
     boardState: Player[][],
     moveX: number,
@@ -105,38 +97,24 @@ const collectCapturingGroupHiddenStones = (
     moveHistory: LiveGameSession['moveHistory'] | undefined,
     hiddenMoves: { [moveIndex: number]: boolean },
     permanentlyRevealedStones: Point[] | undefined,
+    capturedStones: Point[],
     baseCtx?: Pick<LiveGameSession, 'baseStones' | 'baseStones_p1' | 'baseStones_p2' | 'gameStatus'>,
     aiInitialHiddenStone?: Point | null,
     isCurrentMoveHidden = false,
     humanHiddenStonePoints?: Array<Point & { player?: Player }> | null,
     aiHiddenStonePoints?: Array<Point & { player?: Player }> | null,
 ): { point: Point; player: Player }[] => {
-    const contributors: { point: Point; player: Player }[] = [];
-    const seen = new Set<string>();
-    const capturingGroupPoints = new Set<string>();
-    const queue: Point[] = [{ x: moveX, y: moveY }];
-    capturingGroupPoints.add(`${moveX},${moveY}`);
-
-    while (queue.length > 0) {
-        const cur = queue.shift()!;
-        for (const neighbor of getNeighbors(cur.x, cur.y, boardState.length)) {
-            const key = `${neighbor.x},${neighbor.y}`;
-            if (capturingGroupPoints.has(key)) continue;
-            if (boardState[neighbor.y]?.[neighbor.x] !== movePlayer) continue;
-            capturingGroupPoints.add(key);
-            queue.push(neighbor);
-        }
-    }
-
-    for (const key of capturingGroupPoints) {
-        const [nx, ny] = key.split(',').map(Number);
-        const isCurrentMove = nx === moveX && ny === moveY;
-        let isHiddenStone = isCurrentMove ? isCurrentMoveHidden : false;
-        if (!isCurrentMove) {
+    return collectCapturingHiddenContributors({
+        boardAfterMove: boardState,
+        move: { x: moveX, y: moveY },
+        movePlayer,
+        capturedStones,
+        isUnrevealedHiddenAt: (nx, ny, isCurrentMove) => {
+            if (hasPoint(permanentlyRevealedStones, { x: nx, y: ny })) return false;
+            if (isCurrentMove) return isCurrentMoveHidden;
             const moveIndex = findMoveIndexAt(moveHistory, nx, ny, movePlayer, baseCtx);
-            isHiddenStone = moveIndex !== -1 && !!hiddenMoves[moveIndex];
+            if (moveIndex !== -1 && !!hiddenMoves[moveIndex]) return true;
             if (
-                !isHiddenStone &&
                 humanHiddenStonePoints?.some(
                     (point) =>
                         point.x === nx &&
@@ -144,10 +122,9 @@ const collectCapturingGroupHiddenStones = (
                         (point.player === undefined || point.player === movePlayer),
                 )
             ) {
-                isHiddenStone = true;
+                return true;
             }
             if (
-                !isHiddenStone &&
                 aiHiddenStonePoints?.some(
                     (point) =>
                         point.x === nx &&
@@ -155,24 +132,18 @@ const collectCapturingGroupHiddenStones = (
                         (point.player === undefined || point.player === movePlayer),
                 )
             ) {
-                isHiddenStone = true;
+                return true;
             }
             if (
-                !isHiddenStone &&
                 aiInitialHiddenStone &&
                 nx === aiInitialHiddenStone.x &&
-                ny === aiInitialHiddenStone.y &&
-                !hasPoint(permanentlyRevealedStones, { x: nx, y: ny })
+                ny === aiInitialHiddenStone.y
             ) {
-                isHiddenStone = true;
+                return true;
             }
-        }
-        if (!isHiddenStone || seen.has(key) || hasPoint(permanentlyRevealedStones, { x: nx, y: ny })) continue;
-        seen.add(key);
-        contributors.push({ point: { x: nx, y: ny }, player: movePlayer });
-    }
-
-    return contributors;
+            return false;
+        },
+    });
 };
 
 const isHiddenModeActive = (game: LiveGameSession, hiddenMoves: { [moveIndex: number]: boolean }) =>
@@ -315,6 +286,7 @@ export function tryBuildHiddenCaptureRevealState(
         moveHistory,
         reconciledHiddenMoves,
         game.permanentlyRevealedStones,
+        capturedStones,
         game,
         aiInitialHiddenStone,
         isCurrentMoveHidden,
@@ -643,6 +615,7 @@ export function updateGameStateAfterMove(
                 newMoveHistory,
                 captureHiddenMoves,
                 game.permanentlyRevealedStones,
+                capturedStones,
                 game,
                 aiInitialHiddenStone,
                 !!isHidden,

@@ -355,15 +355,23 @@ export async function applyPassiveActionPointRegenToUser(user: User, nowMs: numb
         user.actionPoints.current >= calculatedMaxAP ? 0 : lastUpdate + pointsToAdd * regenInterval;
 }
 
+/**
+ * 장비·효과 변경 후 행동력 max와 회복 타이머를 맞춘다.
+ * max 초과 보유(회복제·보물상자 등)는 current를 깎지 않고 자연 회복만 멈춘다.
+ */
 export async function syncActionPointsStateAfterEquipmentChange(user: User): Promise<void> {
     if (!user.actionPoints) return;
     const guild = await resolveGuildForUserApEffects(user);
     const effects = calculateUserEffects(user, guild);
     const maxAp = effects.maxActionPoints;
     user.actionPoints.max = maxAp;
-    user.actionPoints.current = Math.min(user.actionPoints.current, maxAp);
 
+    if (user.actionPoints.current > maxAp) {
+        user.lastActionPointUpdate = 0;
+        return;
+    }
     if (user.actionPoints.current >= maxAp) {
+        user.actionPoints.current = maxAp;
         user.lastActionPointUpdate = 0;
         return;
     }

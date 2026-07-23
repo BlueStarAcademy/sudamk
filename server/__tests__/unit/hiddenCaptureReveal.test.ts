@@ -66,4 +66,54 @@ describe('hidden capture full reveal (tower PVE)', () => {
             ),
         ).toBe(true);
     });
+
+    it('reveals disconnected AI hidden surrounder on adventure capture', () => {
+        // After White (AI) captures Black at (1,1) by playing at (1,2):
+        //   . W .
+        //   H . W   H = AI hidden at (0,1), not connected to move
+        //   . M .
+        const board = emptyBoard(3);
+        board[0][1] = Player.White;
+        board[1][0] = Player.White;
+        board[1][2] = Player.White;
+        board[2][1] = Player.White;
+
+        const game = makeTowerHiddenGame({
+            id: 'adventure-ai-hidden-surround',
+            gameCategory: 'adventure' as GameCategory,
+            blackPlayerId: 'human-1',
+            whitePlayerId: aiUserId,
+            currentPlayer: Player.White,
+            moveHistory: [
+                { x: 0, y: 1, player: Player.White },
+                { x: 1, y: 0, player: Player.White },
+                { x: 2, y: 1, player: Player.White },
+                { x: 1, y: 1, player: Player.Black },
+            ],
+            hiddenMoves: { 0: true },
+            humanHiddenStonePoints: [],
+            aiHiddenStonePoints: [{ x: 0, y: 1, player: Player.White }],
+            boardState: board,
+        });
+
+        const result = updateGameStateAfterMove(
+            game,
+            {
+                x: 1,
+                y: 2,
+                newBoardState: board,
+                capturedStones: [{ x: 1, y: 1 }],
+                newKoInfo: null,
+                movePlayer: Player.White,
+            },
+            'tower',
+        );
+
+        expect(result.updatedGame.gameStatus).toBe('hidden_reveal_animating');
+        expect(
+            (result.updatedGame.animation as { stones?: Array<{ point: { x: number; y: number } }> })?.stones?.some(
+                (stone) => stone.point.x === 0 && stone.point.y === 1,
+            ),
+        ).toBe(true);
+    });
 });

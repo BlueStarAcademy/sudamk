@@ -91,6 +91,7 @@ import {
 import { tryStartRevealOnlyOpponentHiddenAttack } from './startOpponentHiddenReveal.js';
 import { getPlacementOccupancyBlockReason } from '../../shared/utils/hiddenStonePlacementOccupancy.js';
 import { expandToAllUnrevealedHiddenStonesForPlayers } from '../../shared/utils/expandHiddenRevealStones.js';
+import { collectCapturingHiddenContributors } from '../../shared/utils/capturingHiddenContributors.js';
 import { PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../../shared/constants/gameSettings.js';
 import {
     arenaUsesClientAuthoritativeScoringSnapshot,
@@ -1517,36 +1518,23 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 return { error: errorMessage };
             }
             
-            // 따낸 돌에 기여한 "우리 돌 전체 연결 그룹"에서 히든 돌 수집 (인접한 돌만이 아니라 연결된 모든 돌 포함)
-            const contributingHiddenStones: { point: types.Point, player: types.Player }[] = [];
-            if (result.capturedStones.length > 0) {
-                const logic = getGoLogic({ ...game, boardState: result.newBoardState });
-                const capturingGroupPoints = new Set<string>();
-                const queue: { x: number; y: number }[] = [{ x, y }];
-                capturingGroupPoints.add(`${x},${y}`);
-                while (queue.length > 0) {
-                    const cur = queue.shift()!;
-                    for (const n of logic.getNeighbors(cur.x, cur.y)) {
-                        const key = `${n.x},${n.y}`;
-                        if (capturingGroupPoints.has(key)) continue;
-                        if (result.newBoardState[n.y][n.x] !== myPlayerEnum) continue;
-                        capturingGroupPoints.add(key);
-                        queue.push(n);
-                    }
-                }
-                for (const key of capturingGroupPoints) {
-                    const [nx, ny] = key.split(',').map(Number);
-                    const isCurrentMove = nx === x && ny === y;
-                    const isHiddenStone = isCurrentMove
-                        ? effectiveIsHidden
-                        : isUnrevealedHiddenStoneForPlayer(game, nx, ny, myPlayerEnum);
-                    if (isHiddenStone) {
-                        if (!game.permanentlyRevealedStones || !game.permanentlyRevealedStones.some(p => p.x === nx && p.y === ny)) {
-                            contributingHiddenStones.push({ point: { x: nx, y: ny }, player: myPlayerEnum });
-                        }
-                    }
-                }
-            }
+            // 따낸 돌에 기여한 히든: 착수 연결 그룹 + 따낸 돌에 인접한 분리 포위 히든
+            const contributingHiddenStones: { point: types.Point, player: types.Player }[] =
+                result.capturedStones.length > 0
+                    ? collectCapturingHiddenContributors({
+                          boardAfterMove: result.newBoardState,
+                          move: { x, y },
+                          movePlayer: myPlayerEnum,
+                          capturedStones: result.capturedStones,
+                          isUnrevealedHiddenAt: (nx, ny, isCurrentMove) => {
+                              if (game.permanentlyRevealedStones?.some((p) => p.x === nx && p.y === ny)) {
+                                  return false;
+                              }
+                              if (isCurrentMove) return effectiveIsHidden;
+                              return isUnrevealedHiddenStoneForPlayer(game, nx, ny, myPlayerEnum);
+                          },
+                      })
+                    : [];
 
             const capturedHiddenStones: { point: types.Point; player: types.Player }[] = [];
             if (result.capturedStones.length > 0) {

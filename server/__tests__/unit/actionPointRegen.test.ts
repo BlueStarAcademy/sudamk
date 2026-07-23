@@ -27,6 +27,16 @@ describe('recordActionPointSpend', () => {
         expect(user.actionPoints.current).toBe(17);
         expect(user.lastActionPointUpdate).toBe(900_000);
     });
+
+    it('subtracts only the spend amount when current is over max', () => {
+        const user = baseUser();
+        user.actionPoints.current = 50;
+        user.actionPoints.max = 30;
+        user.lastActionPointUpdate = 0;
+        recordActionPointSpend(user, 5, 1_000_000);
+        expect(user.actionPoints.current).toBe(45);
+        expect(user.lastActionPointUpdate).toBe(1_000_000);
+    });
 });
 
 describe('recordActionPointRestore', () => {

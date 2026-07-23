@@ -230,6 +230,8 @@ export const projectActionPointsCurrent = (
     const effects = calculateUserEffects(user, guild);
     const maxAp = effects.maxActionPoints;
     const cur = user.actionPoints.current ?? 0;
+    /** max 초과 보유분은 추정 시에도 유지(소모될 때까지) */
+    if (cur > maxAp) return cur;
     if (cur >= maxAp) return maxAp;
     const lastUpdate = user.lastActionPointUpdate;
     if (lastUpdate === undefined || lastUpdate === null || lastUpdate === 0) {
