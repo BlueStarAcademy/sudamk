@@ -29,7 +29,11 @@ import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveS
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
 import { getAdventureCodexMonsterById, getAdventureMonsterPortraitUrl } from '../../constants/adventureMonstersCodex.js';
-import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
+import {
+    adventureEncounterCountdownUiActive,
+    isAdventureEncounterMonsterTurn,
+    resolveAdventureEncounterRemainingMs,
+} from '../../shared/utils/adventureEncounterUi.js';
 import { getAdventureEncounterCountdownMinutes } from '../../shared/utils/adventureBattleBoard.js';
 import {
     getSpeedTimePressureBarProgress,
@@ -379,17 +383,8 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         adventureMatchTotalSec != null &&
         adventureMatchTotalSec > 0;
 
-    const adventureHumanEnumForPanel =
-        session.blackPlayerId === aiUserId
-            ? Player.White
-            : session.whitePlayerId === aiUserId
-              ? Player.Black
-              : Player.Black;
     const adventureMonsterTurnPanel =
-        session.gameCategory === 'adventure' &&
-        useAdventureMatchCountdown &&
-        session.currentPlayer !== Player.None &&
-        session.currentPlayer !== adventureHumanEnumForPanel;
+        useAdventureMatchCountdown && isAdventureEncounterMonsterTurn(session, aiUserId);
 
     const isDiceGo = mode === GameMode.Dice;
     const isBlackPanel = isDiceGo || playerEnum === Player.Black;
@@ -1186,20 +1181,11 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : undefined;
 
     const advDeadlineMs = session.adventureEncounterDeadlineMs;
+    const adventureFrozenMs = session.adventureEncounterFrozenHumanMsRemaining;
     const adventureCountdownLive =
         adventureEncounterCountdownUiActive(session.gameCategory, session.gameStatus) &&
         typeof advDeadlineMs === 'number';
-    const adventureHumanPlayerEnum =
-        session.blackPlayerId === aiUserId
-            ? Player.White
-            : session.whitePlayerId === aiUserId
-              ? Player.Black
-              : Player.Black;
-    const adventureMonsterTurn =
-        session.gameCategory === 'adventure' &&
-        adventureCountdownLive &&
-        session.currentPlayer !== Player.None &&
-        session.currentPlayer !== adventureHumanPlayerEnum;
+    const adventureMonsterTurn = isAdventureEncounterMonsterTurn(session, aiUserId);
     const [adventureRemSec, setAdventureRemSec] = useState(0);
     useEffect(() => {
         if (!adventureCountdownLive) {
@@ -1207,13 +1193,26 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             return;
         }
         const tick = () => {
-            if (adventureMonsterTurn) return;
-            setAdventureRemSec(Math.max(0, Math.ceil((advDeadlineMs - Date.now()) / 1000)));
+            const remMs = resolveAdventureEncounterRemainingMs(session, Date.now(), aiUserId);
+            setAdventureRemSec(remMs == null ? 0 : Math.max(0, Math.ceil(remMs / 1000)));
         };
         tick();
+        // 몬스터 턴: 남은 시간은 고정 — interval로 벽시계를 깎지 않음
+        if (adventureMonsterTurn) return;
         const id = setInterval(tick, 250);
         return () => clearInterval(id);
-    }, [adventureCountdownLive, advDeadlineMs, session.id, adventureMonsterTurn]);
+    }, [
+        adventureCountdownLive,
+        advDeadlineMs,
+        adventureFrozenMs,
+        adventureMonsterTurn,
+        session.id,
+        session.currentPlayer,
+        session.blackPlayerId,
+        session.whitePlayerId,
+        session.gameStatus,
+        session.player1?.id,
+    ]);
     const advBoardSize = session.settings?.boardSize ?? (session as { adventureBoardSize?: number }).adventureBoardSize ?? 9;
     const adventureTotalSec = Math.max(1, getAdventureEncounterCountdownMinutes(advBoardSize) * 60);
     const adventureCdProps =

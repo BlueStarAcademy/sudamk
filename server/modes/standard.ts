@@ -83,7 +83,7 @@ import {
     shouldRunGoClockAccountingForSession,
 } from '../utils/speedTimePressureLiveCaptures.js';
 import { getRegionalCaptureOpponentTargetBonus } from '../../utils/adventureRegionalSpecialtyBuff.js';
-import { adventureEncounterCountdownUiActive } from '../../shared/utils/adventureEncounterUi.js';
+import { adventureEncounterCountdownUiActive, isAdventureEncounterMonsterTurn, resolveAdventureEncounterHumanPlayerEnum } from '../../shared/utils/adventureEncounterUi.js';
 import {
     useAiInitialHiddenCellTracking,
     useAiInitialHiddenSyntheticCaptureHistory,
@@ -261,6 +261,7 @@ function scheduleAiTurnAfterHumanMove(game: types.LiveGameSession, now: number):
     const pairCurrentSeat = getCurrentPairTurnSeat(game.settings);
     if (pairCurrentSeat) {
         schedulePairAiTurnIfNeeded(game, now);
+        syncAdventureEncounterDeadlineDuringMonsterTurn(game, now);
         return;
     }
     if (!game.isAiGame || (game.currentPlayer !== types.Player.Black && game.currentPlayer !== types.Player.White)) {
@@ -274,6 +275,7 @@ function scheduleAiTurnAfterHumanMove(game: types.LiveGameSession, now: number):
         (policy.kind === GameCategory.Adventure || policy.kind === GameCategory.GuildWar)
     ) {
         schedulePveStrategicAiTurnIfNeeded(game, now);
+        syncAdventureEncounterDeadlineDuringMonsterTurn(game, now);
         return;
     }
     if (currentPlayerId === aiUserId) {
@@ -281,6 +283,7 @@ function scheduleAiTurnAfterHumanMove(game: types.LiveGameSession, now: number):
     } else {
         game.aiTurnStartTime = undefined;
     }
+    syncAdventureEncounterDeadlineDuringMonsterTurn(game, now);
 }
 
 function advancePairTurnAfterAction(game: types.LiveGameSession, now: number): void {
@@ -517,35 +520,27 @@ const adventureAiColorRevealModal = (game: types.LiveGameSession) =>
     game.mode !== types.GameMode.Base &&
     game.mode !== types.GameMode.Capture;
 
-const ADVENTURE_ENCOUNTER_FROZEN_MS_KEY = 'adventureEncounterFrozenHumanMsRemaining';
-
 /**
  * 모험 인카운터 제한: 몬스터(AI) 턴에는 남은 시간이 줄지 않도록 마감 시각을 매 틱 `now + frozen`으로 맞춘다.
  * 도전자 턴에는 frozen을 비우고 마감 시각이 그대로 흐른다.
  */
-const syncAdventureEncounterDeadlineDuringMonsterTurn = (game: types.LiveGameSession, now: number) => {
+export const syncAdventureEncounterDeadlineDuringMonsterTurn = (game: types.LiveGameSession, now: number) => {
     if (game.gameCategory !== types.GameCategory.Adventure) return;
-    const deadline = (game as any).adventureEncounterDeadlineMs;
+    const deadline = game.adventureEncounterDeadlineMs;
     if (typeof deadline !== 'number') return;
     if (!adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus)) return;
+    if (game.currentPlayer === types.Player.None) return;
 
-    let monsterEnum: types.Player | null = null;
-    if (game.blackPlayerId === aiUserId) monsterEnum = types.Player.Black;
-    else if (game.whitePlayerId === aiUserId) monsterEnum = types.Player.White;
-    if (monsterEnum == null || game.currentPlayer === types.Player.None) return;
-
-    const isMonsterTurn = game.currentPlayer === monsterEnum;
-
-    if (isMonsterTurn) {
-        let frozen = (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY];
+    if (isAdventureEncounterMonsterTurn(game, aiUserId)) {
+        let frozen = game.adventureEncounterFrozenHumanMsRemaining;
         if (typeof frozen !== 'number' || !Number.isFinite(frozen) || frozen <= 0) {
             const inferred = deadline - now;
             frozen = inferred > 0 ? Math.max(1000, inferred) : 120_000;
-            (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY] = frozen;
+            game.adventureEncounterFrozenHumanMsRemaining = frozen;
         }
-        (game as any).adventureEncounterDeadlineMs = now + frozen;
+        game.adventureEncounterDeadlineMs = now + frozen;
     } else {
-        (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY] = undefined;
+        game.adventureEncounterFrozenHumanMsRemaining = undefined;
     }
 };
 
@@ -708,14 +703,8 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
 
     let adventureEncounterTimeUp = false;
     if (game.gameCategory === types.GameCategory.Adventure && typeof advDeadline === 'number') {
-        let monsterEnum: types.Player | null = null;
-        if (game.blackPlayerId === aiUserId) monsterEnum = types.Player.Black;
-        else if (game.whitePlayerId === aiUserId) monsterEnum = types.Player.White;
-        const isMonsterTurn =
-            monsterEnum != null &&
-            game.currentPlayer !== types.Player.None &&
-            game.currentPlayer === monsterEnum;
-        const frozenRem = (game as any)[ADVENTURE_ENCOUNTER_FROZEN_MS_KEY];
+        const isMonsterTurn = isAdventureEncounterMonsterTurn(game, aiUserId);
+        const frozenRem = game.adventureEncounterFrozenHumanMsRemaining;
         adventureEncounterTimeUp = !isMonsterTurn
             ? now >= advDeadline
             : typeof frozenRem === 'number' && frozenRem <= 0;
@@ -731,12 +720,8 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
         adventureEncounterCountdownUiActive(game.gameCategory, game.gameStatus) &&
         !adventureEncounterBlocked
     ) {
-        const aiWinner =
-            game.blackPlayerId === aiUserId
-                ? types.Player.Black
-                : game.whitePlayerId === aiUserId
-                  ? types.Player.White
-                  : types.Player.White;
+        const humanEnum = resolveAdventureEncounterHumanPlayerEnum(game, aiUserId);
+        const aiWinner = humanEnum === types.Player.Black ? types.Player.White : types.Player.Black;
         await summaryService.endGame(game, aiWinner, 'adventure_monster_fled');
         return;
     }

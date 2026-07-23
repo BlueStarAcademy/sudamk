@@ -35,6 +35,8 @@ export function computeLiveGameBroadcastSignature(g: LiveGameSession | null | un
             ? (g.animation as { startTime: number }).startTime
             : 0;
     const revealEnd = g.revealAnimationEndTime ?? 0;
+    const adventureDeadline = g.adventureEncounterDeadlineMs ?? 0;
+    const adventureFrozen = g.adventureEncounterFrozenHumanMsRemaining ?? 0;
     return [
         g.id,
         rev,
@@ -61,5 +63,7 @@ export function computeLiveGameBroadcastSignature(g: LiveGameSession | null | un
         animType,
         animStart,
         revealEnd,
+        adventureDeadline,
+        adventureFrozen,
     ].join('\t');
 }

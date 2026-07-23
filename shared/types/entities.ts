@@ -1662,6 +1662,8 @@ export type LiveGameSession = {
   adventureBoardSize?: number;
   /** 모험: 경기 시작(CONFIRM) 후 전체 제한 시각(epoch ms) — 초과 시 몬스터 도주 패배 */
   adventureEncounterDeadlineMs?: number;
+  /** 몬스터(AI) 턴 동안 고정된 도전자 인카운터 남은 ms — 벽시계 deadline 연장과 함께 클라 표시용 */
+  adventureEncounterFrozenHumanMsRemaining?: number;
   adventureEncounterDurationMultiplier?: number;
   adventureRegionalHumanFlatScoreBonus?: number;
   stageId?: string;

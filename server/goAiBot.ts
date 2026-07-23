@@ -353,8 +353,9 @@ async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession)
 }
 
 /**
- * 히든 돌 공개 연출 종료 직후: 현재 바둑판 전체를 KataServer `/move`에 보내 국면·캐시를 맞춘다.
- * 응답 후보를 세션에 저장해 직후 AI 틱이 휴리스틱으로 떨어지지 않고 같은 Kata 수를 쓰게 한다.
+ * 히든 돌 공개 연출 종료 직후: KataServer 세션 캐시를 현재 판으로 맞춘다.
+ * 주의: `/move` 응답 후보를 저장해 다음 AI 틱에 재사용하지 않는다.
+ * (사람 차례에 프라임하면 side-to-move 불일치 후보가 남고, 이후 AI가 엉터리 합법수를 둘 수 있음)
  */
 export async function primeKataServerBoardAfterHiddenReveal(game: types.LiveGameSession): Promise<void> {
     if (!isKataServerAvailable()) return;
@@ -372,15 +373,32 @@ export async function primeKataServerBoardAfterHiddenReveal(game: types.LiveGame
         (game as any).kataPveKataMovesFromBoardStateOnly = false;
     }
 
+    // 이전 버전의 stale 프라임 후보는 절대 쓰지 않음
+    (game as any).pendingKataCandidatesAfterHiddenReveal = undefined;
+
     const hiddenRevealTag = bumpKataHiddenRevealCacheTag(game);
+    const aiToMove = game.currentPlayer === aiPlayerEnum;
+    // AI 착수 직전 재개일 때만 하드 리싱크(인코딩 재시도 강화). 사람 차례 프라임에서는 켜지 않음.
+    if (aiToMove) {
+        (game as any).kataHardResyncAfterHiddenReveal = true;
+    }
+
+    // 사람 차례면 캐시 태그 bump만 하고 /move는 호출하지 않음(AI color로 질의하면 STM 불일치).
+    if (!aiToMove) {
+        if (process.env.NODE_ENV === 'development') {
+            console.log(
+                `[primeKataServerBoardAfterHiddenReveal] cache-tag only (human to move) game=${game.id} tag=hr-post-${hiddenRevealTag}`,
+            );
+        }
+        return;
+    }
+
     const moveHistory = buildKataMoveHistoryBoardOnlyFromAiVisibleBoard(game, aiPlayerEnum);
     const kataLevel = await resolveKataLevelForHiddenRevealPrime(game);
     const moveApiRetries = resolveKataMoveApiRetries(game);
-    (game as any).kataHardResyncAfterHiddenReveal = true;
-    (game as any).pendingKataCandidatesAfterHiddenReveal = undefined;
 
     try {
-        const details = await generateKataServerMoveCandidateDetails({
+        await generateKataServerMoveCandidateDetails({
             boardSize: game.settings.boardSize || 19,
             player: (aiPlayerEnum === Player.White ? 'white' : 'black') as 'white' | 'black',
             moveHistory,
@@ -391,15 +409,9 @@ export async function primeKataServerBoardAfterHiddenReveal(game: types.LiveGame
             allowPass: false,
             moveApiRetries,
         });
-        const candidates = (details.candidates ?? []).filter(
-            (p) => p && Number.isInteger(p.x) && Number.isInteger(p.y) && !(p.x === -1 && p.y === -1),
-        );
-        if (candidates.length > 0) {
-            (game as any).pendingKataCandidatesAfterHiddenReveal = candidates.map((p) => ({ x: p.x, y: p.y }));
-        }
         if (process.env.NODE_ENV === 'development') {
             console.log(
-                `[primeKataServerBoardAfterHiddenReveal] primed game=${game.id} kataMoves=${moveHistory.length} candidates=${candidates.length} tag=hr-post-${hiddenRevealTag}`,
+                `[primeKataServerBoardAfterHiddenReveal] warmed Kata cache game=${game.id} kataMoves=${moveHistory.length} tag=hr-post-${hiddenRevealTag}`,
             );
         }
     } catch (e: any) {
@@ -1850,12 +1862,14 @@ function resolveKataMoveApiRetries(game: types.LiveGameSession): number {
 }
 
 /**
- * 휴리스틱 점수(scoreMovesFast) 없이 합법 수만 고른다.
- * Kata 전용 경로가 모두 실패했을 때의 최후 수단(착수 정지·기권 전).
+ * Kata 전용 경로가 모두 실패했을 때의 최후 수단.
+ * 스캔 순서 첫 합법수(완전 엉터리) 대신 가벼운 보드 점수로 고른다 — 정상 대국은 Kata 경로를 써야 한다.
  */
-function pickFirstLegalAiMove(
+function pickServerScoredLegalMove(
     game: types.LiveGameSession,
     aiPlayer: Player,
+    opponentPlayer: Player,
+    profileLevel: number
 ): Point | null {
     const logic = getGoLogic(game);
     let legalMoves = findAllValidMovesFast(game, logic, aiPlayer);
@@ -1883,23 +1897,17 @@ function pickFirstLegalAiMove(
         if (captureMoves.length > 0) return captureMoves[0] ?? null;
     }
 
-    return legalMoves[0] ?? null;
+    const profile = getGoAiBotProfile(profileLevel);
+    const scoredMoves =
+        (game.settings as any)?.isSurvivalMode
+            ? scoreMovesForAggressiveCapture(legalMoves, game, profile, logic, aiPlayer, opponentPlayer)
+            : scoreMovesFast(legalMoves, game, profile, logic, aiPlayer, opponentPlayer);
+    return scoredMoves[0]?.move ?? legalMoves[0] ?? null;
 }
 
-function takePendingKataCandidatesAfterHiddenReveal(game: types.LiveGameSession): Point[] {
-    const raw = (game as any).pendingKataCandidatesAfterHiddenReveal;
+function clearKataHiddenRevealResyncFlags(game: types.LiveGameSession): void {
+    (game as any).kataHardResyncAfterHiddenReveal = undefined;
     (game as any).pendingKataCandidatesAfterHiddenReveal = undefined;
-    if (!Array.isArray(raw)) return [];
-    const out: Point[] = [];
-    for (const p of raw) {
-        if (!p || typeof p !== 'object') continue;
-        const x = Number((p as Point).x);
-        const y = Number((p as Point).y);
-        if (!Number.isInteger(x) || !Number.isInteger(y)) continue;
-        if (x === -1 && y === -1) continue;
-        out.push({ x, y });
-    }
-    return out;
 }
 
 function countPairSeatOwnMoves(game: types.LiveGameSession, participantId: string): number {
@@ -2128,7 +2136,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             if (cand.x === -1 && cand.y === -1) continue;
             const trial = evaluateAiGoPlacementMove(game, { ...cand, player: aiPlayerEnum });
             if (trial.isValid) {
-                (game as any).kataHardResyncAfterHiddenReveal = undefined;
+                clearKataHiddenRevealResyncFlags(game);
                 return {
                     picked: cand,
                     kataBestMove: lastBest,
@@ -2141,7 +2149,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
                     stoneAt === opponentPlayerEnum &&
                     isCurrentUnrevealedHiddenStoneAt(game, cand.x, cand.y, opponentPlayerEnum)
                 ) {
-                    (game as any).kataHardResyncAfterHiddenReveal = undefined;
+                    clearKataHiddenRevealResyncFlags(game);
                     return {
                         picked: cand,
                         kataBestMove: lastBest,
@@ -2796,34 +2804,10 @@ export async function makeGoAiBotMove(
         let kataBestMove: Point | null = null;
         let pickedFromKata: Point | null = null;
 
-        const primedAfterReveal = takePendingKataCandidatesAfterHiddenReveal(game);
-        for (const cand of primedAfterReveal) {
-            const trial = evaluateAiGoPlacementMove(game, { ...cand, player: aiPlayerEnum });
-            if (trial.isValid) {
-                pickedFromKata = cand;
-                kataCandidates = primedAfterReveal;
-                console.log(
-                    `[makeGoAiBotMove] using Kata candidate primed after hidden reveal (${cand.x},${cand.y}), game=${game.id}`,
-                );
-                (game as any).kataHardResyncAfterHiddenReveal = undefined;
-                break;
-            }
-            if (
-                isHiddenMode &&
-                shouldMaskUserHiddenFromAi(game) &&
-                game.boardState[cand.y]?.[cand.x] === opponentPlayerEnum &&
-                isCurrentUnrevealedHiddenStoneAt(game, cand.x, cand.y, opponentPlayerEnum)
-            ) {
-                pickedFromKata = cand;
-                kataCandidates = primedAfterReveal;
-                console.log(
-                    `[makeGoAiBotMove] using primed Kata candidate on unrevealed hidden (${cand.x},${cand.y}), game=${game.id}`,
-                );
-                break;
-            }
-        }
+        // 히든 공개 프라임 후보를 절대 재사용하지 않음 — 항상 현재 국면에서 새 Kata 질의
+        (game as any).pendingKataCandidatesAfterHiddenReveal = undefined;
 
-        if (!pickedFromKata && isKataServerAvailable()) {
+        if (isKataServerAvailable()) {
             const kataPick = await pickKataMoveExclusiveWithBoardResync({
                 game,
                 aiPlayerEnum,
@@ -2892,8 +2876,7 @@ export async function makeGoAiBotMove(
                 await getGameResult(game);
                 return;
             } else {
-                // Kata 재질의 한 번 더(히든 공개 직후 하드 리싱크 플래그 유지) — 휴리스틱 점수 폴백 금지
-                (game as any).kataHardResyncAfterHiddenReveal = true;
+                // 공개 직후 1회만 강화 재시도 — 실패해도 hardResync를 영구 고정하지 않음
                 const retryPick = await pickKataMoveExclusiveWithBoardResync({
                     game,
                     aiPlayerEnum,
@@ -2911,11 +2894,17 @@ export async function makeGoAiBotMove(
                         `[makeGoAiBotMove] Kata retry after exhaust succeeded (${pickedFromKata.x},${pickedFromKata.y}), game=${game.id}`,
                     );
                 } else {
-                    const fallbackMove = pickFirstLegalAiMove(game, aiPlayerEnum);
+                    const fallbackMove = pickServerScoredLegalMove(
+                        game,
+                        aiPlayerEnum,
+                        opponentPlayerEnum,
+                        goAiProfileLevel,
+                    );
+                    clearKataHiddenRevealResyncFlags(game);
                     if (fallbackMove) {
                         pickedFromKata = fallbackMove;
                         console.warn(
-                            `[makeGoAiBotMove] Kata-only exhausted after retries; using first legal (no heuristic score) (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
+                            `[makeGoAiBotMove] Kata-only exhausted after retries; using scored legal fallback (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
                         );
                     } else if (pairHasFixedScoringTurnLimit && pairCurrentSeat) {
                         const totalTurns = getProgressTurnCount(game);
@@ -2987,6 +2976,7 @@ export async function makeGoAiBotMove(
             console.log(
                 `[makeGoAiBotMove] KataServer 수 적용 game=${game.id} level=${kataLevel} (${selectedMove.x},${selectedMove.y})`
             );
+            clearKataHiddenRevealResyncFlags(game);
         }
     }
 
@@ -3090,7 +3080,12 @@ export async function makeGoAiBotMove(
     }
 
     if (selectedMove.x === -1 && selectedMove.y === -1 && pairCurrentSeat) {
-        const fallbackMove = pickFirstLegalAiMove(game, aiPlayerEnum);
+        const fallbackMove = pickServerScoredLegalMove(
+            game,
+            aiPlayerEnum,
+            opponentPlayerEnum,
+            goAiProfileLevel,
+        );
         if (!fallbackMove) {
             if (pairHasFixedScoringTurnLimit) {
                 const totalTurnsEnd = getProgressTurnCount(game);
@@ -3157,7 +3152,13 @@ export async function makeGoAiBotMove(
                 pickedReveal = revealPick.picked;
             }
             if (!pickedReveal) {
-                const fallbackRevealMove = pickFirstLegalAiMove(game, aiPlayerEnum);
+                const fallbackRevealMove = pickServerScoredLegalMove(
+                    game,
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    goAiProfileLevel,
+                );
+                clearKataHiddenRevealResyncFlags(game);
                 if (!fallbackRevealMove) {
                     console.error(
                         `[makeGoAiBotMove] Kata re-query after hidden reveal failed (no Kata move) → resign, game=${game.id}`,
@@ -3166,7 +3167,7 @@ export async function makeGoAiBotMove(
                     return;
                 }
                 console.warn(
-                    `[makeGoAiBotMove] Kata re-query after hidden reveal failed; using first legal (no heuristic score) (${fallbackRevealMove.x},${fallbackRevealMove.y}), game=${game.id}`,
+                    `[makeGoAiBotMove] Kata re-query after hidden reveal failed; using scored legal fallback (${fallbackRevealMove.x},${fallbackRevealMove.y}), game=${game.id}`,
                 );
                 pickedReveal = fallbackRevealMove;
             }
@@ -3255,7 +3256,6 @@ export async function makeGoAiBotMove(
                 }
             }
             if (!result.isValid) {
-                (game as any).kataHardResyncAfterHiddenReveal = true;
                 const emergencyRetry = await pickKataMoveExclusiveWithBoardResync({
                     game,
                     aiPlayerEnum,
@@ -3279,12 +3279,18 @@ export async function makeGoAiBotMove(
                 }
             }
             if (!result.isValid) {
-                const fallbackMove = pickFirstLegalAiMove(game, aiPlayerEnum);
+                const fallbackMove = pickServerScoredLegalMove(
+                    game,
+                    aiPlayerEnum,
+                    opponentPlayerEnum,
+                    goAiProfileLevel,
+                );
+                clearKataHiddenRevealResyncFlags(game);
                 if (fallbackMove) {
                     const retry = evaluateAiGoPlacementMove(game, { ...fallbackMove, player: aiPlayerEnum });
                     if (retry.isValid) {
                         console.warn(
-                            `[makeGoAiBotMove] Kata-only emergency invalid; using first legal (no heuristic score) (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
+                            `[makeGoAiBotMove] Kata-only emergency invalid; using scored legal fallback (${fallbackMove.x},${fallbackMove.y}), game=${game.id}`,
                         );
                         selectedMove = fallbackMove;
                         pendingPairPetKataGameChat = null;
