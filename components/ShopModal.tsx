@@ -230,6 +230,7 @@ const ShopAdRewardCard: React.FC<{
     const { isAdFree } = useAdContext();
     const exhausted = claimableRemaining <= 0;
     const refinedDescription = formatDescription(rewardDescription);
+    const isFreeClaim = isAdFree || !nextClaimNeedsAd;
     const claimButtonLabel = isClaimPending
         ? t('adReward.claiming')
         : exhausted
@@ -239,6 +240,9 @@ const ShopAdRewardCard: React.FC<{
             : nextClaimNeedsAd
               ? t('adReward.watchAd')
               : t('adReward.dailyFreeReward');
+    const claimButtonToneClass = isFreeClaim
+        ? 'border-amber-300/55 bg-gradient-to-r from-amber-400/90 to-yellow-500/90 text-slate-900 hover:from-amber-300 hover:to-yellow-400'
+        : 'border-emerald-300/45 bg-gradient-to-r from-emerald-400/90 to-cyan-500/90 text-slate-900 hover:from-emerald-300 hover:to-cyan-400';
 
     return (
         <div
@@ -288,7 +292,7 @@ const ShopAdRewardCard: React.FC<{
                     disabled={exhausted || isClaimPending}
                     colorScheme="none"
                     bare
-                    className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border border-emerald-300/45 bg-gradient-to-r from-emerald-400/90 to-cyan-500/90 px-2 py-1.5 text-center font-semibold leading-tight text-slate-900 transition-colors hover:from-emerald-300 hover:to-cyan-400 disabled:cursor-not-allowed disabled:opacity-50 ${mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-sm' : 'min-h-[3.5rem] py-2 text-sm sm:text-base'}`}
+                    className={`flex w-full flex-col items-center justify-center gap-0.5 rounded-lg border px-2 py-1.5 text-center font-semibold leading-tight transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${claimButtonToneClass} ${mobile ? 'h-[2.95rem] min-h-[2.95rem] max-h-[2.95rem] text-sm' : 'min-h-[3.5rem] py-2 text-sm sm:text-base'}`}
                 >
                     <span className="flex flex-wrap items-center justify-center gap-x-1">
                         <span className="font-bold">

@@ -210,7 +210,44 @@ const AchievementTrackPanel: React.FC<{
                     const navLabelClass =
                         compact ? 'text-[11px] leading-tight' : isMobile ? 'text-[10px] leading-tight' : 'text-xs leading-tight';
                     const claimLabel = isClaimed ? t('claim.complete') : canClaim ? t('claim.claim') : isCurrentStage ? t('claim.inProgress') : t('claim.record');
+                    const claimPending = claimPendingKey === `achievement-${track.id}-${viewIndex}`;
+                    const claimButtonLabel = claimPending ? t('claim.claiming') : claimLabel;
                     const mobileAchievementLayout = isMobile && !compact;
+                    const claimButtonClass = `relative inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border font-semibold transition-[transform,box-shadow,border-color,background-color] duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
+                        compact
+                            ? 'min-w-[5.75rem] gap-1 px-2 py-1.5 text-xs'
+                            : mobileAchievementLayout
+                              ? 'gap-1.5 px-2.5 py-1.5 text-xs'
+                              : 'min-w-[6.5rem] gap-1.5 px-2.5 py-2 text-sm'
+                    } ${
+                        canClaim
+                            ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50 hover:border-amber-300/45 hover:from-amber-400/30 active:scale-[0.99]'
+                            : 'cursor-default border-slate-600/40 bg-slate-800/60 text-slate-300'
+                    }`;
+                    const claimRewardButton = (
+                        <button
+                            type="button"
+                            onClick={() => onClaimAchievement(track.id, viewIndex)}
+                            disabled={!canClaim || claimPending}
+                            className={`${claimButtonClass} disabled:cursor-not-allowed disabled:opacity-60`}
+                        >
+                            {canClaim ? (
+                                <span
+                                    className="pointer-events-none absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-slate-900 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5"
+                                    aria-hidden
+                                />
+                            ) : null}
+                            <img
+                                src="/images/icon/Zem.webp"
+                                alt=""
+                                className={`object-contain ${compact || mobileAchievementLayout ? 'h-5 w-5' : 'h-6 w-6'}`}
+                            />
+                            <span className={`font-bold tabular-nums ${canClaim ? 'text-amber-100' : 'text-slate-200'}`}>
+                                {stage.rewardDiamonds}
+                            </span>
+                            <span className="leading-tight">{claimButtonLabel}</span>
+                        </button>
+                    );
 
                     return (
                         <li
@@ -307,23 +344,8 @@ const AchievementTrackPanel: React.FC<{
                                             </span>
                                         )}
                                     </div>
-                                    <div className="flex items-center justify-center gap-1.5">
-                                        <div className="inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/35 bg-black/35 px-2 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]">
-                                            <img src="/images/icon/Zem.webp" alt="" className="h-5 w-5 object-contain" />
-                                            <span className="text-sm font-bold tabular-nums text-amber-100">{stage.rewardDiamonds}</span>
-                                        </div>
-                                        <button
-                                            type="button"
-                                            onClick={() => onClaimAchievement(track.id, viewIndex)}
-                                            disabled={!canClaim || claimPendingKey === `achievement-${track.id}-${viewIndex}`}
-                                            className={`shrink-0 rounded-lg border px-2 py-1.5 text-xs font-semibold ${
-                                                canClaim
-                                                    ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50'
-                                                    : 'border-slate-600/40 bg-slate-800/60 text-slate-300'
-                                            }`}
-                                        >
-                                            {claimPendingKey === `achievement-${track.id}-${viewIndex}` ? t('claim.claiming') : claimLabel}
-                                        </button>
+                                    <div className="flex items-center justify-center">
+                                        {claimRewardButton}
                                     </div>
                                 </div>
                             ) : (
@@ -354,37 +376,8 @@ const AchievementTrackPanel: React.FC<{
                                         </span>
                                     )}
                                 </div>
-                                <div className="flex shrink-0 items-center gap-1.5 self-center">
-                                    <div
-                                        className={`inline-flex shrink-0 items-center gap-1 rounded-lg border border-amber-500/35 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ${
-                                            compact ? 'px-2 py-1.5' : 'px-2.5 py-2'
-                                        }`}
-                                    >
-                                        <img
-                                            src="/images/icon/Zem.webp"
-                                            alt=""
-                                            className={`object-contain ${compact ? 'h-5 w-5' : 'h-6 w-6'}`}
-                                        />
-                                        <span
-                                            className={`font-bold tabular-nums text-amber-100 ${compact ? 'text-sm' : 'text-base'}`}
-                                        >
-                                            {stage.rewardDiamonds}
-                                        </span>
-                                    </div>
-                                    <button
-                                        type="button"
-                                        onClick={() => onClaimAchievement(track.id, viewIndex)}
-                                        disabled={!canClaim || claimPendingKey === `achievement-${track.id}-${viewIndex}`}
-                                        className={`shrink-0 rounded-lg border font-semibold ${
-                                            compact ? 'w-[3.25rem] px-1 py-2 text-xs' : 'w-[3.75rem] px-1.5 py-2.5 text-sm'
-                                        } ${
-                                            canClaim
-                                                ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50'
-                                                : 'border-slate-600/40 bg-slate-800/60 text-slate-300'
-                                        }`}
-                                    >
-                                        {claimPendingKey === `achievement-${track.id}-${viewIndex}` ? t('claim.claiming') : claimLabel}
-                                    </button>
+                                <div className="flex shrink-0 items-center self-center">
+                                    {claimRewardButton}
                                 </div>
                             </div>
                             )}

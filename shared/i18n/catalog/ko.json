@@ -5376,6 +5376,7 @@
       "inputAmount": "환전할 수량",
       "inputGoldAmount": "환전할 수량",
       "inputDiamondAmount": "환전할 수량",
+      "inputAmountMinMax": "(최소 {{min}} ~ 최대 {{max}})",
       "instantRate": "바로환전 시세",
       "averageMarketRate": "평균 시세",
       "feePercent": "수수료(10%)",

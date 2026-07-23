@@ -571,6 +571,10 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
         'border-slate-600/70 bg-gradient-to-b from-slate-700/70 to-slate-900/80 text-slate-300 hover:border-slate-400/80 hover:text-slate-100';
 
     const instantInputCurrency: SaleCurrency = instantDirection === 'gold_to_diamonds' ? 'gold' : 'diamonds';
+    const instantInputMin =
+        instantDirection === 'gold_to_diamonds'
+            ? CURRENCY_EXCHANGE_INSTANT_MIN_GOLD
+            : CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS;
 
     return (
         <>
@@ -907,72 +911,45 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                         <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-cyan-400/10 blur-2xl" aria-hidden />
                         <SectionHeader title={t('currency.instantTitle')} accent="cyan" titleClassName={exchTy.sectionTitle} />
 
-                        <div className="flex gap-1.5 rounded-xl border border-white/[0.05] bg-black/20 p-1">
-                            <button
-                                type="button"
-                                onClick={() => handleInstantDirectionChange('gold_to_diamonds')}
-                                aria-label={t('currency.goldToDiamonds')}
-                                className={`${directionBtnBase} ${
-                                    instantDirection === 'gold_to_diamonds' ? directionBtnActive : directionBtnIdle
-                                }`}
-                            >
-                                <CurrencyIcon currency="gold" className="h-5 w-5" />
-                                <span className="text-slate-500">→</span>
-                                <CurrencyIcon currency="diamonds" className="h-5 w-5" />
-                            </button>
-                            <button
-                                type="button"
-                                onClick={() => handleInstantDirectionChange('diamonds_to_gold')}
-                                aria-label={t('currency.diamondsToGold')}
-                                className={`${directionBtnBase} ${
-                                    instantDirection === 'diamonds_to_gold' ? directionBtnActive : directionBtnIdle
-                                }`}
-                            >
-                                <CurrencyIcon currency="diamonds" className="h-5 w-5" />
-                                <span className="text-slate-500">→</span>
-                                <CurrencyIcon currency="gold" className="h-5 w-5" />
-                            </button>
-                        </div>
-
-                        <div className="mt-3 overflow-hidden rounded-xl border border-cyan-400/15 bg-black/30 shadow-[0_8px_24px_-12px_rgba(34,211,238,0.15)]">
-                            <div className="flex flex-col gap-3 border-b border-white/[0.06] px-3 py-2.5 sm:flex-row sm:items-start sm:gap-4">
-                                <div className="min-w-0 flex-1 text-center">
-                                    <p className={`mb-1.5 ${exchTy.subLabel}`}>
-                                        {t('currency.instantRate')}
-                                    </p>
-                                    <div className="flex justify-center">
-                                        {instantDirection === 'gold_to_diamonds' ? (
-                                            <CurrencyArrowPair
-                                                fromAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH.gold}
-                                                fromCurrency="gold"
-                                                toAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH.diamonds}
-                                                toCurrency="diamonds"
-                                                iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
-                                                amountClassName={`${exchTy.amountSm} text-slate-100`}
-                                            />
-                                        ) : (
-                                            <CurrencyArrowPair
-                                                fromAmount={CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH.diamonds}
-                                                fromCurrency="diamonds"
-                                                toAmount={CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH.gold}
-                                                toCurrency="gold"
-                                                iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
-                                                amountClassName={`${exchTy.amountSm} text-slate-100`}
-                                            />
-                                        )}
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
+                            <div className="flex min-w-0 flex-[0.88] flex-col gap-2 sm:max-w-[46%]">
+                                <div className="shrink-0 rounded-xl border border-white/[0.06] bg-gradient-to-br from-slate-950/70 via-black/30 to-slate-950/80 px-2 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                    <div className="text-center">
+                                        <p className={`mb-1 ${exchTy.metaLabel}`}>
+                                            {t('currency.instantRate')}
+                                        </p>
+                                        <div className="flex justify-center">
+                                            {instantDirection === 'gold_to_diamonds' ? (
+                                                <CurrencyArrowPair
+                                                    fromAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH.gold}
+                                                    fromCurrency="gold"
+                                                    toAmount={CURRENCY_EXCHANGE_INSTANT_GOLD_TO_DIAMONDS_BATCH.diamonds}
+                                                    toCurrency="diamonds"
+                                                    iconClassName={mobileExchange ? 'h-4 w-4' : 'h-4 w-4'}
+                                                    amountClassName={`${exchTy.amountSm} text-slate-100`}
+                                                />
+                                            ) : (
+                                                <CurrencyArrowPair
+                                                    fromAmount={CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH.diamonds}
+                                                    fromCurrency="diamonds"
+                                                    toAmount={CURRENCY_EXCHANGE_INSTANT_DIAMONDS_TO_GOLD_BATCH.gold}
+                                                    toCurrency="gold"
+                                                    iconClassName={mobileExchange ? 'h-4 w-4' : 'h-4 w-4'}
+                                                    amountClassName={`${exchTy.amountSm} text-slate-100`}
+                                                />
+                                            )}
+                                        </div>
+                                        <p className={`mt-1 ${exchTy.metaLabel} text-rose-300/80`}>
+                                            {t('currency.feePercent')}
+                                        </p>
                                     </div>
-                                    <p className={`mt-1 ${exchTy.metaLabel} text-rose-300/80`}>
-                                        {t('currency.feePercent')}
-                                    </p>
                                 </div>
 
-                                <div className="hidden w-px self-stretch bg-white/[0.06] sm:block" aria-hidden />
-
-                                <div className="min-w-0 flex-1 text-center">
-                                    <p className={`mb-1.5 ${exchTy.subLabel}`}>
+                                <div className="flex min-h-[6.5rem] flex-1 flex-col rounded-xl border border-cyan-400/10 bg-gradient-to-br from-cyan-950/20 via-slate-950/75 to-slate-950/90 px-2.5 py-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                                    <p className={`mb-2 ${exchTy.label} text-cyan-200/80`}>
                                         {t('currency.dailyInstantLimit')}
                                     </p>
-                                    <div className="space-y-1.5">
+                                    <div className="flex flex-1 flex-col items-center justify-center gap-1.5">
                                         <div className={`flex justify-center ${mobileExchange ? 'text-xs' : 'text-sm'}`}>
                                             <span className="inline-flex items-center gap-1 tabular-nums">
                                                 <CurrencyAmountDisplay
@@ -1008,10 +985,45 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                             </span>
                                         </div>
                                     </div>
+                                    <p className={`mt-2 ${exchTy.metaLabel} text-slate-400`}>
+                                        {t('currency.inputAmountMinMax', {
+                                            min: formatCurrencyAmount(instantInputMin, instantInputCurrency),
+                                            max: formatCurrencyAmount(instantInputMax, instantInputCurrency),
+                                        })}
+                                    </p>
                                 </div>
                             </div>
 
-                            <div className="flex flex-col gap-2.5 px-3 py-3">
+                            <div className="hidden w-px self-stretch bg-white/[0.06] sm:block" aria-hidden />
+
+                            <div className="flex min-w-0 flex-[1.12] flex-col justify-center gap-2.5">
+                                <div className="flex gap-1.5 rounded-xl border border-white/[0.05] bg-black/20 p-1">
+                                    <button
+                                        type="button"
+                                        onClick={() => handleInstantDirectionChange('gold_to_diamonds')}
+                                        aria-label={t('currency.goldToDiamonds')}
+                                        className={`${directionBtnBase} ${
+                                            instantDirection === 'gold_to_diamonds' ? directionBtnActive : directionBtnIdle
+                                        }`}
+                                    >
+                                        <CurrencyIcon currency="gold" className="h-5 w-5" />
+                                        <span className="text-slate-500">→</span>
+                                        <CurrencyIcon currency="diamonds" className="h-5 w-5" />
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={() => handleInstantDirectionChange('diamonds_to_gold')}
+                                        aria-label={t('currency.diamondsToGold')}
+                                        className={`${directionBtnBase} ${
+                                            instantDirection === 'diamonds_to_gold' ? directionBtnActive : directionBtnIdle
+                                        }`}
+                                    >
+                                        <CurrencyIcon currency="diamonds" className="h-5 w-5" />
+                                        <span className="text-slate-500">→</span>
+                                        <CurrencyIcon currency="gold" className="h-5 w-5" />
+                                    </button>
+                                </div>
+
                                 <div className="space-y-2.5">
                                     <div className="flex items-end justify-center gap-2">
                                         <div className="min-w-0 flex-1 text-center">

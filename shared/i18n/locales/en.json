@@ -5354,6 +5354,7 @@
       "inputAmount": "Amount to convert",
       "inputGoldAmount": "Amount to convert",
       "inputDiamondAmount": "Amount to convert",
+      "inputAmountMinMax": "(min {{min}} ~ max {{max}})",
       "instantRate": "Instant rate",
       "averageMarketRate": "Average market rate",
       "feePercent": "Fee (10%)",
