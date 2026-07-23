@@ -233,7 +233,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 aria-pressed={active}
                 aria-expanded={expanded}
                 className={`group z-10 inline-flex shrink-0 items-center justify-center rounded-md border px-0.5 backdrop-blur-md shadow-[0_6px_18px_rgba(0,0,0,0.3),inset_0_1px_0_rgba(255,255,255,0.15),inset_0_-1px_0_rgba(0,0,0,0.2)] transition-all duration-300 ease-out active:scale-[0.97] ${
-                    compact ? 'h-10 min-h-10 w-7' : 'h-14 min-h-14 w-8'
+                    compact ? 'h-10 min-h-10 w-7' : 'h-16 min-h-16 w-8'
                 } ${
                     isAmber
                         ? 'border-amber-300/35 bg-gradient-to-br from-amber-400/20 via-stone-900/75 to-stone-950 text-amber-100'
@@ -263,18 +263,18 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
             : 'border-violet-500/35 bg-gradient-to-b from-violet-950/40 via-slate-900/40 to-slate-950/90 shadow-[inset_0_1px_0_rgba(167,139,250,0.1)]';
         const topBar = variant === 'topBar';
         const iconShell = topBar
-            ? 'flex h-11 w-11 shrink-0 items-center justify-center'
+            ? 'flex h-9 w-9 shrink-0 items-center justify-center'
             : 'flex h-[clamp(1.85rem,7.5vw,2.45rem)] w-[clamp(1.85rem,7.5vw,2.45rem)] shrink-0 items-center justify-center';
         const iconInner = btn.iconUrl
             ? topBar
                 ? 'h-full w-full object-contain drop-shadow-sm [image-rendering:-webkit-optimize-contrast]'
                 : 'h-full w-full object-contain drop-shadow-sm'
             : topBar
-              ? 'text-[1.35rem] leading-none'
+              ? 'text-[1.2rem] leading-none'
               : 'text-[clamp(1.3rem,6vw,1.7rem)] leading-none';
         const labelClass = topBar
-            ? 'w-full truncate text-center text-[10px] font-semibold leading-none text-gray-100'
-            : 'w-full truncate text-center text-[clamp(6px,2.5vw,9px)] font-semibold leading-none text-gray-100';
+            ? 'w-full shrink-0 truncate text-center text-[10px] font-semibold leading-tight text-gray-100'
+            : 'w-full truncate text-center text-[clamp(8px,2.8vw,10px)] font-semibold leading-tight text-gray-100';
         return (
             <button
                 key={btn.kind}
@@ -285,7 +285,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                 }}
                 disabled={btn.disabled}
                 title={label}
-                className={`relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''} ${topBar ? 'h-full min-h-0 py-1' : 'py-1'} ${shell}`}
+                className={`relative flex min-h-0 min-w-0 flex-1 touch-manipulation flex-col items-center justify-center gap-0.5 rounded-md border px-0.5 transition-transform active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-45 ${btn.pulse ? 'animate-pulse ring-2 ring-amber-300/60' : ''} ${topBar ? 'h-full min-h-0 justify-center py-0.5' : 'py-1'} ${shell}`}
             >
                 <div className={iconShell}>
                     {renderIcon(btn, iconInner)}
@@ -316,7 +316,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                     .join(' ')}
                 data-quick-access-sidebar-root
             >
-                <div className="relative flex min-h-14 w-full items-center justify-between">
+                <div className="relative flex min-h-16 w-full items-center justify-between">
                     {renderMobileMenuToggleButton({
                         labelKey: 'quickMenu.menu1',
                         tone: 'amber',
@@ -346,10 +346,10 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                         className={`pointer-events-none absolute inset-x-[2.75rem] top-0 overflow-hidden transition-all duration-300 ease-out ${
                             stripCollapsed
                                 ? 'max-h-0 opacity-0 -translate-y-2'
-                                : 'max-h-14 min-h-14 translate-y-0 opacity-100'
+                                : 'max-h-16 min-h-16 translate-y-0 opacity-100'
                         }`}
                     >
-                        <div className="relative h-14 min-h-14 w-full">
+                        <div className="relative h-16 min-h-16 w-full">
                             <div
                                 className={`absolute inset-0 transition-all duration-300 ease-out ${
                                     !stripCollapsed && mobileHeaderDrawer === 'menu1'

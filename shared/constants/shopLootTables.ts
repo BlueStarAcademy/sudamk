@@ -36,8 +36,8 @@ export const EQUIPMENT_BOX_LOOT_TABLES: Record<
         { grade: ItemGrade.Mythic, weight: 5 },
     ],
     equipment_box_6: [
-        { grade: ItemGrade.Legendary, weight: 80 },
-        { grade: ItemGrade.Mythic, weight: 20 },
+        { grade: ItemGrade.Legendary, weight: 75 },
+        { grade: ItemGrade.Mythic, weight: 25 },
     ],
 };
 
