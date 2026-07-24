@@ -665,7 +665,11 @@ export function updateGameStateAfterMove(
             hiddenMoves: captureHiddenMoves,
         } as LiveGameSession,
         revealSeed,
-        { aiPlayerEnum },
+        {
+            aiPlayerEnum,
+            // 스캔으로 찾은 히든이 따내기에 기여하면 permanently 승격 (기본 soft-filter면 연출 후 소실)
+            isHiddenMoveIndexSoftRevealed: () => false,
+        },
     );
 
     let updatedBlackPatternStones = game.blackPatternStones ? [...game.blackPatternStones] : undefined;

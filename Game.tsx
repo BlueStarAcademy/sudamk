@@ -2331,30 +2331,32 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const tryPveOpponentHiddenRevealOnClick = useCallback(
         (boardStateToUse: Player[][], x: number, y: number): boolean => {
-            if (!(isSinglePlayer || isTower || isAdventureGame) || !isMyTurn || myPlayerEnum === Player.None) return false;
+            const pveRevealEligible =
+                isSinglePlayer ||
+                isTower ||
+                isAdventureGame ||
+                isGuildWarGame ||
+                (session.isAiGame && sessionPolicy.matchAxis === 'pve');
+            if (!pveRevealEligible || !isMyTurn || myPlayerEnum === Player.None) return false;
             if (!isUnrevealedOpponentHiddenStoneAt(boardStateToUse, session, x, y, myPlayerEnum)) return false;
-            const opponentPlayerEnum = myPlayerEnum === Player.Black ? Player.White : Player.Black;
-            // 모험은 서버 권위: 로컬만 공개하면 다음 GAME_UPDATE에 permanently가 롤백된다.
-            if (isAdventureGame) {
-                handlers.handleAction({
-                    type: 'REVEAL_OPPONENT_HIDDEN',
-                    payload: { gameId: session.id, x, y },
-                } as ServerAction);
-                return true;
-            }
+            // 싱글/탑도 서버 권위: 로컬만 공개하면 AI 수·GAME_UPDATE에 permanently가 롤백되어 "반응 없음"처럼 보인다.
             handlers.handleAction({
-                type: 'LOCAL_HIDDEN_REVEAL_TRIGGER',
-                payload: {
-                    gameId: session.id,
-                    gameType: isTower ? 'tower' : 'singleplayer',
-                    point: { x, y },
-                    player: opponentPlayerEnum,
-                    keepTurn: true,
-                },
+                type: 'REVEAL_OPPONENT_HIDDEN',
+                payload: { gameId: session.id, x, y },
             } as ServerAction);
             return true;
         },
-        [handlers.handleAction, isMyTurn, isSinglePlayer, isTower, isAdventureGame, myPlayerEnum, session],
+        [
+            handlers.handleAction,
+            isMyTurn,
+            isSinglePlayer,
+            isTower,
+            isAdventureGame,
+            isGuildWarGame,
+            myPlayerEnum,
+            session,
+            sessionPolicy.matchAxis,
+        ],
     );
 
     const tryPvpOpponentHiddenRevealOnClick = useCallback(
@@ -3463,6 +3465,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 rejectInvalidChessGoStonePlacement(x, y)
             ) {
                 return;
+            }
+            // 상대 미공개 히든 칸은 확정 대기 없이 즉시 공개 연출 (스캔으로 찾은 돌 포함)
+            if (['playing', 'hidden_placing'].includes(gameStatus)) {
+                const boardForReveal = restoredBoardState || session.boardState;
+                if (
+                    boardForReveal &&
+                    (tryPveOpponentHiddenRevealOnClick(boardForReveal, x, y) ||
+                        tryPvpOpponentHiddenRevealOnClick(boardForReveal, x, y))
+                ) {
+                    setPendingMove(null);
+                    return;
+                }
             }
             if (pendingMove && pendingMove.x === x && pendingMove.y === y) return;
             setPendingMove({ x, y });

@@ -1736,17 +1736,37 @@ function sanitizeSessionBoardOverlayMarkers(merged: LiveGameSession): LiveGameSe
             y: number;
         }>;
         const aiHiddenPts = ((merged as any).aiHiddenStonePoints ?? []) as Array<{ x: number; y: number }>;
+        const softScanByUser = merged.revealedHiddenMoves;
+        const scannedAiInitial = (merged as any).scannedAiInitialHiddenByUser as
+            | Record<string, boolean>
+            | undefined;
         const f = merged.permanentlyRevealedStones.filter((p) => {
             const row = board[p.y];
             const cell = row?.[p.x];
-            if (!cell) return false;
+            // 따내어 판에서 사라진 좌표의 permanently만 제거
+            if (cell == null || cell === 0) return false;
             if (aiH && aiH.x === p.x && aiH.y === p.y) return true;
             if (humanHiddenPts.some((hp) => hp.x === p.x && hp.y === p.y)) return true;
             if (aiHiddenPts.some((hp) => hp.x === p.x && hp.y === p.y)) return true;
             const idx = lastMoveHistoryIndexAt(hist, p.x, p.y);
-            if (idx < 0) return false;
-            if (hm?.[idx]) return true;
-            return false;
+            if (idx >= 0 && hm?.[idx]) return true;
+            // 스캔 몰래공개로 찾은 칸이 permanently로 승격된 뒤 슬림 패킷으로 hm이 비어도 유지
+            if (softScanByUser && idx >= 0) {
+                for (const idxs of Object.values(softScanByUser)) {
+                    if (Array.isArray(idxs) && idxs.includes(idx)) return true;
+                }
+            }
+            if (
+                scannedAiInitial &&
+                aiH &&
+                aiH.x === p.x &&
+                aiH.y === p.y &&
+                Object.values(scannedAiInitial).some(Boolean)
+            ) {
+                return true;
+            }
+            // 판 위에 돌이 남아 있으면 permanently 마커 유지 (hm 키 누락으로 스캔 후 돌이 사라지는 버그 방지)
+            return true;
         });
         if (f.length !== merged.permanentlyRevealedStones.length) {
             next = { ...next, permanentlyRevealedStones: f.length > 0 ? f : undefined };
@@ -1840,6 +1860,12 @@ function preserveStrategicSessionOverlaysIfIncomingOmitted(
         if (!Object.prototype.hasOwnProperty.call(incoming, 'aiInitialHiddenStoneIsPrePlaced')) {
             const ap = (existing as any).aiInitialHiddenStoneIsPrePlaced;
             if (ap !== undefined) (next as any).aiInitialHiddenStoneIsPrePlaced = ap;
+        }
+        if (!Object.prototype.hasOwnProperty.call(incoming, 'scannedAiInitialHiddenByUser')) {
+            const scanned = (existing as any).scannedAiInitialHiddenByUser;
+            if (scanned && typeof scanned === 'object' && Object.keys(scanned).length > 0) {
+                (next as any).scannedAiInitialHiddenByUser = scanned;
+            }
         }
     }
 
@@ -8572,6 +8598,7 @@ export const useApp = () => {
                         action.type === 'START_SCANNING' ||
                         action.type === 'START_HIDDEN_PLACEMENT' ||
                         action.type === 'SCAN_BOARD' ||
+                        action.type === 'REVEAL_OPPONENT_HIDDEN' ||
                         action.type === 'START_MISSILE_SELECTION' ||
                         action.type === 'REQUEST_STRATEGIC_PET_HINT' ||
                         (action.type === 'BUY_TOWER_ITEM' && !!game))
@@ -10707,9 +10734,17 @@ export const useApp = () => {
                                                     console.log('[WebSocket] On game page but game not in state yet (e.g. after refresh), keeping user on game page:', gameIdFromHash);
                                                     return updatedUsersMap;
                                                 }
-                                                // scoring 상태의 게임은 리다이렉트하지 않음 (계가 진행 중)
-                                                if (currentGame.gameStatus === 'scoring') {
-                                                    console.log('[WebSocket] Game is in scoring state, keeping user on game page:', gameIdFromHash);
+                                                // scoring/ended 상태의 게임은 리다이렉트하지 않음 (계가·결과 모달)
+                                                if (
+                                                    currentGame.gameStatus === 'scoring' ||
+                                                    currentGame.gameStatus === 'ended' ||
+                                                    currentGame.gameStatus === 'no_contest'
+                                                ) {
+                                                    console.log(
+                                                        '[WebSocket] Game is finished/scoring, keeping user on game page:',
+                                                        gameIdFromHash,
+                                                        currentGame.gameStatus,
+                                                    );
                                                     return updatedUsersMap;
                                                 }
 
@@ -12886,6 +12921,27 @@ export const useApp = () => {
                             const deletedGameId = message.payload?.gameId;
                             const serverGameCategory = message.payload?.gameCategory;
                             if (!deletedGameId) return;
+
+                            const localBeforeDelete =
+                                liveGamesRef.current[deletedGameId] ||
+                                singlePlayerGamesRef.current[deletedGameId] ||
+                                towerGamesRef.current[deletedGameId];
+                            const localEndedOnPage =
+                                !!localBeforeDelete &&
+                                (localBeforeDelete.gameStatus === 'ended' ||
+                                    localBeforeDelete.gameStatus === 'no_contest' ||
+                                    localBeforeDelete.gameStatus === 'scoring') &&
+                                window.location.hash.startsWith('#/game/') &&
+                                window.location.hash.includes(deletedGameId);
+                            // 기권·종료 직후 결과 화면에서 GAME_DELETED가 오면 로컬 세션을 지우거나 재입장하지 않는다.
+                            // (삭제→재입장→삭제 해시 루프 / 결과 모달 소실 방지)
+                            if (localEndedOnPage) {
+                                console.log(
+                                    '[WebSocket] GAME_DELETED ignored while viewing ended/scoring result:',
+                                    deletedGameId,
+                                );
+                                return;
+                            }
 
                             try {
                                 sessionStorage.removeItem(`gameState_${deletedGameId}`);

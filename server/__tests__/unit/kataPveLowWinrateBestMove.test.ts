@@ -69,4 +69,35 @@ describe('kata move candidate ordering', () => {
         expect(result.candidates[0]).toEqual({ x: 2, y: 4 });
         expect(result.candidates[1]).toEqual({ x: 4, y: 5 });
     });
+
+    it('clamps out-of-range level into KataServer body and keeps move first', async () => {
+        const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
+            const body = JSON.parse(String(init?.body ?? '{}')) as { level?: number };
+            expect(body.level).toBe(9);
+            return new Response(
+                JSON.stringify({
+                    move: 'C5',
+                    bestMove: 'E4',
+                    strategy: 'levelbot',
+                    winrate: 0.4,
+                }),
+                { status: 200, headers: { 'Content-Type': 'application/json' } },
+            );
+        });
+        vi.stubGlobal('fetch', fetchMock);
+
+        const { generateKataServerMoveCandidateDetails } = await import('../../kataServerService.js');
+        const result = await generateKataServerMoveCandidateDetails({
+            boardSize: 9,
+            player: 'white',
+            moveHistory: [{ x: 0, y: 0, player: 1 }],
+            level: 99,
+            gameId: 'clamp-level',
+            allowPass: false,
+        });
+
+        expect(result.reportedMove).toEqual({ x: 2, y: 4 });
+        expect(result.candidates[0]).toEqual({ x: 2, y: 4 });
+        expect(fetchMock).toHaveBeenCalled();
+    });
 });

@@ -319,7 +319,7 @@ async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession)
     const kataRuntimeSnap = getKataServerRuntimeSnapshot();
     const profileRaw = Number((game.settings as any)?.goAiProfileLevel);
     const goAiProfileLevel = Number.isFinite(profileRaw) && profileRaw >= 1 ? Math.floor(profileRaw) : 5;
-    if (game.isSinglePlayer) {
+    if (resolveArenaSessionPolicy(game as any).kind === 'singleplayer') {
         await ensureSinglePlayerKataServerLevelOnGame(game);
     }
     const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
@@ -348,6 +348,10 @@ async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession)
             configuredKataLevel,
             session: game,
         });
+    }
+    // 바둑학원: 관리자 스테이지 표만 사용. 로비 프로필 매핑으로 떨어지지 않게 한다.
+    if (resolveArenaSessionPolicy(game as any).kind === 'singleplayer') {
+        return configuredKataLevel ?? -31;
     }
     return configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
 }
@@ -855,7 +859,11 @@ const applyAiCaptureOutcome = (
         const uniqueStonesToReveal = expandToAllUnrevealedHiddenStonesForPlayers(
             game,
             Array.from(new Map(allStonesToReveal.map((item) => [JSON.stringify(item.point), item])).values()),
-            { aiPlayerEnum }
+            {
+                aiPlayerEnum,
+                // 스캔(몰래공개)된 히든도 따내기 기여 시 permanently로 승격 — soft-filter면 연출 후 다시 사라진다.
+                isHiddenMoveIndexSoftRevealed: () => false,
+            }
         );
 
         if (uniqueStonesToReveal.length > 0) {
@@ -1601,7 +1609,9 @@ function startUserHiddenFullRevealAnimationForAi(
         if (game.permanentlyRevealedStones.some(p => p.x === m.x && p.y === m.y)) continue;
         seedStones.push({ point: { x: m.x, y: m.y }, player: userPlayerEnum });
     }
-    let stones = expandToAllUnrevealedHiddenStonesForPlayers(game, seedStones);
+    let stones = expandToAllUnrevealedHiddenStonesForPlayers(game, seedStones, {
+        isHiddenMoveIndexSoftRevealed: () => false,
+    });
     // expand가 비어도 시드(마스킹된 타깃)는 반드시 연출한다.
     if (stones.length === 0) {
         if (seedStones.length === 0) return false;
@@ -2079,7 +2089,12 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             resync,
             preferHistoryEncoding,
         );
-        const requestKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap) ?? kataLevel;
+        const requestKataLevelRaw = Number(
+            resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap) ?? kataLevel,
+        );
+        const requestKataLevel = Number.isFinite(requestKataLevelRaw)
+            ? Math.max(-31, Math.min(9, Math.floor(requestKataLevelRaw)))
+            : -31;
 
         const kataParams = {
             boardSize: game.settings.boardSize || 19,
@@ -2132,11 +2147,17 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             continue;
         }
 
-        for (const cand of kataCandidates) {
-            if (cand.x === -1 && cand.y === -1) continue;
+        // 레벨 보정된 Kata `move`를 최우선으로 둔다. bestMove는 move가 서버 판에서 불법일 때만.
+        const tryPlayPoint = (cand: Point, source: 'move' | 'bestMove' | 'candidate'): KataExclusivePickResult | null => {
+            if (cand.x === -1 && cand.y === -1) return null;
             const trial = evaluateAiGoPlacementMove(game, { ...cand, player: aiPlayerEnum });
             if (trial.isValid) {
                 clearKataHiddenRevealResyncFlags(game);
+                if (source !== 'move') {
+                    console.warn(
+                        `[pickKataMoveExclusiveWithBoardResync] using Kata ${source} (${cand.x},${cand.y}) after move unavailable; level=${requestKataLevel} game=${game.id}`,
+                    );
+                }
                 return {
                     picked: cand,
                     kataBestMove: lastBest,
@@ -2157,6 +2178,25 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
                     };
                 }
             }
+            return null;
+        };
+
+        if (kataDetails.reportedMove) {
+            const fromMove = tryPlayPoint(kataDetails.reportedMove, 'move');
+            if (fromMove) return fromMove;
+            console.warn(
+                `[pickKataMoveExclusiveWithBoardResync] Kata move (${kataDetails.reportedMove.x},${kataDetails.reportedMove.y}) invalid on server board; trying bestMove/candidates, level=${requestKataLevel} game=${game.id}`,
+            );
+        }
+
+        if (kataDetails.bestMove) {
+            const fromBest = tryPlayPoint(kataDetails.bestMove, 'bestMove');
+            if (fromBest) return fromBest;
+        }
+
+        for (const cand of kataCandidates) {
+            const fromCand = tryPlayPoint(cand, 'candidate');
+            if (fromCand) return fromCand;
             console.warn(
                 `[pickKataMoveExclusiveWithBoardResync] Kata candidate (${cand.x},${cand.y}) invalid on server board; trying next, game=${game.id}`,
             );
@@ -2490,13 +2530,14 @@ export async function makeGoAiBotMove(
             `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). 서버 합법수 폴백으로 진행합니다. game=${game.id}`
         );
     }
-    if (game.isSinglePlayer) {
+    if (arenaPolicy.kind === 'singleplayer') {
         await ensureSinglePlayerKataServerLevelOnGame(game);
     }
     const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
     let configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
     // 도전의 탑·모험·길드전: DB/캐시·병합 등으로 settings.kataServerLevel만 빠지면 프로필 폴백으로 떨어져 체감이 달라짐 → 카테고리별 표로 복구.
     // 탑/모험은 특히 `settings.kataServerLevel` 오염(층/몬스터 레벨이 levelbot 값으로 들어가는 경우 등)을 막기 위해 매 턴 전용 표에서 재산출한다.
+    // 바둑학원도 관리자 스테이지 표(`ensureSinglePlayerKataServerLevelOnGame`)를 매 턴 권위로 쓴다.
     const authoritativePveKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap);
     if (authoritativePveKataLevel !== undefined) {
         configuredKataLevel = authoritativePveKataLevel;
@@ -2534,7 +2575,14 @@ export async function makeGoAiBotMove(
                   configuredKataLevel,
                   session: game,
               })
-            : configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
+            : arenaPolicy.kind === 'singleplayer'
+              ? // 바둑학원: 로비 AI 프로필 매핑(-25/-21/…)으로 떨어지지 않게 한다.
+                configuredKataLevel ?? -31
+              : configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
+    {
+        const n = Number(resolvedKataLevel);
+        resolvedKataLevel = Number.isFinite(n) ? Math.max(-31, Math.min(9, Math.floor(n))) : -31;
+    }
     const pairHasFixedScoringTurnLimit =
         pairClassicGame &&
         !captureRuleGame &&

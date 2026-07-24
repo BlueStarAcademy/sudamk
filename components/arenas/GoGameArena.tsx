@@ -246,7 +246,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     const myRevealedStones = useMemo(() => {
         const opp = myPlayerEnum === Player.Black ? Player.White : Player.Black;
         const board = session.boardState;
-        return (myRevealedMoves || [])
+        const points: Point[] = (myRevealedMoves || [])
             .map((index) => session.moveHistory?.[index])
             .filter((move): move is Move => !!move)
             .filter((move) => {
@@ -255,7 +255,18 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 return cell === move.player && move.player === opp;
             })
             .map((move) => ({ x: move.x, y: move.y }));
-    }, [myRevealedMoves, session.moveHistory, session.boardState, myPlayerEnum]);
+        const aiInitial = (session as { aiInitialHiddenStone?: Point }).aiInitialHiddenStone;
+        const scannedByMe = (session as { scannedAiInitialHiddenByUser?: Record<string, boolean> })
+            .scannedAiInitialHiddenByUser?.[props.currentUser?.id ?? ''];
+        if (aiInitial && scannedByMe) {
+            const row = board?.[aiInitial.y];
+            const cell = row?.[aiInitial.x];
+            if (cell === opp && !points.some((p) => p.x === aiInitial.x && p.y === aiInitial.y)) {
+                points.push({ x: aiInitial.x, y: aiInitial.y });
+            }
+        }
+        return points;
+    }, [myRevealedMoves, session.moveHistory, session.boardState, myPlayerEnum, session, props.currentUser?.id]);
 
     const allRevealedStones = useMemo(() => {
         if (!session.moveHistory || !session.revealedHiddenMoves) {

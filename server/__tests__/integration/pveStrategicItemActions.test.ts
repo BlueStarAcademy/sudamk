@@ -146,4 +146,41 @@ describe('PVE strategic item actions via handleAction', () => {
         expect(game.currentPlayer).toBe(Player.Black);
         expect((res as any)?.clientResponse?.game?.gameStatus).toBe('hidden_reveal_animating');
     });
+
+    it('REVEAL_OPPONENT_HIDDEN reveals scanned AI hidden for singleplayer (server-authoritative)', async () => {
+        const x = 2;
+        const y = 3;
+        const game = makeAdventureHiddenGame({
+            id: 'sp-hidden-reveal-1',
+            isSinglePlayer: true,
+            isAiGame: true,
+            gameCategory: 'singleplayer',
+            boardState: Array.from({ length: 9 }, () => Array(9).fill(Player.None)),
+            moveHistory: [{ x, y, player: Player.White }],
+            hiddenMoves: { 0: true },
+            aiHiddenStonePoints: [{ x, y, player: Player.White }],
+            revealedHiddenMoves: { [user.id]: [0] },
+            permanentlyRevealedStones: [],
+            currentPlayer: Player.Black,
+        });
+        game.boardState[y][x] = Player.White;
+        gameCache.set(game.id, game);
+        const { handleAction } = await import('../../gameActions.js');
+
+        const res = await handleAction(
+            volatileState,
+            {
+                type: 'REVEAL_OPPONENT_HIDDEN',
+                payload: { gameId: game.id, x, y },
+                userId: user.id,
+            } as any,
+            user,
+        );
+
+        expect(res?.error).toBeUndefined();
+        expect(game.gameStatus).toBe('hidden_reveal_animating');
+        expect(game.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y)).toBe(true);
+        expect((res as any)?.clientResponse?.game?.gameStatus).toBe('hidden_reveal_animating');
+        expect((res as any)?.clientResponse?.game?.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y)).toBe(true);
+    });
 });

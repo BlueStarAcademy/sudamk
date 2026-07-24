@@ -4,6 +4,7 @@ import {
     SINGLE_PLAYER_STAGES_BASE,
 } from '../shared/constants/singlePlayerConstants.js';
 import { GameMode, LiveGameSession, SinglePlayerAiBaseKomiBid, SinglePlayerStageInfo, SinglePlayerStrategicRulePreset } from '../types/index.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { ensureMixModesMinTwoAfterBaseCaptureSanitize } from '../shared/utils/singlePlayerMixBaseCaptureExclusive.js';
 
 const SINGLE_PLAYER_STAGE_OVERRIDE_KV_KEY = 'singlePlayerStagesOverride';
@@ -319,35 +320,48 @@ const defaultSinglePlayerKataServerLevel = (level: SinglePlayerStageInfo['level'
 export const resolveSinglePlayerStageKataServerLevel = (stage: Pick<SinglePlayerStageInfo, 'level' | 'kataServerLevel'>): number =>
     clampInt(stage.kataServerLevel, -31, 9, defaultSinglePlayerKataServerLevel(stage.level));
 
+/**
+ * 바둑학원 Kata 강도: 관리자 스테이지 표(`singlePlayerStagesOverride`)를 매 턴 권위로 쓴다.
+ * (탑/모험의 runtime 표 재산출과 동일 — 시작 시 스냅샷된 settings만 믿으면 에디터 값이 무시됨)
+ */
 export const resolveSinglePlayerKataServerLevelForGame = async (
     game: Pick<LiveGameSession, 'settings' | 'stageId' | 'singlePlayerStageDisplay'>
 ): Promise<number | undefined> => {
+    const stageId = game.stageId;
+    if (stageId) {
+        const stage = (await getEffectiveSinglePlayerStages()).find((s) => s.id === stageId);
+        if (stage) {
+            return resolveSinglePlayerStageKataServerLevel(stage);
+        }
+    }
+
+    const display = game.singlePlayerStageDisplay;
+    if (display && (!stageId || display.id === stageId)) {
+        return resolveSinglePlayerStageKataServerLevel(display);
+    }
+
     const fromSettings = (game.settings as { kataServerLevel?: unknown } | undefined)?.kataServerLevel;
     if (typeof fromSettings === 'number' && Number.isFinite(fromSettings)) {
         return Math.max(-31, Math.min(9, Math.floor(fromSettings)));
     }
 
-    const stageId = game.stageId;
-    const display = game.singlePlayerStageDisplay;
-    if (stageId && display?.id === stageId) {
-        return resolveSinglePlayerStageKataServerLevel(display);
-    }
-
-    if (!stageId) return undefined;
-    const stage = (await getEffectiveSinglePlayerStages()).find((s) => s.id === stageId);
-    return stage ? resolveSinglePlayerStageKataServerLevel(stage) : undefined;
+    return undefined;
 };
 
 export const ensureSinglePlayerKataServerLevelOnGame = async (
     game: LiveGameSession
 ): Promise<number | undefined> => {
-    if (!game.isSinglePlayer && String((game as { gameCategory?: unknown }).gameCategory ?? '') !== 'singleplayer') {
+    if (resolveArenaSessionPolicy(game).kind !== 'singleplayer') {
         return undefined;
     }
     const level = await resolveSinglePlayerKataServerLevelForGame(game);
     if (level === undefined) return undefined;
     if (!game.settings || typeof game.settings !== 'object') return level;
     (game.settings as { kataServerLevel?: number }).kataServerLevel = level;
+    const display = game.singlePlayerStageDisplay;
+    if (display && (!game.stageId || display.id === game.stageId)) {
+        display.kataServerLevel = level;
+    }
     return level;
 };
 

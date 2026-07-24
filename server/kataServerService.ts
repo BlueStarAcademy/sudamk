@@ -213,7 +213,13 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
         throw new Error('KATA_SERVER_URL is not set');
     }
 
-    const { boardSize, moveHistory, level, komi, gameId, kataSessionTag, player } = params;
+    const { boardSize, moveHistory, komi, gameId, kataSessionTag, player } = params;
+    const levelRaw = Number(params.level);
+    if (!Number.isFinite(levelRaw)) {
+        throw new Error(`[KataServer] invalid level=${String(params.level)}`);
+    }
+    // KataServer levelbot 범위. 프로필 단계(1~10)가 그대로 들어오면 강도가 완전히 어긋난다.
+    const level = Math.max(-31, Math.min(9, Math.floor(levelRaw)));
     const allowPass = params.allowPass === true;
     for (let i = 0; i < moveHistory.length; i++) {
         const m = moveHistory[i]!;

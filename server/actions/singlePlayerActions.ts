@@ -496,7 +496,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const isCaptureGoalMode = gameMode === GameMode.Capture || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Capture));
             const isSpeedMode = resolveSinglePlayerSpeedTimeMode(stage);
 
-            // 싱글플레이용 AI: 표시 프로필은 반별 1~5, 실제 Kata는 관리자 스테이지 값(`kataServerLevel`) 우선
+            // 싱글플레이용 AI: 표시 프로필은 반별 1~5, 실제 Kata는 관리자 스테이지 `kataServerLevel` (매 턴 스테이지 표에서 재산출)
             const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);
             const kataServerLevel = resolveSinglePlayerStageKataServerLevel(stage);
             const botNickname = getSinglePlayerBotNicknameFromStage(stage);
@@ -564,7 +564,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                     byoyomiCount: enforcedByoyomiCount,
                     timeIncrement: enforcedIncrement,
                     captureTarget: isCaptureGoalMode && !hasAutoScoring ? stage.targetScore.black : undefined,
-                    aiDifficulty: kataProfileStep, // makeGoAiBotMove 프로필 단계(1~5) → Kata 레벨봇 매핑
+                    aiDifficulty: kataProfileStep, // 표시·휴리스틱용 프로필 단계(1~5). Kata `/move.level`은 kataServerLevel
                     kataServerLevel,
                     goAiBotLevel: kataProfileStep,
                     survivalTurns: survivalTurnsResolved, // 살리기 바둑 모드: AI가 살아남아야 하는 턴 수

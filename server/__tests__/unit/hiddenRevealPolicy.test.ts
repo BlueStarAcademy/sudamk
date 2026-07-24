@@ -60,10 +60,20 @@ describe('hiddenRevealPolicy', () => {
         expect(isAdventureCategory(base({ gameCategory: GameCategory.Tower }))).toBe(false);
     });
 
-    it('allows server reveal-only attack for adventure AI and human PVP', () => {
+    it('allows server reveal-only attack for PVE academy/tower/adventure and human PVP', () => {
         expect(
             allowsServerRevealOnlyOpponentHiddenAttack(
                 base({ gameCategory: GameCategory.Adventure, isAiGame: true }),
+            ),
+        ).toBe(true);
+        expect(
+            allowsServerRevealOnlyOpponentHiddenAttack(
+                base({ isSinglePlayer: true, gameCategory: GameCategory.SinglePlayer }),
+            ),
+        ).toBe(true);
+        expect(
+            allowsServerRevealOnlyOpponentHiddenAttack(
+                base({ gameCategory: GameCategory.Tower, isAiGame: true }),
             ),
         ).toBe(true);
         expect(
@@ -76,10 +86,5 @@ describe('hiddenRevealPolicy', () => {
                 }),
             ),
         ).toBe(true);
-        expect(
-            allowsServerRevealOnlyOpponentHiddenAttack(
-                base({ gameCategory: GameCategory.Tower, isAiGame: true }),
-            ),
-        ).toBe(false);
     });
 });

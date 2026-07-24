@@ -913,8 +913,15 @@ export const handleSharedAction = async (volatileState: VolatileState, game: Liv
                 const winner = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
                 await summaryService.endGame(game, winner, 'resign');
                 
+                // Waiting+mode 로 바꾸면 클라이언트가 #/game ↔ 홈으로 해시 루프를 돈다.
+                // 결과 화면을 유지하고, 나가기(LEAVE) 시에만 Waiting으로 보낸다.
                 if (volatileState.userStatuses[user.id]) {
-                    volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: game.mode };
+                    volatileState.userStatuses[user.id] = {
+                        ...volatileState.userStatuses[user.id],
+                        status: UserStatus.InGame,
+                        gameId: game.id,
+                        mode: undefined,
+                    };
                 }
                 // 클라이언트가 즉시 종료 상태를 반영할 수 있도록 종료된 게임 객체 반환
                 const freshGame = await db.getLiveGame(game.id);

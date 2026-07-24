@@ -1365,7 +1365,7 @@ export const makeAiMove = async (game: LiveGameSession) => {
                 } else if (game.isSinglePlayer || isTower) {
                     // 싱글/탑: 길드전과 동일하게 kataServerLevel이 있으면 그걸로 단계를 잡는다(없으면 탑은 층 표로 복구).
                     difficulty = game.settings.aiDifficulty || 1;
-                    if (game.isSinglePlayer) {
+                    if (resolveArenaSessionPolicy(game).kind === 'singleplayer') {
                         await ensureSinglePlayerKataServerLevelOnGame(game);
                     }
                     let ks: number | undefined =

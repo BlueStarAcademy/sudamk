@@ -882,6 +882,42 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (preItemPolicy.kind === 'singleplayer') {
                 // PLACE_STONE은 히든 아이템 사용 시 서버에서 처리해야 함
                 const actionType = type as string;
+                if (
+                    actionType === 'REVEAL_OPPONENT_HIDDEN' ||
+                    actionType === 'START_HIDDEN_PLACEMENT' ||
+                    actionType === 'START_SCANNING' ||
+                    actionType === 'SCAN_BOARD'
+                ) {
+                    if (SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)) {
+                        const { handleStrategicGameAction } = await import('./modes/standard.js');
+                        const result = await handleStrategicGameAction(volatileState, game, action, userData);
+                        if (result && !(result as any).error) {
+                            updateGameCache(game);
+                            await db.saveGame(game);
+                            const { broadcastToGameParticipants } = await import('./socket.js');
+                            broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: game } }, game);
+                            const boardClone =
+                                game.boardState && Array.isArray(game.boardState)
+                                    ? game.boardState.map((row: number[]) => [...row])
+                                    : game.boardState;
+                            const baseResult =
+                                result && typeof result === 'object' && !Array.isArray(result)
+                                    ? (result as Record<string, unknown>)
+                                    : {};
+                            return {
+                                ...baseResult,
+                                clientResponse: {
+                                    ...(typeof (baseResult as any).clientResponse === 'object'
+                                        ? (baseResult as any).clientResponse
+                                        : {}),
+                                    gameId: game.id,
+                                    game: { ...game, boardState: boardClone, animation: game.animation ?? null },
+                                },
+                            };
+                        }
+                        return result || {};
+                    }
+                }
                 if (actionType === 'PLACE_STONE' && (game.gameStatus === 'hidden_placing' || (payload as any)?.isHidden)) {
                     console.log(`[handleAction] Processing single player PLACE_STONE with hidden item: type=${type}, gameId=${gameId}, gameStatus=${game.gameStatus}, isHidden=${(payload as any)?.isHidden}`);
                     // strategic 모드 핸들러로 라우팅 (히든 아이템 처리 포함)

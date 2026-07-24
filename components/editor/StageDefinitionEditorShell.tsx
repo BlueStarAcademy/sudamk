@@ -13,6 +13,7 @@ import {
 import { stripCaptureFromMixWhenBaseIncluded } from '../../shared/utils/singlePlayerMixBaseCaptureExclusive.js';
 import Button from '../Button.js';
 import { MAX_GAME_INTEGER_INPUT } from '../../shared/constants/numericLimits.js';
+import { DEFAULT_SINGLE_PLAYER_STAGES } from '../../shared/constants/singlePlayerConstants.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 const RULE_PRESET_OPTIONS: { value: Exclude<SinglePlayerStrategicRulePreset, 'auto'>; label: string }[] = [
@@ -369,6 +370,18 @@ const defaultSinglePlayerKataServerLevel = (level: SinglePlayerStageInfo['level'
 };
 
 const clampKataServerLevel = (value: number): number => Math.max(-31, Math.min(9, Math.floor(value)));
+
+/** 에디터 표시용: 스테이지에 값이 없으면 코드 기본(스테이지별) → 반별 기본 순 */
+const resolveEditorKataServerLevel = (stage: Pick<SinglePlayerStageInfo, 'id' | 'level' | 'kataServerLevel'>): number => {
+    if (typeof stage.kataServerLevel === 'number' && Number.isFinite(stage.kataServerLevel)) {
+        return clampKataServerLevel(stage.kataServerLevel);
+    }
+    const fromDefault = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.id === stage.id)?.kataServerLevel;
+    if (typeof fromDefault === 'number' && Number.isFinite(fromDefault)) {
+        return clampKataServerLevel(fromDefault);
+    }
+    return defaultSinglePlayerKataServerLevel(stage.level);
+};
 const normalizeHiddenTurnsFromCsv = (raw: string): number[] => {
     const tokens = raw
         .split(',')
@@ -435,13 +448,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({
     const [errorMessage, setErrorMessage] = useState('');
     const [brush, setBrush] = useState<BrushStone>('black');
     const [kataServerLevelInput, setKataServerLevelInput] = useState<string>(() =>
-        String(
-            clampKataServerLevel(
-                Number.isFinite(stage.kataServerLevel)
-                    ? Number(stage.kataServerLevel)
-                    : defaultSinglePlayerKataServerLevel(stage.level)
-            )
-        )
+        String(resolveEditorKataServerLevel(stage))
     );
     const [aiHiddenTurnsCsv, setAiHiddenTurnsCsv] = useState<string>(() =>
         Array.isArray(stage.aiHiddenItemTurns) ? stage.aiHiddenItemTurns.join(', ') : ''
@@ -471,11 +478,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({
         const snapshot = cloneStageInfo(stage);
         const safeBoard = clampStageBoardSize(snapshot.boardSize);
         const snapshotPatched = { ...snapshot, boardSize: safeBoard };
-        const resolvedKataServerLevel = clampKataServerLevel(
-            Number.isFinite(snapshotPatched.kataServerLevel)
-                ? Number(snapshotPatched.kataServerLevel)
-                : defaultSinglePlayerKataServerLevel(snapshotPatched.level)
-        );
+        const resolvedKataServerLevel = resolveEditorKataServerLevel(snapshotPatched);
         setResetBaseline(snapshotPatched);
         setDraft({ ...snapshotPatched, kataServerLevel: resolvedKataServerLevel });
         setKataServerLevelInput(String(resolvedKataServerLevel));
@@ -1048,7 +1051,7 @@ const StageDefinitionEditorShell: React.FC<Props> = ({
                                     setDraft((p) => ({ ...p, kataServerLevel: clampKataServerLevel(parsed) }));
                                 }}
                                 onBlur={() => {
-                                    const fallback = defaultSinglePlayerKataServerLevel(draft.level);
+                                    const fallback = resolveEditorKataServerLevel(draft);
                                     const parsed = Number(kataServerLevelInput);
                                     const normalized = Number.isFinite(parsed)
                                         ? clampKataServerLevel(parsed)
