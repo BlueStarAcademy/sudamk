@@ -1,0 +1,16 @@
+{
+  "name": "sudam-guide",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "description": "수담바둑 가이드 — 정적 콘텐츠 사이트 (sudambaduk.com/guide)",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview"
+  },
+  "dependencies": {
+    "astro": "^5.0.0",
+    "@astrojs/sitemap": "^3.0.0"
+  }
+}

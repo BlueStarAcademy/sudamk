@@ -1,0 +1,92 @@
+---
+import { COMPANY, ADSENSE_CLIENT_ID, SITE_TITLE, SITE_DESCRIPTION } from '../consts';
+import '../styles/global.css';
+
+interface Props {
+    title: string;
+    description?: string;
+    /** 기사형 페이지면 Article 스키마 삽입 */
+    article?: boolean;
+}
+
+const { title, description = SITE_DESCRIPTION, article = false } = Astro.props;
+const fullTitle = title === SITE_TITLE ? title : `${title} | ${SITE_TITLE}`;
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+const year = new Date().getFullYear();
+---
+
+<!doctype html>
+<html lang="ko">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>{fullTitle}</title>
+        <meta name="description" content={description} />
+        <link rel="canonical" href={canonical} />
+        <link rel="icon" href="/favicon.ico" />
+        <link rel="sitemap" href={`${base}/sitemap-index.xml`} />
+        <meta property="og:type" content={article ? 'article' : 'website'} />
+        <meta property="og:title" content={fullTitle} />
+        <meta property="og:description" content={description} />
+        <meta property="og:url" content={canonical} />
+        <meta property="og:site_name" content={SITE_TITLE} />
+        <meta name="google-adsense-account" content={ADSENSE_CLIENT_ID} />
+        <!-- AdSense: 게임 앱에는 싣지 않고, 실질 콘텐츠가 있는 가이드 페이지에만 로드한다 -->
+        <script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${ADSENSE_CLIENT_ID}`}
+            crossorigin="anonymous"></script>
+        {
+            article && (
+                <script
+                    type="application/ld+json"
+                    set:html={JSON.stringify({
+                        '@context': 'https://schema.org',
+                        '@type': 'Article',
+                        headline: title,
+                        description,
+                        inLanguage: 'ko',
+                        publisher: {
+                            '@type': 'Organization',
+                            name: COMPANY.name,
+                            url: COMPANY.serviceUrl,
+                        },
+                        mainEntityOfPage: canonical.toString(),
+                    })}
+                />
+            )
+        }
+    </head>
+    <body>
+        <header class="site-header">
+            <div class="inner">
+                <a class="brand" href={`${base}/`}>수담바둑 <small>가이드</small></a>
+                <nav class="header-nav">
+                    <a href={`${base}/about/`}>소개</a>
+                    <a href={`${base}/contact/`}>문의</a>
+                    <a class="cta" href="/">게임 시작</a>
+                </nav>
+            </div>
+        </header>
+
+        <main>
+            <slot />
+        </main>
+
+        <footer class="site-footer">
+            <div class="links">
+                <a href={`${base}/`}>가이드 홈</a>
+                <a href={`${base}/about/`}>소개</a>
+                <a href={`${base}/contact/`}>문의</a>
+                <a href={`${base}/privacy/`}>개인정보처리방침</a>
+                <a href="/">수담바둑 게임</a>
+            </div>
+            <div>
+                {COMPANY.name} | 대표 {COMPANY.representative} | 사업자등록번호 {COMPANY.businessNumber} | 통신판매업 {COMPANY.mailOrderNumber}
+            </div>
+            <div>{COMPANY.address} | {COMPANY.email}</div>
+            <div>© {year} {COMPANY.name}. All rights reserved.</div>
+        </footer>
+    </body>
+</html>

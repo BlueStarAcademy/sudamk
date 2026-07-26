@@ -1344,11 +1344,23 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
         }
         
+        /**
+         * 가이드 정적 사이트(dist/guide, Astro 빌드) — 디렉토리 요청에 index.html을 서빙해야 하므로
+         * 아래 일반 dist 서빙(index: false)보다 먼저 전용 마운트. 미존재 경로는 SPA fallback으로 통과.
+         */
+        app.use('/guide', express.static(path.join(distPath, 'guide'), {
+            maxAge: '1h',
+            etag: true,
+            lastModified: true,
+            index: 'index.html',
+            fallthrough: true,
+        }));
+
         // API 경로는 정적 파일 서빙에서 제외
         app.use((req, res, next) => {
             // API, WebSocket, 이미지, 사운드 경로는 건너뛰기
-            if (req.path.startsWith('/api') || 
-                req.path.startsWith('/ws') || 
+            if (req.path.startsWith('/api') ||
+                req.path.startsWith('/ws') ||
                 req.path.startsWith('/socket.io') ||
                 req.path.startsWith('/images') ||
                 req.path.startsWith('/sounds')) {

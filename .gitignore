@@ -71,3 +71,6 @@ Thumbs.db
 # Test artifacts
 test-results/
 .env
+
+# Astro guide site
+guide/.astro/

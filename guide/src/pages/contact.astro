@@ -1,0 +1,37 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { COMPANY } from '../consts';
+---
+
+<BaseLayout
+    title="문의하기"
+    description="수담바둑 이용 문의, 버그 신고, 제휴 제안 연락처 안내."
+>
+    <p class="eyebrow">Contact</p>
+    <h1>문의하기</h1>
+    <p class="lead">이용 중 불편한 점이나 제안이 있다면 언제든 알려주세요.</p>
+
+    <h2>이메일 문의</h2>
+    <p>
+        모든 문의는 이메일로 받고 있습니다:
+        <a href={`mailto:${COMPANY.email}`}><strong>{COMPANY.email}</strong></a>
+    </p>
+    <ul>
+        <li><strong>버그 신고</strong> — 발생 화면과 시각, 사용 기기를 함께 적어주시면 해결이 빨라집니다.</li>
+        <li><strong>계정/결제 문의</strong> — 게임 내 닉네임을 알려주세요.</li>
+        <li><strong>제휴/기타 제안</strong> — 내용을 자유롭게 보내주세요.</li>
+    </ul>
+    <p>평일 기준 1~2일 내 답변을 드리고 있습니다.</p>
+
+    <h2>사업자 정보</h2>
+    <table>
+        <tbody>
+            <tr><th>상호</th><td>{COMPANY.name}</td></tr>
+            <tr><th>대표</th><td>{COMPANY.representative}</td></tr>
+            <tr><th>사업자등록번호</th><td>{COMPANY.businessNumber}</td></tr>
+            <tr><th>통신판매업신고</th><td>{COMPANY.mailOrderNumber}</td></tr>
+            <tr><th>주소</th><td>{COMPANY.address}</td></tr>
+            <tr><th>전화</th><td>{COMPANY.phone}</td></tr>
+        </tbody>
+    </table>
+</BaseLayout>
