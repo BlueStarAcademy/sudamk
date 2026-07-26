@@ -31,3 +31,7 @@ katago/
 
 
 
+
+# Astro guide site
+guide/node_modules
+guide/.astro

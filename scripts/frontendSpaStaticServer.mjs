@@ -160,6 +160,10 @@ const server = http.createServer((req, res) => {
 
     if (sendFile(abs, pathname, req, res)) return;
 
+    // 디렉토리 요청은 <dir>/index.html 시도 — 가이드 정적 사이트(/guide/*, Astro directory 포맷) 서빙용
+    const dirIndexAbs = path.join(abs, 'index.html');
+    if (sendFile(dirIndexAbs, pathname.replace(/\/?$/, '/index.html'), req, res)) return;
+
     const indexAbs = path.join(DIST_ROOT, 'index.html');
     if (!sendFile(indexAbs, '/index.html', req, res)) {
         res.writeHead(500, { 'Content-Type': 'text/plain; charset=utf-8' });

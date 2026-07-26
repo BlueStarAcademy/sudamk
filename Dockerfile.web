@@ -71,6 +71,11 @@ ENV VITE_BACKEND_WS_URL=$VITE_BACKEND_WS_URL
 # Vite will use the VITE_* environment variables during build
 RUN NODE_ENV=production npm run build:client
 
+# 가이드 정적 사이트(Astro) — AdSense 승인용 콘텐츠 페이지를 dist/guide 에 빌드
+# vite build 가 dist 를 비우므로 반드시 그 이후에 실행한다
+COPY guide ./guide
+RUN cd guide && npm install --no-audit --no-fund && NODE_ENV=production npm run build
+
 FROM node:20-alpine AS runner
 WORKDIR /app
 
