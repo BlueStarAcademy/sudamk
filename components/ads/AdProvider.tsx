@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useMemo } from '
 import type { AdContextValue } from '../../types/ads.js';
 import { useAds } from '../../hooks/useAds.js';
 import { bootstrapH5GamesAdPlacement, syncH5AdConfig } from '../../utils/h5GamesAdPlacement.js';
+import { IS_ADSENSE_APPROVAL_MODE } from '../../utils/adsenseApprovalMode.js';
 import RewardedAdModal from './RewardedAdModal.js';
 
 const AdContext = createContext<AdContextValue | null>(null);
@@ -29,10 +30,12 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
   const [isAdReady, setIsAdReady] = useState(false);
   const isProduction = useMemo(checkIsProduction, []);
   const clientId = import.meta.env.VITE_ADSENSE_CLIENT_ID as string | undefined ?? null;
+  /** 승인 심사 모드는 광고 제거 구매와 동일 취급 — 스크립트 주입·전면·보상형·배너 전부 소거 */
+  const effectiveAdFree = isAdFree || IS_ADSENSE_APPROVAL_MODE;
 
   // AdSense + H5 Games Ad Placement API (프로덕션에서만)
   useEffect(() => {
-    if (!isProduction || !clientId || isAdFree) return;
+    if (!isProduction || !clientId || effectiveAdFree) return;
 
     bootstrapH5GamesAdPlacement();
 
@@ -56,7 +59,7 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
       console.warn('[AdProvider] AdSense script failed to load');
     };
     document.head.appendChild(script);
-  }, [isProduction, clientId, isAdFree]);
+  }, [isProduction, clientId, effectiveAdFree]);
 
   const {
     interstitial,
@@ -68,7 +71,7 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
     dismissRewardedGate,
   } = useAds(
     isProduction,
-    isAdFree
+    effectiveAdFree
   );
 
   const value = useMemo<AdContextValue>(() => ({
@@ -82,7 +85,7 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
     rewardedGate,
     completeRewardedGate,
     dismissRewardedGate,
-    isAdFree,
+    isAdFree: effectiveAdFree,
   }), [
     isAdReady,
     isProduction,
@@ -94,7 +97,7 @@ const AdProvider: React.FC<AdProviderProps> = ({ children, isAdFree = false }) =
     rewardedGate,
     completeRewardedGate,
     dismissRewardedGate,
-    isAdFree,
+    effectiveAdFree,
   ]);
 
   return (

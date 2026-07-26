@@ -22,6 +22,7 @@ import {
     NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
 } from './constants/ads.js';
 import { syncDocumentViewportHeightVar } from './utils/layoutViewportCss.js';
+import { IS_ADSENSE_APPROVAL_MODE } from './utils/adsenseApprovalMode.js';
 import { staleChunkReloadFlagResetEffect } from './utils/chunkReloadRecovery.js';
 import { isMessagingInAppBrowser } from './utils/inAppBrowserEscape.js';
 import InAppBrowserEscapeGate from './components/InAppBrowserEscapeGate.js';
@@ -319,12 +320,8 @@ const AppContent: React.FC = () => {
             currentRoute.view === 'tournament'
         ))
     );
-    /**
-     * AdSense 승인 심사 기간에는 앱 광고를 전면 OFF (게임 앱은 콘텐츠 사이트가 아님).
-     * `.env`에 `VITE_ADSENSE_APPROVAL_MODE=true` 설정 시 활성. 승인 후 false 또는 미설정으로 되돌리면 광고 자동 복구.
-     */
-    const isAdSenseApprovalMode =
-        (import.meta.env.VITE_ADSENSE_APPROVAL_MODE as string | undefined) === 'true';
+    /** AdSense 승인 심사 기간 앱 광고 전면 OFF — 판정·근거는 utils/adsenseApprovalMode.ts 참조 */
+    const isAdSenseApprovalMode = IS_ADSENSE_APPROVAL_MODE;
     const showLobbySideAds = Boolean(
         !isAdSenseApprovalMode &&
         isContentView && !isGameView && !isNativeMobile && !currentUserWithStatus?.removeAdsPurchased,
