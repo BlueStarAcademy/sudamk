@@ -317,6 +317,7 @@ const MAX_CONSECUTIVE_TIMEOUTS = 10; // 연속 타임아웃 10회 초과 시 크
 const TIMEOUT_RESET_WINDOW_MS = 60000; // 1분 내 타임아웃이 연속 발생하면 카운트
 
 import { computeLiveGameBroadcastSignature } from './utils/liveGameBroadcastSignature.js';
+import { registerPaymentRoutes } from './routes/paymentRoutes.js';
 
 /** 게임 변경 감지용 경량 시그니처 (전체 JSON 직렬화 대체, MainLoop 경량화) */
 function getGameSignature(g: types.LiveGameSession): string {
@@ -925,8 +926,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
     }
     
     app.use(express.json({ limit: '10mb' }) as any);
-    
+
     app.use(express.urlencoded({ extended: true, limit: '10mb' }) as any);
+
+    // Payletter 결제 라우트 (주문 생성·콜백·리턴·상태 조회)
+    registerPaymentRoutes(app);
     
     // 헬스체크 엔드포인트를 서버 리스닝 전에 등록 (즉시 응답 가능하도록)
     // Railway 헬스체크는 서버가 시작되면 즉시 통과해야 함
