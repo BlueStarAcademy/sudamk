@@ -1,0 +1,44 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { CATEGORIES } from '../../consts';
+
+const cat = CATEGORIES.basics;
+const articles = (await getCollection('articles', (e) => e.data.category === 'basics')).sort(
+    (a, b) => a.data.order - b.data.order,
+);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<BaseLayout title={cat.label} description={cat.description}>
+    <p class="eyebrow">{cat.eyebrow}</p>
+    <h1>바둑 입문 — 규칙의 전부</h1>
+    <p class="lead">
+        바둑의 규칙은 놀랄 만큼 단순합니다. 여덟 편을 순서대로 읽으면 오늘 바로 첫
+        대국을 시작할 수 있습니다.
+    </p>
+    <p>
+        바둑은 두 사람이 번갈아 돌을 놓아 더 넓은 <strong>집</strong>을 차지하는
+        게임입니다. 말은 움직이지 않고, 잡히는 조건도 단 하나 — 규칙 자체는 10분이면
+        전부 배웁니다. 어렵게 느껴지는 이유는 규칙이 아니라 그 단순한 규칙이 만드는
+        수의 깊이 때문입니다. 이 시리즈는 규칙을 처음 접하는 분을 기준으로, 실제
+        대국에서 바로 쓰는 순서로 배열했습니다.
+    </p>
+    <div class="card-grid">
+        {
+            articles.map((a, i) => {
+                const slug = a.id.split('/')[1];
+                return (
+                    <a class="card" href={`${base}/basics/${slug}/`}>
+                        <h3>{i + 1}. {a.data.title}</h3>
+                        <p>{a.data.description}</p>
+                    </a>
+                );
+            })
+        }
+    </div>
+    <div class="callout">
+        규칙을 다 읽었다면 <a href={`${base}/modes/`}>16종 게임 모드</a>에서 취향에 맞는
+        방식을 골라 보세요. <a href="/">수담바둑</a>에서 무료로 바로 대국할 수 있습니다.
+    </div>
+</BaseLayout>

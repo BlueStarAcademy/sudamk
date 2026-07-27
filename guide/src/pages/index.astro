@@ -28,15 +28,9 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
     </p>
 
     <h2>이 가이드에서 다루는 내용</h2>
-    <p>
-        가이드는 계속 확장되고 있습니다. 현재 준비 중인 큰 갈래는 다음과 같습니다.
-    </p>
     <ul>
-        <li><strong>바둑 입문</strong> — 바둑판과 돌, 활로와 따냄, 패의 규칙, 계가까지 규칙의 전부</li>
-        <li><strong>필수 기술</strong> — 단수·축·장문·환격 등 실전에서 바로 쓰는 수법</li>
-        <li><strong>사활</strong> — 두 눈의 원리부터 죽는 형태, 살리고 잡는 급소</li>
-        <li><strong>게임 모드</strong> — 수담바둑 16종 모드 각각의 규칙과 승리 전략</li>
-        <li><strong>바둑학원</strong> — 100단계 커리큘럼의 반별 학습 포인트</li>
+        <li><a href={`${base}/basics/`}><strong>바둑 입문</strong></a> — 바둑판과 돌, 활로와 따냄, 패의 규칙, 계가까지 규칙의 전부 (8편)</li>
+        <li><a href={`${base}/modes/`}><strong>게임 모드</strong></a> — 수담바둑 16종 모드 각각의 규칙과 승리 전략 (16편)</li>
     </ul>
 
     <div class="callout">
@@ -46,13 +40,17 @@ const base = import.meta.env.BASE_URL.replace(/\/$/, '');
 
     <h2>바로가기</h2>
     <div class="card-grid">
+        <a class="card" href={`${base}/basics/`}>
+            <h3>바둑 입문</h3>
+            <p>규칙을 처음부터 — 8편 시리즈</p>
+        </a>
+        <a class="card" href={`${base}/modes/`}>
+            <h3>게임 모드</h3>
+            <p>16종 모드의 규칙과 이기는 요령</p>
+        </a>
         <a class="card" href={`${base}/about/`}>
             <h3>수담바둑 소개</h3>
             <p>서비스와 만든 사람들 이야기</p>
-        </a>
-        <a class="card" href={`${base}/contact/`}>
-            <h3>문의하기</h3>
-            <p>버그 신고·제휴·기타 문의</p>
         </a>
         <a class="card" href="/">
             <h3>게임 시작</h3>

@@ -1,0 +1,44 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { CATEGORIES } from '../../consts';
+
+const cat = CATEGORIES.modes;
+const articles = (await getCollection('articles', (e) => e.data.category === 'modes')).sort(
+    (a, b) => a.data.order - b.data.order,
+);
+const base = import.meta.env.BASE_URL.replace(/\/$/, '');
+---
+
+<BaseLayout title={cat.label} description={cat.description}>
+    <p class="eyebrow">{cat.eyebrow}</p>
+    <h1>게임 모드 — 바둑을 즐기는 16가지 방법</h1>
+    <p class="lead">
+        정통 바둑부터 물리 엔진으로 튕기는 알까기까지. 수담바둑의 모든 모드를
+        규칙과 승리 요령과 함께 소개합니다.
+    </p>
+    <p>
+        수담바둑의 모드는 크게 두 갈래입니다. <strong>전략 모드</strong>는 바둑의
+        수읽기를 유지하면서 히든·미사일 같은 변수를 더해 심리전을 키운 변형이고,
+        <strong>놀이 모드</strong>는 오목·알까기처럼 규칙이 가벼워 바둑을 몰라도
+        바로 즐길 수 있는 게임입니다. 어느 쪽이든 대국이 끝나면 캐릭터가 성장하고
+        보상을 얻습니다.
+    </p>
+    <div class="card-grid">
+        {
+            articles.map((a) => {
+                const slug = a.id.split('/')[1];
+                return (
+                    <a class="card" href={`${base}/modes/${slug}/`}>
+                        <h3>{a.data.title.split(' — ')[0]}</h3>
+                        <p>{a.data.description}</p>
+                    </a>
+                );
+            })
+        }
+    </div>
+    <div class="callout">
+        바둑이 처음이라면 <a href={`${base}/basics/`}>바둑 입문 시리즈</a>부터
+        읽어 보세요. 규칙은 10분이면 충분합니다.
+    </div>
+</BaseLayout>
