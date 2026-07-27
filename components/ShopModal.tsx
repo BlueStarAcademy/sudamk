@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useCallback, useRef, useMemo, Suspense, lazy } from 'react';
 import type { PurchaseConsentTarget } from './legal/PurchaseConsentModal.js';
+import { createPaymentOrder, openCheckout, pollPaymentOrder } from '../utils/paymentClient.js';
 const PurchaseConsentModal = lazy(() => import('./legal/PurchaseConsentModal.js'));
 import { UserWithStatus, ServerAction, InventoryItemType } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
@@ -1414,6 +1415,34 @@ const ShopModal: React.FC<ShopModalProps> = ({
         });
     };
 
+    /**
+     * Payletter 결제창 → 폴링 → 완료 토스트.
+     * 지급/유저 상태 갱신은 서버 콜백의 websocket broadcast 로 도착한다.
+     */
+    const startCashCheckout = async (productId: string) => {
+        let session;
+        try {
+            session = await createPaymentOrder(currentUser.id, productId);
+        } catch (e) {
+            setToastMessage((e as Error).message || t('toast.paymentFailed', { defaultValue: '결제 요청에 실패했습니다.' }));
+            return;
+        }
+        const mode = openCheckout(session, mobileShop);
+        if (mode === 'failed') {
+            setToastMessage(t('toast.paymentFailed', { defaultValue: '결제창을 열 수 없습니다.' }));
+            return;
+        }
+        if (mode === 'redirect') return; // 페이지 이탈 — 복귀 후 상태는 부트 동기화로 반영
+        const status = await pollPaymentOrder(session.orderId, currentUser.id);
+        if (status === 'FULFILLED') {
+            setToastMessage(t('toast.purchaseComplete'));
+        } else if (status === 'FAILED' || status === 'CANCELLED') {
+            setToastMessage(t('toast.paymentCancelled'));
+        } else if (status !== 'TIMEOUT') {
+            setToastMessage(t('toast.purchaseComplete'));
+        }
+    };
+
     const handleBuyCashPackage = (packageId: string) => {
         void shopAction.run(`cash-package-${packageId}`, async () => {
             const consented = await askPurchaseConsent({
@@ -1423,10 +1452,6 @@ const ShopModal: React.FC<ShopModalProps> = ({
             });
             if (!consented) {
                 setToastMessage(t('toast.paymentCancelled'));
-                return;
-            }
-            if (!currentUser.isAdmin) {
-                setToastMessage(t('notImplemented'));
                 return;
             }
             const now = Date.now();
@@ -1444,7 +1469,12 @@ const ShopModal: React.FC<ShopModalProps> = ({
                     return;
                 }
             }
-            await onAction({ type: 'BUY_CASH_PACKAGE', payload: { packageId } });
+            if (currentUser.isAdmin) {
+                // 관리자·PG검수 계정: 결제 없이 즉시 지급 (기존 경로 유지)
+                await onAction({ type: 'BUY_CASH_PACKAGE', payload: { packageId } });
+                return;
+            }
+            await startCashCheckout(packageId);
         });
     };
 
@@ -1460,11 +1490,18 @@ const ShopModal: React.FC<ShopModalProps> = ({
                 setToastMessage(t('toast.paymentCancelled'));
                 return;
             }
-            if (!currentUser.isAdmin) {
-                setToastMessage(t('notImplemented'));
+            if (currentUser.isAdmin) {
+                await onAction({ type: 'BUY_VIP_PACKAGE', payload: { packageId, billing } });
                 return;
             }
-            await onAction({ type: 'BUY_VIP_PACKAGE', payload: { packageId, billing } });
+            if (billing === 'subscription') {
+                // Phase 1 은 일회성만 — 자동결제(빌링)는 IP 화이트리스트 등록 후 도입
+                setToastMessage(
+                    t('toast.subscriptionNotReady', { defaultValue: '자동결제는 준비 중입니다. 일회성 구매를 이용해 주세요.' }),
+                );
+                return;
+            }
+            await startCashCheckout(packageId);
         });
     };
 
@@ -1572,7 +1609,23 @@ const ShopModal: React.FC<ShopModalProps> = ({
                                     key={product.id}
                                     product={product}
                                     mobile={mobileShop}
-                                    onCashPriceClick={() => setToastMessage(t('notImplemented'))}
+                                    onCashPriceClick={() => {
+                                        void shopAction.run(`direct-diamond-${product.id}`, async () => {
+                                            const consented = await askPurchaseConsent({
+                                                productName: t('directDiamondName', {
+                                                    defaultValue: '다이아 {{count}}개',
+                                                    count: product.diamonds,
+                                                }),
+                                                priceLabel: t('consent.cashPriceLabel'),
+                                                summary: t('consent.cashSummary'),
+                                            });
+                                            if (!consented) {
+                                                setToastMessage(t('toast.paymentCancelled'));
+                                                return;
+                                            }
+                                            await startCashCheckout(product.id);
+                                        });
+                                    }}
                                 />
                             ))}
                         </div>

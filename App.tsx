@@ -66,6 +66,19 @@ const AppContent: React.FC = () => {
 
     /** 배포 후 stale lazy 청크 404 복구용 플래그를 잠시 뒤 초기화 */
     useEffect(() => staleChunkReloadFlagResetEffect(), []);
+
+    /** 결제창 복귀(returnurl) 쿼리 정리 — 지급 결과는 부트 동기화·websocket broadcast 로 반영된다 */
+    useEffect(() => {
+        try {
+            const url = new URL(window.location.href);
+            if (url.searchParams.has('paymentOrderId')) {
+                url.searchParams.delete('paymentOrderId');
+                window.history.replaceState(null, '', url.pathname + url.search + url.hash);
+            }
+        } catch {
+            // URL 파싱 실패는 무시
+        }
+    }, []);
     
     const prevHasClaimableQuest = usePrevious(hasClaimableQuest);
     const { t: tCommon } = useTranslation('common');
