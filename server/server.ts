@@ -909,7 +909,21 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         optionsSuccessStatus: 204,
         preflightContinue: false
     };
-    app.use(cors(corsOptions));
+    const corsMiddleware = cors(corsOptions);
+    app.use((req, res, next) => {
+        /**
+         * 결제 복귀/콜백은 CORS 예외:
+         * - /api/payment/return — 결제창(payletter 도메인)에서의 브라우저 top-level POST 복귀.
+         *   내비게이션은 CORS 차단 대상이 아니며, 전역 미들웨어가 Origin 만 보고 막으면
+         *   결제 완료 후 팝업에 "Not allowed by CORS" 가 노출된다.
+         * - /api/payment/callback — PG 서버간 통지 (Origin 없음이 정상이나 방어적으로 제외).
+         */
+        if (req.path.startsWith('/api/payment/return') || req.path.startsWith('/api/payment/callback')) {
+            next();
+            return;
+        }
+        corsMiddleware(req, res, next);
+    });
     // POST 등 비동기 요청 시 브라우저 preflight(OPTIONS)가 확실히 CORS 헤더로 응답하도록
     app.options('/api/auth/login', cors(corsOptions));
     app.options('/api/auth/kakao/url', cors(corsOptions));
