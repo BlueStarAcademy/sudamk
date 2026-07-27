@@ -21,6 +21,7 @@ import {
     CASH_SHOP_REMOVE_ADS_PACKAGE_ID,
     EQUIPMENT_PACKAGE_MONTHLY_LIMIT,
 } from '../shared/constants/cashShopPackages.js';
+import { PAYMENT_PRODUCT_PRICE_KRW } from '../shared/constants/paymentProducts.js';
 import { VIP_SHOP_DURATION_DAYS, VIP_SHOP_PRODUCT_IDS } from '../shared/constants/vipShopProducts.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -1190,7 +1191,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
             id: 'reward_vip',
             name: t('vipProducts.reward_vip.name'),
             duration: t('duration30Days'),
-            priceKRW: 10900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.reward_vip,
             benefits: ['0', '1', '2', '3', '4', '5', '6', '7'].map((k) => t(`vipProducts.reward_vip.benefits.${k}`)),
             benefitFooter: t('vipProducts.reward_vip.benefitFooter'),
         },
@@ -1198,14 +1199,14 @@ const ShopModal: React.FC<ShopModalProps> = ({
             id: 'function_vip',
             name: t('vipProducts.function_vip.name'),
             duration: t('duration30Days'),
-            priceKRW: 10900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.function_vip,
             benefits: ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11'].map((k) => t(`vipProducts.function_vip.benefits.${k}`)),
         },
         {
             id: 'vvip',
             name: t('vipProducts.vvip.name'),
             duration: t('duration30Days'),
-            priceKRW: 17900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.vvip,
             benefits: [t('vipProducts.vvip.benefits.0')],
         },
     ], [t]);
@@ -1214,7 +1215,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
             id: 'diamond_package_1',
             name: t('packages.diamond_package_1'),
             duration: t('duration7Days'),
-            priceKRW: 10900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.diamond_package_1,
             benefits: [t('packageBenefits.diamond_daily_50_350'), t('packageBenefits.diamond_instant_100')],
             packageVisual: { type: 'diamond_combo', dailyPerMail: 100, durationDays: 7, instantDiamonds: 200 },
         },
@@ -1222,7 +1223,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
             id: 'diamond_package_2',
             name: t('packages.diamond_package_2'),
             duration: t('duration15Days'),
-            priceKRW: 19900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.diamond_package_2,
             benefits: [t('packageBenefits.diamond_daily_50_750'), t('packageBenefits.diamond_instant_250')],
             packageVisual: { type: 'diamond_combo', dailyPerMail: 100, durationDays: 15, instantDiamonds: 500 },
         },
@@ -1230,7 +1231,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
             id: 'diamond_package_3',
             name: t('packages.diamond_package_3'),
             duration: t('duration30Days'),
-            priceKRW: 29900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.diamond_package_3,
             benefits: [t('packageBenefits.diamond_daily_50_1500'), t('packageBenefits.diamond_instant_750')],
             packageVisual: { type: 'diamond_combo', dailyPerMail: 100, durationDays: 30, instantDiamonds: 1000 },
         },
@@ -1239,7 +1240,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
         {
             id: 'equipment_package_1',
             name: t('packages.equipment_package_1'),
-            priceKRW: 10900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.equipment_package_1,
             benefits: [t('packageBenefits.equip_pkg1_boxes'), t('packageBenefits.equip_pkg1_mat'), t('packageBenefits.equip_pkg1_bonus')],
             packageVisual: {
                 type: 'box_row',
@@ -1263,7 +1264,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
         {
             id: 'equipment_package_2',
             name: t('packages.equipment_package_2'),
-            priceKRW: 15900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.equipment_package_2,
             benefits: [t('packageBenefits.equip_pkg2_boxes'), t('packageBenefits.equip_pkg2_mat'), t('packageBenefits.equip_pkg2_bonus')],
             packageVisual: {
                 type: 'box_row',
@@ -1287,7 +1288,7 @@ const ShopModal: React.FC<ShopModalProps> = ({
         {
             id: 'equipment_package_3',
             name: t('packages.equipment_package_3'),
-            priceKRW: 20900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.equipment_package_3,
             benefits: [t('packageBenefits.equip_pkg3_boxes'), t('packageBenefits.equip_pkg3_mat'), t('packageBenefits.equip_pkg3_bonus')],
             packageVisual: {
                 type: 'box_row',
@@ -1313,16 +1314,16 @@ const ShopModal: React.FC<ShopModalProps> = ({
         () => ({
             id: CASH_SHOP_REMOVE_ADS_PACKAGE_ID,
             name: t('packages.remove_ads'),
-            priceKRW: 10900,
+            priceKRW: PAYMENT_PRODUCT_PRICE_KRW.remove_ads,
             benefits: [t('packageBenefits.remove_ads_1'), t('packageBenefits.remove_ads_2')],
             packageVisual: { type: 'remove_ads_image', imageSrc: SHOP_REMOVE_ADS_IMAGE },
         }),
         [t],
     );
     const diamondProducts = [
-        { id: 'diamond_500', diamonds: 500, priceKRW: 10900 },
-        { id: 'diamond_1250', diamonds: 1250, priceKRW: 19900 },
-        { id: 'diamond_2250', diamonds: 2250, priceKRW: 29900 },
+        { id: 'diamond_500', diamonds: 500, priceKRW: PAYMENT_PRODUCT_PRICE_KRW.diamond_500 },
+        { id: 'diamond_1250', diamonds: 1250, priceKRW: PAYMENT_PRODUCT_PRICE_KRW.diamond_1250 },
+        { id: 'diamond_2250', diamonds: 2250, priceKRW: PAYMENT_PRODUCT_PRICE_KRW.diamond_2250 },
     ] as const;
 
     const handleClaimShopAdReward = (tab: ShopAdRewardTab) => {

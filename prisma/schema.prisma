@@ -42,6 +42,7 @@ model User {
   quests           UserQuest[]
   missions         UserMission[]
   inventoryHistory InventoryHistory[]
+  paymentOrders    PaymentOrder[]
   credential       UserCredential?
   guild            Guild?            @relation("GuildLeader")
   guildMember      GuildMember?
@@ -356,4 +357,27 @@ model GuildWarMatch {
   @@index([warId])
   @@index([player1Id])
   @@index([player2Id])
+}
+/// Payletter 결제 주문 — id 가 storeorderno 로 쓰인다. 상태: PENDING → PAID → FULFILLED (실패 FAILED/CANCELLED, 환불 REFUNDED)
+model PaymentOrder {
+  id          String    @id @default(uuid())
+  userId      String
+  productId   String
+  productName String
+  amount      Int       // KRW 정수 금액 (게임 재화 BigInt와 무관)
+  currency    String    @default("KRW")
+  pgInfo      String    // PLCreditCardmpi | PLCreditCard | PLUnionPay
+  status      String    @default("PENDING")
+  payToken    String?   // Payletter 거래 토큰
+  rawCallback Json?     // 콜백 원문 (감사·분쟁 대응)
+  failReason  String?
+  fulfilledAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([status])
+  @@index([payToken])
 }
