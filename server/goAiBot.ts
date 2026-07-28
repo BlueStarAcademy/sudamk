@@ -3475,11 +3475,15 @@ export async function makeGoAiBotMove(
     game.itemUseDeadline = undefined;
     game.pausedTurnTimeLeft = undefined;
     
-    // 싱글플레이 턴 카운팅 업데이트 (AI가 수를 둘 때도 카운팅)
-    // 히든돌이 moveHistory에 추가되지 않은 경우를 고려하여 실제 유효한 수만 카운팅
-    if (game.isSinglePlayer && game.stageId) {
-        const validMoves = game.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-        game.totalTurns = validMoves.length;
+    // 자동계가 턴 캡 세션(탑/싱글/길드전 등): 히든 공개 early-return 전에 totalTurns를 맞춰
+    // 공개 후 onPostTurnSwitch가 오래된 totalTurns로 계가를 스킵하지 않게 한다.
+    {
+        const turnLimitMode = resolveArenaSessionPolicy(game as any).turnLimitMode;
+        if (turnLimitMode === 'autoScoringTurns' || turnLimitMode === 'stageAutoScoring') {
+            game.totalTurns = getArenaTurnCount(game);
+        } else if (game.isSinglePlayer && game.stageId) {
+            game.totalTurns = getValidStoneMoveCount(game);
+        }
     }
 
     // 6. 따낸 돌 처리 및 히든 돌 공개 처리 (이전 턴 justCaptured 잔류로 클라 점수 플로트가 꼬이지 않게 비움)

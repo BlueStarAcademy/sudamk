@@ -1614,6 +1614,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (shouldEnforceTimeControl(game)) {
                     freezeMainTurnClock(game, now);
                 }
+                // 히든 공개 연출로 early-return 해도 턴 캡 카운트를 맞춰 둔다 (공개 후 자동계가 재판정용)
+                if (humanPvpAllowsMoveCountAutoScoring(game)) {
+                    game.totalTurns = getArenaTurnCount(game);
+                }
                 return petHintBonusResult ?? {};
             }
 

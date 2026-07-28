@@ -9,9 +9,6 @@ import {
     recordSoftHiddenScanDiscovery,
     scanInventoryKeyForPlayer,
 } from './hiddenScanShared.js';
-import { getEffectiveSinglePlayerStages } from '../singlePlayerStageConfigService.js';
-import { resolveSinglePlayerAutoScoringTurnCap } from '../../shared/utils/singlePlayerStrategicRulePreset.js';
-import { aiUserId } from '../aiPlayer.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import {
     mixGoClearHiddenItemPhaseTimers,
@@ -23,20 +20,6 @@ import {
 } from '../../shared/utils/mixGoRules.js';
 
 type HandleActionResult = types.HandleActionResult;
-
-/**
- * 베이스·덤 입찰 이후 유저가 백이 될 수 있어 `currentPlayer === Player.White` 가정은 더이상 통하지 않는다.
- * 좌석 ID 기반으로 현재 차례가 AI(또는 봇)인지 판단한다.
- */
-const isAiSeatTurn = (game: types.LiveGameSession): boolean => {
-    const id = game.currentPlayer === types.Player.Black
-        ? game.blackPlayerId
-        : game.currentPlayer === types.Player.White
-          ? game.whitePlayerId
-          : null;
-    if (!id) return false;
-    return id === aiUserId || String(id).startsWith('dungeon-bot-');
-};
 
 const hiddenInventoryKeyForPlayer = (player: types.Player): 'hidden_stones_p1' | 'hidden_stones_p2' =>
     mixGoHiddenInventoryKeyForPlayer(player);
@@ -275,22 +258,9 @@ export const updateSinglePlayerHiddenState = async (game: types.LiveGameSession,
             await runTowerStyleHiddenRevealAnimatingIfDue(game, now, {
                 logPrefix: 'updateSinglePlayerHiddenState',
                 onPostTurnSwitch: async (g) => {
-                    if (!g.isSinglePlayer || !g.stageId) return;
-                    const stage = (await getEffectiveSinglePlayerStages()).find(s => s.id === g.stageId);
-                    const autoScoringTurns = resolveSinglePlayerAutoScoringTurnCap(g.settings as any, stage);
-                    if (autoScoringTurns === undefined) return;
-                    /** 베이스·덤 후 유저가 백/AI가 흑이 되는 케이스에서도 AI 차례에 자동계가가 트리거되지 않게 좌석 기반으로 판단한다. */
-                    if (g.isSinglePlayer && isAiSeatTurn(g)) return;
-                    const validMoves = g.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-                    const totalTurns = g.totalTurns ?? validMoves.length;
-                    g.totalTurns = totalTurns;
-                    if (totalTurns >= autoScoringTurns && g.gameStatus === 'playing') {
-                        console.log(
-                            `[updateSinglePlayerHiddenState] Auto-scoring triggered after hidden reveal animation: totalTurns=${totalTurns}, autoScoringTurns=${autoScoringTurns}`
-                        );
-                        const { getGameResult } = await import('../gameModes.js');
-                        await getGameResult(g);
-                    }
+                    // 탑과 동일: stale totalTurns로 계가가 스킵되지 않도록 arena turn count로 재판정
+                    const { maybeEnterPveAutoScoringAtTurnCap } = await import('../utils/pveAutoScoringTurnCap.js');
+                    await maybeEnterPveAutoScoringAtTurnCap(g, 'singlePlayerHiddenRevealAutoScoring');
                 },
             });
             break;

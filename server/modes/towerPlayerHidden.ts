@@ -10,27 +10,12 @@ import {
     recordSoftHiddenScanDiscovery,
     scanInventoryKeyForPlayer,
 } from './hiddenScanShared.js';
-import { aiUserId } from '../aiPlayer.js';
 import {
     mixGoClearHiddenItemPhaseTimers,
     mixGoShouldUnstickHiddenItemSelectionPhase,
 } from '../../shared/utils/mixGoRules.js';
 
 type HandleActionResult = types.HandleActionResult;
-
-/**
- * 도전의 탑은 통상 유저=흑이지만, 향후 색이 바뀔 수 있는 흐름(베이스 등)에서도 안전하도록
- * 좌석 ID 기반으로 현재 차례가 AI(또는 봇)인지 판단한다.
- */
-const isTowerAiSeatTurn = (game: types.LiveGameSession): boolean => {
-    const id = game.currentPlayer === types.Player.Black
-        ? game.blackPlayerId
-        : game.currentPlayer === types.Player.White
-          ? game.whitePlayerId
-          : null;
-    if (!id) return false;
-    return id === aiUserId || String(id).startsWith('dungeon-bot-');
-};
 
 const persistAndBroadcastTowerScoringState = async (game: types.LiveGameSession): Promise<void> => {
     if (game.endTime == null) game.endTime = Date.now();
@@ -360,27 +345,11 @@ export const updateTowerPlayerHiddenState = async (game: types.LiveGameSession, 
             await runTowerStyleHiddenRevealAnimatingIfDue(game, now, {
                 logPrefix: 'updateTowerPlayerHiddenState',
                 onPostTurnSwitch: async (g) => {
-                    const floor = (g as any).towerFloor ?? 0;
-                    const stageId = g.stageId || `tower-${floor}`;
-                    const { TOWER_STAGES } = await import('../../constants/towerConstants.js');
-                    const stage =
-                        TOWER_STAGES.find((s: { id: string }) => s.id === stageId) ||
-                        TOWER_STAGES.find((s: { id: string }) => parseInt(s.id.replace('tower-', ''), 10) === floor);
-                    const autoScoringTurns = (stage as any)?.autoScoringTurns;
-                    if (autoScoringTurns !== undefined) {
-                        /** 좌석 기반: 색 가정(`White=AI`)을 제거해 베이스 등으로 색이 바뀐 흐름에서도 자동계가가 어긋나지 않게 한다. */
-                        const isAiTurn = g.gameCategory === 'tower' && isTowerAiSeatTurn(g);
-                        if (!isAiTurn) {
-                            const validMoves = g.moveHistory.filter(m => m.x !== -1 && m.y !== -1);
-                            const totalTurns = g.totalTurns ?? validMoves.length;
-                            g.totalTurns = totalTurns;
-                            if (totalTurns >= autoScoringTurns && g.gameStatus === 'playing') {
-                                g.gameStatus = 'scoring';
-                                await persistAndBroadcastTowerScoringState(g);
-                                deferGetGameResultForScoringOverlay(g.id, 'towerHiddenRevealAutoScoring');
-                            }
-                        }
-                    }
+                    // 히든 공개 early-return 경로에서는 goAiBot/standard 자동계가가 스킵될 수 있다.
+                    // 공개 후 턴 전환 시점에서 getArenaTurnCount 기준으로 캡 도달을 재판정한다
+                    // (stale totalTurns ?? validMoves 로직은 캡-1에 고착되어 계가가 영구 스킵될 수 있음).
+                    const { maybeEnterPveAutoScoringAtTurnCap } = await import('../utils/pveAutoScoringTurnCap.js');
+                    await maybeEnterPveAutoScoringAtTurnCap(g, 'towerHiddenRevealAutoScoring');
                 },
             });
             break;

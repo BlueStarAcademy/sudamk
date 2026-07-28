@@ -71,4 +71,15 @@ describe('maybeEnterPveAutoScoringAtTurnCap', () => {
         expect(game.gameStatus).toBe('playing');
         expect(db.saveGame).not.toHaveBeenCalled();
     });
+
+    it('enters scoring when moveHistory is at cap even if totalTurns is stale (hidden-reveal bug)', async () => {
+        const game = towerGameAtCap(70);
+        game.totalTurns = 69; // AI last stone + reveal early-return left stale count
+        game.settings = { ...game.settings, autoScoringTurns: 70 };
+        const entered = await maybeEnterPveAutoScoringAtTurnCap(game, 'towerHiddenRevealAutoScoring');
+        expect(entered).toBe(true);
+        expect(game.gameStatus).toBe('scoring');
+        expect(game.totalTurns).toBe(70);
+        expect(deferGetGameResultForScoringOverlay).toHaveBeenCalledWith(game.id, 'towerHiddenRevealAutoScoring');
+    });
 });
