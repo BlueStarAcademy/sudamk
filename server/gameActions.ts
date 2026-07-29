@@ -621,18 +621,20 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
         }
         
-        // 싱글플레이 자동 계가 트리거 (PLACE_STONE with triggerAutoScoring) 처리
+        // 싱글플레이·도전의 탑 자동 계가 트리거 (PLACE_STONE with triggerAutoScoring) 처리
+        // 타워 베이스에서 유저가 백(짝수 autoScoringTurns)이면 마지막 수가 사람 착수 → 클라가 이 경로로 계가를 요청한다.
+        // kind === 'singleplayer'만 허용하면 타워는 Invalid로 거절되어 UI만 scoring에 머문다.
         if (type === 'PLACE_STONE' && (payload as any)?.triggerAutoScoring) {
-            // 싱글플레이 게임은 메모리 캐시에서 먼저 찾기 (PVE는 종료 전까지 DB에 저장되지 않으므로 캐시/메모리만 사용)
+            // PVE는 종료 전까지 DB에 없을 수 있으므로 캐시/메모리에서 먼저 찾기
             const { getCachedGame, updateGameCache } = await import('./gameCache.js');
             let game = await getCachedGame(gameId);
             if (!game) {
-                // TTL 만료 시에도 캐시에 있으면 사용 (싱글플레이는 DB에 없을 수 있음)
+                // TTL 만료 시에도 캐시에 있으면 사용
                 const cache = volatileState.gameCache;
                 if (cache) {
                     const cached = cache.get(gameId);
                     if (cached) {
-                        console.log(`[handleAction] Found single player game in cache (expired TTL) for auto-scoring: gameId=${gameId}, gameStatus=${cached.game.gameStatus}`);
+                        console.log(`[handleAction] Found client-authoritative PVE game in cache (expired TTL) for auto-scoring: gameId=${gameId}, gameStatus=${cached.game.gameStatus}`);
                         game = cached.game;
                         updateGameCache(game);
                     }
@@ -644,10 +646,10 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             if (!game) {
                 return { error: 'Game not found.' };
             }
-            if (resolveArenaSessionPolicy(game).kind !== 'singleplayer') {
-                return { error: 'Invalid single player game.' };
+            const autoScorePolicy = resolveArenaSessionPolicy(game);
+            if (!autoScorePolicy.isClientAuthoritativeForScoringSnapshot) {
+                return { error: 'Invalid auto-scoring session.' };
             }
-            // handleStrategicGameAction을 통해 처리 (싱글플레이 게임도 전략 액션 핸들러 사용)
             const { handleStrategicGameAction } = await import('./modes/standard.js');
             const result = await handleStrategicGameAction(volatileState, game, action, userData);
             return result || {};
