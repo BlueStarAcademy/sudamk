@@ -16,7 +16,9 @@ Last updated: 2026-07-31
 | BR-06 | P1 | Merge | Optimistic merge helpers raw category flags | Fixed | `clientGameMergePolicy.ts` |
 | BR-07 | P2 | PVP | PVP unstick without immediate broadcast | Fixed | `gameActions.ts` (item unstick → snapshot) |
 | BR-08 | Done | PVE | Tower hidden reveal stale `totalTurns` skipped scoring | Fixed | `towerPlayerHidden.ts`, `pveAutoScoringTurnCap.test.ts` |
-| BR-09 | Done | PVE | Tower `triggerAutoScoring` rejected as singleplayer-only | Fixed | `gameActions.ts`, `towerTriggerAutoScoring.test.ts` |
+| BR-10 | P0 | Common | Scoring GAME_UPDATE omitted board for Kata PVE via `!isSinglePlayer` | Fixed | `boardBroadcastOmit.ts`, `pveAutoScoringTurnCap.ts`, `standard.ts` |
+| BR-11 | P0 | Merge | Slim MH-ahead + empty board kept stale board / invisible stone | Fixed | `deferredWsBoardSnapshot.ts`, `clientGameMergePolicy.ts` |
+| BR-12 | P0 | PVP | General HTTP unstick missing reveal status + PVP snapshot | Fixed | `gameActions.ts` |
 
 ## Repro notes
 

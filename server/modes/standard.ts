@@ -372,7 +372,8 @@ async function finalizePveHiddenPlacementFromAuthoritativeClient(
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('../socket.js');
             const gameToBroadcast = { ...game };
-            if (!game.isSinglePlayer) {
+            const { shouldOmitBoardStateInBroadcast } = await import('../utils/boardBroadcastOmit.js');
+            if (shouldOmitBoardStateInBroadcast(game)) {
                 delete (gameToBroadcast as any).boardState;
             }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
@@ -1294,12 +1295,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 if (Array.isArray(clientHumanHiddenStonePoints)) {
                     (game as any).humanHiddenStonePoints = clientHumanHiddenStonePoints.map((point: types.Point & { player?: types.Player }) => ({ ...point }));
                 }
-            } else if (
-                game.isSinglePlayer ||
-                game.gameCategory === GameCategory.Tower ||
-                game.isAiGame ||
-                (game as any).gameCategory === 'guildwar'
-            ) {
+            } else if (resolveArenaSessionPolicy(game).matchAxis !== 'pvp') {
                 // 싱글플레이, 도전의 탑, 길드전, 전략바둑 AI 대국에서는 서버의 실제 boardState를 사용
                 const { getLiveGame } = await import('../db.js');
                 const freshGame = await getLiveGame(game.id);
@@ -1706,12 +1702,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     let wasHiddenForJustCaptured = false; // default for justCaptured
                     let isBaseStone = false;
 
-                    if (
-                        game.isSinglePlayer ||
-                        (game as any).gameCategory === 'guildwar' ||
-                        (game as any).gameCategory === 'tower' ||
-                        game.gameCategory === GameCategory.Adventure
-                    ) {
+                    if (resolveArenaSessionPolicy(game).matchAxis !== 'pvp') {
                         isBaseStone = isIntersectionRecordedAsBaseStone(game, stone.x, stone.y);
                         if (isBaseStone) {
                             game.baseStoneCaptures[myPlayerEnum]++;
@@ -1891,7 +1882,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                                 ? 'Pair'
                               : 'SinglePlayer';
                         console.log(`[handleStandardAction] Auto-scoring triggered (user placed last stone): totalTurns=${newTotalTurns}, autoScoringTurns=${autoScoringTurns}, ${gameType}`);
-                        if (!game.isSinglePlayer) {
+                        if (!arenaUsesClientAuthoritativeScoringSnapshot(game)) {
                             const { broadcastPlayingSnapshotBeforeScoring } = await import('../utils/broadcastPlayingBeforeScoring.js');
                             await broadcastPlayingSnapshotBeforeScoring(game);
                         }
@@ -1900,7 +1891,8 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         await db.saveGame(game);
                         const { broadcastToGameParticipants } = await import('../socket.js');
                         const gameToBroadcast = { ...game };
-                        if (!game.isSinglePlayer) {
+                        const { shouldOmitBoardStateInBroadcast } = await import('../utils/boardBroadcastOmit.js');
+                        if (shouldOmitBoardStateInBroadcast(game)) {
                             delete (gameToBroadcast as any).boardState;
                         }
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);

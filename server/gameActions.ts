@@ -730,12 +730,15 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             }
             if (
                 actionTypeStr === 'START_SCANNING' ||
-                    actionTypeStr === 'START_HIDDEN_PLACEMENT' ||
-                    actionTypeStr === 'SCAN_BOARD'
+                actionTypeStr === 'START_HIDDEN_PLACEMENT' ||
+                actionTypeStr === 'SCAN_BOARD' ||
+                actionTypeStr === 'START_MISSILE_SELECTION' ||
+                actionTypeStr === 'LAUNCH_MISSILE'
             ) {
                 // HTTP 액션은 타이머 루프 없이 들어올 수 있어 scanning_animating이 남으면 playing이 아니라 400이 난다.
                 // PVP도 동일하게 hidden/missile 언스틱만 수행. clientSync는 PVE 전용.
                 const nowSync = Date.now();
+                const statusBeforeEarlyUnstick = String(game.gameStatus);
                 if (preItemPolicy.kind === 'tower') {
                     const { updateTowerPlayerHiddenState } = await import('./modes/towerPlayerHidden.js');
                     await updateTowerPlayerHiddenState(game, nowSync);
@@ -750,10 +753,17 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     updateMissileState(game, nowSync);
                 }
                 if (preItemPolicy.matchAxis === 'pvp') {
-                    // PVP는 clientSync 없이 서버 언스틱만 — 페이즈 복귀를 양측에 즉시 방송
-                    const { broadcastItemPhaseSnapshot } = await import('./utils/broadcastItemPhaseSnapshot.js');
-                    await broadcastItemPhaseSnapshot(game);
-                } else if (preItemPolicy.matchAxis !== 'pvp') {
+                    const phaseChanged =
+                        String(game.gameStatus) !== statusBeforeEarlyUnstick ||
+                        Boolean((game as { _itemPhaseStateChanged?: boolean })._itemPhaseStateChanged) ||
+                        Boolean((game as { _itemTimeoutStateChanged?: boolean })._itemTimeoutStateChanged);
+                    if (phaseChanged) {
+                        (game as { _itemPhaseStateChanged?: boolean })._itemPhaseStateChanged = false;
+                        (game as { _itemTimeoutStateChanged?: boolean })._itemTimeoutStateChanged = false;
+                        const { broadcastItemPhaseSnapshot } = await import('./utils/broadcastItemPhaseSnapshot.js');
+                        await broadcastItemPhaseSnapshot(game);
+                    }
+                } else {
                     applyPveItemActionClientSync(game, payload, { preserveServerHiddenPlacementMeta: true });
                     if (preItemPolicy.kind === 'tower' && actionTypeStr === 'SCAN_BOARD' && game.gameStatus === 'scanning') {
                         towerScanBoardRevert = {
@@ -1460,9 +1470,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             game.gameStatus === 'missile_selecting' ||
             game.gameStatus === 'hidden_placing' ||
             game.gameStatus === 'scanning' ||
-            game.gameStatus === 'scanning_animating'
+            game.gameStatus === 'scanning_animating' ||
+            game.gameStatus === 'hidden_reveal_animating'
         ) {
             const nowItem = Date.now();
+            const statusBeforeUnstick = String(game.gameStatus);
             const itemPolicy = resolveArenaSessionPolicy(game);
             if (itemPolicy.kind === 'tower') {
                 const { updateTowerPlayerHiddenState } = await import('./modes/towerPlayerHidden.js');
@@ -1477,6 +1489,18 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                 updateMissileState(game, nowItem);
             }
             updateGameCache(game);
+            const phaseChanged =
+                String(game.gameStatus) !== statusBeforeUnstick ||
+                Boolean((game as { _itemPhaseStateChanged?: boolean })._itemPhaseStateChanged) ||
+                Boolean((game as { _itemTimeoutStateChanged?: boolean })._itemTimeoutStateChanged);
+            if (phaseChanged) {
+                (game as { _itemPhaseStateChanged?: boolean })._itemPhaseStateChanged = false;
+                (game as { _itemTimeoutStateChanged?: boolean })._itemTimeoutStateChanged = false;
+                if (itemPolicy.matchAxis === 'pvp') {
+                    const { broadcastItemPhaseSnapshot } = await import('./utils/broadcastItemPhaseSnapshot.js');
+                    await broadcastItemPhaseSnapshot(game);
+                }
+            }
         }
         
         // AI 게임은 서버에서 진행/검증/AI 수 처리까지 담당해야 하므로 PVE로 분류하지 않음

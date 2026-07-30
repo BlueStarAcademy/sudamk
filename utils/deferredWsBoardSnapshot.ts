@@ -95,6 +95,16 @@ export function resolvePveScoringBoardAndMoveHistory(
     let boardState: LiveGameSession['boardState'];
     if (clientMhLen > serverMhLen && clientBoardOk) {
         boardState = client.boardState;
+    } else if (clientMhLen > serverMhLen) {
+        // 슬림 패킷: 수순만 앞서고 board 생략 → 기존/서버 보드에 리플레이
+        const baseSession = {
+            ...server,
+            boardState: serverBoardOk ? server.boardState : client.boardState,
+            moveHistory,
+        } as LiveGameSession;
+        boardState =
+            replayStrategicBoardFromMoveHistory(baseSession, client) ??
+            (serverBoardOk ? server.boardState : client.boardState);
     } else if (serverBoardOk) {
         boardState = server.boardState;
     } else if (clientBoardOk) {
@@ -298,6 +308,15 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
         boardState = server.boardState;
     } else if (clientBoardOk && clientMhLen > serverMhLen) {
         boardState = clientSnap.boardState;
+    } else if (clientMhLen > serverMhLen) {
+        const baseSession = {
+            ...server,
+            boardState: serverBoardOk ? server.boardState : clientSnap.boardState,
+            moveHistory,
+        } as LiveGameSession;
+        boardState =
+            replayStrategicBoardFromMoveHistory(baseSession, clientSnap) ??
+            (serverBoardOk ? server.boardState : clientSnap.boardState);
     } else if (serverBoardOk) {
         boardState = server.boardState;
     } else if (clientBoardOk) {

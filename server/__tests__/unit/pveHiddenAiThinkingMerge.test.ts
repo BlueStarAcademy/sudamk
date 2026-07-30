@@ -93,7 +93,7 @@ describe('preservePveAiHiddenPresentationOnMerge', () => {
         const merged = preservePveAiHiddenPresentationOnMerge(incoming, existing);
         expect(merged.moveHistory).toHaveLength(2);
         expect(merged.moveHistory?.[1]).toEqual({ x: 3, y: 3, player: Player.White });
-        expect(merged.boardState).toEqual(existing.boardState);
+        expect(merged.boardState?.[3]?.[3]).toBe(Player.White);
         expect(merged.currentPlayer).toBe(Player.Black);
     });
 

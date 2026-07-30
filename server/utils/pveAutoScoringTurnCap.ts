@@ -6,6 +6,7 @@ import {
     resolveArenaFixedScoringTurnLimit,
 } from './arenaTurnPolicy.js';
 import { deferGetGameResultForScoringOverlay } from './deferGetGameResultForScoringOverlay.js';
+import { shouldOmitBoardStateInBroadcast } from './boardBroadcastOmit.js';
 import { humanPvpAllowsMoveCountAutoScoring } from '../modes/pvpStrategicPipeline.js';
 
 const AUTO_SCORING_ITEM_PHASE_STATUSES = new Set([
@@ -45,7 +46,7 @@ export async function maybeEnterPveAutoScoringAtTurnCap(
         `[maybeEnterPveAutoScoringAtTurnCap] ${reason}: totalTurns=${totalTurns}, cap=${autoScoringTurns}, game=${game.id}`,
     );
 
-    if (!game.isSinglePlayer) {
+    if (!arenaUsesClientAuthoritativeScoringSnapshot(game)) {
         const { broadcastPlayingSnapshotBeforeScoring } = await import('./broadcastPlayingBeforeScoring.js');
         await broadcastPlayingSnapshotBeforeScoring(game);
     }
@@ -55,7 +56,7 @@ export async function maybeEnterPveAutoScoringAtTurnCap(
 
     const { broadcastToGameParticipants } = await import('../socket.js');
     const gameToBroadcast = { ...game };
-    if (!game.isSinglePlayer) {
+    if (shouldOmitBoardStateInBroadcast(game)) {
         delete (gameToBroadcast as any).boardState;
     }
     broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);

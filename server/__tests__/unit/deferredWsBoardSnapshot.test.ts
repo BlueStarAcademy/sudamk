@@ -44,6 +44,31 @@ describe('resolvePveScoringBoardAndMoveHistory', () => {
         expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
     });
 
+    it('replays onto server board when client MH is longer but board omitted (slim packet)', () => {
+        const server = {
+            settings: { boardSize: 3 },
+            moveHistory: [{ x: 0, y: 0, player: Player.Black }],
+            boardState: [
+                [Player.Black, Player.None, Player.None],
+                [Player.None, Player.None, Player.None],
+                [Player.None, Player.None, Player.None],
+            ],
+        } as LiveGameSession;
+        const client = {
+            settings: { boardSize: 3 },
+            moveHistory: [
+                { x: 0, y: 0, player: Player.Black },
+                { x: 1, y: 1, player: Player.White },
+            ],
+        } as LiveGameSession;
+        delete (client as any).boardState;
+
+        const resolved = resolvePveScoringBoardAndMoveHistory(server, client);
+        expect(resolved.moveHistory).toHaveLength(2);
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.White);
+        expect(resolved.boardState?.[0]?.[0]).toBe(Player.Black);
+    });
+
     it('prefers server when server moveHistory is longer', () => {
         const server = {
             moveHistory: [

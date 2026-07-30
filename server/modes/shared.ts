@@ -72,13 +72,9 @@ export const hasTimeControl = (s: { timeLimit?: number; byoyomiCount?: number; b
 
 /** PVP 실시간 대국에만 시간 제어 적용. 길드 전쟁은 피셔 제한시간 적용을 위해 예외. 싱글/일반 AI/탑은 false. */
 export const shouldEnforceTimeControl = (game: types.LiveGameSession): boolean => {
-    if (resolveArenaSessionPolicy(game).kind === 'guildwar') return true;
-    return (
-        !game.isAiGame &&
-        !game.isSinglePlayer &&
-        game.gameCategory !== 'tower' &&
-        game.gameCategory !== 'singleplayer'
-    );
+    const policy = resolveArenaSessionPolicy(game);
+    if (policy.kind === 'guildwar') return true;
+    return policy.matchAxis === 'pvp';
 };
 
 /** 베이스 바둑: 배치 단계의 임시 흑/백과 최종 좌석이 뒤섞이지 않도록 본대국 진입 시 좌석을 한 번만 고정 */

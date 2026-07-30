@@ -85,6 +85,7 @@ import {
     resolveArenaFixedScoringTurnLimit,
 } from './utils/arenaTurnPolicy.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { shouldOmitBoardStateInBroadcast } from './utils/boardBroadcastOmit.js';
 
 const AI_EVALUATION_MOVE_OPTIONS = { ignoreSuicide: true, suppressOccupiedLog: true } as const;
 
@@ -98,10 +99,7 @@ function isPveDeferredAutoScoringGame(game: types.LiveGameSession): boolean {
 }
 
 /** PVP 대역폭 절약용 board 생략. Kata PVE는 board-less 패킷이 clientSync로 AI 돌을 지우는 원인이 되어 유지한다. */
-function shouldOmitBoardStateInBroadcast(game: types.LiveGameSession): boolean {
-    if (game.isSinglePlayer) return false;
-    return !resolveArenaSessionPolicy(game as any).usesServerKataAi;
-}
+// shouldOmitBoardStateInBroadcast — shared in ./utils/boardBroadcastOmit.js
 
 function shouldAiResignWhenNoLegalBoardMove(game: types.LiveGameSession): boolean {
     const policy = resolveArenaSessionPolicy(game as any);

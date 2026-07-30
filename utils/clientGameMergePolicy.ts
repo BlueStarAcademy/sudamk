@@ -27,6 +27,7 @@ import {
     resolveChessPvePlayingSession,
     resolvePveScoringBoardAndMoveHistory,
     resolveStrategicPlayingBoardAndMoveHistory,
+    replayStrategicBoardFromMoveHistory,
 } from './deferredWsBoardSnapshot.js';
 
 /**
@@ -198,9 +199,19 @@ export function preservePveAiHiddenPresentationOnMerge(
         // Prefer longer authoritative history: dropping a newer AI move while keeping
         // currentPlayer from the packet makes the turn look like a PASS with invisible stones.
         if (incomingMhLen > existingMhLen) {
+            const replayed = replayStrategicBoardFromMoveHistory(
+                {
+                    ...incoming,
+                    boardState: existing.boardState,
+                    moveHistory: incoming.moveHistory,
+                    settings: incoming.settings ?? existing.settings,
+                    baseStones: (incoming as any).baseStones ?? (existing as any).baseStones,
+                } as LiveGameSession,
+                existing,
+            );
             merged = {
                 ...merged,
-                boardState: existing.boardState,
+                boardState: replayed ?? existing.boardState,
                 moveHistory: incoming.moveHistory,
             };
         } else {
