@@ -418,11 +418,12 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
             window.alert(t('currency.alerts.maxOpenOrders', { count: CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER }));
             return;
         }
-        if (orderFromCurrency === 'gold' && walletGold < from) {
+        const totalNeeded = from + orderRegistrationFee;
+        if (orderFromCurrency === 'gold' && walletGold < totalNeeded) {
             window.alert(t('alerts.insufficientGold'));
             return;
         }
-        if (orderFromCurrency === 'diamonds' && walletDiamonds < from) {
+        if (orderFromCurrency === 'diamonds' && walletDiamonds < totalNeeded) {
             window.alert(t('alerts.insufficientDiamonds'));
             return;
         }

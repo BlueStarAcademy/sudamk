@@ -203,7 +203,10 @@ export async function handleCurrencyExchangeAction(
             if (openCount >= CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER) {
                 return { error: `동시에 등록할 수 있는 환전 요청은 ${CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER}건까지입니다.` };
             }
-            if (!deductCurrency(user, fromCurrency, from)) {
+            // 등록 수수료(10%)는 요청 등록 시 즉시 차감되며, 취소 시 환불되지 않음(에스크로는 from만).
+            const listingFee = user.isAdmin ? 0 : exchangeListingFeeFromPrice(from);
+            const totalDeduct = from + listingFee;
+            if (!deductCurrency(user, fromCurrency, totalDeduct)) {
                 return { error: fromCurrency === 'gold' ? '골드가 부족합니다.' : '다이아가 부족합니다.' };
             }
 
