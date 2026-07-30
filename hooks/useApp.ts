@@ -1109,6 +1109,9 @@ function isPastBaseClientFlowGameStatus(status: LiveGameSession['gameStatus'] | 
  * 베이스(순·믹스): 재연결 직후 등 늦게 도착한 GAME_UPDATE가 본대국 이후 상태를
  * `base_placement` 등 사전 단계로 덮어 베이스돌 배치 UI가 다시 뜨는 것을 막는다.
  * (같은 라운드에서만; 리비전이 확실히 앞선 패킷은 그대로 신뢰)
+ *
+ * CONFIRM 응답 누락 등으로 로컬만 수순 0 `playing`에 고착된 경우, 서버의
+ * `base_stone_color_choice` 등을「회귀」로 버리면 흑/백 선택 UI가 영구히 생략된다.
  */
 function shouldIgnoreBaseModeGameStatusRegression(
     incoming: LiveGameSession,
@@ -1119,6 +1122,19 @@ function shouldIgnoreBaseModeGameStatusRegression(
     if ((incoming.round ?? 1) !== (existing.round ?? 1)) return false;
     if (!isBasePrePlayStatus(incoming.gameStatus)) return false;
     if (!isPastBaseClientFlowGameStatus(existing.gameStatus)) return false;
+    // 색·좌석이 아직 확정되지 않은 0수 playing은 본대국이 아님 — pre-play 패킷을 받아들인다.
+    if (existing.gameStatus === 'playing') {
+        const moves = existing.moveHistory?.filter((m) => m.x !== -1 && m.y !== -1).length ?? 0;
+        const hasFinalAssignment = !!getBaseFinalColorAssignment(existing);
+        const hasSeatLock =
+            typeof existing.playingLockedBlackPlayerId === 'string' &&
+            existing.playingLockedBlackPlayerId.length > 0 &&
+            typeof existing.playingLockedWhitePlayerId === 'string' &&
+            existing.playingLockedWhitePlayerId.length > 0;
+        if (moves === 0 && !hasFinalAssignment && !hasSeatLock) {
+            return false;
+        }
+    }
     const ir = incoming.serverRevision ?? 0;
     const er = existing.serverRevision ?? 0;
     if (ir > 0 && er > 0 && ir > er) return false;
@@ -1162,9 +1178,10 @@ function coerceClassicPveHumanBlackSeatsIfSwapped(session: LiveGameSession): Liv
     return session;
 }
 
-/** 솔로 베이스(배치·선호·덤): 수순이 없어도 WS가 빠르게 연속으로 오므로 GAME_UPDATE 쓰로틀에서 제외 */
-function isSoloBaseFlowUpdateThrottleBypass(g: LiveGameSession | undefined): boolean {
-    if (!g || getSessionArenaKind(g) !== 'singleplayer' || !liveSessionIncludesBaseMode(g)) return false;
+/** PVE 베이스(배치·선호·덤·흑선): 수순이 없어도 WS가 빠르게 연속으로 오므로 GAME_UPDATE 쓰로틀에서 제외 */
+function isPveBaseFlowUpdateThrottleBypass(g: LiveGameSession | undefined): boolean {
+    if (!g || !liveSessionIncludesBaseMode(g)) return false;
+    if (resolveArenaSessionPolicy(g as any).matchAxis === 'pvp') return false;
     const st = String(g.gameStatus);
     if (st.startsWith('base_')) return true;
     if (st === 'capture_bidding' || st === 'capture_reveal' || st === 'capture_tiebreaker') return true;
@@ -8828,8 +8845,8 @@ export const useApp = () => {
                         }
                     }
                     
-                    // CONFIRM_TOWER_GAME_START의 경우 게임 객체가 없어도 WebSocket GAME_UPDATE를 기다림
-                    // 하지만 게임이 이미 towerGames에 있으면 상태를 업데이트해야 함
+                    // CONFIRM_* 응답에 game이 없을 때: 베이스 룰은 playing으로 강제하면
+                    // 이후 base_stone_color_choice WS가 회귀로 무시되어 흑/백 선택이 영구 생략된다.
                     if (!game && effectiveGameId && (action.type === 'CONFIRM_TOWER_GAME_START' || action.type === 'CONFIRM_SINGLE_PLAYER_GAME_START')) {
                         console.log(`[handleAction] ${action.type} - No game in response, checking existing games for gameId:`, effectiveGameId);
                         
@@ -8839,6 +8856,11 @@ export const useApp = () => {
                         const existingGame = existingTowerGame || existingSinglePlayerGame;
                         
                         if (existingGame) {
+                            if (liveSessionIncludesBaseMode(existingGame)) {
+                                console.log(
+                                    `[handleAction] ${action.type} - Base-rule session without game payload; waiting for GAME_UPDATE (status=${existingGame.gameStatus})`,
+                                );
+                            } else {
                             console.log(`[handleAction] ${action.type} - Found existing game, updating status to playing:`, { gameId: effectiveGameId, currentStatus: existingGame.gameStatus });
                             
                             // 게임 상태를 playing으로 업데이트 (WebSocket 업데이트를 기다리지 않고 즉시)
@@ -8852,6 +8874,7 @@ export const useApp = () => {
                                     const updatedGame = { ...currentGames[effectiveGameId], gameStatus: 'playing' as const, startTime: Date.now() };
                                     return { ...currentGames, [effectiveGameId]: updatedGame };
                                 });
+                            }
                             }
                         } else {
                             console.log(`[handleAction] ${action.type} - Game not found in state, will wait for GAME_UPDATE WebSocket message`);
@@ -10975,11 +10998,8 @@ export const useApp = () => {
                                     (!!existingForThrottle &&
                                         PLAYFUL_GAME_MODES.some((m) => m.mode === existingForThrottle.mode));
                                 const singlePlayerBaseFlowThrottleBypass =
-                                    (getSessionArenaKind(game) === 'singleplayer' ||
-                                        getSessionArenaKind(game) === 'tower' ||
-                                        getSessionArenaKind(existingForThrottle) === 'tower') &&
-                                    (isSoloBaseFlowUpdateThrottleBypass(game) ||
-                                        isSoloBaseFlowUpdateThrottleBypass(existingForThrottle));
+                                    isPveBaseFlowUpdateThrottleBypass(game) ||
+                                    isPveBaseFlowUpdateThrottleBypass(existingForThrottle);
                                 // 흑선 가져오기(capture bidding/reveal/tiebreaker) 종료 후 playing 전환은
                                 // 이동 수(moveHistory)가 없더라도 반드시 모달을 닫고 다음 화면으로 넘어가야 함.
                                 const isCaptureBidExitToPlaying =

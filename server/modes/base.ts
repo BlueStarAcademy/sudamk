@@ -726,7 +726,10 @@ const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: numb
 
     let c1 = game.baseStoneColorChoices[p1] ?? null;
     let c2 = game.baseStoneColorChoices[p2] ?? null;
-    const deadlinePassed = !!game.baseColorChoiceDeadline && now > game.baseColorChoiceDeadline;
+    const deadlinePassed =
+        shouldUseBaseSetupCountdown(game) &&
+        !!game.baseColorChoiceDeadline &&
+        now > game.baseColorChoiceDeadline;
     const bothChosen = c1 != null && c2 != null;
     if (!bothChosen && !deadlinePassed) return;
 

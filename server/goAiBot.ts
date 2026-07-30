@@ -47,6 +47,7 @@ import {
 } from '../shared/utils/pairGoKataResolve.js';
 import { SPECIAL_GAME_MODES } from '../constants/index.js';
 import { AI_HIDDEN_ITEM_THINKING_DURATION_MS, PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../shared/constants/gameSettings.js';
+import { AI_HIDDEN_USED_FOUL_KIND } from '../shared/constants/opponentHiddenUsedNotice.js';
 import { expandToAllUnrevealedHiddenStonesForPlayers } from '../shared/utils/expandHiddenRevealStones.js';
 import { collectCapturingHiddenContributors } from '../shared/utils/capturingHiddenContributors.js';
 import { upsertHiddenStonePoint } from '../shared/utils/hiddenStonePointMarkers.js';
@@ -2660,7 +2661,11 @@ export async function makeGoAiBotMove(
                 (game as any).gameCategory === 'adventure'
                     ? '몬스터가 히든 아이템을 사용했습니다!'
                     : 'AI봇이 히든 아이템을 사용했습니다!';
-            game.foulInfo = { message: hiddenNoticeMsg, expiry: now + AI_HIDDEN_ITEM_THINKING_DURATION_MS };
+            game.foulInfo = {
+                message: hiddenNoticeMsg,
+                expiry: now + AI_HIDDEN_ITEM_THINKING_DURATION_MS,
+                kind: AI_HIDDEN_USED_FOUL_KIND,
+            };
             game.animation = {
                 type: 'ai_thinking',
                 startTime: now,

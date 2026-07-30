@@ -12,6 +12,7 @@ import {
 } from '../shared/utils/chessGoRules.js';
 import {
     getArenaStateBucket,
+    modeIncludesBaseCaptureMix,
     modeIncludesBaseRule,
     resolveArenaSessionPolicy,
     type ArenaStateBucket,
@@ -384,6 +385,36 @@ export function buildOptimisticAiLobbyStartSession(
             };
         }
         if (session.mode === GameMode.Base || modeIncludesBaseRule(session.mode, session.settings)) {
+            // 로비 AI 베이스는 서버가 자동 배치 후 즉시 선호/흑선 입찰로 간다. 낙관 base_placement에 머물면
+            // 선호 화면이 빠지거나, 잘못된 playing 고착 후 pre-play WS가 회귀로 무시될 수 있다.
+            if (policy.usesAutomaticBaseStonePlacement) {
+                if (modeIncludesBaseCaptureMix(session.mode, session.settings)) {
+                    return {
+                        ...session,
+                        blackPlayerId: null,
+                        whitePlayerId: null,
+                        gameStatus: 'capture_bidding',
+                        bids: { [p1Id]: null, [p2Id]: null },
+                        biddingRound: 1,
+                        baseStones_p1: [],
+                        baseStones_p2: [],
+                        basePlacementReady: undefined,
+                        baseStoneColorChoices: undefined,
+                        settings: { ...session.settings, komi: 0.5 },
+                    };
+                }
+                return {
+                    ...session,
+                    blackPlayerId: null,
+                    whitePlayerId: null,
+                    gameStatus: 'base_stone_color_choice',
+                    baseStones_p1: [],
+                    baseStones_p2: [],
+                    basePlacementReady: undefined,
+                    baseStoneColorChoices: { [p1Id]: null, [p2Id]: null },
+                    settings: { ...session.settings, komi: 0.5 },
+                };
+            }
             return {
                 ...next,
                 gameStatus: 'base_placement',
@@ -503,6 +534,40 @@ export function buildOptimisticPveStartConfirmSession(
     if (!p1Id || !p2Id) return null;
 
     if (session.mode === GameMode.Base || modeIncludesBaseRule(session.mode, session.settings)) {
+        const basePolicy = resolveArenaSessionPolicy(session as any);
+        // PVE 자동 배치: 서버 initializeBase가 color_choice(또는 Base+Capture면 흑선 입찰)로 바로 넘긴다.
+        if (basePolicy.usesAutomaticBaseStonePlacement) {
+            if (modeIncludesBaseCaptureMix(session.mode, session.settings)) {
+                return {
+                    ...session,
+                    blackPlayerId: null,
+                    whitePlayerId: null,
+                    gameStatus: 'capture_bidding',
+                    startTime: now,
+                    gameStartTime: undefined,
+                    bids: { [p1Id]: null, [p2Id]: null },
+                    biddingRound: 1,
+                    baseStones_p1: [],
+                    baseStones_p2: [],
+                    basePlacementReady: undefined,
+                    baseStoneColorChoices: undefined,
+                    settings: { ...session.settings, komi: 0.5 },
+                };
+            }
+            return {
+                ...session,
+                blackPlayerId: null,
+                whitePlayerId: null,
+                gameStatus: 'base_stone_color_choice',
+                startTime: now,
+                gameStartTime: undefined,
+                baseStones_p1: [],
+                baseStones_p2: [],
+                basePlacementReady: undefined,
+                baseStoneColorChoices: { [p1Id]: null, [p2Id]: null },
+                settings: { ...session.settings, komi: 0.5 },
+            };
+        }
         return {
             ...session,
             gameStatus: 'base_placement',

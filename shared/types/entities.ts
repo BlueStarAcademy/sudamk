@@ -1636,7 +1636,7 @@ export type LiveGameSession = {
   rematchRejectionCount?: { [playerId: string]: number };
   timeoutFouls?: { [playerId: string]: number };
   curlingStonesLostToFoul?: { [playerId: string]: number };
-  foulInfo?: { message: string; expiry: number; } | null;
+  foulInfo?: { message: string; expiry: number; kind?: 'opponent_hidden_used' | 'ai_hidden_used' } | null;
   isAnalyzing?: boolean;
   analysisResult?: { [playerId: string]: AnalysisResult } | null;
   previousAnalysisResult?: { [playerId: string]: AnalysisResult } | null;

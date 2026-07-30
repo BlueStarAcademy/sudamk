@@ -5,7 +5,7 @@ import { aiUserId } from '../../aiPlayer.js';
 import { tryStartRevealOnlyOpponentHiddenAttack } from '../../modes/startOpponentHiddenReveal.js';
 
 describe('tryStartRevealOnlyOpponentHiddenAttack', () => {
-    it('adventure AI: reveals all opponent hiddens without placing and keeps discoverer turn flag', () => {
+    it('adventure AI: reveals only the clicked opponent hidden (not all remaining)', () => {
         const board = Array.from({ length: 9 }, () => Array(9).fill(Player.None));
         board[3][3] = Player.White;
         board[4][4] = Player.White;
@@ -36,13 +36,10 @@ describe('tryStartRevealOnlyOpponentHiddenAttack', () => {
         expect(ok).toBe(true);
         expect(game.gameStatus).toBe('hidden_reveal_animating');
         expect(game.animation?.type).toBe('hidden_reveal');
-        expect((game.animation as any).stones.length).toBeGreaterThanOrEqual(2);
-        expect(game.permanentlyRevealedStones).toEqual(
-            expect.arrayContaining([
-                expect.objectContaining({ x: 3, y: 3 }),
-                expect.objectContaining({ x: 4, y: 4 }),
-            ]),
-        );
+        expect((game.animation as any).stones).toEqual([
+            { point: { x: 3, y: 3 }, player: Player.White },
+        ]);
+        expect(game.permanentlyRevealedStones).toEqual([{ x: 3, y: 3 }]);
         expect(game.pendingCapture).toBeNull();
         expect((game as any).isAiTurnCancelledAfterReveal).toBe(true);
         expect(game.currentPlayer).toBe(Player.Black);
@@ -70,5 +67,8 @@ describe('tryStartRevealOnlyOpponentHiddenAttack', () => {
 
         expect(tryStartRevealOnlyOpponentHiddenAttack(game, Player.Black, 1, 1, Date.now())).toBe(true);
         expect(game.gameStatus).toBe('hidden_reveal_animating');
+        expect((game.animation as any).stones).toEqual([
+            { point: { x: 1, y: 1 }, player: Player.White },
+        ]);
     });
 });

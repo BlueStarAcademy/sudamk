@@ -363,12 +363,14 @@ describe('base mode', () => {
         initializeBase(game, Date.now());
         game.basePlacementBlackPlayerId = aiUserId;
         game.basePlacementWhitePlayerId = game.player1.id;
+        const randomSpy = vi.spyOn(Math, 'random').mockReturnValue(0.1); // AI picks Black (same as human)
         handleBaseAction(
             game,
             { type: 'SUBMIT_BASE_STONE_COLOR_CHOICE', userId: game.player1.id, payload: { gameId: game.id, color: Player.Black } } as any,
             game.player1
         );
         updateBaseState(game, Date.now());
+        randomSpy.mockRestore();
         expect(game.gameStatus).toBe('base_same_color_points_bid');
 
         handleBaseAction(

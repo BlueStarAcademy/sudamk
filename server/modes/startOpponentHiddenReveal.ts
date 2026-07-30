@@ -1,6 +1,5 @@
 import * as types from '../../types/index.js';
 import { PVE_AI_HIDDEN_REVEAL_DURATION_MS } from '../../shared/constants/gameSettings.js';
-import { expandToAllUnrevealedHiddenStonesForPlayers } from '../../shared/utils/expandHiddenRevealStones.js';
 import { isUnrevealedOpponentHiddenStoneAt } from '../../shared/utils/hiddenStonePlacementOccupancy.js';
 import { freezeMainTurnClock, shouldEnforceTimeControl } from './shared.js';
 import { allowsServerRevealOnlyOpponentHiddenAttack } from './hiddenRevealPolicy.js';
@@ -18,7 +17,8 @@ function resolveAiPlayerEnum(game: types.LiveGameSession): types.Player {
 }
 
 /**
- * 상대 미공개 히든 칸 클릭/착수 시도: 돌은 두지 않고 전체공개 연출만 시작한다.
+ * 상대 미공개 히든 칸 클릭/착수 시도: 돌은 두지 않고 **클릭한 좌표만** 공개 연출한다.
+ * (따냄·사활 기여로 인한 연쇄 공개는 PLACE_STONE 캡처 경로에서 별도 처리)
  * @returns 연출을 시작했으면 true
  */
 export function tryStartRevealOnlyOpponentHiddenAttack(
@@ -34,13 +34,7 @@ export function tryStartRevealOnlyOpponentHiddenAttack(
     if (!isUnrevealedOpponentHiddenStoneAt(game.boardState, game, x, y, myPlayerEnum)) return false;
 
     const opponentPlayerEnum = resolveOpponentPlayerEnum(myPlayerEnum);
-    const seed = [{ point: { x, y }, player: opponentPlayerEnum }];
-    const stones = expandToAllUnrevealedHiddenStonesForPlayers(game, seed, {
-        aiPlayerEnum: resolveAiPlayerEnum(game),
-        // 몰래공개(스캔)된 돌도 클릭 전체공개에 포함
-        isHiddenMoveIndexSoftRevealed: () => false,
-    });
-    const stonesToReveal = stones.length > 0 ? stones : seed;
+    const stonesToReveal = [{ point: { x, y }, player: opponentPlayerEnum }];
 
     const returnStatus = game.gameStatus;
     if (returnStatus === 'playing' && shouldEnforceTimeControl(game)) {

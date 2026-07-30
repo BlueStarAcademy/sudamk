@@ -14,6 +14,7 @@ import { aiUserId } from '../aiPlayer.js';
 import { initializeBase, updateBaseState, handleBaseAction } from './base.js';
 import { initializeCapture, updateCaptureState, handleCaptureAction } from './capture.js';
 import { initializeHidden, updateHiddenState, handleHiddenAction } from './hidden.js';
+import { setOpponentHiddenUsedNotice } from './opponentHiddenUsedNotice.js';
 import { initializeMissile, updateMissileState, handleMissileAction } from './missile.js';
 import {
     applyCastleTerritoryAfterMove,
@@ -1593,6 +1594,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                         ...humanHiddenStonePoints.filter((point) => !(point.x === x && point.y === y && point.player === myPlayerEnum)),
                         { x, y, player: myPlayerEnum },
                     ];
+                    setOpponentHiddenUsedNotice(game, now);
                 }
                 const petHintBonusResult = await (async () => {
                     const { handleStrategicPetHintBonusClaim } = await import('../strategicPetHintAction.js');
@@ -1651,6 +1653,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                     ...humanHiddenStonePoints.filter((point) => !(point.x === x && point.y === y && point.player === myPlayerEnum)),
                     { x, y, player: myPlayerEnum },
                 ];
+                setOpponentHiddenUsedNotice(game, now);
             }
 
             const petHintBonusResult = await (async () => {

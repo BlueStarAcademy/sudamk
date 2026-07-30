@@ -723,6 +723,7 @@
     "turn": {
       "aiHiddenItem": "The AI used a hidden item!",
       "monsterHiddenItem": "The monster used a hidden item!",
+      "opponentHiddenItem": "Your opponent used a hidden stone.",
       "diceOvershotWithMax": "Overshot! Dice must be {{maxDice}} or lower to capture the last pile.",
       "diceOvershotNoLiberties": "Overshot! White has no valid points to capture the last pile. Wait for the next roll.",
       "lastCaptureBonus": " (last pile bonus +{{bonus}})",

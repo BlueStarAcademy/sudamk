@@ -19,6 +19,8 @@
 
 인간 1v1 랭킹 허용(참고): Standard, Capture, Speed, Base, Hidden, Missile, Uniform, Castle — Chess/Mix/playful ranked 제외. 캐주얼은 SPECIAL/PLAYFUL 전체(admin availability).
 
+랭킹 Hidden 캡: `hiddenStoneCount: 1`, `scanCount: 1` ([rankedGameSettings](../shared/constants/rankedGameSettings.ts)). 캐주얼 Hidden 기본·협상은 별도.
+
 ## 노출 축소
 
 보류. BR 레지스터에서 재발률·수정 비용 증거가 쌓인 뒤에만 별도 제품 결정.

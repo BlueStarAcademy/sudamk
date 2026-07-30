@@ -55,7 +55,7 @@ export const RANKED_GAME_SETTINGS: Record<GameMode, GameSettings> = {
         byoyomiCount: 3,
         timeIncrement: 0,
         hiddenStoneCount: 1, // 히든 아이템 1개
-        scanCount: 2, // 스캔 아이템 2개
+        scanCount: 1, // 스캔 아이템 1개
         autoScoring: false,
     },
     [GameMode.Missile]: {

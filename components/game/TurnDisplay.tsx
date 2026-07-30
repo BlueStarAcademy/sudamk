@@ -21,14 +21,27 @@ import { useTranslation } from 'react-i18next';
 
 const AI_HIDDEN_ITEM_MESSAGE_KEY = 'game:turn.aiHiddenItem';
 const MONSTER_HIDDEN_ITEM_MESSAGE_KEY = 'game:turn.monsterHiddenItem';
+const OPPONENT_HIDDEN_ITEM_MESSAGE_KEY = 'game:turn.opponentHiddenItem';
 
-function isAiOpponentHiddenNoticeMessage(msg: string | undefined): boolean {
+/** 서버가 보내는 한국어 원문(언어와 무관하게 매칭) */
+const SERVER_HIDDEN_NOTICE_KO = new Set([
+    'AI봇이 히든 아이템을 사용했습니다!',
+    '몬스터가 히든 아이템을 사용했습니다!',
+    '상대가 히든을 사용했습니다.',
+]);
+
+function isOpponentHiddenNoticeFoul(
+    foulInfo: { message?: string; kind?: string } | null | undefined,
+): boolean {
+    if (!foulInfo) return false;
+    if (foulInfo.kind === 'opponent_hidden_used' || foulInfo.kind === 'ai_hidden_used') return true;
+    const msg = foulInfo.message;
     if (!msg) return false;
+    if (SERVER_HIDDEN_NOTICE_KO.has(msg)) return true;
     return (
         msg === i18n.t(AI_HIDDEN_ITEM_MESSAGE_KEY) ||
         msg === i18n.t(MONSTER_HIDDEN_ITEM_MESSAGE_KEY) ||
-        msg === i18n.t(AI_HIDDEN_ITEM_MESSAGE_KEY) ||
-        msg === i18n.t(MONSTER_HIDDEN_ITEM_MESSAGE_KEY)
+        msg === i18n.t(OPPONENT_HIDDEN_ITEM_MESSAGE_KEY)
     );
 }
 
@@ -336,7 +349,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     const prevGameStatus = usePrevious(session.gameStatus);
     const opponentAiHiddenTickerEnd = useMemo(() => {
         const aiHiddenAnimEnd = (session as any).aiHiddenItemAnimationEndTime as number | undefined;
-        const hiddenNoticeFromFoul = isAiOpponentHiddenNoticeMessage(session.foulInfo?.message);
+        const hiddenNoticeFromFoul = isOpponentHiddenNoticeFoul(session.foulInfo);
         if (session.animation?.type === 'ai_thinking' && aiHiddenAnimEnd != null) {
             return aiHiddenAnimEnd;
         }
@@ -347,18 +360,20 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     }, [
         session.animation?.type,
         (session as any).aiHiddenItemAnimationEndTime,
+        session.foulInfo,
         session.foulInfo?.message,
         session.foulInfo?.expiry,
+        session.foulInfo?.kind,
     ]);
 
     const wantsOpponentHiddenTicker = useMemo(() => {
-        const hiddenNoticeFromFoul = isAiOpponentHiddenNoticeMessage(session.foulInfo?.message);
+        const hiddenNoticeFromFoul = isOpponentHiddenNoticeFoul(session.foulInfo);
         return (
             session.gameStatus === 'playing' &&
             opponentAiHiddenTickerEnd != null &&
             (session.animation?.type === 'ai_thinking' || hiddenNoticeFromFoul)
         );
-    }, [session.gameStatus, opponentAiHiddenTickerEnd, session.animation?.type, session.foulInfo?.message]);
+    }, [session.gameStatus, opponentAiHiddenTickerEnd, session.animation?.type, session.foulInfo]);
 
     /** 주사위/도둑 PVP만 전광판 하단 턴 타이머 막대 표시. AI 대국은 카운트다운·막대 없음 */
     const isPlayfulTurn = useMemo(() => {
@@ -460,11 +475,10 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
 
     useEffect(() => {
         if (!session.foulInfo || session.foulInfo.message === prevFoulInfoMessage) return;
-        const msg = session.foulInfo.message;
-        if (isAiOpponentHiddenNoticeMessage(msg)) {
+        if (isOpponentHiddenNoticeFoul(session.foulInfo)) {
             return;
         }
-        setFoulMessage(msg);
+        setFoulMessage(session.foulInfo.message);
         audioService.timeoutFoul();
         const timer = setTimeout(() => setFoulMessage(null), 5000);
         return () => clearTimeout(timer);
@@ -645,14 +659,19 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
     }
 
     if (showOpponentAiHiddenMarquee) {
-        const hiddenNoticeFromFoul = isAiOpponentHiddenNoticeMessage(session.foulInfo?.message);
+        const foulKind = session.foulInfo?.kind;
+        const foulMsg = session.foulInfo?.message;
         const headline =
-            hiddenNoticeFromFoul && session.foulInfo?.message
-                ? session.foulInfo.message
-                : session.gameCategory === 'adventure' || session.adventureMonsterCodexId
+            foulKind === 'opponent_hidden_used' ||
+            foulMsg === '상대가 히든을 사용했습니다.' ||
+            foulMsg === i18n.t(OPPONENT_HIDDEN_ITEM_MESSAGE_KEY)
+                ? t('turn.opponentHiddenItem')
+                : session.gameCategory === 'adventure' ||
+                    session.adventureMonsterCodexId ||
+                    foulMsg === '몬스터가 히든 아이템을 사용했습니다!'
                   ? t('turn.monsterHiddenItem')
                   : t('turn.aiHiddenItem');
-        // AI/몬스터 히든 연출: 전광판에 대형 안내(바둑판 테두리 반짝임과 병행)
+        // 히든 사용 알림(인간/AI): 전광판에 대형 안내(좌표 비공개)
         return wrapContent(
             `${baseClasses} ${themeClasses} border-[3px] border-fuchsia-400/75 shadow-[0_0_28px_rgba(217,70,239,0.35)] ${isMobile ? 'gap-0.5 px-2' : 'gap-1 px-3'}`,
             <div

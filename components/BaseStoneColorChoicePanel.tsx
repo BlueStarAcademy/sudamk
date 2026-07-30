@@ -4,6 +4,7 @@ import { LiveGameSession, User, Player, ServerAction } from '../types.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
 import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
+import { getEffectivePairLobbyOwnerId } from '../shared/utils/effectivePairLobbyOwnerId.js';
 
 const COLOR_CHOICE_SEC = PRE_GAME_PVP_COUNTDOWN_SECONDS;
 
@@ -28,8 +29,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
     const { t } = useTranslation('game');
     const gameId = session.id;
     const showCountdown = resolveArenaSessionPolicy(session).matchAxis === 'pvp';
-    const pairLobbyOwnerId = (session.settings as { pairGame?: { pairLobbyOwnerId?: string } } | undefined)?.pairGame
-        ?.pairLobbyOwnerId;
+    const pairLobbyOwnerId = getEffectivePairLobbyOwnerId(session);
     const isPairHostChoice = Boolean(pairLobbyOwnerId && currentUser.id === pairLobbyOwnerId);
     const { player1, player2 } = session;
     const choiceP1 = session.baseStoneColorChoices?.[player1.id] ?? null;

@@ -883,7 +883,7 @@ describe('buildOptimisticAiLobbyStartSession', () => {
         expect(optimistic?.gameStartTime).toBe(1_000);
     });
 
-    it('uses base_placement for base AI lobby', () => {
+    it('uses base_stone_color_choice for base AI lobby (automatic placement)', () => {
         const pending = minimalSession({
             isAiGame: true,
             gameCategory: 'normal',
@@ -895,7 +895,10 @@ describe('buildOptimisticAiLobbyStartSession', () => {
             whitePlayerId: null as any,
         });
         const optimistic = buildOptimisticAiLobbyStartSession(pending);
-        expect(optimistic?.gameStatus).toBe('base_placement');
+        expect(optimistic?.gameStatus).toBe('base_stone_color_choice');
+        expect(optimistic?.blackPlayerId).toBeNull();
+        expect(optimistic?.whitePlayerId).toBeNull();
+        expect(optimistic?.baseStoneColorChoices).toEqual({ 'human-1': null, 'ai-player-01': null });
     });
 
     it('uses chess_piece_placement for chess AI lobby', () => {
@@ -934,16 +937,20 @@ describe('buildOptimisticPveStartConfirmSession', () => {
         expect(optimistic?.gameStartTime).toBe(2_000);
     });
 
-    it('uses base_placement for tower base stages', () => {
+    it('uses base_stone_color_choice for tower base stages (automatic PVE placement)', () => {
         const pending = minimalSession({
             gameCategory: 'tower',
             gameStatus: 'pending',
             mode: GameMode.Base,
+            isAiGame: true,
             player1: { id: 'human-1', username: 'h', nickname: 'h' } as any,
             player2: { id: 'ai-player-01', username: 'ai', nickname: 'ai' } as any,
         });
         const optimistic = buildOptimisticPveStartConfirmSession(pending);
-        expect(optimistic?.gameStatus).toBe('base_placement');
+        expect(optimistic?.gameStatus).toBe('base_stone_color_choice');
+        expect(optimistic?.blackPlayerId).toBeNull();
+        expect(optimistic?.whitePlayerId).toBeNull();
+        expect(optimistic?.baseStoneColorChoices).toEqual({ 'human-1': null, 'ai-player-01': null });
         expect(optimistic?.startTime).toBeDefined();
     });
 });
