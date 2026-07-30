@@ -702,7 +702,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
         (typeof (game as any).aiHiddenItemAnimationEndTime === 'number' && now < (game as any).aiHiddenItemAnimationEndTime);
 
     let adventureEncounterTimeUp = false;
-    if (game.gameCategory === types.GameCategory.Adventure && typeof advDeadline === 'number') {
+    if (resolveArenaSessionPolicy(game).kind === types.GameCategory.Adventure && typeof advDeadline === 'number') {
         const isMonsterTurn = isAdventureEncounterMonsterTurn(game, aiUserId);
         const frozenRem = game.adventureEncounterFrozenHumanMsRemaining;
         adventureEncounterTimeUp = !isMonsterTurn
@@ -711,7 +711,7 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
     }
 
     if (
-        game.gameCategory === types.GameCategory.Adventure &&
+        resolveArenaSessionPolicy(game).kind === types.GameCategory.Adventure &&
         game.gameStatus !== 'ended' &&
         game.gameStatus !== 'no_contest' &&
         game.winner == null &&
@@ -904,6 +904,11 @@ export const updateStrategicGameState = async (game: types.LiveGameSession, now:
     // updateMissileState 등으로 같은 틱에 따내기 점수가 반영된 뒤 즉시 종료(앞선 tryEndGame은 미사일 착지 전에 실행됨)
     if (game.gameStatus === 'playing') {
         if (await tryEndGameWhenCaptureTargetReached(game, game.currentPlayer)) {
+            return;
+        }
+        // 아이템 페이즈 종료 직후 턴캡에 도달해 있어도 계가가 스킵되지 않게 재판정
+        const { maybeEnterPveAutoScoringIfPlayingAfterItemPhase } = await import('../utils/pveAutoScoringTurnCap.js');
+        if (await maybeEnterPveAutoScoringIfPlayingAfterItemPhase(game, 'updateStrategicGameState-postItemPhase')) {
             return;
         }
     }

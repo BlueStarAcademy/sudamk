@@ -37,6 +37,12 @@ export function computeLiveGameBroadcastSignature(g: LiveGameSession | null | un
     const revealEnd = g.revealAnimationEndTime ?? 0;
     const adventureDeadline = g.adventureEncounterDeadlineMs ?? 0;
     const adventureFrozen = g.adventureEncounterFrozenHumanMsRemaining ?? 0;
+    const aiHiddenItemAnimEnd = (g as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime ?? 0;
+    const totalTurns = g.totalTurns ?? 0;
+    const disconnectSig = g.disconnectionState
+        ? `${(g.disconnectionState as { disconnectedPlayerId?: string }).disconnectedPlayerId ?? ''}:${(g.disconnectionState as { disconnectedAt?: number }).disconnectedAt ?? 0}`
+        : '';
+    const pendingCaptureSig = g.pendingCapture ? 1 : 0;
     return [
         g.id,
         rev,
@@ -65,5 +71,9 @@ export function computeLiveGameBroadcastSignature(g: LiveGameSession | null | un
         revealEnd,
         adventureDeadline,
         adventureFrozen,
+        aiHiddenItemAnimEnd,
+        totalTurns,
+        disconnectSig,
+        pendingCaptureSig,
     ].join('\t');
 }

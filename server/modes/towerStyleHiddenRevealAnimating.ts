@@ -90,8 +90,14 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
         game.pausedTurnTimeLeft = undefined;
         if (pendingAiAfterUserHiddenReveal) {
             // 즉시 makeAiMove는 AI 세션 락·메인루프 setImmediate와 경합해 스킵될 수 있음 → hidden.ts와 동일하게 aiTurnStartTime만 설정
+            const { maybeEnterPveAutoScoringIfPlayingAfterItemPhase } = await import('../utils/pveAutoScoringTurnCap.js');
+            await maybeEnterPveAutoScoringIfPlayingAfterItemPhase(game, `${logPrefix}:postHiddenRevealNoCap`);
             await persistAfterHiddenRevealTransition(game, now);
             return true;
+        }
+        {
+            const { maybeEnterPveAutoScoringIfPlayingAfterItemPhase } = await import('../utils/pveAutoScoringTurnCap.js');
+            await maybeEnterPveAutoScoringIfPlayingAfterItemPhase(game, `${logPrefix}:postHiddenRevealNoCap`);
         }
         await persistAfterHiddenRevealTransition(game, now);
         return true;
@@ -203,6 +209,11 @@ export const runTowerStyleHiddenRevealAnimatingIfDue = async (
 
     if (onPostTurnSwitch) {
         await onPostTurnSwitch(game, now);
+    }
+    // 모험/길드전/로비 AI 등 onPostTurnSwitch 미지정 경로에서도 턴캡 계가 재판정
+    {
+        const { maybeEnterPveAutoScoringIfPlayingAfterItemPhase } = await import('../utils/pveAutoScoringTurnCap.js');
+        await maybeEnterPveAutoScoringIfPlayingAfterItemPhase(game, `${logPrefix}:postHiddenReveal`);
     }
 
     await persistAfterHiddenRevealTransition(game, now);

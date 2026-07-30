@@ -10915,15 +10915,37 @@ export const useApp = () => {
                                 const isHiddenRevealAnimExitToPlaying =
                                     existingForThrottle?.gameStatus === 'hidden_reveal_animating' &&
                                     game.gameStatus === 'playing';
-                                // 전략 PVP: 수순 길이 변화 없이 currentPlayer·gameStatus만 바뀌는 패킷
-                                const isStrategicPvpTurnOrPhaseChanged =
+                                // 히든 공개 후 PVP가 hidden_placing으로 복귀할 때 수순이 안 늘면 쓰로틀에 고착됨
+                                const isHiddenRevealAnimExitToPlacing =
+                                    existingForThrottle?.gameStatus === 'hidden_reveal_animating' &&
+                                    game.gameStatus === 'hidden_placing';
+                                // 스캔 애니 종료 후 연속 스캔 선택으로 복귀
+                                const isScanAnimExitToScanning =
+                                    existingForThrottle?.gameStatus === 'scanning_animating' &&
+                                    game.gameStatus === 'scanning';
+                                // 전략 PVP·PVE·페어: 수순 길이 변화 없이 currentPlayer·gameStatus·pair turn만 바뀌는 패킷
+                                const existingPairTurnIndex =
+                                    existingForThrottle?.settings?.pairGame?.currentTurnIndex;
+                                const incomingPairTurnIndex = game.settings?.pairGame?.currentTurnIndex;
+                                const isStrategicTurnOrPhaseChanged =
                                     !!existingForThrottle &&
                                     !PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode) &&
                                     !PLAYFUL_GAME_MODES.some((m) => m.mode === existingForThrottle.mode) &&
                                     (existingForThrottle.currentPlayer !== game.currentPlayer ||
-                                        existingForThrottle.gameStatus !== game.gameStatus) &&
-                                    (resolveArenaSessionPolicy(game as any).matchAxis === 'pvp' ||
-                                        resolveArenaSessionPolicy(existingForThrottle as any).matchAxis === 'pvp');
+                                        existingForThrottle.gameStatus !== game.gameStatus ||
+                                        existingPairTurnIndex !== incomingPairTurnIndex);
+                                const isAdventureEncounterClockUpdate =
+                                    (existingForThrottle as { adventureEncounterDeadlineMs?: number } | undefined)
+                                        ?.adventureEncounterDeadlineMs !==
+                                        (game as { adventureEncounterDeadlineMs?: number }).adventureEncounterDeadlineMs ||
+                                    (existingForThrottle as { adventureEncounterFrozenHumanMsRemaining?: number } | undefined)
+                                        ?.adventureEncounterFrozenHumanMsRemaining !==
+                                        (game as { adventureEncounterFrozenHumanMsRemaining?: number })
+                                            .adventureEncounterFrozenHumanMsRemaining;
+                                const isItemPhaseMetaOnlyUpdate =
+                                    !!existingForThrottle &&
+                                    (existingForThrottle.itemUseDeadline !== game.itemUseDeadline ||
+                                        existingForThrottle.itemPhaseActingPlayer !== game.itemPhaseActingPlayer);
                                 // 주사위/도둑 오버샷(또는 굴림 애니 종료) 후 rolling 단계로 복귀할 때
                                 // moveHistory 변화가 없어도 currentPlayer가 바뀔 수 있으므로 반드시 반영
                                 const isDiceThiefAnimExitToRolling =
@@ -10953,7 +10975,9 @@ export const useApp = () => {
                                     (!!existingForThrottle &&
                                         PLAYFUL_GAME_MODES.some((m) => m.mode === existingForThrottle.mode));
                                 const singlePlayerBaseFlowThrottleBypass =
-                                    getSessionArenaKind(game) === 'singleplayer' &&
+                                    (getSessionArenaKind(game) === 'singleplayer' ||
+                                        getSessionArenaKind(game) === 'tower' ||
+                                        getSessionArenaKind(existingForThrottle) === 'tower') &&
                                     (isSoloBaseFlowUpdateThrottleBypass(game) ||
                                         isSoloBaseFlowUpdateThrottleBypass(existingForThrottle));
                                 // 흑선 가져오기(capture bidding/reveal/tiebreaker) 종료 후 playing 전환은
@@ -11010,7 +11034,11 @@ export const useApp = () => {
                                     !isMissileSelectExitToPlaying &&
                                     !isHiddenRevealAnimEntry &&
                                     !isHiddenRevealAnimExitToPlaying &&
-                                    !isStrategicPvpTurnOrPhaseChanged &&
+                                    !isHiddenRevealAnimExitToPlacing &&
+                                    !isScanAnimExitToScanning &&
+                                    !isStrategicTurnOrPhaseChanged &&
+                                    !isAdventureEncounterClockUpdate &&
+                                    !isItemPhaseMetaOnlyUpdate &&
                                     !disconnectStateChanged &&
                                     !isAiHiddenItemPresentationUpdate &&
                                     !incomingHasSubstantiveBoard &&

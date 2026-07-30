@@ -73,4 +73,20 @@ describe('computeLiveGameBroadcastSignature', () => {
         const b = computeLiveGameBroadcastSignature(baseGame({ mode: GameMode.Dice, round: 2 }));
         expect(a).not.toBe(b);
     });
+
+    it('changes when only aiHiddenItemAnimationEndTime changes', () => {
+        const a = computeLiveGameBroadcastSignature(
+            baseGame({ animation: { type: 'ai_thinking' } as any, ...( { aiHiddenItemAnimationEndTime: 1000 } as any) }),
+        );
+        const b = computeLiveGameBroadcastSignature(
+            baseGame({ animation: { type: 'ai_thinking' } as any, ...( { aiHiddenItemAnimationEndTime: 2000 } as any) }),
+        );
+        expect(a).not.toBe(b);
+    });
+
+    it('changes when only totalTurns changes', () => {
+        const a = computeLiveGameBroadcastSignature(baseGame({ totalTurns: 39 }));
+        const b = computeLiveGameBroadcastSignature(baseGame({ totalTurns: 40 }));
+        expect(a).not.toBe(b);
+    });
 });

@@ -318,7 +318,7 @@ const AI_LOBBY_POST_START_CONFIRM_STATUSES = new Set([
 /** 로비 AI 대국: CONFIRM 직전 pending에서 human 색 (서버 resolveStrategicAiHumanColor와 동일) */
 export function resolveAiLobbyHumanPlayerColor(session: LiveGameSession): Player.Black | Player.White {
     const settings = session.settings;
-    if (session.gameCategory === 'adventure') {
+    if (resolveArenaSessionPolicy(session as any).kind === 'adventure') {
         if (session.mode === GameMode.Capture) return Player.Black;
         if (session.mode !== GameMode.Base) {
             return settings?.player1Color ?? Player.Black;
@@ -344,12 +344,13 @@ export function buildOptimisticAiLobbyStartSession(
     session: LiveGameSession,
     now: number = Date.now(),
 ): LiveGameSession | null {
-    if (!session.isAiGame || session.isSinglePlayer || session.gameCategory === 'tower' || session.gameCategory === 'singleplayer') {
+    const policy = resolveArenaSessionPolicy(session as any);
+    if (!session.isAiGame || policy.kind === 'singleplayer' || policy.kind === 'tower') {
         return null;
     }
     if (session.gameStatus !== 'pending') return null;
     if (!session.player1?.id || !session.player2?.id) return null;
-    if (session.gameCategory === 'adventure') return null;
+    if (policy.kind === 'adventure') return null;
 
     const humanColor = resolveAiLobbyHumanPlayerColor(session);
     let next = assignAiLobbySeatColors(session, humanColor);
@@ -381,7 +382,7 @@ export function buildOptimisticAiLobbyStartSession(
                 settings: { ...next.settings, komi: 0.5 },
             };
         }
-        if (session.mode === GameMode.Capture && session.gameCategory !== 'adventure') {
+        if (session.mode === GameMode.Capture && resolveArenaSessionPolicy(session as any).kind !== 'adventure') {
             const st = session.settings as {
                 captureTarget?: number;
                 captureTargetBlack?: number;
@@ -547,7 +548,8 @@ export function shouldIgnoreStalePendingAiLobbyStartRegression(
 ): boolean {
     if (!existing || incoming.gameStatus !== 'pending') return false;
     if (existing.gameStatus === 'pending') return false;
-    if (!existing.isAiGame || existing.isSinglePlayer || existing.gameCategory === 'tower' || existing.gameCategory === 'singleplayer') {
+    const existingPolicy = resolveArenaSessionPolicy(existing as any);
+    if (!existing.isAiGame || existingPolicy.kind === 'singleplayer' || existingPolicy.kind === 'tower') {
         return false;
     }
 

@@ -72,3 +72,15 @@ export async function maybeEnterPveAutoScoringAtTurnCap(
     }
     return true;
 }
+
+/**
+ * 아이템 페이즈·히든 공개 종료 직후 `playing`일 때만 턴캡 계가를 재판정한다.
+ * (페이즈 중 `maybeEnterPveAutoScoringAtTurnCap`이 false를 반환한 뒤 재시도가 없던 고착 방지)
+ */
+export async function maybeEnterPveAutoScoringIfPlayingAfterItemPhase(
+    game: types.LiveGameSession,
+    reason: string,
+): Promise<boolean> {
+    if (String(game.gameStatus) !== 'playing') return false;
+    return maybeEnterPveAutoScoringAtTurnCap(game, reason);
+}

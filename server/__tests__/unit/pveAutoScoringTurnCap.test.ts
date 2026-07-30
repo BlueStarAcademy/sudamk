@@ -82,4 +82,16 @@ describe('maybeEnterPveAutoScoringAtTurnCap', () => {
         expect(game.totalTurns).toBe(70);
         expect(deferGetGameResultForScoringOverlay).toHaveBeenCalledWith(game.id, 'towerHiddenRevealAutoScoring');
     });
+
+    it('defers while in missile_animating then enters scoring after playing resume helper', async () => {
+        const game = towerGameAtCap(40);
+        game.gameStatus = 'missile_animating' as any;
+        expect(await maybeEnterPveAutoScoringAtTurnCap(game, 'during-missile')).toBe(false);
+        expect(game.gameStatus).toBe('missile_animating');
+
+        game.gameStatus = 'playing';
+        const { maybeEnterPveAutoScoringIfPlayingAfterItemPhase } = await import('../../utils/pveAutoScoringTurnCap.js');
+        expect(await maybeEnterPveAutoScoringIfPlayingAfterItemPhase(game, 'post-missile')).toBe(true);
+        expect(game.gameStatus).toBe('scoring');
+    });
 });

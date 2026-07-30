@@ -57,6 +57,8 @@ export async function tickStrategicItemPhaseIfNeeded(
     if (hiddenChanged || missileChanged || itemTimeoutStateChanged || itemPhaseStateChanged) {
         const { broadcastItemPhaseSnapshot } = await import('./broadcastItemPhaseSnapshot.js');
         await broadcastItemPhaseSnapshot(game);
+        const { maybeEnterPveAutoScoringIfPlayingAfterItemPhase } = await import('./pveAutoScoringTurnCap.js');
+        await maybeEnterPveAutoScoringIfPlayingAfterItemPhase(game, 'tickStrategicItemPhase-postItemPhase');
         return true;
     }
     return false;

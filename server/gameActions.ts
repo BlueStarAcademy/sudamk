@@ -749,7 +749,11 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                     await updateHiddenState(game, nowSync);
                     updateMissileState(game, nowSync);
                 }
-                if (preItemPolicy.matchAxis !== 'pvp') {
+                if (preItemPolicy.matchAxis === 'pvp') {
+                    // PVP는 clientSync 없이 서버 언스틱만 — 페이즈 복귀를 양측에 즉시 방송
+                    const { broadcastItemPhaseSnapshot } = await import('./utils/broadcastItemPhaseSnapshot.js');
+                    await broadcastItemPhaseSnapshot(game);
+                } else if (preItemPolicy.matchAxis !== 'pvp') {
                     applyPveItemActionClientSync(game, payload, { preserveServerHiddenPlacementMeta: true });
                     if (preItemPolicy.kind === 'tower' && actionTypeStr === 'SCAN_BOARD' && game.gameStatus === 'scanning') {
                         towerScanBoardRevert = {
