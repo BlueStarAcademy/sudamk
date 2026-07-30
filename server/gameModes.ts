@@ -27,6 +27,7 @@ import {
     isAiInitialHiddenSoftFoundByAnyPlayer,
     isHiddenMoveIndexSoftRevealedByAnyPlayer,
 } from './modes/hiddenScanShared.js';
+import { shouldOmitBoardStateInBroadcast } from './utils/boardBroadcastOmit.js';
 import {
     getCurrentPairTurnSeat,
     isPairAiSeat,
@@ -169,7 +170,7 @@ async function broadcastScoringAnalysisWhenReady(
         baseStoneCaptures: preservedState?.baseStoneCaptures || freshGame.baseStoneCaptures,
         hiddenStoneCaptures: preservedState?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
     };
-    if (!freshGame.isSinglePlayer) {
+    if (shouldOmitBoardStateInBroadcast(freshGame)) {
         delete (gameToBroadcast as { boardState?: unknown }).boardState;
     }
     const { broadcastToGameParticipants } = await import('./socket.js');
@@ -541,7 +542,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
-            if (!game.isSinglePlayer) {
+            if (shouldOmitBoardStateInBroadcast(game)) {
                 delete (gameToBroadcast as any).boardState;
             }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
@@ -566,7 +567,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         await db.saveGame(game);
         const { broadcastToGameParticipants } = await import('./socket.js');
         const gameToBroadcast = { ...game };
-        if (!game.isSinglePlayer) {
+        if (shouldOmitBoardStateInBroadcast(game)) {
             delete (gameToBroadcast as any).boardState;
         }
         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
@@ -695,7 +696,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             await db.saveGame(game);
             const { broadcastToGameParticipants } = await import('./socket.js');
             const gameToBroadcast = { ...game };
-            if (!game.isSinglePlayer) {
+            if (shouldOmitBoardStateInBroadcast(game)) {
                 delete (gameToBroadcast as any).boardState;
             }
             broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: gameToBroadcast } }, game);
@@ -817,7 +818,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         baseStoneCaptures: preservedGameState.baseStoneCaptures || game.baseStoneCaptures,
         hiddenStoneCaptures: preservedGameState.hiddenStoneCaptures || game.hiddenStoneCaptures,
     };
-    if (!game.isSinglePlayer) {
+    if (shouldOmitBoardStateInBroadcast(game)) {
         delete (gameToBroadcast as any).boardState;
     }
     const { broadcastToGameParticipants } = await import('./socket.js');
@@ -879,7 +880,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             baseStoneCaptures: preservedStateForBroadcast?.baseStoneCaptures || freshGame.baseStoneCaptures,
             hiddenStoneCaptures: preservedStateForBroadcast?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
         };
-        if (!freshGame.isSinglePlayer) {
+        if (shouldOmitBoardStateInBroadcast(freshGame)) {
             delete (gameToBroadcast as any).boardState;
         }
 
@@ -1067,8 +1068,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
                     baseStoneCaptures: preservedState?.baseStoneCaptures || freshGame.baseStoneCaptures,
                     hiddenStoneCaptures: preservedState?.hiddenStoneCaptures || freshGame.hiddenStoneCaptures,
                 };
-                // boardState 제거하여 대역폭 절약
-                delete (gameToBroadcast as any).boardState;
+                if (shouldOmitBoardStateInBroadcast(freshGame)) {
+                    delete (gameToBroadcast as any).boardState;
+                }
                 const { broadcastToGameParticipants } = await import('./socket.js');
                 broadcastToGameParticipants(freshGame.id, { type: 'GAME_UPDATE', payload: { [freshGame.id]: gameToBroadcast } }, freshGame);
             }
@@ -1901,7 +1903,9 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                     try {
                         const { broadcastToGameParticipants } = await import('./socket.js');
                         const payload = { ...game };
-                        delete (payload as any).boardState;
+                        if (shouldOmitBoardStateInBroadcast(game)) {
+                            delete (payload as any).boardState;
+                        }
                         broadcastToGameParticipants(game.id, { type: 'GAME_UPDATE', payload: { [game.id]: payload } }, game);
                     } catch (e: any) {
                         console.warn(`[processGame] Byoyomi start broadcast failed for ${game.id}:`, e?.message);

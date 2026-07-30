@@ -18,7 +18,10 @@ Last updated: 2026-07-31
 | BR-08 | Done | PVE | Tower hidden reveal stale `totalTurns` skipped scoring | Fixed | `towerPlayerHidden.ts`, `pveAutoScoringTurnCap.test.ts` |
 | BR-10 | P0 | Common | Scoring GAME_UPDATE omitted board for Kata PVE via `!isSinglePlayer` | Fixed | `boardBroadcastOmit.ts`, `pveAutoScoringTurnCap.ts`, `standard.ts` |
 | BR-11 | P0 | Merge | Slim MH-ahead + empty board kept stale board / invisible stone | Fixed | `deferredWsBoardSnapshot.ts`, `clientGameMergePolicy.ts` |
-| BR-12 | P0 | PVP | General HTTP unstick missing reveal status + PVP snapshot | Fixed | `gameActions.ts` |
+| BR-13 | P1 | Common | getGameResult / byoyomi broadcasts used raw `!isSinglePlayer` board omit | Fixed | `gameModes.ts` |
+| BR-14 | P1 | Client | Rejoin slim MH-ahead kept stale storage board | Fixed | `Game.tsx` |
+| BR-15 | P1 | PVP | Selecting-phase deadlines not scheduled after HTTP | Fixed | `gameActions.ts` |
+| BR-16 | P2 | Common | animation/foul-only GAME_UPDATE throttled | Fixed | `useApp.ts` |
 
 ## Repro notes
 

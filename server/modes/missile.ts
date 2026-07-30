@@ -229,7 +229,7 @@ function recoverFromMissileSelectionTimeout(game: types.LiveGameSession, now: nu
         game[missileKey] = currentMissiles - 1;
     }
 
-    if (game.gameCategory === 'tower' && timedOutPlayerId === game.player1?.id) {
+    if (resolveArenaSessionPolicy(game).kind === 'tower' && timedOutPlayerId === game.player1?.id) {
         void persistTowerP1ConsumableDecrement(game.player1.id, 'missile');
     }
 
@@ -240,6 +240,7 @@ function recoverFromMissileSelectionTimeout(game: types.LiveGameSession, now: nu
         game.turnDeadline = undefined;
         game.turnStartTime = undefined;
     }
+    game.itemPhaseActingPlayer = undefined;
 
     if (pairSeat) {
         if (isPairAiSeat(pairSeat)) {
@@ -706,18 +707,13 @@ export const handleMissileAction = async (game: types.LiveGameSession, action: t
                     // 레이스: 완료 신호가 늦게 오거나 서버가 먼저 선택 페이즈로 복귀한 경우
                     'missile_selecting',
                 ]);
-                const gc = (game as any).gameCategory;
                 const policy = resolveArenaSessionPolicy(game);
-                const pveLike =
-                    gc === 'adventure' ||
-                    gc === 'tower' ||
-                    gc === 'guildwar' ||
-                    gc === 'singleplayer' ||
-                    game.isSinglePlayer === true;
-                if (
-                    (pveLike || policy.isPairGame || policy.matchAxis === 'pvp') &&
-                    missileAnimDupOkStatuses.has(String(game.gameStatus))
-                ) {
+                const allowDupComplete =
+                    policy.matchAxis === 'pve' ||
+                    policy.matchAxis === 'mixed_pair' ||
+                    policy.matchAxis === 'pvp' ||
+                    policy.isPairGame;
+                if (allowDupComplete && missileAnimDupOkStatuses.has(String(game.gameStatus))) {
                     return { clientResponse: { gameUpdated: true } };
                 }
                 console.warn(`[Missile Go] MISSILE_ANIMATION_COMPLETE failed: gameStatus=${game.gameStatus}, expected=missile_animating or playing, gameId=${game.id}`);

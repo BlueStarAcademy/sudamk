@@ -2313,6 +2313,19 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
                         delayMs: dur + 500,
                         stillInPhase: (g) => g.gameStatus === 'missile_animating',
                     });
+                } else if (
+                    game.gameStatus === 'hidden_placing' ||
+                    game.gameStatus === 'scanning' ||
+                    game.gameStatus === 'missile_selecting'
+                ) {
+                    const deadline = Number(game.itemUseDeadline) || 0;
+                    const delayMs = deadline > 0 ? Math.max(500, deadline - Date.now() + 400) : 30_500;
+                    const selectingStatus = game.gameStatus;
+                    scheduleStrategicItemPhaseFinalize({
+                        label: 'ItemSelecting',
+                        delayMs,
+                        stillInPhase: (g) => String(g.gameStatus) === selectingStatus,
+                    });
                 }
             }
 

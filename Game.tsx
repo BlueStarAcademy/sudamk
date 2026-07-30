@@ -75,6 +75,7 @@ import {
 import type { ChessPieceType } from './types/index.js';
 import { buildPveItemActionClientSync } from './utils/pveItemClientSync.js';
 import { isPveAwaitingStartConfirmModal } from './utils/clientGameMergePolicy.js';
+import { replayStrategicBoardFromMoveHistory } from './utils/deferredWsBoardSnapshot.js';
 import {
     isEligibleForPveAiTurnStuckRecovery,
     isManuallyPausedAiGame,
@@ -1350,13 +1351,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 return reconciled.boardState;
             }
         }
-        // PVE(싱글/탑/모험/길드전): 서버 보드 동기화를 절대 우선한다.
-        // sessionStorage 복원 보드를 우선하면 히든/포획/애니메이션 경합에서 돌 소실이 발생할 수 있다.
+        // PVE(싱글/탑/모험/길드전): 서버에 실돌이 있으면 우선. 빈 격자만 오면 storage/리플레이로 넘어간다.
         if (
             (isSinglePlayer || isTower || isAdventureGame || isGuildWarGame) &&
             session.boardState &&
             Array.isArray(session.boardState) &&
-            session.boardState.length > 0
+            session.boardState.length > 0 &&
+            session.boardState.some((row: Player[]) => row?.some((c) => c !== Player.None))
         ) {
             return session.boardState;
         }
@@ -1404,12 +1405,32 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     const serverMoveCount = session.moveHistory?.length ?? 0;
                     const storedMoveCount = parsed.moveHistory?.length ?? 0;
                     if (serverMoveCount > storedMoveCount) {
-                        if (session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0) {
+                        if (
+                            session.boardState &&
+                            Array.isArray(session.boardState) &&
+                            session.boardState.length > 0 &&
+                            session.boardState.some((row: Player[]) => row?.some((c) => c !== Player.None))
+                        ) {
                             console.log(`[Game] Using server boardState (server moves: ${serverMoveCount}, stored: ${storedMoveCount}) for game ${gameId}`);
                             return session.boardState;
                         }
-                        // IMPORTANT: moveHistory 기반 단순 복원은 포획을 반영하지 못해 "없던 돌이 생김" 버그를 만든다.
-                        // 서버 boardState가 비어 있으면, 일단 저장된 boardState(포획 반영)를 유지한다.
+                        // 슬림 패킷: 서버 수순이 앞섰는데 board 생략 → storage 보드에 MH 리플레이
+                        const replayed = replayStrategicBoardFromMoveHistory(
+                            {
+                                ...session,
+                                boardState: parsed.boardState,
+                                moveHistory: session.moveHistory,
+                                settings: session.settings ?? parsed.settings,
+                                baseStones: (session as any).baseStones ?? parsed.baseStones,
+                            } as LiveGameSession,
+                            parsed as LiveGameSession,
+                        );
+                        if (replayed) {
+                            console.log(
+                                `[Game] Replayed server moveHistory onto stored board (server moves: ${serverMoveCount}, stored: ${storedMoveCount}) for game ${gameId}`,
+                            );
+                            return replayed;
+                        }
                         console.warn(`[Game] Server has more moves but no boardState; keeping stored boardState to avoid capture desync (server moves: ${serverMoveCount}, stored: ${storedMoveCount}) for game ${gameId}`);
                         return parsed.boardState;
                     }
