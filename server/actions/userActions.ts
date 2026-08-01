@@ -193,6 +193,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 }
             });
             user.exchangeState = {
+                ...currentExchange,
                 listings: nextListings,
                 settlements: nextSettlements,
                 history: Array.isArray(history) ? history.filter((row): row is string => typeof row === 'string').slice(0, 200) : [],
@@ -1506,6 +1507,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const history = Array.isArray(exchange.history) ? [...exchange.history] : [];
             const histLine = `[${new Date(now).toLocaleString('ko-KR')}] 판매 완료: ${purchased.name} / ${price.toLocaleString()}${currency === 'gold' ? '골드' : '다이아'} (정산 대기)`;
             seller.exchangeState = {
+                ...exchange,
                 listings: nextListings as any,
                 settlements,
                 history: [histLine, ...history].filter((h): h is string => typeof h === 'string').slice(0, 200),
@@ -1600,6 +1602,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             user.gold = Math.max(0, (user.gold ?? 0) + goldNet);
             user.diamonds = Math.max(0, (user.diamonds ?? 0) + diamondsNet);
             user.exchangeState = {
+                ...exchange,
                 listings: Array.isArray(exchange.listings) ? exchange.listings : [],
                 settlements,
                 history: Array.isArray(exchange.history) ? exchange.history : [],
