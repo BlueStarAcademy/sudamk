@@ -8,7 +8,7 @@ import {
     LOBBY_CHANNEL_CAPACITY,
     LOBBY_CHANNEL_MIN,
 } from '../../shared/constants/lobbyChannel.js';
-import { countUsersInLobbyChannel, resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
+import { resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
 import PlayerList from '../waiting-room/PlayerList.js';
 
 type UserScopeTab = 'channel' | 'friends' | 'guild';
@@ -38,7 +38,6 @@ const HomeViewerOnlineUsersColumn: React.FC<HomeViewerOnlineUsersColumnProps> = 
         [currentUserWithStatus?.friendIds],
     );
     const guildId = currentUserWithStatus?.guildId;
-    const friendRegisteredCount = currentUserWithStatus?.friendIds?.length ?? 0;
     const guildTotalMembers = guildId ? guilds[guildId]?.members?.length ?? 0 : 0;
 
     useEffect(() => {
@@ -58,11 +57,6 @@ const HomeViewerOnlineUsersColumn: React.FC<HomeViewerOnlineUsersColumnProps> = 
         }
         return map;
     }, [onlineUsers, currentUserWithStatus]);
-
-    const channelOccupancy = useMemo(
-        () => countUsersInLobbyChannel(statusMap, myChannel),
-        [statusMap, myChannel],
-    );
 
     const liveSameChannelUsers = useMemo(() => {
         if (!currentUserWithStatus) return [] as UserWithStatus[];
@@ -96,15 +90,37 @@ const HomeViewerOnlineUsersColumn: React.FC<HomeViewerOnlineUsersColumnProps> = 
         return liveSameChannelUsers.filter((u) => u.guildId === guildId).length;
     }, [liveSameChannelUsers, guildId]);
 
+    /** 목록과 동일하게 본인을 포함한 접속 인원 — 접속자 (N/N) */
     const occupancyLabel = useMemo(() => {
         if (userTab === 'friends') {
-            return `(${friendRegisteredCount}/${FRIEND_LIMIT})`;
+            // 같은 채널 접속 친구 + 본인
+            const friendsOnlineIncludingSelf = liveSameChannelUsers.filter(
+                (u) => u.id === currentUserWithStatus?.id || friendSet.has(u.id),
+            ).length;
+            return t('userScope.onlineOccupancy', {
+                current: friendsOnlineIncludingSelf,
+                max: FRIEND_LIMIT,
+            });
         }
         if (userTab === 'guild') {
-            return `(${guildOnlineSameChannel}/${guildTotalMembers})`;
+            return t('userScope.onlineOccupancy', {
+                current: guildOnlineSameChannel,
+                max: Math.max(guildTotalMembers, 1),
+            });
         }
-        return `(${channelOccupancy}/${LOBBY_CHANNEL_CAPACITY})`;
-    }, [userTab, friendRegisteredCount, guildOnlineSameChannel, guildTotalMembers, channelOccupancy]);
+        return t('userScope.onlineOccupancy', {
+            current: liveSameChannelUsers.length,
+            max: LOBBY_CHANNEL_CAPACITY,
+        });
+    }, [
+        t,
+        userTab,
+        friendSet,
+        currentUserWithStatus?.id,
+        guildOnlineSameChannel,
+        guildTotalMembers,
+        liveSameChannelUsers,
+    ]);
 
     if (!currentUserWithStatus) return null;
 

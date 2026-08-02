@@ -2443,7 +2443,8 @@
     "userScope": {
       "all": "전체",
       "friends": "친구",
-      "guild": "길드원"
+      "guild": "길드원",
+      "onlineOccupancy": "접속자 ({{current}}/{{max}})"
     },
     "lobbyChannel": {
       "modalTitle": "채널 변경",

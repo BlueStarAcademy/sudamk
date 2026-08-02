@@ -2442,7 +2442,8 @@
     "userScope": {
       "all": "All",
       "friends": "Friends",
-      "guild": "Guild"
+      "guild": "Guild",
+      "onlineOccupancy": "Online ({{current}}/{{max}})"
     },
     "lobbyChannel": {
       "modalTitle": "Change channel",
