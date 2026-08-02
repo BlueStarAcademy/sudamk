@@ -45,6 +45,7 @@ describe('quickUtilityPanel', () => {
             'singleplayer',
             'tower',
             'adventure',
+            'guild',
             'detailedStats',
             'monsterCodex',
             'ranking',
@@ -60,6 +61,7 @@ describe('quickUtilityPanel', () => {
         expect(QUICK_UTILITY_PANEL_TITLES.singleplayer).toBe('모험');
         expect(QUICK_UTILITY_PANEL_TITLES.tower).toBe('도전의 탑');
         expect(QUICK_UTILITY_PANEL_TITLES.adventure).toBe('탐험');
+        expect(QUICK_UTILITY_PANEL_TITLES.guild).toBe('길드');
         expect(resolveHomeViewerUtilityKind('rankedMatch')).toBe('matchArena');
         expect(resolveHomeViewerUtilityKind('normalMatch')).toBe('matchArena');
         expect(resolveHomeViewerUtilityKind('aiArena')).toBe('friendlyLobby');

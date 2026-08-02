@@ -32,7 +32,12 @@ export const getLuxuryButtonClasses = (variant: 'primary' | 'danger' | 'neutral'
     return variants[variant] || variants.primary;
 };
 
-export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.ReactNode }> = ({ guild, leftAction }) => {
+export const GuildCheckInPanel: React.FC<{
+    guild: GuildType;
+    leftAction?: React.ReactNode;
+    /** 합쳐진 셸 안 — 외곽 테두리·배경 생략 */
+    embedded?: boolean;
+}> = ({ guild, leftAction, embedded = false }) => {
     const { t } = useTranslation(['guild', 'common']);
     const useMobileChrome = useMobileModalChrome();
     const { handlers, currentUserWithStatus } = useAppContext();
@@ -113,11 +118,19 @@ export const GuildCheckInPanel: React.FC<{ guild: GuildType; leftAction?: React.
 
     return (
         <>
-        <div className="relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-2 shadow-lg sm:p-4">
-            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
-            <div className="relative z-10 flex flex-col h-full min-h-0">
-                <div className="flex justify-between items-center mb-2 flex-shrink-0">
-                    <h3 className="font-bold text-sm sm:text-lg text-highlight drop-shadow-lg flex items-center gap-1 sm:gap-2">
+        <div
+            className={
+                embedded
+                    ? 'relative flex h-full min-h-0 flex-col overflow-hidden p-2 sm:p-3'
+                    : 'relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-2 shadow-lg sm:p-4'
+            }
+        >
+            {!embedded ? (
+                <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10" />
+            ) : null}
+            <div className="relative z-10 flex h-full min-h-0 flex-col">
+                <div className="mb-2 flex flex-shrink-0 items-center justify-between">
+                    <h3 className="flex items-center gap-1 text-sm font-bold text-highlight drop-shadow-lg sm:gap-2 sm:text-lg">
                         <img src={GUILD_UI_ICONS.checkin} alt="" className={GUILD_UI_ICON_CLASS} />
                         <span className="whitespace-nowrap">{t('checkIn.title')}</span>
                     </h3>

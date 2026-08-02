@@ -5724,7 +5724,9 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             return false;
         }
         if (isChampionshipDungeonVenueForPotion) {
+            // 라운드 전환 로딩(다음 경기 준비/대기) 중에는 컨디션 회복제 사용 불가
             if (championshipAwaitingKataLoad) return false;
+            if (autoNextCountdown !== null || pendingRoundSwitchTo != null) return false;
             return status === 'bracket_ready' || status === 'round_complete';
         }
         const hasFinishedUserMatch = tournament.rounds.some((r) =>
@@ -5736,6 +5738,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
         tournament?.status,
         tournament?.currentStageAttempt,
         championshipAwaitingKataLoad,
+        autoNextCountdown,
+        pendingRoundSwitchTo,
         isChampionshipDungeonVenueForPotion,
     ]);
 

@@ -1197,7 +1197,7 @@ const Profile: React.FC<ProfileProps> = () => {
         });
     };
     const onSelectGuildLobby = () => {
-        window.location.hash = '#/guild';
+        handlers.openGuildLobby?.();
     };
     const onSelectTournamentLobby = () =>
         tryArenaEnter('championship', () => {
@@ -2564,10 +2564,9 @@ const Profile: React.FC<ProfileProps> = () => {
                 <GuildCreateModal
                     onClose={() => setIsGuildCreateModalOpen(false)}
                     onSuccess={async (guild: Guild) => {
-                        console.log('[Profile] Guild created, opening guild home modal:', guild);
+                        console.log('[Profile] Guild created, opening guild home viewer:', guild);
                         setIsGuildCreateModalOpen(false);
-                        // 길드 생성 성공 시 길드 홈 페이지로 이동
-                        window.location.hash = '#/guild';
+                        handlers.openGuildLobby?.();
                     }}
                 />
             )}
@@ -2576,7 +2575,7 @@ const Profile: React.FC<ProfileProps> = () => {
                     onClose={() => setIsGuildJoinModalOpen(false)}
                     onSuccess={async (guild: Guild) => {
                         setIsGuildJoinModalOpen(false);
-                        window.location.hash = '#/guild';
+                        handlers.openGuildLobby?.();
                     }}
                 />
             )}

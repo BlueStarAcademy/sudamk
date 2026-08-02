@@ -9,9 +9,11 @@ import ScreenGuideModal from '../ScreenGuideModal.js';
 
 interface GuildHomeProps {
     initialGuild?: GuildType;
+    /** homeViewer: 홈 중앙 퀵유틸 임베드 */
+    presentation?: 'full' | 'homeViewer';
 }
 
-const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
+const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild, presentation = 'full' }) => {
     const { t } = useTranslation('guild');
     const { currentUserWithStatus, guilds, handlers } = useAppContext();
     const [guildDonationAnimation, setGuildDonationAnimation] = useState<{ coins: number; research: number; type: 'gold' | 'diamond' } | null>(null);
@@ -111,7 +113,10 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
         };
     }, [guildDonationAnimation]);
 
-    const guildScreenGuide = useScreenGuide('guildHome', { active: Boolean(myGuild && !isLoading) });
+    const isHomeViewer = presentation === 'homeViewer';
+    const guildScreenGuide = useScreenGuide('guildHome', {
+        active: Boolean(myGuild && !isLoading && !isHomeViewer),
+    });
 
     // 사용자가 길드에 속해있지 않으면 프로필로 리다이렉트 (currentUserWithStatus가 로드된 후에만, 길드 ID가 확실히 없을 때만)
     useEffect(() => {
@@ -136,8 +141,8 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     
     if (!currentUserWithStatus?.guildId) {
         return (
-            <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 text-primary">
-                <BackButton onClick={() => window.location.hash = '#/home'} />
+            <div className={`${isHomeViewer ? '' : 'bg-lobby-shell-guild '}flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 text-primary`}>
+                {!isHomeViewer ? <BackButton onClick={() => window.location.hash = '#/home'} /> : null}
                 <p className="text-secondary">{t('loading.loginCheck')}</p>
             </div>
         );
@@ -146,7 +151,7 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     // 로딩 중이면 로딩 표시
     if (isLoading && !myGuild) {
         return (
-            <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full items-center justify-center text-primary">
+            <div className={`${isHomeViewer ? '' : 'bg-lobby-shell-guild '}flex h-full min-h-0 w-full items-center justify-center text-primary`}>
                 <p className="text-secondary">{t('loading.guildInfo')}</p>
             </div>
         );
@@ -155,18 +160,19 @@ const GuildHome: React.FC<GuildHomeProps> = ({ initialGuild }) => {
     // 길드가 없으면 로딩 또는 리다이렉트 중 표시
     if (!myGuild) {
         return (
-            <div className="bg-lobby-shell-guild flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 text-primary">
-                <BackButton onClick={() => window.location.hash = '#/home'} />
+            <div className={`${isHomeViewer ? '' : 'bg-lobby-shell-guild '}flex h-full min-h-0 w-full flex-col items-center justify-center gap-4 text-primary`}>
+                {!isHomeViewer ? <BackButton onClick={() => window.location.hash = '#/home'} /> : null}
                 <p className="text-secondary">{t('loading.guildInfo')}</p>
             </div>
         );
     }
 
-    // 길드가 있으면 대시보드 표시 (배경은 GuildDashboard의 guildbg.webp)
+    // 길드가 있으면 대시보드 표시 (배경은 GuildDashboard의 guildbg.webp; homeViewer는 셸 배경만)
     return (
         <div className="flex h-full min-h-0 w-full min-w-0 flex-1 flex-col text-primary">
             <GuildDashboard
                 guild={myGuild}
+                presentation={presentation}
                 guildDonationAnimation={guildDonationAnimation}
                 onDonationComplete={(coins: number, research: number, type: 'gold' | 'diamond') =>
                     setGuildDonationAnimation({ coins, research, type })

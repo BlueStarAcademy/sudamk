@@ -117,6 +117,16 @@ export function navigateToHomeAdventure(openAdventureLobby?: () => void): void {
     replaceAppHash(APP_HOME_HASH);
 }
 
+/** 길드 홈 풀페이지 폐지 — 홈 퀵유틸 뷰어로 복귀 (`#/guildboss`·`#/guildwar`는 유지) */
+export function navigateToHomeGuild(openGuildLobby?: () => void): void {
+    try {
+        openGuildLobby?.();
+    } catch {
+        /* ignore */
+    }
+    replaceAppHash(APP_HOME_HASH);
+}
+
 export function shouldSuppressChampionshipArenaRedirect(): boolean {
     try {
         const route = parseHash(window.location.hash);

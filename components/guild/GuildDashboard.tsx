@@ -45,7 +45,6 @@ import {
     guildWarStartMs,
     type GuildWarCalendarPhase,
 } from '../../shared/utils/guildWarSchedule.js';
-import { useModalStackLayer } from '../../hooks/useModalStackLayer.js';
 import { SHOP_IMAGE_DESC_POPOVER_Z } from '../shopImageDescriptionPopover.js';
 import { GUILD_UI_ICON_CLASS, GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
 import { useTranslation } from 'react-i18next';
@@ -81,7 +80,25 @@ const toEpochMs = (value: unknown): number | null => {
     return null;
 };
 
-const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null; onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void; goldButtonRef: React.RefObject<HTMLDivElement>; diamondButtonRef: React.RefObject<HTMLDivElement> }> = ({ guild, guildDonationAnimation, onDonationComplete, goldButtonRef, diamondButtonRef }) => {
+const GuildDonationPanel: React.FC<{
+    guild?: GuildType | null;
+    guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null;
+    onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void;
+    goldButtonRef: React.RefObject<HTMLDivElement>;
+    diamondButtonRef: React.RefObject<HTMLDivElement>;
+    /** 합쳐진 셸 안 — 외곽 테두리·배경 생략 */
+    embedded?: boolean;
+    /** side: 좌측 세로 버튼(기본) / bottom: 기록 전폭 + 하단 가로 버튼 */
+    buttonPlacement?: 'side' | 'bottom';
+}> = ({
+    guild,
+    guildDonationAnimation,
+    onDonationComplete,
+    goldButtonRef,
+    diamondButtonRef,
+    embedded = false,
+    buttonPlacement = 'side',
+}) => {
     const { t } = useTranslation(['guild', 'common']);
     const useMobileChrome = useMobileModalChrome();
     const { handlers, currentUserWithStatus } = useAppContext();
@@ -163,98 +180,165 @@ const GuildDonationPanel: React.FC<{ guild?: GuildType | null; guildDonationAnim
             .map(([userId, agg]) => ({ userId, ...agg }))
             .sort((a, b) => b.totalCoins - a.totalCoins);
     }, [guild?.donationLog]);
-    const isMobile = false;
+    const isBottomButtons = buttonPlacement === 'bottom';
+
+    const goldDonateButton = (
+        <div className={`flex min-w-0 flex-col items-center ${isBottomButtons ? 'w-auto gap-0.5' : 'w-full gap-1'}`}>
+            <div className={`font-semibold whitespace-nowrap text-amber-200 ${isBottomButtons ? 'text-[10px]' : 'w-full text-center text-xs'}`}>
+                {t('donation.goldDonation')}
+            </div>
+            <div ref={goldButtonRef} className={isBottomButtons ? 'w-auto min-w-0' : 'w-full min-w-0'}>
+                <Button
+                    onClick={() => openDonationModal('gold')}
+                    disabled={!canDonateGold || isDonating}
+                    colorScheme="none"
+                    className={
+                        isBottomButtons
+                            ? `inline-flex items-center justify-center gap-1.5 rounded-lg border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-2.5 py-1 text-xs font-bold leading-none text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.3)] [text-shadow:0_1px_0_rgba(255,255,255,0.3)] ${!canDonateGold || isDonating ? 'cursor-not-allowed opacity-50' : ''}`
+                            : `flex w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 px-2 py-2.5 text-sm font-bold leading-tight text-slate-900 shadow-[0_1px_2px_rgba(0,0,0,0.3)] [text-shadow:0_1px_0_rgba(255,255,255,0.3)] ${!canDonateGold || isDonating ? 'cursor-not-allowed opacity-50' : ''}`
+                    }
+                >
+                    {isDonating && donationType === 'gold' ? (
+                        <span className="animate-spin">⏳</span>
+                    ) : isBottomButtons ? (
+                        <>
+                            <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span>{GUILD_DONATION_GOLD_COST.toLocaleString()}</span>
+                            <span className="text-[10px] font-semibold opacity-85">
+                                {goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="flex items-center gap-1 whitespace-nowrap">
+                                <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className="h-4 w-4 flex-shrink-0" />
+                                <span>{GUILD_DONATION_GOLD_COST.toLocaleString()}</span>
+                            </span>
+                            <span className="text-[10px] opacity-90">
+                                {goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}
+                            </span>
+                        </>
+                    )}
+                </Button>
+            </div>
+        </div>
+    );
+
+    const diamondDonateButton = (
+        <div className={`flex min-w-0 flex-col items-center ${isBottomButtons ? 'w-auto gap-0.5' : 'w-full gap-1'}`}>
+            <div className={`font-semibold whitespace-nowrap text-blue-200 ${isBottomButtons ? 'text-[10px]' : 'w-full text-center text-xs'}`}>
+                {t('donation.diamondDonation')}
+            </div>
+            <div ref={diamondButtonRef} className={isBottomButtons ? 'w-auto min-w-0' : 'w-full min-w-0'}>
+                <Button
+                    onClick={() => openDonationModal('diamond')}
+                    disabled={!canDonateDiamond || isDonating}
+                    colorScheme="none"
+                    className={
+                        isBottomButtons
+                            ? `inline-flex items-center justify-center gap-1.5 rounded-lg border border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 px-2.5 py-1 text-xs font-bold leading-none text-white shadow-[0_1px_2px_rgba(0,0,0,0.3)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] ${!canDonateDiamond || isDonating ? 'cursor-not-allowed opacity-50' : ''}`
+                            : `flex w-full flex-col items-center justify-center gap-0.5 rounded-xl border border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 px-2 py-2.5 text-sm font-bold leading-tight text-white shadow-[0_1px_2px_rgba(0,0,0,0.3)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] ${!canDonateDiamond || isDonating ? 'cursor-not-allowed opacity-50' : ''}`
+                    }
+                >
+                    {isDonating && donationType === 'diamond' ? (
+                        <span className="animate-spin">⏳</span>
+                    ) : isBottomButtons ? (
+                        <>
+                            <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className="h-3.5 w-3.5 flex-shrink-0" />
+                            <span>{GUILD_DONATION_DIAMOND_COST.toLocaleString()}</span>
+                            <span className="text-[10px] font-semibold opacity-85">
+                                {diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}
+                            </span>
+                        </>
+                    ) : (
+                        <>
+                            <span className="flex items-center gap-1 whitespace-nowrap">
+                                <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className="h-4 w-4 flex-shrink-0" />
+                                <span>{GUILD_DONATION_DIAMOND_COST.toLocaleString()}</span>
+                            </span>
+                            <span className="text-[10px] opacity-90">
+                                {diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}
+                            </span>
+                        </>
+                    )}
+                </Button>
+            </div>
+        </div>
+    );
+
+    const donationHistoryList = (
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/40 pr-1 shadow-inner">
+            <div className="min-h-full space-y-0.5 p-2.5 text-sm leading-snug text-secondary sm:p-3">
+                {donationByUser.length === 0 ? (
+                    <div className="py-1 text-stone-500">{t('donation.noRecords')}</div>
+                ) : (
+                    donationByUser.map((agg) => (
+                        <div
+                            key={agg.userId}
+                            className="truncate leading-tight"
+                            title={t('donation.logTooltip', {
+                                nickname: agg.nickname,
+                                goldCount: agg.goldCount,
+                                diamondCount: agg.diamondCount,
+                                coins: agg.totalCoins.toLocaleString(),
+                                research: agg.totalResearch.toLocaleString(),
+                            })}
+                        >
+                            <span className="text-amber-200/90">[{agg.nickname}]</span>
+                            {' '}
+                            <span className="text-amber-200/95">{t('donation.goldCount', { count: agg.goldCount })}</span>
+                            {' · '}
+                            <span className="text-blue-200/95">{t('donation.diamondCount', { count: agg.diamondCount })}</span>
+                            {' · '}
+                            <img src="/images/guild/tokken.webp" alt={t('donation.coinAlt')} className="inline h-3 w-3 align-middle" />
+                            <span className="font-semibold text-amber-200">{agg.totalCoins.toLocaleString()}</span>
+                            {' · '}
+                            <img src="/images/guild/button/guildlab.webp" alt="RP" className="inline h-3 w-3 align-middle" />
+                            <span className="font-semibold text-blue-200">{agg.totalResearch.toLocaleString()}</span>
+                        </div>
+                    ))
+                )}
+            </div>
+        </div>
+    );
+
+    const shellClass = embedded
+        ? 'relative flex h-full min-h-0 flex-1 flex-col gap-2 overflow-hidden px-2 pb-2 pt-1 sm:px-3 sm:pb-3'
+        : 'relative flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg';
 
     return (
-        <div className="relative flex h-full min-h-0 flex-1 flex-col gap-3 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg">
-            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none rounded-xl" />
-            <h3 className="font-bold text-base text-highlight text-center relative z-10 flex items-center justify-center gap-2 drop-shadow-lg flex-shrink-0">
+        <div className={shellClass}>
+            {!embedded ? (
+                <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10" />
+            ) : null}
+            <h3 className="relative z-10 flex flex-shrink-0 items-center justify-center gap-2 text-center text-base font-bold text-highlight drop-shadow-lg">
                 <img src={GUILD_UI_ICONS.donation} alt="" className={GUILD_UI_ICON_CLASS} />
                 <span>{t('donation.title')}</span>
             </h3>
 
-            <div className="flex min-h-0 flex-1 flex-row gap-3 relative z-10 min-w-0 items-stretch">
-            {/* 좌측: 골드·다이아 기부 버튼 세로 배치 (PC) */}
-            <div className="flex w-[9.75rem] shrink-0 flex-col justify-center gap-3">
-                {/* 골드 기부 */}
-                <div className="flex w-full flex-col gap-1.5 items-center">
-                    <div className="text-xs text-amber-200 font-semibold whitespace-nowrap text-center w-full">{t('donation.goldDonation')}</div>
-                    <div ref={goldButtonRef} className="w-full min-w-0">
-                        <Button
-                            onClick={() => openDonationModal('gold')}
-                            disabled={!canDonateGold || isDonating}
-                            colorScheme="none"
-                            className={`w-full justify-center rounded-xl border border-amber-400/50 bg-gradient-to-r from-amber-400/90 via-amber-300/90 to-amber-500/90 text-slate-900 font-bold text-sm py-2.5 px-2 shadow-[0_1px_2px_rgba(0,0,0,0.3)] [text-shadow:0_1px_0_rgba(255,255,255,0.3)] flex flex-col items-center gap-0.5 leading-tight ${!canDonateGold || isDonating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            {isDonating && donationType === 'gold' ? (
-                                <span className="animate-spin">⏳</span>
-                            ) : (
-                                <>
-                                    <span className="flex items-center gap-1 whitespace-nowrap">
-                                        <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className="w-4 h-4 flex-shrink-0" />
-                                        <span>{GUILD_DONATION_GOLD_COST.toLocaleString()}</span>
-                                    </span>
-                                    <span className="text-[10px] opacity-90">{goldDonationsLeft}/{GUILD_DONATION_GOLD_LIMIT}</span>
-                                </>
-                            )}
-                        </Button>
+            {buttonPlacement === 'bottom' ? (
+                <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                        <div className="mb-1 flex-shrink-0 text-sm font-semibold text-highlight">{t('donation.history')}</div>
+                        {donationHistoryList}
+                    </div>
+                    <div className="flex w-full shrink-0 flex-row items-end justify-center gap-3">
+                        {goldDonateButton}
+                        {diamondDonateButton}
                     </div>
                 </div>
-
-                {/* 다이아 기부 */}
-                <div className="flex w-full flex-col gap-1.5 items-center">
-                    <div className="text-xs text-blue-200 font-semibold whitespace-nowrap text-center w-full">{t('donation.diamondDonation')}</div>
-                    <div ref={diamondButtonRef} className="w-full min-w-0">
-                        <Button
-                            onClick={() => openDonationModal('diamond')}
-                            disabled={!canDonateDiamond || isDonating}
-                            colorScheme="none"
-                            className={`w-full justify-center rounded-xl border border-sky-400/50 bg-gradient-to-r from-sky-400/90 via-blue-500/90 to-indigo-500/90 text-white font-bold text-sm py-2.5 px-2 shadow-[0_1px_2px_rgba(0,0,0,0.3)] drop-shadow-[0_0_1px_rgba(0,0,0,0.8)] flex flex-col items-center gap-0.5 leading-tight ${!canDonateDiamond || isDonating ? 'opacity-50 cursor-not-allowed' : ''}`}
-                        >
-                            {isDonating && donationType === 'diamond' ? (
-                                <span className="animate-spin">⏳</span>
-                            ) : (
-                                <>
-                                    <span className="flex items-center gap-1 whitespace-nowrap">
-                                        <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className="w-4 h-4 flex-shrink-0" />
-                                        <span>{GUILD_DONATION_DIAMOND_COST.toLocaleString()}</span>
-                                    </span>
-                                    <span className="text-[10px] opacity-90">{diamondDonationsLeft}/{GUILD_DONATION_DIAMOND_LIMIT}</span>
-                                </>
-                            )}
-                        </Button>
+            ) : (
+                <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-row items-stretch gap-3">
+                    <div className="flex w-[9.75rem] shrink-0 flex-col justify-center gap-3">
+                        {goldDonateButton}
+                        {diamondDonateButton}
+                    </div>
+                    <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col border-l border-stone-600/50 pl-3 pt-0">
+                        <div className="mb-1 flex-shrink-0 text-sm font-semibold text-highlight">{t('donation.history')}</div>
+                        {donationHistoryList}
                     </div>
                 </div>
-            </div>
-
-            {/* 우측: 기부 기록 — 가로폭 우선 */}
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col border-l border-stone-600/50 pl-3 pt-0 relative z-10">
-                <div className="mb-1 flex-shrink-0 text-sm font-semibold text-highlight">{t('donation.history')}</div>
-                <div className="min-h-0 flex-1 overflow-y-auto rounded-lg border-2 border-black/20 bg-tertiary/40 pr-1 shadow-inner">
-                    <div className="min-h-full space-y-0.5 p-2.5 text-sm leading-snug text-secondary sm:p-3">
-                            {donationByUser.length === 0 ? (
-                                <div className="text-stone-500 py-1">{t('donation.noRecords')}</div>
-                            ) : (
-                                donationByUser.map((agg) => (
-                                    <div key={agg.userId} className="leading-tight truncate" title={t('donation.logTooltip', { nickname: agg.nickname, goldCount: agg.goldCount, diamondCount: agg.diamondCount, coins: agg.totalCoins.toLocaleString(), research: agg.totalResearch.toLocaleString() })}>
-                                        <span className="text-amber-200/90">[{agg.nickname}]</span>
-                                        {' '}
-                                        <span className="text-amber-200/95">{t('donation.goldCount', { count: agg.goldCount })}</span>
-                                        {' · '}
-                                        <span className="text-blue-200/95">{t('donation.diamondCount', { count: agg.diamondCount })}</span>
-                                        {' · '}
-                                        <img src="/images/guild/tokken.webp" alt={t('donation.coinAlt')} className="inline h-3 w-3 align-middle" />
-                                        <span className="font-semibold text-amber-200">{agg.totalCoins.toLocaleString()}</span>
-                                        {' · '}
-                                        <img src="/images/guild/button/guildlab.webp" alt="RP" className="inline h-3 w-3 align-middle" />
-                                        <span className="font-semibold text-blue-200">{agg.totalResearch.toLocaleString()}</span>
-                                    </div>
-                                ))
-                            )}
-                        </div>
-                    </div>
-                </div>
-            </div>
+            )}
 
             {/* 기부 횟수 선택 모달 - createPortal로 document.body에 렌더링 */}
             {donationModal && createPortal(
@@ -626,6 +710,9 @@ const GuildHomeTitlePanel: React.FC<{
     xpProgress: number;
     canManage: boolean;
     onIconSelect: () => void;
+    /** homeViewer: NavTitleBar 뒤로가기가 있으므로 BackButton 생략 */
+    hideBack?: boolean;
+    compact?: boolean;
 }> = ({
     guildIcon,
     guildDisplayName,
@@ -636,17 +723,20 @@ const GuildHomeTitlePanel: React.FC<{
     xpProgress,
     canManage,
     onIconSelect,
+    hideBack = false,
+    compact = false,
 }) => {
     const { t } = useTranslation(['guild', 'common']);
+    const markSize = compact ? 44 : 56;
     return (
-    <div className="relative flex flex-shrink-0 items-center gap-2 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg">
+    <div className={`relative flex flex-shrink-0 items-center gap-2 overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 shadow-lg ${compact ? 'p-2' : 'p-3'}`}>
         <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10" aria-hidden />
         <div className="relative z-10 flex w-full min-w-0 items-center gap-2">
-            <BackButton onClick={() => { window.location.hash = '#/home'; }} />
+            {!hideBack ? <BackButton onClick={() => { window.location.hash = '#/home'; }} /> : null}
             <div className="relative min-w-0 flex-1">
                 <div className="flex min-w-0 items-center gap-3">
                     <div className="relative group shrink-0 overflow-visible">
-                        <GuildMark icon={guildIcon} size={56} alt="Guild Icon" showGlow />
+                        <GuildMark icon={guildIcon} size={markSize} alt="Guild Icon" showGlow />
                         {canManage && (
                             <button
                                 onClick={onIconSelect}
@@ -660,17 +750,17 @@ const GuildHomeTitlePanel: React.FC<{
                     </div>
                     <div className="flex min-w-0 flex-1 items-center gap-3">
                         <h1
-                            className="min-w-0 shrink truncate text-left text-xl font-bold text-highlight drop-shadow-md"
+                            className={`min-w-0 shrink truncate text-left font-bold text-highlight drop-shadow-md ${compact ? 'text-base' : 'text-xl'}`}
                             title={guildDisplayName}
                         >
                             {isLoading ? t('common:actions.loading') : guildDisplayName}
                         </h1>
                         <div className="min-w-0 flex-1">
-                            <div className="mb-1 flex justify-between text-xs font-semibold text-secondary">
+                            <div className={`flex justify-between font-semibold text-secondary ${compact ? 'mb-0.5 text-[10px]' : 'mb-1 text-xs'}`}>
                                 <span>Lv.{guildLevel}</span>
                                 <span>{guildXp.toLocaleString()} / {xpForNextLevel.toLocaleString()}</span>
                             </div>
-                            <div className="h-2.5 w-full overflow-hidden rounded-full border border-gray-600/50 bg-gray-700/50 shadow-inner">
+                            <div className={`w-full overflow-hidden rounded-full border border-gray-600/50 bg-gray-700/50 shadow-inner ${compact ? 'h-2' : 'h-2.5'}`}>
                                 <div
                                     className="h-full rounded-full bg-gradient-to-r from-blue-500 via-cyan-400 to-blue-500 shadow-[0_0_8px_rgba(59,130,246,0.5)] transition-all duration-500"
                                     style={{ width: `${xpProgress}%` }}
@@ -685,7 +775,14 @@ const GuildHomeTitlePanel: React.FC<{
     );
 };
 
-const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () => void; onOpenShop: () => void; missionNotification: boolean; onOpenGuildAdmin: () => void; }> = ({ onOpenMissions, onOpenResearch, onOpenShop, missionNotification, onOpenGuildAdmin }) => {
+const ActivityPanel: React.FC<{
+    onOpenMissions: () => void;
+    onOpenResearch: () => void;
+    onOpenShop: () => void;
+    missionNotification: boolean;
+    onOpenGuildAdmin: () => void;
+    compact?: boolean;
+}> = ({ onOpenMissions, onOpenResearch, onOpenShop, missionNotification, onOpenGuildAdmin, compact = false }) => {
     const { t } = useTranslation(['guild', 'common']);
     const activities = [
         { id: 'missions', name: t('dashboard.missions'), icon: '/images/guild/button/guildmission.webp', action: onOpenMissions, notification: missionNotification },
@@ -694,22 +791,22 @@ const ActivityPanel: React.FC<{ onOpenMissions: () => void; onOpenResearch: () =
         { id: 'management', name: t('dashboard.management'), icon: '/images/guild/button/guildmanage.webp', action: onOpenGuildAdmin },
     ];
     return (
-        <div className="flex-shrink-0 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 p-3 shadow-lg">
-            <h3 className="font-bold text-base text-highlight mb-2 text-center flex items-center justify-center gap-2 flex-shrink-0">
+        <div className={`flex-shrink-0 rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 shadow-lg ${compact ? 'p-2' : 'p-3'}`}>
+            <h3 className={`font-bold text-highlight text-center flex items-center justify-center gap-2 flex-shrink-0 ${compact ? 'mb-1.5 text-sm' : 'mb-2 text-base'}`}>
                 <img src={GUILD_UI_ICONS.activities} alt="" className={GUILD_UI_ICON_CLASS} />
                 <span>{t('dashboard.activities')}</span>
             </h3>
-            <div className="flex justify-around items-center gap-2">
+            <div className={`flex justify-around items-center ${compact ? 'gap-1' : 'gap-2'}`}>
                 {activities.map(act => (
                     <button 
                         key={act.id} 
                         onClick={act.action}
-                        className={`flex flex-col items-center gap-2 p-3 rounded-xl bg-gradient-to-br from-stone-800/50 to-stone-700/30 border border-stone-600/40 transition-all hover:brightness-110 hover:shadow-lg relative group flex-1 min-w-0`}
+                        className={`flex flex-col items-center rounded-xl bg-gradient-to-br from-stone-800/50 to-stone-700/30 border border-stone-600/40 transition-all hover:brightness-110 hover:shadow-lg relative group flex-1 min-w-0 ${compact ? 'gap-1 p-1.5' : 'gap-2 p-3'}`}
                     >
-                        <div className="h-16 w-16 bg-gradient-to-br from-stone-700/60 to-stone-800/50 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-xl transition-shadow border border-stone-600/40 flex-shrink-0">
-                            <img src={act.icon} alt={act.name} className="h-14 w-14 drop-shadow-lg object-contain" />
+                        <div className={`bg-gradient-to-br from-stone-700/60 to-stone-800/50 rounded-xl flex items-center justify-center shadow-md group-hover:shadow-xl transition-shadow border border-stone-600/40 flex-shrink-0 ${compact ? 'h-11 w-11' : 'h-16 w-16'}`}>
+                            <img src={act.icon} alt={act.name} className={`drop-shadow-lg object-contain ${compact ? 'h-9 w-9' : 'h-14 w-14'}`} />
                         </div>
-                        <span className="text-sm font-semibold text-highlight text-center leading-tight">{act.name}</span>
+                        <span className={`font-semibold text-highlight text-center leading-tight ${compact ? 'text-[10px]' : 'text-sm'}`}>{act.name}</span>
                         {act.notification && (
                             <div className="absolute right-1 top-1 h-4 w-4 bg-red-500 rounded-full animate-pulse border-2 border-secondary shadow-lg flex items-center justify-center">
                                 <span className="text-[8px] text-white font-bold">!</span>
@@ -895,12 +992,9 @@ const BossPanel: React.FC<{
 }) => {
     const { t } = useTranslation(['guild', 'common']);
     const { currentUserWithStatus, isNativeMobile } = useAppContext();
-    const useMobileChrome = useMobileModalChrome();
     const [activeSkillTooltip, setActiveSkillTooltip] = useState<GuildBossSkill | null>(null);
     const skillIconRefs = useRef<Record<string, HTMLDivElement | null>>({});
     const tooltipHideTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-    const [showBossParticipantsModal, setShowBossParticipantsModal] = useState(false);
-    const guildBossParticipantsLayer = useModalStackLayer({ enabled: showBossParticipantsModal });
 
     useEffect(() => () => {
         if (tooltipHideTimeoutRef.current) clearTimeout(tooltipHideTimeoutRef.current);
@@ -1117,7 +1211,7 @@ const BossPanel: React.FC<{
                     </p>
                 </div>
 
-                <div className={`min-h-0 w-full flex-1 ${isMobile ? 'flex flex-col gap-1.5 overflow-hidden' : isCompact ? 'grid grid-cols-[1.1fr_1fr] gap-1.5 overflow-y-auto' : 'grid grid-cols-[1.3fr_1fr] gap-2 overflow-y-auto'}`}>
+                <div className={`min-h-0 w-full flex-1 ${isMobile ? 'flex flex-col gap-1.5 overflow-hidden' : isCompact ? 'flex flex-col gap-1.5 overflow-y-auto' : 'flex flex-col gap-2 overflow-y-auto'}`}>
                     {isMobile ? (
                         <>
                             <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-black/20">
@@ -1178,14 +1272,7 @@ const BossPanel: React.FC<{
                                                 {timeLeft}
                                             </p>
                                             <div className="my-1 border-t border-stone-600/50" aria-hidden />
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowBossParticipantsModal(true)}
-                                                className="inline-flex w-full items-center justify-center gap-1 whitespace-nowrap rounded-md border border-cyan-500/40 bg-cyan-900/30 px-2 py-0.5 text-[10px] font-semibold text-cyan-200 transition-colors hover:bg-cyan-800/40"
-                                            >
-                                                {t('boss.participants')}
-                                            </button>
-                                            <div className="mb-0.5 mt-1.5 whitespace-nowrap text-[9px] font-semibold text-stone-300">{t('boss.myRecord')}</div>
+                                            <div className="mb-0.5 whitespace-nowrap text-[9px] font-semibold text-stone-300">{t('boss.myRecord')}</div>
                                             <div className="flex flex-col gap-0.5">
                                                 <div className="flex items-center justify-between gap-2 whitespace-nowrap">
                                                     <span className="shrink-0 text-[9px] text-stone-400">{t('boss.ranking')}</span>
@@ -1231,53 +1318,42 @@ const BossPanel: React.FC<{
                         </>
                     ) : (
                         <>
-                            <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isCompact ? 'p-1.5' : 'p-2'}`}>
+                            <div className={`flex min-h-0 shrink-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 ${isCompact ? 'p-1.5' : 'p-2'}`}>
                                 <div className="flex min-h-0 flex-col items-center">
-                                    <div className={`relative flex w-full items-center justify-center bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-xl border border-stone-600/50 shadow-lg overflow-hidden ${isCompact ? 'h-24 w-24' : 'h-full max-h-[19rem] w-full max-w-[19rem] flex-1 min-h-0'}`}>
-                                        {isCompact ? (
-                                            <GuildBossPortrait
-                                                image={currentBoss.image}
-                                                alt={translatedBossName}
-                                                variant="thumbnail"
-                                                size={80}
-                                                className="bg-transparent"
-                                                roundedClassName="rounded-xl"
-                                            />
-                                        ) : (
-                                            <GuildBossPortrait
-                                                image={currentBoss.image}
-                                                alt={translatedBossName}
-                                                variant="hero"
-                                                className="relative z-0 h-full w-full"
-                                                roundedClassName="rounded-xl"
-                                                imgClassName="h-[92%] w-[92%]"
-                                            />
-                                        )}
-                                        <div className={`absolute inset-x-0 bottom-0 z-10 flex flex-col items-stretch gap-1 px-2 pb-2 pt-8 bg-gradient-to-t from-black/75 via-black/45 to-transparent`}>
-                                            <div className={`text-center font-bold tabular-nums text-white text-[12px] drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]`} style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
+                                    <div className={`relative mx-auto flex w-full items-center justify-center overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-br from-stone-700/50 to-stone-800/40 shadow-lg ${isCompact ? 'h-36 max-w-full' : 'h-[min(16rem,36dvh)] min-h-[11rem] max-w-md'}`}>
+                                        <GuildBossPortrait
+                                            image={currentBoss.image}
+                                            alt={translatedBossName}
+                                            variant="hero"
+                                            className="relative z-0 h-full w-full"
+                                            roundedClassName="rounded-xl"
+                                            imgClassName="h-[92%] w-[92%]"
+                                        />
+                                        <div className="absolute inset-x-0 bottom-0 z-10 flex flex-col items-stretch gap-1 bg-gradient-to-t from-black/75 via-black/45 to-transparent px-2 pb-2 pt-8">
+                                            <div className="text-center text-[12px] font-bold tabular-nums text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]" style={{ textShadow: '0 1px 2px rgba(0,0,0,0.9)' }}>
                                                 {formatHpWithK(remainingHp)} / {formatHpWithK(maxHp)} ({clampedHpPercent.toFixed(1)}%)
                                             </div>
-                                            <div className={`w-full bg-gray-800/85 rounded-full h-3 border border-gray-600/60 overflow-hidden shadow-inner`}>
+                                            <div className="h-3 w-full overflow-hidden rounded-full border border-gray-600/60 bg-gray-800/85 shadow-inner">
                                                 <div
-                                                    className="bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 h-full rounded-full transition-all duration-500 shadow-[0_0_8px_rgba(217,119,6,0.5)]"
+                                                    className="h-full rounded-full bg-gradient-to-r from-amber-600 via-orange-500 to-amber-600 shadow-[0_0_8px_rgba(217,119,6,0.5)] transition-all duration-500"
                                                     style={{ width: `${clampedHpPercent}%` }}
                                                 />
                                             </div>
                                         </div>
                                     </div>
-                                    <div className={`mt-2 w-full max-w-[19rem] flex shrink-0 justify-center`}>
-                                        <p className={`w-full text-sm text-tertiary bg-gray-800/50 px-2 py-1 rounded-md text-center truncate`} title={timeLeft}>{timeLeft}</p>
+                                    <div className="mt-2 flex w-full max-w-md shrink-0 justify-center">
+                                        <p className="w-full truncate rounded-md bg-gray-800/50 px-2 py-1 text-center text-sm text-tertiary" title={timeLeft}>{timeLeft}</p>
                                     </div>
                                 </div>
 
-                                <div className={`mt-2 flex shrink-0 items-center justify-center`}>
+                                <div className="mt-2 flex shrink-0 items-center justify-center">
                                     {currentBoss.skills && currentBoss.skills.length > 0 && (
-                                        <div className={`flex relative flex-row gap-2 items-center justify-center`}>
+                                        <div className="relative flex flex-row items-center justify-center gap-2">
                                             {currentBoss.skills.slice(0, 3).map((skill) => (
                                                 <div key={skill.id} className="relative">
                                                     <div
                                                         ref={(el) => { skillIconRefs.current[skill.id] = el; }}
-                                                        className={`w-12 h-12 bg-gradient-to-br from-stone-700/50 to-stone-800/40 rounded-lg flex items-center justify-center border border-stone-600/50 shadow-lg cursor-pointer hover:scale-110 transition-transform`}
+                                                        className="flex h-12 w-12 cursor-pointer items-center justify-center rounded-lg border border-stone-600/50 bg-gradient-to-br from-stone-700/50 to-stone-800/40 shadow-lg transition-transform hover:scale-110"
                                                         onMouseEnter={() => {
                                                             if (tooltipHideTimeoutRef.current) {
                                                                 clearTimeout(tooltipHideTimeoutRef.current);
@@ -1292,10 +1368,10 @@ const BossPanel: React.FC<{
                                                             }, BOSS_SKILL_TOOLTIP_HIDE_DELAY_MS);
                                                         }}
                                                     >
-                                                        <img src={skill.image} alt={skill.name} className={`w-10 h-10 object-contain drop-shadow-md`} />
+                                                        <img src={skill.image} alt={skill.name} className="h-10 w-10 object-contain drop-shadow-md" />
                                                         {skill.type === 'passive' && (
-                                                            <div className={`absolute -top-0.5 -right-0.5 w-2.5 h-2.5 bg-purple-500 rounded-full flex items-center justify-center`}>
-                                                                <span className={`text-[6px] text-white font-bold`}>P</span>
+                                                            <div className="absolute -right-0.5 -top-0.5 flex h-2.5 w-2.5 items-center justify-center rounded-full bg-purple-500">
+                                                                <span className="text-[6px] font-bold text-white">P</span>
                                                             </div>
                                                         )}
                                                     </div>
@@ -1306,16 +1382,7 @@ const BossPanel: React.FC<{
                                 </div>
                             </div>
 
-                            <div className={`flex min-h-0 flex-col rounded-xl border border-stone-600/50 bg-black/20 gap-2 p-2`}>
-                                <div className="flex justify-center">
-                                    <button
-                                        type="button"
-                                        onClick={() => setShowBossParticipantsModal(true)}
-                                        className="inline-flex items-center justify-center gap-1 rounded-md border border-cyan-500/40 bg-cyan-900/20 px-3 py-1.5 text-xs font-semibold text-cyan-200 transition-colors hover:bg-cyan-800/30"
-                                    >
-                                        {t('boss.participants')}
-                                    </button>
-                                </div>
+                            <div className="flex min-h-0 flex-1 flex-col gap-2 rounded-xl border border-stone-600/50 bg-black/20 p-2">
                                 <div className="min-h-0 flex-1 rounded-lg bg-stone-800/50 px-3 py-2">
                                     <div className="text-xs mb-2 font-semibold text-stone-400">{t('boss.myRecord')}</div>
                                     <div className="flex flex-col gap-1.5">
@@ -1372,56 +1439,6 @@ const BossPanel: React.FC<{
                             preferHorizontal={isMobile ? 'left' : 'auto'}
                         />
                     ) : null}
-
-                    {/* 참여 기록: 길드 홈 z-10/overflow 스택에 묶이지 않도록 모달 루트로 포털 */}
-                    {typeof document !== 'undefined' &&
-                        showBossParticipantsModal &&
-                        createPortal(
-                            <div
-                                className="sudamr-modal-overlay pointer-events-auto"
-                                style={{ zIndex: guildBossParticipantsLayer.zIndex }}
-                                onClick={() => setShowBossParticipantsModal(false)}
-                            >
-                                <div
-                                    className={`sudamr-modal-panel flex w-[min(92vw,28rem)] max-h-[70vh] flex-col overflow-hidden border-stone-600/50 ring-1 ring-white/[0.05] ${useMobileChrome ? 'p-0' : 'p-4'}`}
-                                    onClick={(e) => e.stopPropagation()}
-                                >
-                                    {useMobileChrome ? (
-                                        <MobileModalTitleBar
-                                            title={t('boss.participantRecords')}
-                                            onClose={() => setShowBossParticipantsModal(false)}
-                                        />
-                                    ) : (
-                                    <div className="mb-3 flex items-center justify-between">
-                                        <h3 className="text-base font-bold text-highlight">{t('boss.participantRecords')}</h3>
-                                        <button
-                                            type="button"
-                                            onClick={() => setShowBossParticipantsModal(false)}
-                                            className={SUDAMR_MODAL_CLOSE_BUTTON_CLASS}
-                                            aria-label={t('common:actions.close')}
-                                        >
-                                            {t('common:actions.close')}
-                                        </button>
-                                    </div>
-                                    )}
-                                    <div className={useMobileChrome ? 'min-h-0 flex-1 overflow-y-auto p-4' : undefined}>
-                                    {bossParticipantRanking.length > 0 ? (
-                                        <div className="overflow-y-auto pr-1 space-y-1">
-                                            {bossParticipantRanking.map((row, index) => (
-                                                <div key={row.userId} className="flex items-center justify-between rounded-md bg-stone-800/50 px-2 py-1.5 text-sm">
-                                                    <span className="text-stone-200">{t('boss.rankNickname', { rank: index + 1, nickname: row.nickname })}</span>
-                                                    <span className="font-bold text-amber-300 tabular-nums">{row.damage.toLocaleString()}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    ) : (
-                                        <div className="text-center text-sm text-stone-400 py-8">{t('boss.noParticipantRecords')}</div>
-                                    )}
-                                    </div>
-                                </div>
-                            </div>,
-                            document.body
-                        )}
             </div>
         </div>
     );
@@ -2025,7 +2042,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                 <div className="pointer-events-none absolute inset-0 rounded-xl bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10" aria-hidden />
                 <div className="relative z-10 flex h-full min-h-0 w-full flex-col">
                     {/* 헤더: 타이틀 + 누적 전적 칩 */}
-                    <div className={`${isCompact ? 'mb-1.5' : 'mb-2 sm:mb-3'} flex w-full flex-shrink-0 flex-col gap-2.5 sm:flex-row sm:items-center sm:justify-between`}>
+                    <div className={`${isCompact ? 'mb-1.5' : 'mb-2'} flex w-full flex-shrink-0 flex-col gap-2`}>
                         <div className="flex min-w-0 items-center gap-3 text-left">
                             <div
                                 className={`relative flex shrink-0 items-center justify-center rounded-xl border border-stone-600/50 bg-gradient-to-br from-stone-800/60 to-stone-900/70 shadow-inner ${isMobile ? 'h-12 w-12' : isCompact ? 'h-10 w-10' : 'h-14 w-14'}`}
@@ -2041,25 +2058,19 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                 <h3 className={`font-black tracking-tight text-highlight ${isMobile ? 'text-sm' : isCompact ? 'text-sm' : 'text-base'}`}>{t('war.title')}</h3>
                             </div>
                         </div>
-                        {!isCompact ? (
-                            <div className={`flex w-full min-w-0 gap-1.5 sm:max-w-[14rem] sm:flex-shrink-0 ${isMobile ? '' : 'sm:justify-end'}`}>
-                                {warStatPill(t('war.win'), warStats?.totalWins ?? 0, 'emerald')}
-                                {warStatPill(t('war.loss'), warStats?.totalLosses ?? 0, 'rose')}
-                                {warStatPill(t('war.winRate'),
-                                    warStats && warStats.totalWins + warStats.totalLosses > 0 ? `${warStats.winRate}%` : '0%',
-                                    'amber'
-                                )}
-                            </div>
-                        ) : (
-                            <div className="flex w-full min-w-0 gap-1 sm:max-w-[12rem] sm:flex-shrink-0 sm:justify-end">
-                                {warStatPill(t('war.win'), warStats?.totalWins ?? 0, 'emerald')}
-                                {warStatPill(t('war.loss'), warStats?.totalLosses ?? 0, 'rose')}
-                            </div>
-                        )}
+                        <div className="flex w-full min-w-0 gap-1.5">
+                            {warStatPill(t('war.win'), warStats?.totalWins ?? 0, 'emerald')}
+                            {warStatPill(t('war.loss'), warStats?.totalLosses ?? 0, 'rose')}
+                            {warStatPill(
+                                t('war.winRate'),
+                                warStats && warStats.totalWins + warStats.totalLosses > 0 ? `${warStats.winRate}%` : '0%',
+                                'amber',
+                            )}
+                        </div>
                     </div>
 
-                    <div className={`${isMobile ? 'mb-1.5 flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-hidden' : isCompact ? 'mb-1 grid min-h-0 w-full flex-1 grid-cols-1 gap-1.5' : 'mb-2 grid min-h-0 w-full flex-1 grid-cols-1 gap-2 sm:grid-cols-2'}`}>
-                        <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${isMobile ? 'order-2 shrink min-h-0' : ''}`}>
+                    <div className={`${isMobile || isCompact ? 'mb-1.5' : 'mb-2'} flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-hidden`}>
+                        <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${isMobile ? 'order-2' : ''}`}>
                             <div
                                 className={`border-b border-stone-600/40 bg-gradient-to-r from-orange-950/55 via-stone-950/60 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-orange-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                             >
@@ -2156,9 +2167,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                 )}
                             </div>
                         </div>
-                        {!isCompact ? (
                         <div
-                            className={`flex min-h-0 min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${isMobile ? 'order-1 shrink-0' : ''}`}
+                            className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${isMobile ? 'order-1' : ''}`}
                         >
                             <div
                                 className={`border-b border-stone-600/40 bg-gradient-to-r from-amber-950/45 via-stone-950/55 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-amber-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
@@ -2256,7 +2266,6 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                 </div>
                             </div>
                         </div>
-                        ) : null}
                     </div>
 
                     {/* 입장(맵 진입)은 도전권과 무관 — 도전권은 전장에서 「도전하기」에만 소모 */}
@@ -2610,9 +2619,16 @@ interface GuildDashboardProps {
     guild: GuildType;
     guildDonationAnimation: { coins: number; research: number; type: 'gold' | 'diamond' } | null;
     onDonationComplete?: (coins: number, research: number, type: 'gold' | 'diamond') => void;
+    /**
+     * homeViewer: 홈 중앙 퀵유틸 — 좌(타이틀·활동·공지·채팅) | 우(출석·기부·보스·전쟁).
+     * 프로필 좌열·접속자·퀵레일은 Profile 셸이 담당.
+     */
+    presentation?: 'full' | 'homeViewer';
 }
 
 type GuildMobileMainTab = 'home' | 'boss' | 'war';
+/** PC 홈뷰어 우측 — 출석(출석+기부) / 보스 / 전쟁 */
+type GuildViewerMainTab = 'checkIn' | 'boss' | 'war';
 
 const GUILD_MOBILE_MAIN_TAB_IDS: GuildMobileMainTab[] = ['home', 'boss', 'war'];
 const guildMobileTabLabelKey: Record<GuildMobileMainTab, string> = {
@@ -2620,11 +2636,23 @@ const guildMobileTabLabelKey: Record<GuildMobileMainTab, string> = {
     boss: 'dashboard.tabBoss',
     war: 'dashboard.tabWar',
 };
+const GUILD_VIEWER_MAIN_TAB_IDS: GuildViewerMainTab[] = ['checkIn', 'boss', 'war'];
+const guildViewerMainTabLabelKey: Record<GuildViewerMainTab, string> = {
+    checkIn: 'dashboard.viewerTabCheckIn',
+    boss: 'dashboard.viewerTabBoss',
+    war: 'dashboard.viewerTabWar',
+};
 
-export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDonationAnimation, onDonationComplete }) => {
+export const GuildDashboard: React.FC<GuildDashboardProps> = ({
+    guild,
+    guildDonationAnimation,
+    onDonationComplete,
+    presentation = 'full',
+}) => {
     const { t } = useTranslation(['guild', 'common']);
     const { currentUserWithStatus, handlers, guilds, isNativeMobile: isGuildPhone, modals } = useAppContext();
     const activeQuickUtilityPanel = modals.activeQuickUtilityPanel;
+    const isHomeViewer = presentation === 'homeViewer';
     
     // guilds 상태에서 최신 길드 정보 가져오기 (guild prop보다 우선)
     const currentGuild = React.useMemo(() => {
@@ -2662,6 +2690,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
     const [isMobileDonationOpen, setIsMobileDonationOpen] = useState(false);
     const [isIconSelectOpen, setIsIconSelectOpen] = useState(false);
     const [guildMobileMainTab, setGuildMobileMainTab] = useState<GuildMobileMainTab>('home');
+    const [guildViewerMainTab, setGuildViewerMainTab] = useState<GuildViewerMainTab>('checkIn');
     const goldButtonRef = useRef<HTMLDivElement>(null);
     const diamondButtonRef = useRef<HTMLDivElement>(null);
     const [goldButtonPos, setGoldButtonPos] = useState<{ top: number; left: number } | null>(null);
@@ -2785,14 +2814,87 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
         { key: 'guildAdmin', name: t('dashboard.management'), icon: '/images/guild/button/guildmanage.webp', action: () => setIsGuildAdminOpen(true), notification: false },
     ] as const;
 
+    const titlePanelProps = {
+        guildIcon: currentGuild?.icon || guild?.icon,
+        guildDisplayName,
+        isLoading: !currentGuild,
+        guildLevel,
+        guildXp,
+        xpForNextLevel,
+        xpProgress,
+        canManage,
+        onIconSelect: () => setIsIconSelectOpen(true),
+    } as const;
+
+    const guildViewerRightPanels = (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-stone-600/55 bg-gradient-to-br from-stone-950/90 via-zinc-950/88 to-black/90 shadow-xl ring-1 ring-amber-500/15">
+            <div
+                className="grid shrink-0 grid-cols-3 gap-0.5 border-b border-stone-600/40 bg-stone-950/80 p-1"
+                role="tablist"
+                aria-label={t('dashboard.tabHome')}
+            >
+                {GUILD_VIEWER_MAIN_TAB_IDS.map((tab) => (
+                    <button
+                        key={tab}
+                        type="button"
+                        role="tab"
+                        aria-selected={guildViewerMainTab === tab}
+                        onClick={() => setGuildViewerMainTab(tab)}
+                        className={`rounded-lg px-1 py-1.5 text-[11px] font-semibold leading-tight transition-all sm:text-xs ${
+                            guildViewerMainTab === tab
+                                ? 'bg-gradient-to-b from-amber-500/90 to-amber-700/95 text-amber-950 shadow-md ring-1 ring-amber-300/40'
+                                : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                        }`}
+                    >
+                        {t(guildViewerMainTabLabelKey[tab])}
+                    </button>
+                ))}
+            </div>
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden p-1.5" role="tabpanel">
+                {guildViewerMainTab === 'checkIn' ? (
+                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-stone-600/45 bg-gradient-to-br from-stone-900/90 via-neutral-900/85 to-stone-950/90 shadow-inner">
+                        <div className="min-h-0 flex-[1.05] overflow-hidden border-b border-stone-600/40">
+                            <GuildCheckInPanel guild={currentGuild || guild} embedded />
+                        </div>
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+                            <GuildDonationPanel
+                                guild={currentGuild || guild}
+                                guildDonationAnimation={guildDonationAnimation}
+                                onDonationComplete={onDonationComplete}
+                                goldButtonRef={goldButtonRef}
+                                diamondButtonRef={diamondButtonRef}
+                                embedded
+                                buttonPlacement="bottom"
+                            />
+                        </div>
+                    </div>
+                ) : null}
+                {guildViewerMainTab === 'boss' ? (
+                    <BossPanel
+                        guild={currentGuild || guild}
+                        className="h-full min-h-0"
+                        onOpenBossGuide={() => setIsBossGuideOpen(true)}
+                    />
+                ) : null}
+                {guildViewerMainTab === 'war' ? (
+                    <WarPanel guild={currentGuild || guild} className="h-full min-h-0 w-full" />
+                ) : null}
+            </div>
+        </div>
+    );
+
     return (
         <div className="relative flex h-full min-h-0 w-full flex-col overflow-hidden">
-            <div
-                className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
-                style={{ backgroundImage: `url('${GUILD_HOME_BACKGROUND_IMAGE}')` }}
-                aria-hidden
-            />
-            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-stone-950/60 via-stone-950/42 to-stone-950/65" aria-hidden />
+            {!isHomeViewer ? (
+                <>
+                    <div
+                        className="pointer-events-none absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+                        style={{ backgroundImage: `url('${GUILD_HOME_BACKGROUND_IMAGE}')` }}
+                        aria-hidden
+                    />
+                    <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-stone-950/60 via-stone-950/42 to-stone-950/65" aria-hidden />
+                </>
+            ) : null}
             <div className="relative z-10 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col">
             {isMissionsOpen && <GuildMissionsPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsMissionsOpen(false)} />}
             {isResearchOpen && <GuildResearchPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsResearchOpen(false)} />}
@@ -2831,21 +2933,37 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 setIsIconSelectOpen(false);
             }} />}
 
-            {!isGuildPhone && (
+            {isHomeViewer && !isGuildPhone ? (
+                <main
+                    className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-2 overflow-hidden p-1"
+                    aria-label={t('dashboard.tabHome')}
+                >
+                    <div className="flex w-[min(52%,28rem)] min-w-[17rem] max-w-[28rem] shrink-0 flex-col gap-2 overflow-hidden">
+                        <GuildHomeTitlePanel {...titlePanelProps} hideBack compact />
+                        <ActivityPanel
+                            compact
+                            onOpenMissions={() => setIsMissionsOpen(true)}
+                            onOpenResearch={() => setIsResearchOpen(true)}
+                            onOpenShop={() => setIsShopOpen(true)}
+                            missionNotification={missionTabNotification}
+                            onOpenGuildAdmin={() => setIsGuildAdminOpen(true)}
+                        />
+                        <div className="flex min-h-[140px] flex-[0.48] flex-col overflow-hidden">
+                            <GuildAnnouncementPanel guild={currentGuild || guild} stretch canEdit={canManage} />
+                        </div>
+                        <div className="min-h-0 flex-1 overflow-hidden" data-guild-chat>
+                            <GuildChat guild={currentGuild || guild} myMemberInfo={myMemberInfo} />
+                        </div>
+                    </div>
+                    {guildViewerRightPanels}
+                </main>
+            ) : null}
+
+            {!isHomeViewer && !isGuildPhone && (
             <>
             <main className={`grid min-h-0 flex-1 overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS} ${PC_GUILD_HOME_MAIN_GRID_CLASS}`}>
                 <div className="col-start-1 row-start-1 min-w-0">
-                    <GuildHomeTitlePanel
-                        guildIcon={currentGuild?.icon || guild?.icon}
-                        guildDisplayName={guildDisplayName}
-                        isLoading={!currentGuild}
-                        guildLevel={guildLevel}
-                        guildXp={guildXp}
-                        xpForNextLevel={xpForNextLevel}
-                        xpProgress={xpProgress}
-                        canManage={canManage}
-                        onIconSelect={() => setIsIconSelectOpen(true)}
-                    />
+                    <GuildHomeTitlePanel {...titlePanelProps} />
                 </div>
 
                 <div className="col-start-1 row-start-2 flex min-h-0 flex-col gap-2 overflow-hidden">
@@ -2911,9 +3029,11 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
 
             {isGuildPhone && (
             <>
-            <header className="relative flex flex-shrink-0 rounded-xl border border-accent/20 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 px-2 py-2 shadow-lg mb-2">
+            <header className="relative mb-2 flex flex-shrink-0 rounded-xl border border-accent/20 bg-gradient-to-r from-secondary/80 via-secondary/60 to-secondary/80 px-2 py-2 shadow-lg">
                 <div className="flex w-full items-stretch gap-2">
-                    <BackButton onClick={() => window.location.hash = '#/home'} />
+                    {!isHomeViewer ? (
+                        <BackButton onClick={() => window.location.hash = '#/home'} />
+                    ) : null}
                     <div className="relative group flex-shrink-0 overflow-visible self-center">
                         <GuildMark
                             icon={currentGuild?.icon || guild?.icon}

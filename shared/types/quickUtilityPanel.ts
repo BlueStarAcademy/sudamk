@@ -19,6 +19,7 @@ export type QuickUtilityPanelKind =
     | 'singleplayer'
     | 'tower'
     | 'adventure'
+    | 'guild'
     | 'detailedStats'
     | 'monsterCodex'
     | 'ranking'
@@ -37,6 +38,7 @@ export const HOME_VIEWER_UTILITY_KINDS = [
     'singleplayer',
     'tower',
     'adventure',
+    'guild',
 ] as const satisfies readonly QuickUtilityPanelKind[];
 
 export type HomeViewerUtilityKind = (typeof HOME_VIEWER_UTILITY_KINDS)[number];
@@ -59,6 +61,7 @@ export const QUICK_UTILITY_PANEL_TITLES: Record<QuickUtilityPanelKind, string> =
     singleplayer: '모험',
     tower: '도전의 탑',
     adventure: '탐험',
+    guild: '길드',
     detailedStats: 'PVP 경기장 상세 전적',
     monsterCodex: '몬스터 도감',
     ranking: '랭킹',
@@ -202,6 +205,14 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
             'bg-gradient-to-r from-fuchsia-50 via-violet-100 to-cyan-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
         hairlineViaClass: 'via-fuchsia-300/42',
         bodyRingClass: 'ring-fuchsia-400/22',
+    },
+    guild: {
+        iconUrl: '/images/bg/guildbg1.webp',
+        titleChromeClass: 'border-stone-400/50 bg-gradient-to-r from-stone-950/60 via-zinc-900/80 to-amber-950/45',
+        titleHeadingClass:
+            'bg-gradient-to-r from-stone-50 via-amber-100 to-stone-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
+        hairlineViaClass: 'via-amber-300/40',
+        bodyRingClass: 'ring-amber-400/22',
     },
     detailedStats: {
         titleChromeClass: 'border-fuchsia-400/50 bg-gradient-to-r from-fuchsia-950/55 via-zinc-900/80 to-violet-950/45',

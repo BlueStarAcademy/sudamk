@@ -3179,6 +3179,12 @@ export const useApp = () => {
         }
     }, [openQuickUtilityViewport]);
 
+    const openGuildLobby = useCallback(() => {
+        if (!openQuickUtilityViewport('guild')) {
+            setActiveQuickUtilityPanel('guild');
+        }
+    }, [openQuickUtilityViewport]);
+
     const closeQuickUtilityPanel = useCallback(
         (opts?: { fromPopState?: boolean }) => {
             if (usePortraitFirstShell && mobileViewportStackRef.current.length > 0) {
@@ -14469,6 +14475,7 @@ export const useApp = () => {
             openSinglePlayerLobby,
             openTowerLobby,
             openAdventureLobby,
+            openGuildLobby,
             openDetailedStats: (
                 statsType: 'strategic' | 'playful' | 'both',
                 opts?: { modal?: boolean },

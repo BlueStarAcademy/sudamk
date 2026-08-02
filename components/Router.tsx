@@ -14,12 +14,12 @@ import Game from '../Game.js';
 import Admin from './Admin.js';
 import TournamentArena from './arenas/TournamentArena.js';
 import HelpPage from './HelpPage.js';
-import GuildHome from './guild/GuildHome.js';
 import GuildBoss from './guild/GuildBoss.js';
 import GuildWar from './guild/GuildWar.js';
 import AdventureStageMap from './adventure/AdventureStageMap.js';
 import {
     navigateToHomeAdventure,
+    navigateToHomeGuild,
     navigateToHomeSinglePlayer,
     navigateToHomeTower,
     replaceAppHash,
@@ -66,6 +66,17 @@ const AdventureRouteRedirect: React.FC = () => {
     openRef.current = handlers.openAdventureLobby;
     useEffect(() => {
         navigateToHomeAdventure(() => openRef.current?.());
+    }, []);
+    return null;
+};
+
+/** `#/guild` 딥링크 → 홈 중앙 길드 뷰어 (마운트 1회만; 보스/전쟁은 별도) */
+const GuildRouteRedirect: React.FC = () => {
+    const { handlers } = useAppUiSlice();
+    const openRef = useRef(handlers.openGuildLobby);
+    openRef.current = handlers.openGuildLobby;
+    useEffect(() => {
+        navigateToHomeGuild(() => openRef.current?.());
     }, []);
     return null;
 };
@@ -389,7 +400,7 @@ const Router: React.FC = () => {
             return <AdventureRouteRedirect />;
         }
         case 'guild':
-            return <GuildHome />;
+            return <GuildRouteRedirect />;
         case 'guildboss':
             return <GuildBoss />;
         case 'guildwar':
