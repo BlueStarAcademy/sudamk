@@ -15,6 +15,8 @@ import {
     resolveTowerPlainBlackCount,
     resolveTowerPlainWhiteCount,
 } from '../shared/utils/towerStageRules.js';
+import { SPECIAL_GAME_MODES } from '../shared/constants/gameModes.js';
+import { GameMode, type SinglePlayerStageInfo } from '../types.js';
 import { TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP, TOWER_STAGE_SCROLL_BG_WEBP } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
 import QuickAccessSidebar from './QuickAccessSidebar.js';
@@ -29,8 +31,38 @@ import {
 /** 도전의 탑 PC 좌열 — 홈 기본(43%/500)보다 좁혀 스테이지 열 확보 */
 const PC_TOWER_LEFT_COLUMN_CLASS =
     'w-[min(32%,340px)] min-w-[260px] max-w-[340px] shrink-0';
-/** PC 스테이지 행 고정 높이 — 층 정보량 차이와 무관하게 통일 */
-const PC_TOWER_STAGE_ROW_HEIGHT_CLASS = 'h-[5rem] min-h-[5rem] max-h-[5rem]';
+/** PC 스테이지 카드 — 중앙 가로형 소형 폭 */
+const PC_TOWER_STAGE_CARD_WIDTH_CLASS = 'w-full max-w-[22rem]';
+
+const TOWER_MODE_MARK_BY_GAME: Partial<Record<GameMode, { image: string; name: string }>> =
+    Object.fromEntries(SPECIAL_GAME_MODES.map((m) => [m.mode, { image: m.image, name: m.name }]));
+
+/** 층/스테이지 속성으로 바둑 종류 마크(심볼 이미지) 결정 */
+function resolveTowerStageModeMark(
+    floor: number,
+    stage: SinglePlayerStageInfo,
+): { image: string; name: string } {
+    const fallback = TOWER_MODE_MARK_BY_GAME[GameMode.Standard] ?? {
+        image: '/images/simbols/simbol1.webp',
+        name: '클래식 바둑',
+    };
+    if (floor <= 20 || (stage.blackTurnLimit != null && stage.blackTurnLimit > 0)) {
+        return TOWER_MODE_MARK_BY_GAME[GameMode.Capture] ?? fallback;
+    }
+    const hasBase = (stage.baseStones ?? 0) > 0;
+    const hasMissile = (stage.missileCount ?? 0) > 0;
+    const hasHidden = (stage.hiddenCount ?? 0) > 0;
+    const isSpeed = stage.timeControl?.type === 'fischer';
+    const specialCount = [hasBase, hasMissile, hasHidden, isSpeed].filter(Boolean).length;
+    if (specialCount >= 2) {
+        return TOWER_MODE_MARK_BY_GAME[GameMode.Mix] ?? fallback;
+    }
+    if (hasBase) return TOWER_MODE_MARK_BY_GAME[GameMode.Base] ?? fallback;
+    if (hasMissile) return TOWER_MODE_MARK_BY_GAME[GameMode.Missile] ?? fallback;
+    if (hasHidden) return TOWER_MODE_MARK_BY_GAME[GameMode.Hidden] ?? fallback;
+    if (isSpeed) return TOWER_MODE_MARK_BY_GAME[GameMode.Speed] ?? fallback;
+    return fallback;
+}
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { buildTowerShopPurchasableItem } from '../shared/constants/towerShopItems.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -192,6 +224,18 @@ const TowerLobby: React.FC<TowerLobbyProps> = ({ presentation = 'full' }) => {
     const [timeUntilReset, setTimeUntilReset] = useState<string>('');
     const stageScrollRef = useRef<HTMLDivElement>(null);
     const isChallengingRef = useRef(false); // 중복 클릭 방지용 ref
+    /**
+     * PC 스테이지 스크롤 → 탑 배경 등반 진행도.
+     * 0 = 꼭대기(100층), 1 = 입구(1층). 배경 img translateY에 사용.
+     */
+    const [towerClimbProgress, setTowerClimbProgress] = useState(1);
+
+    const syncTowerClimbFromScroll = () => {
+        const el = stageScrollRef.current;
+        if (!el) return;
+        const max = el.scrollHeight - el.clientHeight;
+        setTowerClimbProgress(max > 0 ? el.scrollTop / max : 1);
+    };
 
     // 다음 달 1일 0시(KST)까지 남은 시간 계산
     useEffect(() => {
@@ -335,335 +379,412 @@ const TowerLobby: React.FC<TowerLobbyProps> = ({ presentation = 'full' }) => {
         if (!el) return;
         if (towerProgressFloor <= 0) {
             el.scrollTop = el.scrollHeight;
-            return;
+        } else {
+            const row = el.querySelector<HTMLElement>(`[data-tower-floor="${towerProgressFloor}"]`);
+            row?.scrollIntoView({ block: 'center', inline: 'nearest' });
         }
-        const row = el.querySelector<HTMLElement>(`[data-tower-floor="${towerProgressFloor}"]`);
-        row?.scrollIntoView({ block: 'center', inline: 'nearest' });
+        syncTowerClimbFromScroll();
     }, [towerProgressFloor, useMobileTowerLayout]);
 
     const rankingColClass = useMobileTowerLayout
         ? 'flex max-h-[32dvh] min-h-0 w-full flex-none flex-col gap-1 overflow-hidden pb-0.5'
         : `flex h-full min-h-0 ${PC_TOWER_LEFT_COLUMN_CLASS} flex-col gap-2 overflow-hidden`;
-    /** PC: 스테이지 열 전폭 + 스크롤 탑 배경(이미지 레이어는 stagePanel 내부) */
+    /** PC: 스테이지 열 + 고정 탑 배경(스크롤 등반). 바깥 셸 불투명도 0 — 탑만 비침 */
     const stageColClass = useMobileTowerLayout
         ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 p-1 shadow-lg shadow-amber-900/40 backdrop-blur-md sm:p-2'
-        : 'relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-600/40 bg-zinc-950/80 p-2 shadow-2xl shadow-amber-900/50 sm:p-3';
+        : 'relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-600/40 bg-transparent p-2 shadow-2xl shadow-amber-900/50 sm:p-3';
     const quickColClass = `flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`;
 
     const renderTowerFloorRows = () =>
         stages.map((floor) => {
-                            const stage = TOWER_STAGES.find(s => s.id === `tower-${floor}`);
-                            const userTowerFloor = (currentUserWithStatus as any).towerFloor ?? 0;
-                            const userMonthlyTowerFloor =
-                                Number((currentUserWithStatus as any).monthlyTowerFloor ?? 0) || 0;
-                            // 보상·⚡0: 이번 달 클리어(monthly). 잠금/현재층: 진행도(towerFloor)
-                            const isCleared = floor <= userMonthlyTowerFloor;
-                            const isCurrent = floor === userTowerFloor + 1;
-                            const actionPoints = currentUserWithStatus?.actionPoints?.current ?? 0;
-                            
-                            // 관리자 여부 확인
-                            const isAdmin = currentUser?.isAdmin ?? false;
-                            
-                            // 잠금 여부: 1층은 항상 열림, 2층 이상은 이전 층이 클리어되어야 함 (관리자는 예외)
-                            const isLocked = !isAdmin && floor > 1 && floor > userTowerFloor + 1;
-                            
-                            // 이번 달 이미 클리어한 층은 행동력 소모가 0
-                            const effectiveActionPointCost = isCleared ? 0 : (stage?.actionPointCost ?? 0);
-                            const canChallenge = !isLocked && actionPoints >= effectiveActionPointCost;
-                            
-                            if (!stage) return null;
+            const stage = TOWER_STAGES.find((s) => s.id === `tower-${floor}`);
+            const userTowerFloor = (currentUserWithStatus as any).towerFloor ?? 0;
+            const userMonthlyTowerFloor =
+                Number((currentUserWithStatus as any).monthlyTowerFloor ?? 0) || 0;
+            const isCleared = floor <= userMonthlyTowerFloor;
+            const isCurrent = floor === userTowerFloor + 1;
+            const actionPoints = currentUserWithStatus?.actionPoints?.current ?? 0;
+            const isAdmin = currentUser?.isAdmin ?? false;
+            const isLocked = !isAdmin && floor > 1 && floor > userTowerFloor + 1;
+            const effectiveActionPointCost = isCleared ? 0 : (stage?.actionPointCost ?? 0);
+            const canChallenge = !isLocked && actionPoints >= effectiveActionPointCost;
 
-                            const p = stage.placements ?? { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
-                            const towerDisplayBlackPlain = resolveTowerPlainBlackCount(floor, p.black ?? 0);
-                            const towerDisplayBlackTarget = resolveTowerCaptureBlackTarget(floor, stage.targetScore?.black);
-                            const towerDisplayWhitePlain = resolveTowerPlainWhiteCount(
-                                floor,
-                                p.black ?? 0,
-                                p.blackPattern ?? 0,
-                                p.whitePattern ?? 0,
-                                p.white ?? 0
-                            );
-                            const hasBaseMode = (stage.baseStones ?? 0) > 0;
-                            
-                            // 목표 정보 (툴팁·표시용)
-                            const getTargetInfo = () => {
-                                if (stage.blackTurnLimit) {
-                                    return t('captureGoalTurnLimit', { count: towerDisplayBlackTarget, turns: stage.blackTurnLimit });
-                                }
-                                if (stage.autoScoringTurns != null && stage.autoScoringTurns > 0) {
-                                    return t('autoScoringHint', { turns: stage.autoScoringTurns });
-                                }
-                                return t('victory');
-                            };
-                            const autoScoringLabel =
-                                floor >= 21 && stage.autoScoringTurns != null && stage.autoScoringTurns > 0
-                                    ? t('autoScoringShort', { turns: stage.autoScoringTurns })
-                                    : null;
-                            
-                            const rewardInfoContent = (
-                                <div className="flex flex-col items-end gap-0.5">
-                                    <StageClearRewardPreview
-                                        reward={stage.rewards.firstClear}
-                                        claimed={isCleared}
-                                        tabShelf={false}
-                                        isMobile={useMobileTowerLayout}
-                                        usePremiumDesktop={false}
-                                        align="end"
-                                        resolveItemImage={resolveTowerRewardImage}
-                                        resolveItemTitle={resolveTowerRewardDisplayName}
-                                    />
-                                    {isCleared && (
-                                        <span className="text-[10px] sm:text-xs font-semibold text-stone-400 whitespace-nowrap">
-                                            {t('rewardClaimed')}
-                                        </span>
-                                    )}
+            if (!stage) return null;
+
+            const modeMark = resolveTowerStageModeMark(floor, stage);
+
+            const onChallengeClick = async (e: React.MouseEvent) => {
+                if (isChallengingRef.current || !canChallenge || isLocked) {
+                    e.preventDefault();
+                    return;
+                }
+                isChallengingRef.current = true;
+                try {
+                    const res = await handlers.handleAction({
+                        type: 'START_TOWER_GAME',
+                        payload: { floor },
+                    });
+                    const gameId = (res as any)?.gameId || (res as any)?.clientResponse?.gameId;
+                    console.log('[TowerLobby] START_TOWER_GAME response:', { res, gameId });
+                } catch (error) {
+                    console.error('[TowerLobby] Failed to start tower game:', error);
+                    isChallengingRef.current = false;
+                }
+            };
+
+            const challengeButton = (
+                <button
+                    type="button"
+                    onClick={onChallengeClick}
+                    disabled={!canChallenge || isLocked || isChallengingRef.current}
+                    className={`flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-semibold transition-all ${
+                        canChallenge && !isLocked
+                            ? 'bg-gradient-to-br from-amber-600 to-yellow-600 text-white shadow-lg shadow-amber-600/50 hover:from-amber-500 hover:to-yellow-500'
+                            : 'cursor-not-allowed bg-gray-700/50 text-gray-400'
+                    }`}
+                >
+                    <span className="text-[10px] leading-none sm:text-xs">⚡{effectiveActionPointCost}</span>
+                    <span className="text-[10px] leading-none sm:text-xs">{t('challenge')}</span>
+                </button>
+            );
+
+            /* PC: 층 · 종류 마크 · 보상 · 도전 — 중앙 가로형 소형 카드 */
+            if (!useMobileTowerLayout) {
+                const pcChallengeEnabled = canChallenge && !isLocked;
+                return (
+                    <div
+                        key={floor}
+                        data-tower-floor={floor}
+                        className={`${PC_TOWER_STAGE_CARD_WIDTH_CLASS} relative flex items-center gap-2 overflow-hidden rounded-xl border px-2 py-1.5 [text-shadow:0_1px_2px_rgba(0,0,0,0.85)] ${
+                            isLocked
+                                ? 'border-gray-700/45 bg-gray-950/75 opacity-70'
+                                : isCurrent
+                                  ? 'border-amber-400/75 bg-gradient-to-r from-amber-800/75 to-yellow-900/70 shadow-lg shadow-amber-500/25'
+                                  : isCleared
+                                    ? 'border-amber-500/50 bg-zinc-900/75 hover:border-amber-400/65 hover:bg-zinc-800/80'
+                                    : 'border-amber-600/45 bg-zinc-950/75 hover:border-amber-500/60 hover:bg-zinc-900/80'
+                        }`}
+                    >
+                        {isLocked && (
+                            <div className="absolute inset-0 z-10 flex items-center justify-center rounded-xl bg-gray-950/50 backdrop-blur-[2px]">
+                                <div className="flex items-center gap-1.5 px-2">
+                                    <span className="text-lg">🔒</span>
+                                    <span className="text-[11px] font-semibold text-amber-300 whitespace-nowrap">
+                                        {t('locked')}
+                                    </span>
                                 </div>
-                            );
-                            
-                            const isCaptureMode = floor <= 20; // 1-20층: 따내기 바둑
-                            
-                            return (
-                                <div
-                                    key={floor}
-                                    data-tower-floor={floor}
-                                    className={`relative flex items-center justify-between gap-2 overflow-hidden rounded-lg border ${
-                                        useMobileTowerLayout
-                                            ? 'p-2.5 sm:p-3'
-                                            : `${PC_TOWER_STAGE_ROW_HEIGHT_CLASS} px-2.5 py-0 sm:px-3`
-                                    } ${
-                                        isLocked
-                                            ? 'border-gray-700/50 bg-gray-950/55 opacity-60 backdrop-blur-[2px]'
-                                            : isCurrent
-                                            ? 'border-amber-500/70 bg-gradient-to-r from-amber-800/70 to-yellow-800/55 shadow-lg shadow-amber-600/40 backdrop-blur-[2px]'
-                                            : isCleared
-                                            ? 'border-amber-600/45 bg-zinc-900/50 hover:border-amber-500/65 hover:bg-zinc-800/55 backdrop-blur-[2px]'
-                                            : 'border-amber-700/35 bg-zinc-950/45 hover:border-amber-600/50 hover:bg-zinc-900/50 backdrop-blur-[2px]'
-                                    }`}
-                                >
-                                    {/* 자물쇠 오버레이 */}
-                                    {isLocked && (
-                                        <div className="absolute inset-0 flex items-center justify-center bg-gray-900/80 rounded-lg z-10 backdrop-blur-sm">
-                                            <div className="flex items-center gap-2 px-2">
-                                                <span className="text-2xl sm:text-3xl">🔒</span>
-                                                <div className="flex flex-col gap-0.5">
-                                                    <span className="text-xs sm:text-sm text-amber-300 font-semibold whitespace-nowrap">{t('locked')}</span>
-                                                    <span className="text-[10px] sm:text-xs text-amber-400/80 whitespace-nowrap">{t('clearLowerFirst')}</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    )}
-                                    {/* 왼쪽: 정보 영역 */}
-                                    <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
-                                        {/* 층수 */}
-                                        <div
-                                            className="flex flex-shrink-0 items-center gap-1.5 rounded border border-amber-600/40 bg-amber-900/55 px-2 py-1.5 sm:px-2.5"
-                                        >
-                                            <span
-                                                className={`font-black text-lg sm:text-xl ${
-                                                    isCurrent
-                                                        ? 'text-yellow-300'
-                                                        : isCleared
-                                                          ? 'text-amber-200'
-                                                          : 'text-amber-400'
-                                                }`}
-                                            >
-                                                {floor}
+                            </div>
+                        )}
+                        <div
+                            className={`relative z-[1] flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg border-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_2px_8px_rgba(0,0,0,0.35)] ${
+                                isCurrent
+                                    ? 'border-yellow-400/70 bg-gradient-to-b from-amber-700/85 to-amber-950/90'
+                                    : isCleared
+                                      ? 'border-amber-500/55 bg-gradient-to-b from-amber-900/80 to-zinc-950/90'
+                                      : 'border-amber-600/50 bg-gradient-to-b from-amber-950/90 to-zinc-950/95'
+                            }`}
+                        >
+                            <span
+                                className={`font-black tabular-nums leading-none tracking-tight ${
+                                    floor >= 100 ? 'text-base' : 'text-xl'
+                                } ${
+                                    isCurrent
+                                        ? 'text-yellow-200'
+                                        : isCleared
+                                          ? 'text-amber-100'
+                                          : 'text-amber-200'
+                                }`}
+                            >
+                                {floor}
+                            </span>
+                            <span className="mt-0.5 text-[9px] font-bold uppercase tracking-wide text-amber-300/85">
+                                {t('floorUnit')}
+                                {isCleared ? ' ✓' : ''}
+                            </span>
+                        </div>
+                        <img
+                            src={modeMark.image}
+                            alt={modeMark.name}
+                            title={modeMark.name}
+                            className="relative z-[1] h-9 w-9 shrink-0 rounded-md border border-amber-500/35 bg-black/30 object-contain p-0.5 shadow-sm"
+                            draggable={false}
+                        />
+                        <div className="relative z-[1] min-w-0 flex-1 overflow-hidden">
+                            <StageClearRewardPreview
+                                reward={stage.rewards.firstClear}
+                                claimed={isCleared}
+                                tabShelf={false}
+                                isMobile={false}
+                                usePremiumDesktop={false}
+                                align="center"
+                                resolveItemImage={resolveTowerRewardImage}
+                                resolveItemTitle={resolveTowerRewardDisplayName}
+                            />
+                        </div>
+                        <button
+                            type="button"
+                            onClick={onChallengeClick}
+                            disabled={!pcChallengeEnabled || isChallengingRef.current}
+                            aria-label={`${t('challenge')} ⚡${effectiveActionPointCost}`}
+                            className={`relative z-[1] flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg border-2 transition-all active:translate-y-px ${
+                                pcChallengeEnabled
+                                    ? 'border-amber-300/70 bg-gradient-to-b from-amber-400 via-amber-600 to-amber-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_0_rgb(120,53,15),0_6px_14px_rgba(180,83,9,0.45)] hover:from-amber-300 hover:via-amber-500 hover:to-amber-800 hover:brightness-105'
+                                    : 'cursor-not-allowed border-zinc-600/50 bg-gradient-to-b from-zinc-700 to-zinc-900 text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_3px_0_rgb(24,24,27)]'
+                            }`}
+                        >
+                            <span className="text-[11px] font-black leading-none tabular-nums">
+                                ⚡{effectiveActionPointCost}
+                            </span>
+                            <span className="mt-0.5 text-[10px] font-extrabold leading-none tracking-tight">
+                                {t('challenge')}
+                            </span>
+                        </button>
+                    </div>
+                );
+            }
+
+            /* 모바일: 기존 상세 행 유지 */
+            const p = stage.placements ?? { black: 0, white: 0, blackPattern: 0, whitePattern: 0 };
+            const towerDisplayBlackPlain = resolveTowerPlainBlackCount(floor, p.black ?? 0);
+            const towerDisplayBlackTarget = resolveTowerCaptureBlackTarget(floor, stage.targetScore?.black);
+            const towerDisplayWhitePlain = resolveTowerPlainWhiteCount(
+                floor,
+                p.black ?? 0,
+                p.blackPattern ?? 0,
+                p.whitePattern ?? 0,
+                p.white ?? 0,
+            );
+            const hasBaseMode = (stage.baseStones ?? 0) > 0;
+            const getTargetInfo = () => {
+                if (stage.blackTurnLimit) {
+                    return t('captureGoalTurnLimit', {
+                        count: towerDisplayBlackTarget,
+                        turns: stage.blackTurnLimit,
+                    });
+                }
+                if (stage.autoScoringTurns != null && stage.autoScoringTurns > 0) {
+                    return t('autoScoringHint', { turns: stage.autoScoringTurns });
+                }
+                return t('victory');
+            };
+            const autoScoringLabel =
+                floor >= 21 && stage.autoScoringTurns != null && stage.autoScoringTurns > 0
+                    ? t('autoScoringShort', { turns: stage.autoScoringTurns })
+                    : null;
+            const isCaptureMode = floor <= 20;
+            const rewardInfoContent = (
+                <div className="flex flex-col items-end gap-0.5">
+                    <StageClearRewardPreview
+                        reward={stage.rewards.firstClear}
+                        claimed={isCleared}
+                        tabShelf={false}
+                        isMobile
+                        usePremiumDesktop={false}
+                        align="end"
+                        resolveItemImage={resolveTowerRewardImage}
+                        resolveItemTitle={resolveTowerRewardDisplayName}
+                    />
+                    {isCleared && (
+                        <span className="whitespace-nowrap text-[10px] font-semibold text-stone-400 sm:text-xs">
+                            {t('rewardClaimed')}
+                        </span>
+                    )}
+                </div>
+            );
+
+            return (
+                <div
+                    key={floor}
+                    data-tower-floor={floor}
+                    className={`relative flex items-center justify-between gap-2 overflow-hidden rounded-lg border p-2.5 sm:p-3 ${
+                        isLocked
+                            ? 'border-gray-700/50 bg-gray-950/55 opacity-60 backdrop-blur-[2px]'
+                            : isCurrent
+                              ? 'border-amber-500/70 bg-gradient-to-r from-amber-800/70 to-yellow-800/55 shadow-lg shadow-amber-600/40 backdrop-blur-[2px]'
+                              : isCleared
+                                ? 'border-amber-600/45 bg-zinc-900/50 hover:border-amber-500/65 hover:bg-zinc-800/55 backdrop-blur-[2px]'
+                                : 'border-amber-700/35 bg-zinc-950/45 hover:border-amber-600/50 hover:bg-zinc-900/50 backdrop-blur-[2px]'
+                    }`}
+                >
+                    {isLocked && (
+                        <div className="absolute inset-0 z-10 flex items-center justify-center rounded-lg bg-gray-900/80 backdrop-blur-sm">
+                            <div className="flex items-center gap-2 px-2">
+                                <span className="text-2xl sm:text-3xl">🔒</span>
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="whitespace-nowrap text-xs font-semibold text-amber-300 sm:text-sm">
+                                        {t('locked')}
+                                    </span>
+                                    <span className="whitespace-nowrap text-[10px] text-amber-400/80 sm:text-xs">
+                                        {t('clearLowerFirst')}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    )}
+                    <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
+                        <div className="flex flex-shrink-0 items-center gap-1.5 rounded border border-amber-600/40 bg-amber-900/55 px-2 py-1.5 sm:px-2.5">
+                            <span
+                                className={`text-lg font-black sm:text-xl ${
+                                    isCurrent
+                                        ? 'text-yellow-300'
+                                        : isCleared
+                                          ? 'text-amber-200'
+                                          : 'text-amber-400'
+                                }`}
+                            >
+                                {floor}
+                            </span>
+                            <span className="text-xs font-semibold text-amber-300 sm:text-sm">{t('floorUnit')}</span>
+                            {isCleared && (
+                                <span className="text-sm font-bold text-green-400 sm:text-base">✓</span>
+                            )}
+                        </div>
+                        <div className="flex min-w-0 flex-1 flex-col justify-center gap-y-1.5 text-[11px] sm:text-xs">
+                            {isCaptureMode && (
+                                <>
+                                    <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 sm:gap-x-5">
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">
+                                                {t('board')}
                                             </span>
-                                            <span className="text-xs font-semibold text-amber-300 sm:text-sm">{t('floorUnit')}</span>
-                                            {isCleared && (
-                                                <span className="text-sm font-bold text-green-400 sm:text-base">✓</span>
-                                            )}
+                                            <span className="font-bold tabular-nums text-amber-100">
+                                                {stage.boardSize}×{stage.boardSize}
+                                            </span>
                                         </div>
-
-                                        {/* 바둑판·배치 / 목표·제한 — PC는 고정 2줄(nowrap)로 행 높이 통일 */}
-                                        <div
-                                            className={`flex min-w-0 flex-1 flex-col justify-center text-[11px] sm:text-xs ${
-                                                useMobileTowerLayout ? 'gap-y-1.5' : 'gap-y-1 overflow-hidden'
-                                            }`}
-                                        >
-                                            {isCaptureMode && (
-                                                <>
-                                                    <div
-                                                        className={`flex min-w-0 items-center gap-x-4 sm:gap-x-5 ${
-                                                            useMobileTowerLayout ? 'flex-wrap gap-y-1' : 'flex-nowrap'
-                                                        }`}
-                                                    >
-                                                        <div className="flex shrink-0 items-center gap-2">
-                                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">{t('board')}</span>
-                                                            <span
-                                                                className="font-bold tabular-nums text-amber-100"
-                                                                title={t('boardSize', { size: stage.boardSize })}
-                                                            >
-                                                                {stage.boardSize}×{stage.boardSize}
-                                                            </span>
-                                                        </div>
-                                                        <div className="flex min-w-0 items-center gap-3">
-                                                            <div className="flex items-center gap-1">
-                                                                <img src="/images/single/Black.webp" alt={t('black')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="font-bold tabular-nums text-amber-200">{towerDisplayBlackPlain}</span>
-                                                            </div>
-                                                            <div className="flex items-center gap-1">
-                                                                <img src="/images/single/White.webp" alt={t('white')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="font-bold tabular-nums text-amber-200">{towerDisplayWhitePlain}</span>
-                                                            </div>
-                                                        </div>
-                                                    </div>
-                                                    <div
-                                                        className={`flex min-w-0 items-center gap-x-4 sm:gap-x-5 ${
-                                                            useMobileTowerLayout ? 'flex-wrap gap-y-1' : 'flex-nowrap'
-                                                        }`}
-                                                    >
-                                                        <div className="flex shrink-0 items-center gap-2">
-                                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">{t('goal')}</span>
-                                                            <span className="font-bold text-yellow-300">{t('blackCaptureGoal', { count: towerDisplayBlackTarget })}</span>
-                                                        </div>
-                                                        <div className="flex shrink-0 items-center gap-2">
-                                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">{t('limit')}</span>
-                                                            <span className="font-bold tabular-nums text-amber-200">{t('turnUnit', { count: stage.blackTurnLimit })}</span>
-                                                        </div>
-                                                    </div>
-                                                </>
-                                            )}
-
-                                            {!isCaptureMode && (
-                                                <div className="flex min-w-0 flex-col gap-y-1 overflow-hidden" title={getTargetInfo()}>
-                                                    <div
-                                                        className={`flex min-w-0 items-center gap-x-3 sm:gap-x-4 ${
-                                                            useMobileTowerLayout ? 'flex-wrap gap-y-0.5' : 'flex-nowrap'
-                                                        }`}
-                                                    >
-                                                        <div className="flex shrink-0 items-center gap-2">
-                                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">{t('board')}</span>
-                                                            <span className="font-bold tabular-nums text-amber-100">{stage.boardSize}×{stage.boardSize}</span>
-                                                        </div>
-                                                        {autoScoringLabel && (
-                                                            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
-                                                                <span className="shrink-0 whitespace-nowrap font-semibold text-amber-400/90">{t('scoring')}</span>
-                                                                <span className="min-w-0 truncate font-bold tracking-tight text-sky-300">{autoScoringLabel}</span>
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div
-                                                        className={`flex min-w-0 items-center gap-x-2 sm:gap-x-3 ${
-                                                            useMobileTowerLayout ? 'flex-wrap gap-y-0.5' : 'flex-nowrap overflow-hidden'
-                                                        }`}
-                                                    >
-                                                        {hasBaseMode ? (
-                                                            <div className="flex items-center gap-1.5">
-                                                                <img src="/images/simbols/simbol4.webp" alt={t('baseAlt')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="font-bold text-sky-300">{t('base')}{stage.baseStones}</span>
-                                                            </div>
-                                                        ) : (
-                                                            <>
-                                                                <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/Black.webp" alt={t('black')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                    <span className="font-bold tabular-nums text-amber-200">{towerDisplayBlackPlain}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/White.webp" alt={t('white')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                    <span className="font-bold tabular-nums text-amber-200">{towerDisplayWhitePlain}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/BlackDouble.webp" alt={t('blackPatternAlt')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                    <span className="font-bold tabular-nums text-amber-200">×{stage.placements.blackPattern}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/WhiteDouble.webp" alt={t('blackPatternAlt')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                    <span className="font-bold tabular-nums text-amber-200">×{stage.placements.whitePattern}</span>
-                                                                </div>
-                                                            </>
-                                                        )}
-                                                    </div>
-                                                </div>
-                                            )}
-                                        </div>
-                                        
-                                        {/* 보상 정보 (PC 고정행 안에서 잘리지 않게 폭 제한) */}
-                                        <div
-                                            className={`ml-auto flex shrink-0 flex-col items-end justify-center gap-0.5 overflow-hidden ${
-                                                useMobileTowerLayout ? 'hidden' : 'max-w-[9.5rem] sm:max-w-[11rem]'
-                                            }`}
-                                        >
-                                            {rewardInfoContent}
+                                        <div className="flex min-w-0 items-center gap-3">
+                                            <div className="flex items-center gap-1">
+                                                <img
+                                                    src="/images/single/Black.webp"
+                                                    alt={t('black')}
+                                                    className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6"
+                                                />
+                                                <span className="font-bold tabular-nums text-amber-200">
+                                                    {towerDisplayBlackPlain}
+                                                </span>
+                                            </div>
+                                            <div className="flex items-center gap-1">
+                                                <img
+                                                    src="/images/single/White.webp"
+                                                    alt={t('white')}
+                                                    className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6"
+                                                />
+                                                <span className="font-bold tabular-nums text-amber-200">
+                                                    {towerDisplayWhitePlain}
+                                                </span>
+                                            </div>
                                         </div>
                                     </div>
-                                    
-                                    {/* 오른쪽: 모바일은 보상/버튼 세로 배치, PC는 버튼 단독 */}
-                                    {useMobileTowerLayout ? (
-                                        <div className="ml-2 flex flex-shrink-0 flex-col items-end gap-1.5">
-                                            <div className="flex flex-col items-end gap-0.5 text-right">
-                                                {rewardInfoContent}
-                                            </div>
-                                            <button
-                                                onClick={async (e) => {
-                                                    if (isChallengingRef.current || !canChallenge || isLocked) {
-                                                        e.preventDefault();
-                                                        return;
-                                                    }
-                                                    isChallengingRef.current = true;
-                                                    try {
-                                                        const res = await handlers.handleAction({
-                                                            type: 'START_TOWER_GAME',
-                                                            payload: { floor }
-                                                        });
-                                                        const gameId = (res as any)?.gameId || (res as any)?.clientResponse?.gameId;
-                                                        console.log('[TowerLobby] START_TOWER_GAME response:', { res, gameId });
-                                                    } catch (error) {
-                                                        console.error('[TowerLobby] Failed to start tower game:', error);
-                                                        isChallengingRef.current = false;
-                                                    }
-                                                }}
-                                                disabled={!canChallenge || isLocked || isChallengingRef.current}
-                                                className={`flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
-                                                    canChallenge && !isLocked
-                                                        ? 'bg-gradient-to-br from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-lg shadow-amber-600/50'
-                                                        : 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                                                }`}
-                                            >
-                                                <span className="text-[10px] leading-none">⚡{effectiveActionPointCost}</span>
-                                                <span className="text-[10px] leading-none">{t('challenge')}</span>
-                                            </button>
+                                    <div className="flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1 sm:gap-x-5">
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">
+                                                {t('goal')}
+                                            </span>
+                                            <span className="font-bold text-yellow-300">
+                                                {t('blackCaptureGoal', { count: towerDisplayBlackTarget })}
+                                            </span>
                                         </div>
-                                    ) : (
-									<button
-										onClick={async (e) => {
-                                            // 중복 클릭 방지
-                                            if (isChallengingRef.current || !canChallenge || isLocked) {
-                                                e.preventDefault();
-                                                return;
-                                            }
-                                            
-                                            // 클릭 처리 시작
-                                            isChallengingRef.current = true;
-                                            
-											try {
-												const res = await handlers.handleAction({
-                                                    type: 'START_TOWER_GAME',
-                                                    payload: { floor }
-                                                });
-												const gameId = (res as any)?.gameId || (res as any)?.clientResponse?.gameId;
-												console.log('[TowerLobby] START_TOWER_GAME response:', { res, gameId });
-												// useApp.ts에서 라우팅을 처리하므로 여기서는 액션만 호출
-											} catch (error) {
-												console.error('[TowerLobby] Failed to start tower game:', error);
-												// 에러 발생 시에만 플래그 해제 (성공 시 라우팅되므로 해제 불필요)
-												isChallengingRef.current = false;
-											}
-                                        }}
-                                        disabled={!canChallenge || isLocked || isChallengingRef.current}
-                                        className={`flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold transition-all sm:px-4 sm:text-sm ${
-                                            canChallenge && !isLocked
-                                                ? 'bg-gradient-to-br from-amber-600 to-yellow-600 hover:from-amber-500 hover:to-yellow-500 text-white shadow-lg shadow-amber-600/50'
-                                                : 'bg-gray-700/50 text-gray-400 cursor-not-allowed'
-                                        }`}
-                                    >
-                                        <span className="text-[10px] leading-none sm:text-xs">⚡{effectiveActionPointCost}</span>
-                                        <span className="text-[10px] leading-none sm:text-xs">{t('challenge')}</span>
-                                    </button>
-                                    )}
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">
+                                                {t('limit')}
+                                            </span>
+                                            <span className="font-bold tabular-nums text-amber-200">
+                                                {t('turnUnit', { count: stage.blackTurnLimit })}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </>
+                            )}
+                            {!isCaptureMode && (
+                                <div className="flex min-w-0 flex-col gap-y-1 overflow-hidden" title={getTargetInfo()}>
+                                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 sm:gap-x-4">
+                                        <div className="flex shrink-0 items-center gap-2">
+                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">
+                                                {t('board')}
+                                            </span>
+                                            <span className="font-bold tabular-nums text-amber-100">
+                                                {stage.boardSize}×{stage.boardSize}
+                                            </span>
+                                        </div>
+                                        {autoScoringLabel && (
+                                            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                                                <span className="shrink-0 whitespace-nowrap font-semibold text-amber-400/90">
+                                                    {t('scoring')}
+                                                </span>
+                                                <span className="min-w-0 truncate font-bold tracking-tight text-sky-300">
+                                                    {autoScoringLabel}
+                                                </span>
+                                            </div>
+                                        )}
+                                    </div>
+                                    <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-x-3">
+                                        {hasBaseMode ? (
+                                            <div className="flex items-center gap-1.5">
+                                                <img
+                                                    src="/images/simbols/simbol4.webp"
+                                                    alt={t('baseAlt')}
+                                                    className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6"
+                                                />
+                                                <span className="font-bold text-sky-300">
+                                                    {t('base')}
+                                                    {stage.baseStones}
+                                                </span>
+                                            </div>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center gap-1">
+                                                    <img
+                                                        src="/images/single/Black.webp"
+                                                        alt={t('black')}
+                                                        className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6"
+                                                    />
+                                                    <span className="font-bold tabular-nums text-amber-200">
+                                                        {towerDisplayBlackPlain}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <img
+                                                        src="/images/single/White.webp"
+                                                        alt={t('white')}
+                                                        className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6"
+                                                    />
+                                                    <span className="font-bold tabular-nums text-amber-200">
+                                                        {towerDisplayWhitePlain}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <img
+                                                        src="/images/single/BlackDouble.webp"
+                                                        alt={t('blackPatternAlt')}
+                                                        className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6"
+                                                    />
+                                                    <span className="font-bold tabular-nums text-amber-200">
+                                                        ×{stage.placements.blackPattern}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center gap-1">
+                                                    <img
+                                                        src="/images/single/WhiteDouble.webp"
+                                                        alt={t('blackPatternAlt')}
+                                                        className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6"
+                                                    />
+                                                    <span className="font-bold tabular-nums text-amber-200">
+                                                        ×{stage.placements.whitePattern}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        )}
+                                    </div>
                                 </div>
-                            );
-                        });
+                            )}
+                        </div>
+                    </div>
+                    <div className="ml-2 flex flex-shrink-0 flex-col items-end gap-1.5">
+                        <div className="flex flex-col items-end gap-0.5 text-right">{rewardInfoContent}</div>
+                        {challengeButton}
+                    </div>
+                </div>
+            );
+        });
 
 
     function renderTowerMainColumns() {
@@ -964,29 +1085,35 @@ const TowerLobby: React.FC<TowerLobbyProps> = ({ presentation = 'full' }) => {
 
         const stagePanel = (
             <div className={stageColClass}>
+                {/*
+                  패널에 고정된 탑 배경.
+                  이미지를 뷰포트보다 길게 깔고 스크롤 진행도(0=100층 꼭대기, 1=1층 입구)로
+                  translateY 하여 실제 탑을 올라가는 것처럼 보이게 함.
+                */}
+                <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden rounded-[inherit]" aria-hidden>
+                    <img
+                        src={TOWER_STAGE_SCROLL_BG_WEBP}
+                        alt=""
+                        className="absolute inset-x-0 top-0 w-full object-cover object-center will-change-transform"
+                        style={{
+                            height: '240%',
+                            transform: `translate3d(0, ${-towerClimbProgress * ((240 - 100) / 240) * 100}%, 0)`,
+                        }}
+                        draggable={false}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-b from-black/30 via-black/10 to-black/35" />
+                    <div className="absolute inset-0 bg-amber-950/10" />
+                </div>
                 <h2 className="relative z-20 mb-2 flex-shrink-0 bg-gradient-to-r from-amber-300 to-yellow-300 bg-clip-text text-base font-bold text-transparent drop-shadow-[0_0_4px_rgba(217,119,6,0.8)] sm:mb-3 sm:text-lg">
                     스테이지
                 </h2>
                 <div
                     ref={stageScrollRef}
-                    className={`relative z-10 min-h-0 flex-1 overflow-y-auto ${RANKING_MODAL_SLIM_SCROLL_Y}`}
+                    onScroll={syncTowerClimbFromScroll}
+                    className={`relative z-10 min-h-0 flex-1 overflow-y-auto overscroll-contain ${RANKING_MODAL_SLIM_SCROLL_Y}`}
                 >
-                    {/*
-                      스크롤 콘텐츠 높이 = 1~100층 전체.
-                      세로형 Tower 이미지를 콘텐츠에 맞춰 깔아 위로 갈수록(100층) 꼭대기가 보이게 함.
-                    */}
-                    <div className="relative">
-                        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
-                            <img
-                                src={TOWER_STAGE_SCROLL_BG_WEBP}
-                                alt=""
-                                className="h-full w-full object-cover object-center"
-                                draggable={false}
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-zinc-950/35 to-black/55" />
-                            <div className="absolute inset-0 bg-amber-950/10" />
-                        </div>
-                        <div className="relative z-10 space-y-1.5 py-0.5">{renderTowerFloorRows()}</div>
+                    <div className="relative z-10 flex flex-col items-center gap-2 py-1">
+                        {renderTowerFloorRows()}
                     </div>
                 </div>
             </div>

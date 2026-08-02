@@ -22,6 +22,8 @@ import {
     PC_QUICK_RAIL_COLUMN_CLASS,
     PC_QUICK_RAIL_WRAPPER_CLASS,
 } from '../shared/constants/pcShellLayout.js';
+import { replaceAppHash, APP_HOME_HASH, APP_HOME_ARENA_HASH } from '../utils/appUtils.js';
+import { waitingLobbyPairAlignedMobileTabButtonClass } from './waiting-room/waitingLobbyHomePanelStyles.js';
 import { BADUK_ABILITY_STAT_CAP, BADUK_ABILITY_TOTAL_CAP, CORE_STAT_RADAR_ORDER } from './CoreStatsHexagonChart.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
@@ -723,12 +725,31 @@ const Profile: React.FC<ProfileProps> = () => {
     const { t } = useTranslation(['profile', 'lobby', 'nav']);
     const { isNativeMobile } = useNativeMobileShell();
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
+    /** 네이티브 홈 셸: 하단 독 대신 프로필/컨텐츠/유저목록 탭 (#/home · #/home/arena) */
+    const nativeMobileHomeShell = isNativeMobile && (profileTab === 'home' || profileTab === 'arena');
     /** 홈 탭: PC와 동일 패널·타이포 */
     const readableHome = profileTab === 'home';
     /** 홈: 유저 패널(프로필·길드·능력치·대표펫 한 줄) + 채팅 패널 2단 구성 */
     const homeLeftColumnMerge = profileTab === 'home';
     /** 네이티브 앱 홈: PC와 동일 구조, 타이포·썸네일·펫 카드만 축소해 통일 */
     const nativeCompactHome = isNativeMobile && homeLeftColumnMerge;
+    type NativeHomePane = 'profile' | 'content' | 'users';
+    const [nativeHomePane, setNativeHomePane] = useState<NativeHomePane>(() =>
+        profileTab === 'arena' ? 'content' : 'profile',
+    );
+    useEffect(() => {
+        if (!isNativeMobile) return;
+        if (profileTab === 'arena') {
+            setNativeHomePane('content');
+        } else if (profileTab === 'home') {
+            setNativeHomePane((prev) => (prev === 'content' ? 'profile' : prev));
+        }
+    }, [profileTab, isNativeMobile]);
+    const selectNativeHomePane = useCallback((pane: NativeHomePane) => {
+        setNativeHomePane(pane);
+        if (pane === 'content') replaceAppHash(APP_HOME_ARENA_HASH);
+        else replaceAppHash(APP_HOME_HASH);
+    }, []);
     const mergedPublicChatMessages = useMemo(
         () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
         [waitingRoomChats],
@@ -1216,9 +1237,9 @@ const Profile: React.FC<ProfileProps> = () => {
             } catch {
                 // ignore
             }
-            window.location.hash = '#/pvp/friendly';
+            handlers.openFriendlyLobby?.();
         });
-    }, [tryArenaEnter]);
+    }, [tryArenaEnter, handlers]);
 
     const handlePresetChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
         const presetIndex = Number(event.target.value);
@@ -2292,7 +2313,6 @@ const Profile: React.FC<ProfileProps> = () => {
             </div>
         ) : null;
 
-    const nativeMobileHome = isNativeMobile && profileTab === 'home';
     /** PC 홈: 대표펫 푸터 제거로 확보된 높이(≈ min-h 3.75rem + py-2)만큼 채팅 행 확대 */
     const profileHomeLeftGridClassPc =
         `grid h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} ${PC_HOME_LEFT_COLUMN_GAP_CLASS} overflow-hidden ` +
@@ -2454,32 +2474,67 @@ const Profile: React.FC<ProfileProps> = () => {
             <main
                 className="flex min-h-0 flex-1 flex-col overflow-hidden"
             >
-                {isNativeMobile && profileTab !== 'home' ? (
-                    <>
-                        {profileTab === 'ranking' && (
-                            <div className="grid min-h-0 flex-1 grid-cols-2 gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5">
-                                <div className="flex min-h-0 h-full min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
-                                    <GameRankingBoard mobileSplitLarge />
-                                </div>
-                                <div className="flex min-h-0 h-full min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
-                                    <BadukRankingBoard mobileSplitLarge />
-                                </div>
-                            </div>
-                        )}
-                        {profileTab === 'arena' && (
-                            <div className="flex min-h-0 flex-1 overflow-hidden px-1 pb-1">
-                                <HomeEntranceHub
-                                    handlers={homeEntranceHandlers}
-                                    cardState={homeEntranceCardState}
-                                    className="flex-1"
-                                    showAnnouncementBoard
-                                />
-                            </div>
-                        )}
-                    </>
-                ) : nativeMobileHome ? (
+                {isNativeMobile && profileTab === 'ranking' ? (
+                    <div className="grid min-h-0 flex-1 grid-cols-2 gap-1 overflow-x-hidden overflow-y-auto overscroll-y-contain px-0.5 pb-0.5">
+                        <div className="flex min-h-0 h-full min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
+                            <GameRankingBoard mobileSplitLarge />
+                        </div>
+                        <div className="flex min-h-0 h-full min-w-0 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain">
+                            <BadukRankingBoard mobileSplitLarge />
+                        </div>
+                    </div>
+                ) : nativeMobileHomeShell ? (
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0.5 pb-0.5 pt-0.5">
-                        {renderProfileHomeLeftColumn(profileHomeLeftGridClassNative)}
+                        <div
+                            className="mb-0.5 flex shrink-0 gap-0.5"
+                            role="tablist"
+                            aria-label={t('tabs.homeAria')}
+                        >
+                            {(
+                                [
+                                    { id: 'profile' as const, label: t('tabs.profile') },
+                                    { id: 'content' as const, label: t('tabs.content') },
+                                    { id: 'users' as const, label: t('tabs.users') },
+                                ] as const
+                            ).map(({ id, label }) => (
+                                <button
+                                    key={id}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={nativeHomePane === id}
+                                    onClick={() => selectNativeHomePane(id)}
+                                    className={`min-h-0 min-w-0 flex-1 ${waitingLobbyPairAlignedMobileTabButtonClass} transition-all ${
+                                        nativeHomePane === id
+                                            ? 'border border-amber-400/55 bg-gradient-to-b from-amber-800/40 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
+                                            : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
+                                    }`}
+                                >
+                                    <span className="block leading-tight">{label}</span>
+                                </button>
+                            ))}
+                        </div>
+                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden" role="tabpanel">
+                            {nativeHomePane === 'profile' ? (
+                                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                                    {renderProfileHomeLeftColumn(profileHomeLeftGridClassNative)}
+                                </div>
+                            ) : null}
+                            {nativeHomePane === 'content' ? (
+                                <div className="flex min-h-0 flex-1 overflow-hidden">
+                                    <HomeEntranceHub
+                                        handlers={homeEntranceHandlers}
+                                        cardState={homeEntranceCardState}
+                                        className="flex-1"
+                                        showAnnouncementBoard
+                                    />
+                                </div>
+                            ) : null}
+                            {nativeHomePane === 'users' ? (
+                                <div className="flex min-h-0 flex-1 overflow-hidden">
+                                    <HomeViewerOnlineUsersColumn fill />
+                                </div>
+                            ) : null}
+                        </div>
                     </div>
                 ) : (
                     <div className={`flex h-full min-h-0 min-w-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>

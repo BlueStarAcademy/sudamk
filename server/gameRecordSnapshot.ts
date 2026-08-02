@@ -5,6 +5,7 @@ import * as db from './db.js';
 import { getCachedGame, getStaleCachedGame } from './gameCache.js';
 import { isPvpHumanGameRecordEligible } from '../utils/strategicPvpGameRecord.js';
 import { broadcast } from './socket.js';
+import { setUserStatusPreservingLobbyChannel } from './utils/lobbyChannelAssign.js';
 
 /** 대국실 이탈·GC 후에도 기보 저장이 가능하도록 종료 PVP 세션을 메모리에 보관 */
 export const ENDED_PVP_GAME_RECORD_SNAPSHOT_TTL_MS = 4 * 60 * 60 * 1000;
@@ -81,11 +82,11 @@ export function applyLeaveWhenGameSessionMissing(
     const prev = volatileState.userStatuses[userId];
 
     if (wl) {
-        volatileState.userStatuses[userId] = {
+        setUserStatusPreservingLobbyChannel(volatileState, userId, {
             status: UserStatus.Waiting,
             waitingLobby: wl,
             arenaChannel: wl,
-        };
+        });
     } else if (prev) {
         prev.status = UserStatus.Online;
         delete prev.gameId;
@@ -94,7 +95,7 @@ export function applyLeaveWhenGameSessionMissing(
         delete prev.waitingLobby;
         delete prev.arenaChannel;
     } else {
-        volatileState.userStatuses[userId] = { status: UserStatus.Online };
+        setUserStatusPreservingLobbyChannel(volatileState, userId, { status: UserStatus.Online });
     }
 
     broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });

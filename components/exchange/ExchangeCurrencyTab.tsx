@@ -1028,7 +1028,7 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                 <div className="space-y-2.5">
                                     <div className="flex items-end justify-center gap-2">
                                         <div className="min-w-0 flex-1 text-center">
-                                            <label className={`mb-1.5 flex items-center justify-center gap-1 ${exchTy.subLabel}`}>
+                                            <label className={`mb-1.5 flex items-center justify-center gap-1 whitespace-nowrap ${exchTy.subLabel}`}>
                                                 {t('currency.inputAmount')}
                                                 <CurrencyIcon currency={instantInputCurrency} className={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'} />
                                             </label>

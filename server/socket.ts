@@ -11,6 +11,9 @@ import { getArenaTurnCount } from './utils/arenaTurnPolicy.js';
 import { applyNormalizedChessGoInPlace } from '../shared/utils/chessGoRules.js';
 import { buildSpectatorGameView } from './utils/spectatorGameView.js';
 import { getLiveGameHumanParticipantIds } from './utils/liveGameParticipants.js';
+import { setUserStatusPreservingLobbyChannel } from './utils/lobbyChannelAssign.js';
+import { UserStatus } from '../types/enums.js';
+import { isValidLobbyChannel } from '../shared/constants/lobbyChannel.js';
 
 const pendingPvpDisconnectTimers = new Map<string, ReturnType<typeof setTimeout>>();
 
@@ -304,6 +307,17 @@ export const createWebSocketServer = (server: Server) => {
                     }
                     set.add(ws);
                     scheduleWebSocketMetricsSample(getWebSocketConnectionStats);
+                    // 홈 채널 미배정 시 자동 배정 (재배포·레거시 세션 보정)
+                    {
+                        const st = volatileState.userStatuses[uid];
+                        if (!st) {
+                            setUserStatusPreservingLobbyChannel(volatileState, uid, { status: UserStatus.Online });
+                            broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                        } else if (!isValidLobbyChannel(st.lobbyChannel)) {
+                            setUserStatusPreservingLobbyChannel(volatileState, uid, { ...st });
+                            broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                        }
+                    }
                     void import('./actions/socialActions.js')
                         .then(({ clearPvpDisconnectOnPlayerReconnectByStatus }) =>
                             clearPvpDisconnectOnPlayerReconnectByStatus(volatileState, uid),

@@ -2444,6 +2444,17 @@
       "friends": "친구",
       "guild": "길드원"
     },
+    "lobbyChannel": {
+      "modalTitle": "채널 변경",
+      "modalHint": "채널당 최대 {{capacity}}명까지 접속할 수 있습니다.",
+      "full": "정원이 가득 찼습니다.",
+      "current": "현재 채널",
+      "select": "Ch.{{channel}}으로 이동",
+      "prevPage": "이전",
+      "nextPage": "다음",
+      "pageLabel": "{{page}} / {{total}}",
+      "changeButtonTitle": "채널 변경"
+    },
     "aiChallenge": {
       "strategic": "전략 AI대전",
       "playful": "놀이 AI대전",
@@ -6438,8 +6449,9 @@
       "invitesBlocked": "상대가 초대를 받지 않도록 설정했습니다.",
       "targetResting": "휴식 중인 유저는 초대할 수 없습니다.",
       "targetBusy": "경기 또는 협상 중인 유저는 초대할 수 없습니다.",
+      "targetOffline": "오프라인 유저는 초대할 수 없습니다.",
       "cooldown": "잠시 후 다시 초대할 수 있습니다 (10초)",
-      "lobbyOnly": "전략·놀이·페어 대국실에 머무는 유저만 초대할 수 있습니다.",
+      "lobbyOnly": "같은 접속 채널에 있는 유저만 초대할 수 있습니다.",
       "inviterLabel": "초대한 유저",
       "arenaInviteStrategic": "전략바둑 경기장",
       "arenaInvitePlayful": "놀이바둑 경기장",

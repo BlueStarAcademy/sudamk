@@ -88,6 +88,7 @@ import {
 } from './utils/pveAiTurnWatchdog.js';
 import { needsPveMainLoopProcessing } from './utils/serverMainLoopGameTick.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { setUserStatusPreservingLobbyChannel } from './utils/lobbyChannelAssign.js';
 
 const VERBOSE_ACTION_LOGS = process.env.DEBUG_ACTION_LOGS === '1' || process.env.LOG_ACTIONS === '1';
 
@@ -4022,9 +4023,15 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         const { clearPvpDisconnectOnPlayerReconnect } = await import('./actions/socialActions.js');
                         await clearPvpDisconnectOnPlayerReconnect(activeGame, userForLogin.id);
                         // 재접속한 유저를 게임 상태로 설정 (자동으로 게임으로 리다이렉트)
-                        volatileState.userStatuses[userForLogin.id] = { status: types.UserStatus.InGame, mode: activeGame.mode, gameId: activeGame.id };
+                        setUserStatusPreservingLobbyChannel(volatileState, userForLogin.id, {
+                            status: types.UserStatus.InGame,
+                            mode: activeGame.mode,
+                            gameId: activeGame.id,
+                        });
                     } else {
-                        volatileState.userStatuses[userForLogin.id] = { status: types.UserStatus.Online };
+                        setUserStatusPreservingLobbyChannel(volatileState, userForLogin.id, {
+                            status: types.UserStatus.Online,
+                        });
                     }
                 })();
                 
@@ -4032,7 +4039,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             } catch (gameStateError: any) {
                 console.warn('[/api/auth/login] Failed to update game state:', gameStateError?.message);
                 // 게임 상태 업데이트 실패해도 기본 상태로 설정
-                volatileState.userStatuses[userForLogin.id] = { status: types.UserStatus.Online };
+                setUserStatusPreservingLobbyChannel(volatileState, userForLogin.id, {
+                    status: types.UserStatus.Online,
+                });
             }
             
             // 최종 응답 전송: 반드시 실행되도록 보장
@@ -4297,7 +4306,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
             // 로그인 처리
             volatileState.userConnections[user.id] = Date.now();
-            volatileState.userStatuses[user.id] = { status: types.UserStatus.Online };
+            setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: types.UserStatus.Online });
 
             res.json({ user });
         } catch (e: any) {
@@ -4379,7 +4388,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
             // 로그인 처리
             volatileState.userConnections[user.id] = Date.now();
-            volatileState.userStatuses[user.id] = { status: types.UserStatus.Online };
+            setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: types.UserStatus.Online });
 
             res.json({ user });
         } catch (e: any) {
@@ -4753,7 +4762,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 return res.status(403).json({ error: rejoinIp.message });
             }
             volatileState.userConnections[userId] = Date.now();
-            volatileState.userStatuses[userId] = { status: types.UserStatus.InGame, mode: game.mode, gameId: game.id };
+            setUserStatusPreservingLobbyChannel(volatileState, userId, {
+                status: types.UserStatus.InGame,
+                mode: game.mode,
+                gameId: game.id,
+            });
             // AI 대국: KataServer가 game_id 헤더로 세션을 캐시하는 경우, 끊김·F5 후 재입장 시 이전 국면이 남아
             // 다음 AI 수가 어긋할 수 있음 → settings.kataSessionResumeSeq를 올려 game_id 태그를 갱신한다.
             const kataResumeBumpStatuses = new Set([
@@ -4898,7 +4911,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 // If user status is not present (e.g., server restart), set to online.
                 // If it IS present (e.g., they just refreshed), do NOT change it, preserving their 'waiting' status.
                 if (!volatileState.userStatuses[userId]) {
-                    volatileState.userStatuses[userId] = { status: types.UserStatus.Online };
+                    setUserStatusPreservingLobbyChannel(volatileState, userId, {
+                        status: types.UserStatus.Online,
+                    });
                 }
             }
 
@@ -5226,7 +5241,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             if (!volatileState.userConnections[userId]) {
                 console.log(`[Auth] Re-establishing connection on action for user: ${user.nickname} (${userId})`);
                 volatileState.userConnections[userId] = Date.now();
-                volatileState.userStatuses[userId] = { status: types.UserStatus.Online };
+                setUserStatusPreservingLobbyChannel(volatileState, userId, {
+                    status: types.UserStatus.Online,
+                });
                 const loginAt = Date.now();
                 user.lastLoginAt = loginAt;
                 // 프로세스별 userConnections — 다른 인스턴스/재접속마다 캐시 user 전체 persist는

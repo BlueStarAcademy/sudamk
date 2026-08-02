@@ -31,4 +31,5 @@ export * from './championshipRealMatch.js';
 export * from './championshipVersusVenue.js';
 export * from './championshipShop.js';
 export * from './numericLimits.js';
+export * from './lobbyChannel.js';
 export { RANKED_STRATEGIC_MODES, RANKED_AVAILABLE_MODES } from './rankedGameSettings.js';

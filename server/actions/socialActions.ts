@@ -47,6 +47,9 @@ import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import { initializeGame } from '../gameModes.js';
 import { ensureCastleStonePointsForSession } from '../modes/castle.js';
 import { MATERIAL_ITEMS } from '../../shared/constants/items.js';
+import { FRIEND_LIMIT, isValidLobbyChannel } from '../../shared/constants/lobbyChannel.js';
+import { canJoinLobbyChannel, resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
+import { setUserStatusPreservingLobbyChannel } from '../utils/lobbyChannelAssign.js';
 import { clampAiLobbyStrategicItemCaps } from '../../shared/utils/strategicAiLobbyItemCaps.js';
 import { isSyntheticOnlineUserId } from '../../shared/utils/syntheticOnlineUserIds.js';
 import { containsProfanity } from '../../profanity.js';
@@ -65,7 +68,6 @@ import {
     PAIR_GO_GAME_MODES,
 } from '../../shared/utils/pairGameTurn.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
-import { userInUnifiedArenaLobbyUserList } from '../../shared/utils/unifiedArenaLobbyUserList.js';
 import {
     arenaChannelForGameMode,
     arenaChannelForGameSession,
@@ -205,12 +207,12 @@ export const setInGameUserStatusForArena = (
         delete volatileState.userStatuses[userId];
         return;
     }
-    volatileState.userStatuses[userId] = {
+    setUserStatusPreservingLobbyChannel(volatileState, userId, {
         status: UserStatus.InGame,
         mode: game.mode,
         gameId: game.id,
         arenaChannel: arenaChannelForGameSession(game) ?? undefined,
-    };
+    });
 };
 
 const makePairMaterialStack = (materialName: string, templateId: string, quantity: number): InventoryItem => {
@@ -444,7 +446,6 @@ function resolvePairWaitingRoomSelectedGameMode(room: types.PairRoomState, reque
 }
 const pairModeIncludesCaptureRule = (mode: GameMode, settings: Pick<types.GameSettings, 'mixedModes'>): boolean =>
     mode === GameMode.Capture || (mode === GameMode.Mix && Boolean(settings.mixedModes?.includes(GameMode.Capture)));
-const FRIEND_LIMIT = 30;
 
 const broadcastPairRooms = (volatileState: VolatileState) => {
     const rooms = volatileState.pairRooms;
@@ -2861,6 +2862,25 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             return {};
         }
+        case 'CHANGE_LOBBY_CHANNEL': {
+            const channel = Number((payload as { channel?: unknown })?.channel);
+            if (!isValidLobbyChannel(channel)) {
+                return { error: '유효하지 않은 채널입니다.' };
+            }
+            const current = volatileState.userStatuses[user.id];
+            if (!current || current.status === UserStatus.Offline) {
+                return { error: '채널을 변경할 수 없는 상태입니다.' };
+            }
+            if (current.lobbyChannel === channel) {
+                return {};
+            }
+            if (!canJoinLobbyChannel(volatileState.userStatuses, channel, user.id)) {
+                return { error: '해당 채널의 정원이 가득 찼습니다.' };
+            }
+            current.lobbyChannel = channel;
+            broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+            return {};
+        }
         case 'SET_USER_STATUS': {
             const { status } = payload as { status: UserStatus | string };
             const statusKey = String(status);
@@ -2949,10 +2969,14 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                         next.mode = g.mode;
                     }
                 }
-                volatileState.userStatuses[user.id] = next;
+                setUserStatusPreservingLobbyChannel(volatileState, user.id, next);
             } else {
                 const arenaChannel = arenaChannelForGameMode(mode as GameMode) ?? undefined;
-                volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: mode as GameMode, arenaChannel };
+                setUserStatusPreservingLobbyChannel(volatileState, user.id, {
+                    status: UserStatus.Waiting,
+                    mode: mode as GameMode,
+                    arenaChannel,
+                });
             }
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
             return {};
@@ -3042,10 +3066,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 }
                 // 싱글플레이 게임이거나 모드를 찾을 수 없는 경우 Online 상태로 변경 (게임 모드 없음)
                 if (game.isSinglePlayer || !lobbyMode || isPairGameLeave) {
-                    volatileState.userStatuses[user.id] = { status: UserStatus.Online };
-                    delete volatileState.userStatuses[user.id].mode;
-                    delete volatileState.userStatuses[user.id].gameId;
-                    delete volatileState.userStatuses[user.id].waitingLobby;
+                    setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: UserStatus.Online });
                 } else {
                     if (lobbyMode === 'strategic' || lobbyMode === 'playful') {
                         const linger = isLingerEndedPvpRoomCandidate(game);
@@ -3057,22 +3078,34 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                                 prev.waitingLobby === 'strategic' || prev.waitingLobby === 'playful'
                                     ? prev.waitingLobby
                                     : lobbyMode;
-                            volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: wl, arenaChannel: wl };
+                            setUserStatusPreservingLobbyChannel(volatileState, user.id, {
+                                status: UserStatus.Waiting,
+                                waitingLobby: wl,
+                                arenaChannel: wl,
+                            });
                             await maybeDeleteDetachedEndedPvpGame(volatileState, gameId);
                         } else if (linger) {
-                            volatileState.userStatuses[user.id] = {
+                            setUserStatusPreservingLobbyChannel(volatileState, user.id, {
                                 status: UserStatus.Waiting,
                                 waitingLobby: lobbyMode,
                                 arenaChannel: lobbyMode,
                                 gameId: game.id,
                                 mode: game.mode,
-                            };
+                            });
                         } else {
-                            volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: lobbyMode, arenaChannel: lobbyMode };
+                            setUserStatusPreservingLobbyChannel(volatileState, user.id, {
+                                status: UserStatus.Waiting,
+                                waitingLobby: lobbyMode,
+                                arenaChannel: lobbyMode,
+                            });
                         }
                     } else {
                         const arenaChannel = arenaChannelForGameMode(lobbyMode as GameMode) ?? undefined;
-                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: lobbyMode as GameMode, arenaChannel };
+                        setUserStatusPreservingLobbyChannel(volatileState, user.id, {
+                            status: UserStatus.Waiting,
+                            mode: lobbyMode as GameMode,
+                            arenaChannel,
+                        });
                     }
                 }
             }
@@ -3151,7 +3184,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     delete userStatus.gameId;
                     delete userStatus.spectatingGameId;
                 } else {
-                    volatileState.userStatuses[user.id] = { status: UserStatus.Online };
+                    setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: UserStatus.Online });
                 }
                 broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
                 
@@ -3179,16 +3212,21 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 }
                 // 싱글플레이 게임이나 도전의 탑이거나 모드를 찾을 수 없는 경우 Online 상태로 변경 (게임 모드 없음)
                 if (game.isSinglePlayer || isTower || !lobbyMode) {
-                    volatileState.userStatuses[user.id] = { status: UserStatus.Online };
-                    delete volatileState.userStatuses[user.id].mode;
-                    delete volatileState.userStatuses[user.id].gameId;
-                    delete volatileState.userStatuses[user.id].arenaChannel;
+                    setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: UserStatus.Online });
                 } else {
                     if (lobbyMode === 'strategic' || lobbyMode === 'playful') {
-                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, waitingLobby: lobbyMode, arenaChannel: lobbyMode };
+                        setUserStatusPreservingLobbyChannel(volatileState, user.id, {
+                            status: UserStatus.Waiting,
+                            waitingLobby: lobbyMode,
+                            arenaChannel: lobbyMode,
+                        });
                     } else {
                         const arenaChannel = arenaChannelForGameMode(lobbyMode as GameMode) ?? undefined;
-                        volatileState.userStatuses[user.id] = { status: UserStatus.Waiting, mode: lobbyMode as GameMode, arenaChannel };
+                        setUserStatusPreservingLobbyChannel(volatileState, user.id, {
+                            status: UserStatus.Waiting,
+                            mode: lobbyMode as GameMode,
+                            arenaChannel,
+                        });
                     }
                 }
             }
@@ -3231,12 +3269,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const { gameId } = payload;
             const game = await db.getLiveGame(gameId);
             if (!game) return { error: 'Game not found.' };
-            volatileState.userStatuses[user.id] = {
+            setUserStatusPreservingLobbyChannel(volatileState, user.id, {
                 status: UserStatus.Spectating,
                 spectatingGameId: gameId,
                 mode: game.mode,
                 arenaChannel: arenaChannelForGameSession(game) ?? undefined,
-            };
+            });
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
             return { clientResponse: { game: buildSpectatorGameView(game) } };
         }
@@ -3560,7 +3598,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             const screenChannel = arenaChannelFromPairLobbyChannel(lobbyChannel);
             const lobbyIntent: 'pvp' | 'ai' = payloadIntent === 'ai' ? 'ai' : 'pvp';
             if (!volatileState.userStatuses[user.id]) {
-                volatileState.userStatuses[user.id] = { status: UserStatus.Online };
+                setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: UserStatus.Online });
             }
             if (!volatileState.pairLobbyScreenClients) volatileState.pairLobbyScreenClients = {};
             const normalizedClientId = normalizePairLobbyScreenClientId(clientId, user.id);
@@ -3671,16 +3709,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 return { error: '상대가 대표 펫을 장착해야 2인 친선에 초대할 수 있습니다.' };
             }
 
-            const friendIds = toFriendArray(user.friendIds);
-            const isFriend = friendIds.includes(targetUserId);
-            const isGuild = Boolean(user.guildId && user.guildId === targetUser.guildId);
             prunePairLobbyScreenClients(volatileState, targetUserId);
             const targetSt = volatileState.userStatuses[targetUserId];
-            const inLinkedArena = Boolean(targetSt && userInUnifiedArenaLobbyUserList(targetSt));
-            if (!isFriend && !isGuild && !inLinkedArena) {
-                return {
-                    error: '전체 목록에서는 전략·놀이·페어 대국실에 있는 유저만 초대할 수 있습니다. 친구·길드원은 다른 화면에서도 초대할 수 있습니다.',
-                };
+            const inviterCh = resolveLobbyChannel(volatileState.userStatuses[user.id]);
+            const inviteeCh = resolveLobbyChannel(targetSt);
+            if (inviterCh == null || inviteeCh == null || inviterCh !== inviteeCh) {
+                return { error: '같은 접속 채널에 있는 유저만 초대할 수 있습니다.' };
             }
 
             for (const id of Object.keys(volatileState.pairPartnerInvites)) {

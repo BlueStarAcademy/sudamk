@@ -2415,6 +2415,17 @@
       "friends": "Friends",
       "guild": "Guild"
     },
+    "lobbyChannel": {
+      "modalTitle": "Change channel",
+      "modalHint": "Each channel holds up to {{capacity}} players.",
+      "full": "This channel is full.",
+      "current": "Current channel",
+      "select": "Move to Ch.{{channel}}",
+      "prevPage": "Prev",
+      "nextPage": "Next",
+      "pageLabel": "{{page}} / {{total}}",
+      "changeButtonTitle": "Change channel"
+    },
     "aiChallenge": {
       "strategic": "Strategy AI",
       "playful": "Casual AI",
@@ -6409,8 +6420,9 @@
       "invitesBlocked": "This user has disabled partner invites.",
       "targetResting": "Cannot invite users who are resting.",
       "targetBusy": "Cannot invite users in a match or negotiation.",
+      "targetOffline": "Cannot invite offline users.",
       "cooldown": "You can invite again shortly (10s)",
-      "lobbyOnly": "Only users in strategy, casual, or pair lobbies can be invited.",
+      "lobbyOnly": "Only users in the same lobby channel can be invited.",
       "inviterLabel": "Invited by",
       "arenaInviteStrategic": "Strategy arena",
       "arenaInvitePlayful": "Casual arena",

@@ -100,36 +100,35 @@ export function pairLobbyRoomListScrollAreaClass(lobby: WaitingLobbyPanelTone): 
 
 export function pairLobbyRoomEmptyRowShellClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'rounded-lg border border-cyan-500/14 bg-black/22 px-2 py-1 shadow-inner ring-1 ring-cyan-400/08';
+        return 'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-cyan-500/14 bg-black/22 p-1.5 shadow-inner ring-1 ring-cyan-400/08';
     }
     if (lobby === 'pair') {
-        return 'rounded-lg border border-violet-500/16 bg-black/22 px-2 py-1 shadow-inner ring-1 ring-violet-400/08';
+        return 'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-violet-500/16 bg-black/22 p-1.5 shadow-inner ring-1 ring-violet-400/08';
     }
-    return 'rounded-lg border border-amber-500/14 bg-black/22 px-2 py-1 shadow-inner ring-1 ring-amber-400/08';
+    return 'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-amber-500/14 bg-black/22 p-1.5 shadow-inner ring-1 ring-amber-400/08';
 }
 
 export function pairLobbyRoomEmptySlotNumClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'rounded-lg border border-cyan-400/22 bg-black/35 font-mono tabular-nums text-cyan-200/80 shadow-inner';
+        return 'rounded-md border border-cyan-400/22 bg-black/35 font-mono tabular-nums text-cyan-200/80 shadow-inner';
     }
     if (lobby === 'pair') {
-        return 'rounded-lg border border-violet-400/24 bg-black/35 font-mono tabular-nums text-violet-200/85 shadow-inner';
+        return 'rounded-md border border-violet-400/24 bg-black/35 font-mono tabular-nums text-violet-200/85 shadow-inner';
     }
-    return 'rounded-lg border border-amber-400/22 bg-black/35 font-mono tabular-nums text-amber-200/85 shadow-inner';
+    return 'rounded-md border border-amber-400/22 bg-black/35 font-mono tabular-nums text-amber-200/85 shadow-inner';
 }
 
 export function pairLobbyRoomFilledCardShellClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return `flex h-full min-h-0 w-full min-w-0 flex-row items-stretch gap-2 rounded-lg border border-cyan-400/22 bg-gradient-to-r from-black/40 via-cyan-950/20 to-black/35 shadow-sm ring-1 ring-cyan-400/10 sm:gap-2.5 sm:px-2.5 sm:py-1.5`;
+        return `flex h-full min-h-0 w-full min-w-0 flex-col gap-0.5 overflow-hidden rounded-lg border border-cyan-400/22 bg-gradient-to-b from-black/40 via-cyan-950/20 to-black/35 p-1.5 shadow-sm ring-1 ring-cyan-400/10 sm:gap-1 sm:p-2`;
     }
     if (lobby === 'pair') {
-        return `flex h-full min-h-0 w-full min-w-0 flex-row items-stretch gap-2 rounded-lg border border-violet-400/24 bg-gradient-to-r from-black/40 via-violet-950/22 to-black/35 shadow-sm ring-1 ring-violet-400/10 sm:gap-2.5 sm:px-2.5 sm:py-1.5`;
+        return `flex h-full min-h-0 w-full min-w-0 flex-col gap-0.5 overflow-hidden rounded-lg border border-violet-400/24 bg-gradient-to-b from-black/40 via-violet-950/22 to-black/35 p-1.5 shadow-sm ring-1 ring-violet-400/10 sm:gap-1 sm:p-2`;
     }
-    return `flex h-full min-h-0 w-full min-w-0 flex-row items-stretch gap-2 rounded-lg border border-amber-400/22 bg-gradient-to-r from-black/40 via-amber-950/20 to-black/35 shadow-sm ring-1 ring-amber-400/10 sm:gap-2.5 sm:px-2.5 sm:py-1.5`;
+    return `flex h-full min-h-0 w-full min-w-0 flex-col gap-0.5 overflow-hidden rounded-lg border border-amber-400/22 bg-gradient-to-b from-black/40 via-amber-950/20 to-black/35 p-1.5 shadow-sm ring-1 ring-amber-400/10 sm:gap-1 sm:p-2`;
 }
 
-export const pairLobbyRoomFilledCardShellHandheldExtraClass =
-    'min-w-0 flex-nowrap overflow-hidden gap-1.5 px-1.5 py-1';
+export const pairLobbyRoomFilledCardShellHandheldExtraClass = 'gap-0.5 p-1';
 
 // —— GameList「진행중인 대국」 —— //
 
@@ -237,39 +236,39 @@ export function waitingLobbyGameListAdminPopoverClass(lobby: WaitingLobbyPanelTo
 
 export function pairLobbyRoomSlotNumOccupiedClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'rounded-lg border border-cyan-400/40 bg-black/45 font-mono tabular-nums text-cyan-100 shadow-inner';
+        return 'rounded-md border border-cyan-400/40 bg-black/45 font-mono tabular-nums text-cyan-100 shadow-inner';
     }
     if (lobby === 'pair') {
-        return 'rounded-lg border border-violet-400/42 bg-black/45 font-mono tabular-nums text-violet-100 shadow-inner';
+        return 'rounded-md border border-violet-400/42 bg-black/45 font-mono tabular-nums text-violet-100 shadow-inner';
     }
-    return 'rounded-lg border border-amber-400/40 bg-black/45 font-mono tabular-nums text-amber-100 shadow-inner';
+    return 'rounded-md border border-amber-400/40 bg-black/45 font-mono tabular-nums text-amber-100 shadow-inner';
 }
 
 export function pairLobbyRoomKindBadgeClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'shrink-0 rounded border border-cyan-400/42 bg-cyan-950/50 px-1 py-0.5 font-extrabold leading-none text-cyan-100 sm:px-1.5 sm:text-xs';
+        return 'min-w-0 max-w-full truncate rounded border border-cyan-400/42 bg-cyan-950/50 px-1 py-0.5 text-[10px] font-extrabold leading-none text-cyan-100 sm:text-[11px]';
     }
     if (lobby === 'pair') {
-        return 'shrink-0 rounded border border-violet-400/42 bg-violet-950/50 px-1 py-0.5 font-extrabold leading-none text-violet-100 sm:px-1.5 sm:text-xs';
+        return 'min-w-0 max-w-full truncate rounded border border-violet-400/42 bg-violet-950/50 px-1 py-0.5 text-[10px] font-extrabold leading-none text-violet-100 sm:text-[11px]';
     }
-    return 'shrink-0 rounded border border-amber-400/42 bg-amber-950/50 px-1 py-0.5 font-extrabold leading-none text-amber-100 sm:px-1.5 sm:text-xs';
+    return 'min-w-0 max-w-full truncate rounded border border-amber-400/42 bg-amber-950/50 px-1 py-0.5 text-[10px] font-extrabold leading-none text-amber-100 sm:text-[11px]';
 }
 
-/** 방 목록 우측: 예정 게임 모드(주사위 바둑 등) — 방 종류 배지와 구분되는 사각 박스 */
+/** 방 카드: 예정 게임 모드(주사위 바둑 등) — 방 종류 배지와 구분되는 사각 박스 */
 export function pairLobbyGameModeBadgeClass(lobby: WaitingLobbyPanelTone, handheld: boolean): string {
-    const size = handheld ? 'text-[10px]' : 'text-[11px] sm:text-xs';
+    const size = handheld ? 'text-[9px]' : 'text-[10px] sm:text-[11px]';
     if (lobby === 'strategic') {
-        return `min-w-0 max-w-[min(100%,10rem)] shrink truncate rounded border border-slate-500/45 bg-slate-950/70 px-1 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-cyan-500/12 sm:max-w-[12rem] sm:px-1.5 ${size}`;
+        return `min-w-0 max-w-full truncate rounded border border-slate-500/45 bg-slate-950/70 px-1 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-cyan-500/12 ${size}`;
     }
     if (lobby === 'pair') {
-        return `min-w-0 max-w-[min(100%,10rem)] shrink truncate rounded border border-slate-500/45 bg-slate-950/70 px-1 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-violet-500/12 sm:max-w-[12rem] sm:px-1.5 ${size}`;
+        return `min-w-0 max-w-full truncate rounded border border-slate-500/45 bg-slate-950/70 px-1 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-violet-500/12 ${size}`;
     }
-    return `min-w-0 max-w-[min(100%,10rem)] shrink truncate rounded border border-slate-500/45 bg-slate-950/70 px-1 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-amber-500/12 sm:max-w-[12rem] sm:px-1.5 ${size}`;
+    return `min-w-0 max-w-full truncate rounded border border-slate-500/45 bg-slate-950/70 px-1 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-amber-500/12 ${size}`;
 }
 
 export function pairLobbyRoomJoinButtonClass(lobby: WaitingLobbyPanelTone, joinable: boolean): string {
     const base =
-        'flex shrink-0 flex-none items-center justify-center rounded-lg border text-[11px] font-extrabold leading-tight sm:text-sm';
+        'flex w-full shrink-0 items-center justify-center rounded-md border text-[10px] font-extrabold leading-tight sm:text-xs';
     if (!joinable) {
         return `${base} cursor-not-allowed border-zinc-700 bg-zinc-900/60 text-zinc-500`;
     }
@@ -284,12 +283,12 @@ export function pairLobbyRoomJoinButtonClass(lobby: WaitingLobbyPanelTone, joina
 
 export function pairLobbyRoomInGameJoinSlotClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'flex shrink-0 flex-none items-center justify-center rounded-lg border border-cyan-400/45 bg-cyan-950/55 px-0.5 text-center shadow-inner ring-1 ring-cyan-500/15';
+        return 'flex w-full shrink-0 items-center justify-center rounded-md border border-cyan-400/45 bg-cyan-950/55 px-0.5 text-center shadow-inner ring-1 ring-cyan-500/15';
     }
     if (lobby === 'pair') {
-        return 'flex shrink-0 flex-none items-center justify-center rounded-lg border border-violet-400/45 bg-violet-950/55 px-0.5 text-center shadow-inner ring-1 ring-violet-500/15';
+        return 'flex w-full shrink-0 items-center justify-center rounded-md border border-violet-400/45 bg-violet-950/55 px-0.5 text-center shadow-inner ring-1 ring-violet-500/15';
     }
-    return 'flex shrink-0 flex-none items-center justify-center rounded-lg border border-amber-400/45 bg-amber-950/55 px-0.5 text-center shadow-inner ring-1 ring-amber-500/15';
+    return 'flex w-full shrink-0 items-center justify-center rounded-md border border-amber-400/45 bg-amber-950/55 px-0.5 text-center shadow-inner ring-1 ring-amber-500/15';
 }
 
 export function pairLobbyRoomInGameJoinSlotTextClass(lobby: WaitingLobbyPanelTone): string {

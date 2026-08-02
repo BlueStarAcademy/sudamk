@@ -10,7 +10,6 @@ import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './hooks/useIsMobileLayout.js'
 import AdProvider from './components/ads/AdProvider.js';
 import AdBanner from './components/ads/AdBanner.js';
 import AdInterstitial from './components/ads/AdInterstitial.js';
-import NativeMobileDock from './components/mobile/NativeMobileDock.js';
 import NativeMobileScaledContent from './components/mobile/NativeMobileScaledContent.js';
 import QuickAccessSidebar from './components/QuickAccessSidebar.js';
 import MobileViewportHost from './components/mobile/MobileViewportHost.js';
@@ -520,15 +519,10 @@ const AppContent: React.FC = () => {
                                             <Router />
                                         )}
                                     </div>
-                                    {!isGameView && !hideAppHeader && (
-                                        <>
-                                            <NativeMobileDock />
-                                            {!isAdSenseApprovalMode && isContentView && !currentUserWithStatus?.removeAdsPurchased && (
-                                                <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
-                                                    <AdBanner position="bottom" className="py-1" />
-                                                </div>
-                                            )}
-                                        </>
+                                    {!isGameView && !hideAppHeader && !isAdSenseApprovalMode && isContentView && !currentUserWithStatus?.removeAdsPurchased && (
+                                        <div className="w-full flex-shrink-0 border-t border-color/30 bg-primary/95">
+                                            <AdBanner position="bottom" className="py-1" />
+                                        </div>
                                     )}
                                 </NativeMobileScaledContent>
                             </main>

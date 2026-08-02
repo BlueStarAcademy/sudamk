@@ -13,11 +13,6 @@ import Profile from './Profile.js';
 import Game from '../Game.js';
 import Admin from './Admin.js';
 import TournamentArena from './arenas/TournamentArena.js';
-import IntentWaitingArena from './arenas/waiting/IntentWaitingArena.js';
-import {
-    arenaLobbyHash,
-    canonicalizeHomeAlignedLobbyDestination,
-} from '../shared/utils/arenaLobbyDestination.js';
 import HelpPage from './HelpPage.js';
 import GuildHome from './guild/GuildHome.js';
 import GuildBoss from './guild/GuildBoss.js';
@@ -72,6 +67,24 @@ const AdventureRouteRedirect: React.FC = () => {
     useEffect(() => {
         navigateToHomeAdventure(() => openRef.current?.());
     }, []);
+    return null;
+};
+
+/** `#/pvp/playful|friendly` 풀페이지 대기실 → 홈 + 센터 임베드 */
+const HomeWaitingLobbyRouteRedirect: React.FC<{ kind: 'friendly' | 'playful' }> = ({ kind }) => {
+    const { handlers } = useAppUiSlice();
+    const openFriendlyRef = useRef(handlers.openFriendlyLobby);
+    const openPlaygroundRef = useRef(handlers.openPlaygroundLobby);
+    openFriendlyRef.current = handlers.openFriendlyLobby;
+    openPlaygroundRef.current = handlers.openPlaygroundLobby;
+    useEffect(() => {
+        replaceAppHash(APP_HOME_HASH);
+        if (kind === 'playful') {
+            openPlaygroundRef.current?.();
+        } else {
+            openFriendlyRef.current?.();
+        }
+    }, [kind]);
     return null;
 };
 
@@ -310,40 +323,28 @@ const Router: React.FC = () => {
                 return null;
             }
             if (intent === 'ai') {
-                // AI 대전은 친선전(1:1 AI·팀페어)으로 통합
-                replaceAppHash(arenaLobbyHash({ intent: 'pvp', channel: 'friendly' }));
-                return null;
+                // AI 대전은 홈 친선전 임베드로 통합
+                return <HomeWaitingLobbyRouteRedirect kind="friendly" />;
             }
-            replaceAppHash(APP_HOME_ARENA_HASH);
+            replaceAppHash(APP_HOME_HASH);
             return null;
         }
         case 'pvp':
         case 'ai': {
             const channel = currentRoute.params?.channel as ArenaChannel | undefined;
             const intent: ArenaLobbyIntent = currentRoute.view === 'ai' ? 'ai' : 'pvp';
-            // 랭킹전·일반전·AI 전용 풀페이지 로비는 홈/친선전으로 대체됨
+            // 풀페이지 대기실 폐지 — 전부 홈 센터 임베드로
             if (intent === 'pvp' && channel === 'strategic') {
                 replaceAppHash(APP_HOME_HASH);
                 return null;
             }
-            if (intent === 'ai') {
-                replaceAppHash(arenaLobbyHash({ intent: 'pvp', channel: 'friendly' }));
-                return null;
+            if (intent === 'ai' || channel === 'pair' || channel === 'friendly') {
+                return <HomeWaitingLobbyRouteRedirect kind="friendly" />;
             }
-            if (channel === 'strategic' || channel === 'pair' || channel === 'playful' || channel === 'friendly') {
-                const dest = { intent, channel };
-                const canonical = canonicalizeHomeAlignedLobbyDestination(dest);
-                if (canonical.intent !== dest.intent || canonical.channel !== dest.channel) {
-                    replaceAppHash(arenaLobbyHash(canonical));
-                    return null;
-                }
-                return (
-                    <div className={routeShellClass}>
-                        <IntentWaitingArena lobbyChannel={canonical.channel} lobbyIntent={canonical.intent} />
-                    </div>
-                );
+            if (channel === 'playful') {
+                return <HomeWaitingLobbyRouteRedirect kind="playful" />;
             }
-            replaceAppHash(APP_HOME_ARENA_HASH);
+            replaceAppHash(APP_HOME_HASH);
             return null;
         }
         case 'game':

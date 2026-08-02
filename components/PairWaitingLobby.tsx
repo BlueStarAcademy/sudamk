@@ -200,33 +200,31 @@ function formatElapsedHhMmSs(totalSeconds: number): string {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
-/** 페어 경기장 중앙 그리드: 1번~N번 슬롯(방 코드가 정수와 일치할 때만 매칭) */
-const PAIR_LOBBY_ROOM_SLOT_COLS = 1;
+/** 페어 경기장 중앙 그리드: 1번~N번 슬롯, 가로 5열 카드 */
+const PAIR_LOBBY_ROOM_SLOT_COLS = 5;
 const PAIR_LOBBY_ROOM_SLOT_ROWS = Math.ceil(PAIR_LOBBY_GRID_SLOT_COUNT / PAIR_LOBBY_ROOM_SLOT_COLS);
-/** 스크롤 뷰포트 측정 전·최소 높이 가정용 행 높이(px) — PC는 뷰÷10, 모바일은 더 큰 카드용 별도 계산 */
-const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_PX = 58;
-const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_HANDHELD_PX = 88;
+/** 스크롤 뷰포트 측정 전·최소 높이 가정용 행 높이(px) — PC는 뷰÷4, 모바일은 카드 가독성 유지 */
+const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_PX = 128;
+const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_HANDHELD_PX = 112;
 /** 스크롤 뷰포트 측정 전·가상화 범위 계산용 최소 높이(px) */
 const PAIR_LOBBY_ROOM_SLOT_VIEWPORT_FALLBACK_PX = 560;
 const PAIR_LOBBY_ROOM_SLOT_VIEWPORT_FALLBACK_HANDHELD_PX = 400;
-/** 입장 직후 그리드 슬롯 선로드(측정 전 5칸만 fetch 되는 문제 방지) */
-const PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_DESKTOP = 30;
-const PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_HANDHELD = 18;
-const PAIR_LOBBY_ROOM_SLOT_VIRTUAL_OVERSCAN_ROWS = 4;
+/** 입장 직후 그리드 슬롯 선로드(측정 전 소수 칸만 fetch 되는 문제 방지) */
+const PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_DESKTOP = 40;
+const PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_HANDHELD = 25;
+const PAIR_LOBBY_ROOM_SLOT_VIRTUAL_OVERSCAN_ROWS = 3;
 
 /** 방 내부 채팅: 전송 성공 후 전송 UI 비활성화 시간(ms) */
 const PAIR_ROOM_INTERIOR_CHAT_SEND_COOLDOWN_MS = 3000;
 
-/** 슬롯 번호 정사각형 한 변 (행 높이에 비례) */
+/** 슬롯 번호 박스 한 변 (카드 높이에 비례) */
 function pairLobbySlotBoxPxForRow(rowH: number): number {
-    return Math.max(32, Math.min(54, Math.round(rowH * 0.5)));
+    return Math.max(22, Math.min(32, Math.round(rowH * 0.2)));
 }
 
-/** 입장 버튼 — 번호 박스보다 크게 (행 패딩·테두리를 빼고 카드 안에 맞춤) */
-function pairLobbyJoinButtonBoxPxForRow(rowH: number): number {
-    const fitInRow = Math.max(32, rowH - 12);
-    const target = Math.round(rowH * 0.64);
-    return Math.min(fitInRow, Math.max(36, Math.min(66, target)));
+/** 카드 하단 입장/관전 버튼 높이 */
+function pairLobbyJoinButtonHeightPxForRow(rowH: number): number {
+    return Math.max(22, Math.min(30, Math.round(rowH * 0.18)));
 }
 
 /** 방 목록 세로 스크롤 — 얇은 트랙·썸 (Firefox + WebKit) */
@@ -1725,6 +1723,51 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         }
     }, [lobbyChannel, handlers]);
 
+    /** 방 만들기·내 방 화면에서 방 목록으로 복귀 */
+    const showLobbyRoomListScreen = useCallback(() => {
+        setPairLobbyRoomForm('closed');
+        if (lobbyIntent === 'pvp') {
+            setPairLobbyCenterTab('rooms');
+        } else {
+            setPairLobbyRightTab('users');
+        }
+        if (isHandheld) {
+            setPairLobbyMobileTab(lobbyIntent === 'ai' ? 'ai' : 'rooms');
+        }
+    }, [isHandheld, lobbyIntent]);
+
+    /**
+     * 경기장 헤더 뒤로가기:
+     * 1) 방 만들기/변경/제안 UI → 방 목록
+     * 2) 내 방(방 내부) 탭 → 방 목록
+     * 3) 그 외 → 프로필
+     */
+    const handleLobbyNavBack = useCallback(() => {
+        if (pairLobbyRoomForm !== 'closed') {
+            if (!isBusy) showLobbyRoomListScreen();
+            return;
+        }
+        const viewingMyRoomInterior =
+            (isHandheld && pairLobbyMobileTab === 'room') ||
+            (!isHandheld && lobbyIntent === 'pvp' && pairLobbyCenterTab === 'room') ||
+            (!isHandheld && lobbyIntent !== 'pvp' && pairLobbyRightTab === 'room');
+        if (viewingMyRoomInterior) {
+            showLobbyRoomListScreen();
+            return;
+        }
+        backToProfile();
+    }, [
+        pairLobbyRoomForm,
+        isBusy,
+        isHandheld,
+        pairLobbyMobileTab,
+        lobbyIntent,
+        pairLobbyCenterTab,
+        pairLobbyRightTab,
+        showLobbyRoomListScreen,
+        backToProfile,
+    ]);
+
     const titleHeadingClass =
         lobbyChannel === 'playful'
             ? 'relative z-[1] min-w-0 flex-1 truncate text-left text-sm font-bold text-amber-50 sm:text-lg lg:text-xl drop-shadow-[0_0_14px_rgba(251,191,36,0.2)]'
@@ -2154,14 +2197,14 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         return Math.max(measured, fallback);
     }, [pairLobbySlotGridViewport.clientHeight, isHandheld]);
 
-    /** PC: 한 화면에 약 10행. 모바일: 카드 가독성 유지하며 7~8행 노출 */
+    /** PC: 한 화면에 약 4행(5열 카드). 모바일: 카드 가독성 유지하며 3~4행 노출 */
     const pairLobbySlotRowHeightPx = useMemo(() => {
         const ch = pairLobbySlotGridEffectiveViewportHeightPx;
         if (ch < 40) return isHandheld ? PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_HANDHELD_PX : PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_PX;
         if (isHandheld) {
-            return Math.max(68, Math.min(104, Math.round(ch / 8)));
+            return Math.max(96, Math.min(132, Math.round(ch / 3.5)));
         }
-        return Math.max(36, Math.min(72, Math.round(ch / 10)));
+        return Math.max(112, Math.min(156, Math.round(ch / 4)));
     }, [pairLobbySlotGridEffectiveViewportHeightPx, isHandheld]);
 
     const pairLobbySlotGridVisibleRange = useMemo(() => {
@@ -2264,7 +2307,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             lobbyGridSliceDebounceRef.current = null;
             const first = pairLobbySlotGridVisibleRange.firstRow;
             const last = pairLobbySlotGridVisibleRange.lastRow;
-            void fetchLobbyGridSlice(first + 1, last + 1);
+            const fromSlot = first * PAIR_LOBBY_ROOM_SLOT_COLS + 1;
+            const toSlot = Math.min(
+                PAIR_LOBBY_GRID_SLOT_COUNT,
+                (last + 1) * PAIR_LOBBY_ROOM_SLOT_COLS,
+            );
+            void fetchLobbyGridSlice(fromSlot, toSlot);
         }, 90);
         return () => {
             if (lobbyGridSliceDebounceRef.current) {
@@ -2926,7 +2974,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
     const leaveRoom = async () => {
         const result = await applyAction({ type: 'PAIR_LEAVE_ROOM' });
         if (result && (result as { error?: string }).error) return;
-        setPairLobbyRoomForm('closed');
+        showLobbyRoomListScreen();
         await handlers.handleAction({ type: 'PAIR_SYNC' } as ServerAction).catch(() => undefined);
     };
     const cancelPairPetMatching = async () => applyAction({ type: 'PAIR_CANCEL_PAIR_PET_MATCHING' } as ServerAction);
@@ -2951,7 +2999,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 window.alert(error);
                 return;
             }
-            setPairLobbyRoomForm('closed');
+            showLobbyRoomListScreen();
             await handlers.handleAction({ type: 'PAIR_SYNC' } as ServerAction).catch(() => undefined);
             window.location.hash = dest.startsWith('#') ? dest : `#${dest}`;
         } finally {
@@ -4393,7 +4441,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
 
     /** 방 입장 후에도 하단 액션(매칭·방 나가기)이 잘리지 않도록, 목록+퀵조인은 스크롤 영역에 두고 액션 바는 고정 */
     const pairLobbySlotBoxPx = pairLobbySlotBoxPxForRow(pairLobbySlotRowHeightPx);
-    const pairLobbyJoinButtonBoxPx = pairLobbyJoinButtonBoxPxForRow(pairLobbySlotRowHeightPx);
+    const pairLobbyJoinButtonHeightPx = pairLobbyJoinButtonHeightPxForRow(pairLobbySlotRowHeightPx);
     const pairLobbyRoomListBlock = (
         <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${pairLobbyRoomListOuterShellClass(lobbyTone)}`}>
             <div
@@ -4417,192 +4465,184 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                         { length: pairLobbySlotGridVisibleRange.lastRow - pairLobbySlotGridVisibleRange.firstRow + 1 },
                         (_, i) => pairLobbySlotGridVisibleRange.firstRow + i,
                     ).map((row) => {
-                        const slotIdx0 = row * PAIR_LOBBY_ROOM_SLOT_COLS;
-                        const slotNumber = slotIdx0 + 1;
-                        const room = roomBySlotNumberForLobbyGrid.get(slotNumber);
                         const numBoxStyle = { width: pairLobbySlotBoxPx, height: pairLobbySlotBoxPx };
-                        const joinButtonPx = isHandheld
-                            ? Math.max(34, Math.round(pairLobbyJoinButtonBoxPx * 0.9))
-                            : pairLobbyJoinButtonBoxPx;
-                        const joinButtonBoxStyle = {
-                            width: joinButtonPx,
-                            height: joinButtonPx,
-                        };
+                        const joinButtonStyle = { height: pairLobbyJoinButtonHeightPx };
                         const numTextClass = isHandheld
-                            ? 'text-[11px] font-extrabold'
-                            : pairLobbySlotRowHeightPx >= 56
-                              ? 'text-base font-extrabold sm:text-lg'
-                              : 'text-sm font-extrabold sm:text-base';
-                        if (!room) {
-                            return (
-                                <div
-                                    key={`empty-${slotNumber}`}
-                                    className="flex shrink-0 px-0.5"
-                                    style={{ height: pairLobbySlotRowHeightPx }}
-                                    aria-label={pt('waitingLobby.slotEmptyAria', { slot: slotNumber })}
-                                >
-                                    <div
-                                        className={`flex h-full min-h-0 w-full min-w-0 items-stretch gap-2 overflow-hidden px-2 py-1 ${pairLobbyRoomEmptyRowShellClass(lobbyTone)}`}
-                                    >
-                                        <div className="flex shrink-0 flex-col items-center justify-center gap-1 self-stretch py-0.5">
-                                            <div
-                                                style={numBoxStyle}
-                                                className={`flex shrink-0 items-center justify-center ${pairLobbyRoomEmptySlotNumClass(lobbyTone)}`}
-                                            >
-                                                <span className={numTextClass}>{slotNumber}</span>
-                                            </div>
-                                        </div>
-                                        <div className="min-h-0 min-w-0 flex-1 rounded-md bg-black/10" aria-hidden />
-                                    </div>
-                                </div>
-                            );
-                        }
-                        const listRoomKind = pairLobbyListDisplayRoomKind(room, lobbyChannel);
-                        const arenaCh = pairRoomArenaChannelMeta(room, lobbyChannel);
-                        const roomRowTone = waitingLobbyToneFromPairChannel(room.lobbyChannel ?? lobbyChannel);
-                        const roomInLiveGame = (room.phase ?? 'waiting') === 'in_game';
-                        const spectateGameId = roomInLiveGame ? findSpectatableGameIdForRoom(room) : null;
-                        const joinable = getPairLobbyJoinableFromListRoom(room);
-                        const gameModeTitle = pairLobbyScheduledGameModeLabel(room.selectedGameMode) || pt('waitingLobby.undecided');
-                        const visibilityBadgeClass =
-                            room.visibility === 'private'
-                                ? 'border-violet-400/45 bg-violet-950/55 text-violet-100'
-                                : 'border-emerald-400/38 bg-emerald-950/40 text-emerald-100';
+                            ? 'text-[10px] font-extrabold'
+                            : 'text-xs font-extrabold sm:text-sm';
                         return (
                             <div
-                                key={room.id}
-                                className="flex shrink-0 px-0.5"
+                                key={`row-${row}`}
+                                className="grid shrink-0 grid-cols-5 gap-1 px-0.5 py-0.5"
                                 style={{ height: pairLobbySlotRowHeightPx }}
                             >
-                                <div
-                                    className={`${pairLobbyRoomFilledCardShellClass(roomRowTone)} ${
-                                        isHandheld ? pairLobbyRoomFilledCardShellHandheldExtraClass : 'overflow-hidden px-2 py-1'
-                                    }`}
-                                >
-                                    <div className="flex shrink-0 flex-col items-center justify-center self-stretch py-0.5">
-                                        <div
-                                            style={numBoxStyle}
-                                            className={`flex shrink-0 items-center justify-center ${pairLobbyRoomSlotNumOccupiedClass(roomRowTone)}`}
-                                            aria-hidden
-                                        >
-                                            <span className={numTextClass}>{slotNumber}</span>
-                                        </div>
-                                    </div>
-                                    <div
-                                        className={`flex min-h-0 flex-col justify-center ${
-                                            isHandheld ? 'min-w-0 flex-1 overflow-hidden' : 'min-w-0 flex-1 overflow-hidden'
-                                        }`}
-                                        title={room.title}
-                                    >
-                                        <div
-                                            className={`flex min-w-0 items-center gap-0.5 sm:gap-1 ${isHandheld ? 'flex-nowrap' : 'flex-wrap'}`}
-                                        >
-                                            <span
-                                                className={`shrink-0 rounded border px-1 py-0.5 font-extrabold leading-none sm:px-1.5 sm:text-xs ${visibilityBadgeClass} ${
-                                                    isHandheld ? 'text-[10px]' : 'text-[11px]'
+                                {Array.from({ length: PAIR_LOBBY_ROOM_SLOT_COLS }, (_, col) => {
+                                    const slotNumber = row * PAIR_LOBBY_ROOM_SLOT_COLS + col + 1;
+                                    if (slotNumber > PAIR_LOBBY_GRID_SLOT_COUNT) {
+                                        return <div key={`pad-${row}-${col}`} aria-hidden />;
+                                    }
+                                    const room = roomBySlotNumberForLobbyGrid.get(slotNumber);
+                                    if (!room) {
+                                        return (
+                                            <div
+                                                key={`empty-${slotNumber}`}
+                                                className="min-h-0 min-w-0"
+                                                aria-label={pt('waitingLobby.slotEmptyAria', { slot: slotNumber })}
+                                            >
+                                                <div className={pairLobbyRoomEmptyRowShellClass(lobbyTone)}>
+                                                    <div
+                                                        style={numBoxStyle}
+                                                        className={`flex shrink-0 items-center justify-center ${pairLobbyRoomEmptySlotNumClass(lobbyTone)}`}
+                                                    >
+                                                        <span className={numTextClass}>{slotNumber}</span>
+                                                    </div>
+                                                    <div className="min-h-0 w-full flex-1 rounded-md bg-black/10" aria-hidden />
+                                                </div>
+                                            </div>
+                                        );
+                                    }
+                                    const listRoomKind = pairLobbyListDisplayRoomKind(room, lobbyChannel);
+                                    const arenaCh = pairRoomArenaChannelMeta(room, lobbyChannel);
+                                    const roomRowTone = waitingLobbyToneFromPairChannel(room.lobbyChannel ?? lobbyChannel);
+                                    const roomInLiveGame = (room.phase ?? 'waiting') === 'in_game';
+                                    const spectateGameId = roomInLiveGame ? findSpectatableGameIdForRoom(room) : null;
+                                    const joinable = getPairLobbyJoinableFromListRoom(room);
+                                    const gameModeTitle =
+                                        pairLobbyScheduledGameModeLabel(room.selectedGameMode) || pt('waitingLobby.undecided');
+                                    const visibilityBadgeClass =
+                                        room.visibility === 'private'
+                                            ? 'border-violet-400/45 bg-violet-950/55 text-violet-100'
+                                            : 'border-emerald-400/38 bg-emerald-950/40 text-emerald-100';
+                                    return (
+                                        <div key={room.id} className="min-h-0 min-w-0">
+                                            <div
+                                                className={`${pairLobbyRoomFilledCardShellClass(roomRowTone)} ${
+                                                    isHandheld ? pairLobbyRoomFilledCardShellHandheldExtraClass : ''
                                                 }`}
                                             >
-                                                {room.visibility === 'private' ? pt('waitingLobby.private') : pt('waitingLobby.public')}
-                                            </span>
-                                            {room.passwordProtected ? (
-                                                <span className="shrink-0 rounded border border-amber-400/45 bg-amber-950/55 px-1 py-0.5 text-[10px] font-extrabold leading-none text-amber-100 sm:px-1.5 sm:text-xs">
-                                                    암호
-                                                </span>
-                                            ) : null}
-                                            {!(lobbyChannel === 'playful' && arenaCh.short === pt('arenaBadges.playful')) ? (
-                                                <span
-                                                    className={`shrink-0 rounded border px-1 py-0.5 font-extrabold leading-none sm:px-1.5 sm:text-xs ${arenaCh.badgeClass} ${
-                                                        isHandheld ? 'text-[10px]' : 'text-[11px]'
+                                                <div className="flex min-w-0 items-center gap-1">
+                                                    <div
+                                                        style={numBoxStyle}
+                                                        className={`flex shrink-0 items-center justify-center ${pairLobbyRoomSlotNumOccupiedClass(roomRowTone)}`}
+                                                        aria-hidden
+                                                    >
+                                                        <span className={numTextClass}>{slotNumber}</span>
+                                                    </div>
+                                                    <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-0.5">
+                                                        <span
+                                                            className={`shrink-0 rounded border px-1 py-0.5 font-extrabold leading-none ${visibilityBadgeClass} ${
+                                                                isHandheld ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
+                                                            }`}
+                                                        >
+                                                            {room.visibility === 'private'
+                                                                ? pt('waitingLobby.private')
+                                                                : pt('waitingLobby.public')}
+                                                        </span>
+                                                        {room.passwordProtected ? (
+                                                            <span className="shrink-0 rounded border border-amber-400/45 bg-amber-950/55 px-1 py-0.5 text-[8px] font-extrabold leading-none text-amber-100 sm:text-[9px]">
+                                                                암호
+                                                            </span>
+                                                        ) : null}
+                                                        {!(
+                                                            lobbyChannel === 'playful' &&
+                                                            arenaCh.short === pt('arenaBadges.playful')
+                                                        ) ? (
+                                                            <span
+                                                                className={`shrink-0 rounded border px-1 py-0.5 font-extrabold leading-none ${arenaCh.badgeClass} ${
+                                                                    isHandheld ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
+                                                                }`}
+                                                                title={
+                                                                    arenaCh.short === pt('arenaBadges.strategic')
+                                                                        ? pt('waitingLobby.strategicArena')
+                                                                        : arenaCh.short === pt('arenaBadges.playful')
+                                                                          ? pt('waitingLobby.playfulArena')
+                                                                          : pt('waitingLobby.pairArena')
+                                                                }
+                                                            >
+                                                                {arenaCh.short}
+                                                            </span>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                                <div
+                                                    className={`min-w-0 truncate font-extrabold leading-tight text-white ${
+                                                        isHandheld ? 'text-[10px]' : 'text-xs sm:text-sm'
                                                     }`}
-                                                    title={
-                                                        arenaCh.short === pt('arenaBadges.strategic')
-                                                            ? pt('waitingLobby.strategicArena')
-                                                            : arenaCh.short === pt('arenaBadges.playful')
-                                                              ? pt('waitingLobby.playfulArena')
-                                                              : pt('waitingLobby.pairArena')
-                                                    }
+                                                    title={room.title}
                                                 >
-                                                    {arenaCh.short}
-                                                </span>
-                                            ) : null}
-                                            <span
-                                                className={`min-w-0 flex-1 truncate font-extrabold leading-tight text-white sm:text-base ${
-                                                    isHandheld ? 'text-[11px]' : 'text-sm leading-tight'
-                                                }`}
-                                                title={room.title}
-                                            >
-                                                {room.title}
-                                            </span>
-                                        </div>
-                                    </div>
-                                    <div
-                                        className={`flex min-h-0 flex-col items-end justify-center gap-0.5 text-right sm:max-w-[50%] ${
-                                            isHandheld
-                                                ? 'min-w-0 max-w-[34%] shrink overflow-hidden'
-                                                : 'min-w-0 max-w-[46%] shrink-0 overflow-hidden'
-                                        }`}
-                                    >
-                                        <div
-                                            className={`flex min-w-0 w-full items-center justify-end gap-0.5 leading-snug sm:gap-1 sm:text-sm ${
-                                                isHandheld ? 'flex-nowrap text-[10px]' : 'flex-wrap text-xs'
-                                            }`}
-                                        >
-                                            <span
-                                                className={`shrink-0 ${pairLobbyRoomKindBadgeClass(roomRowTone)} ${
-                                                    isHandheld ? 'text-[10px]' : 'text-[11px]'
-                                                }`}
-                                            >
-                                                {roomKindLabel(listRoomKind, lobbyChannel)}
-                                            </span>
-                                            <span
-                                                className={pairLobbyGameModeBadgeClass(roomRowTone, isHandheld)}
-                                                title={gameModeTitle}
-                                            >
-                                                {gameModeTitle}
-                                            </span>
-                                        </div>
-                                        <div
-                                            className={`w-full min-w-0 truncate text-slate-200 sm:text-sm ${
-                                                isHandheld ? 'text-[10px]' : 'text-xs'
-                                            }`}
-                                        >
-                                            <span className="font-semibold text-slate-500">{pt('waitingLobby.host')}</span>{' '}
-                                            <span className="font-bold text-slate-100">{room.ownerName}</span>
-                                        </div>
-                                    </div>
-                                    <div className="flex shrink-0 flex-none items-center justify-center self-stretch py-0.5">
-                                        {roomInLiveGame ? (
-                                            <button
-                                                type="button"
-                                                disabled={isBusy || !spectateGameId}
-                                                onClick={() => void spectateGameById(spectateGameId)}
-                                                style={joinButtonBoxStyle}
-                                                className={spectateGameId ? pairLobbyRoomJoinButtonClass(roomRowTone, true) : pairLobbyRoomInGameJoinSlotClass(roomRowTone)}
-                                                aria-label={pt('waitingLobby.roomInMatchAria', { slot: slotNumber })}
-                                                title={spectateGameId ? pt('waitingLobby.spectateMatch') : pt('waitingLobby.spectateUnavailable')}
-                                            >
-                                                <span
-                                                    className={`${spectateGameId ? '' : pairLobbyRoomInGameJoinSlotTextClass(roomRowTone)} ${
-                                                        isHandheld ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
+                                                    {room.title}
+                                                </div>
+                                                <div className="flex min-w-0 flex-col gap-0.5">
+                                                    <span className={pairLobbyRoomKindBadgeClass(roomRowTone)}>
+                                                        {roomKindLabel(listRoomKind, lobbyChannel)}
+                                                    </span>
+                                                    <span
+                                                        className={pairLobbyGameModeBadgeClass(roomRowTone, isHandheld)}
+                                                        title={gameModeTitle}
+                                                    >
+                                                        {gameModeTitle}
+                                                    </span>
+                                                </div>
+                                                <div
+                                                    className={`min-w-0 flex-1 truncate text-slate-200 ${
+                                                        isHandheld ? 'text-[9px]' : 'text-[10px] sm:text-xs'
                                                     }`}
                                                 >
-                                                    {pt('waitingLobby.spectate')}
-                                                </span>
-                                            </button>
-                                        ) : (
-                                            <button
-                                                type="button"
-                                                disabled={!joinable || isBusy || userParticipatingInAnyPairRoom}
-                                                onClick={() => quickJoin(room.id)}
-                                                aria-label={pt('waitingLobby.roomEnterAria', { slot: slotNumber })}
-                                                style={joinButtonBoxStyle}
-                                                className={pairLobbyRoomJoinButtonClass(roomRowTone, joinable)}
-                                            >
-                                                입장
-                                            </button>
-                                        )}
-                                    </div>
-                                </div>
+                                                    <span className="font-semibold text-slate-500">
+                                                        {pt('waitingLobby.host')}
+                                                    </span>{' '}
+                                                    <span className="font-bold text-slate-100">{room.ownerName}</span>
+                                                </div>
+                                                {roomInLiveGame ? (
+                                                    <button
+                                                        type="button"
+                                                        disabled={isBusy || !spectateGameId}
+                                                        onClick={() => void spectateGameById(spectateGameId)}
+                                                        style={joinButtonStyle}
+                                                        className={
+                                                            spectateGameId
+                                                                ? pairLobbyRoomJoinButtonClass(roomRowTone, true)
+                                                                : pairLobbyRoomInGameJoinSlotClass(roomRowTone)
+                                                        }
+                                                        aria-label={pt('waitingLobby.roomInMatchAria', {
+                                                            slot: slotNumber,
+                                                        })}
+                                                        title={
+                                                            spectateGameId
+                                                                ? pt('waitingLobby.spectateMatch')
+                                                                : pt('waitingLobby.spectateUnavailable')
+                                                        }
+                                                    >
+                                                        <span
+                                                            className={`${
+                                                                spectateGameId
+                                                                    ? ''
+                                                                    : pairLobbyRoomInGameJoinSlotTextClass(roomRowTone)
+                                                            } ${isHandheld ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'}`}
+                                                        >
+                                                            {pt('waitingLobby.spectate')}
+                                                        </span>
+                                                    </button>
+                                                ) : (
+                                                    <button
+                                                        type="button"
+                                                        disabled={
+                                                            !joinable || isBusy || userParticipatingInAnyPairRoom
+                                                        }
+                                                        onClick={() => quickJoin(room.id)}
+                                                        aria-label={pt('waitingLobby.roomEnterAria', {
+                                                            slot: slotNumber,
+                                                        })}
+                                                        style={joinButtonStyle}
+                                                        className={pairLobbyRoomJoinButtonClass(roomRowTone, joinable)}
+                                                    >
+                                                        입장
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         );
                     })}
@@ -4770,7 +4810,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                             }
                             onClick={() => {
                                 if (lobbyIntent === 'pvp' && pairLobbyRoomForm === 'create') {
-                                    if (!isBusy) setPairLobbyRoomForm('closed');
+                                    if (!isBusy) showLobbyRoomListScreen();
                                     return;
                                 }
                                 openCreateRoomModal();
@@ -4825,31 +4865,14 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 : undefined;
         const useHandheldRoomChrome = isHandheld;
         const isPairAiDuoInviteLobby = isPairAiDuoTeamLobbyContext(myRoom, lobbyIntent, lobbyChannel);
-        /** 2인·4인 친선: 좌 세로 VS 슬롯 / 우 대국설정·채팅(동일 가로폭) */
-        const isPairPvpRoomInteriorLayout =
-            lobbyIntent === 'pvp' &&
-            !isPairAiDuoInviteLobby &&
-            (myRoom.roomKind === 'friendly_2p' || myRoom.roomKind === 'friendly_4p');
+        /** 방 내부 공통: 좌 세로 VS 슬롯 / 우 대국설정·채팅(동일 가로폭) */
         const hidePairChat = lobbyIntent === 'ai';
         const scheduledGameVisual = pairLobbyGameModeIconAndName(myRoom.selectedGameMode);
         const scheduledGameDetailRows = buildPairRoomLobbyGameSettingRows(myRoom, {
             lobbyChannelFallback: lobbyChannel,
         });
-        const showScheduledGameSettings = Boolean(scheduledGameVisual);
-        const pcInlineSeatsBesideSettings =
-            !useHandheldRoomChrome && showScheduledGameSettings && !isPairPvpRoomInteriorLayout;
         const pairRoomSeatGridBoxEl = (
-            <div
-                className={`min-h-0 min-w-0 ${
-                    isPairPvpRoomInteriorLayout
-                        ? 'w-full'
-                        : useHandheldRoomChrome
-                          ? `shrink-0 ${pairAggregateRoomInteriorTeamBoxHandheldClass(lobbyTone)} overflow-x-auto`
-                          : pcInlineSeatsBesideSettings
-                            ? 'w-full'
-                            : `shrink-0 ${pairAggregateRoomInteriorTeamBoxClass(lobbyTone)}`
-                }`}
-            >
+            <div className="min-h-0 min-w-0 w-full">
                 <PairRoomSeatGrid
                     compact={useHandheldRoomChrome}
                     seatChromeTone={lobbyTone}
@@ -4875,7 +4898,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                         myRoom.roomKind === 'duo_match' || myRoom.roomKind === 'ai_duel' ? myRoom.settings : undefined
                     }
                     hideDuoAiOpponentColumn={lobbyChannel === 'pair' && myRoom.roomKind === 'duo_match'}
-                    stackTeamsVertically={isPairPvpRoomInteriorLayout}
+                    stackTeamsVertically
                     allowOpponentLobbyAiFill={pairRoomAllowsFriendlyOpponentAiSeats({
                         roomKind: myRoom.roomKind,
                         lobbyChannel: myRoom.lobbyChannel ?? lobbyChannel,
@@ -4960,13 +4983,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             </div>
         );
         const scheduledGameSettingsBlock = scheduledGameVisual ? (
-            <div
-                className={
-                    pcInlineSeatsBesideSettings
-                        ? 'w-full min-w-0 rounded-xl border border-white/10 bg-black/30 px-2.5 py-2 sm:px-3 sm:py-2.5'
-                        : pairAggregateRoomInteriorGameSettingsOuterClass(lobbyTone, useHandheldRoomChrome)
-                }
-            >
+            <div className={pairAggregateRoomInteriorGameSettingsOuterClass(lobbyTone, useHandheldRoomChrome)}>
                 <div className={pairAggregateRoomInteriorGameSettingsHeadingRowClass(lobbyTone, useHandheldRoomChrome)}>
                     대국 설정
                 </div>
@@ -5063,7 +5080,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 onSend={sendPairRoomChat}
             />
         );
-        const roomSettingsAndSeatsBlock = isPairPvpRoomInteriorLayout ? (
+        const roomSettingsAndSeatsBlock = (
             <div
                 className={`flex min-h-0 min-w-0 w-full flex-1 ${
                     useHandheldRoomChrome
@@ -5072,7 +5089,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 }`}
             >
                 <div
-                    className={`min-h-0 min-w-0 overflow-x-auto overflow-y-auto ${
+                    className={`flex min-h-0 min-w-0 items-center justify-center overflow-x-auto overflow-y-auto ${
                         useHandheldRoomChrome
                             ? `max-w-[42%] shrink-0 ${pairAggregateRoomInteriorTeamBoxHandheldClass(lobbyTone)}`
                             : pairAggregateRoomInteriorTeamBoxClass(lobbyTone)
@@ -5091,24 +5108,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                     ) : null}
                 </div>
             </div>
-        ) : useHandheldRoomChrome ? (
-            <>
-                {scheduledGameSettingsBlock}
-                {pairRoomSeatGridBoxEl}
-            </>
-        ) : (
-            <div className="grid w-full min-w-0 grid-cols-[minmax(0,1fr)_minmax(0,46%)] items-center gap-3">
-                {scheduledGameSettingsBlock ? <div className="min-h-0 min-w-0 self-center">{scheduledGameSettingsBlock}</div> : null}
-                <div className="flex min-h-0 min-w-0 items-center justify-center self-center overflow-x-auto">{pairRoomSeatGridBoxEl}</div>
-            </div>
         );
         const roomHeaderSettingsAndSeats = (
             <>
                 {!isPairAiDuoInviteLobby ? (
                 <div
-                    className={`flex w-full min-w-0 flex-col ${
-                        isPairPvpRoomInteriorLayout ? 'min-h-0 flex-1' : 'shrink-0'
-                    } ${
+                    className={`flex w-full min-h-0 min-w-0 flex-1 flex-col ${
                         useHandheldRoomChrome
                             ? pairAggregateRoomInteriorHeaderDividerHandheldClass(lobbyTone)
                             : pairAggregateRoomInteriorHeaderDividerDesktopClass(lobbyTone)
@@ -5228,20 +5233,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 <div className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden ${useHandheldRoomChrome ? 'gap-1.5' : 'gap-2'}`}>
                     <div className="flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden">
                         <div
-                            className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden ${
-                                isPairPvpRoomInteriorLayout
-                                    ? 'overflow-hidden'
-                                    : 'overflow-y-auto'
-                            } ${useHandheldRoomChrome ? `gap-2 ${pairAggregateRoomInteriorShellHandheldClass(lobbyTone)}` : 'gap-2'}`}
+                            className={`flex min-h-0 w-full min-w-0 flex-1 flex-col overflow-x-hidden overflow-hidden ${
+                                useHandheldRoomChrome ? `gap-2 ${pairAggregateRoomInteriorShellHandheldClass(lobbyTone)}` : 'gap-2'
+                            }`}
                         >
                             {roomHeaderSettingsAndSeats}
-                            {!hidePairChat && !isPairPvpRoomInteriorLayout ? (
-                                <div
-                                    className={`flex min-w-0 flex-1 flex-col min-h-0 ${useHandheldRoomChrome ? 'pt-0.5' : 'pt-1'}`}
-                                >
-                                    {chatPanelEl}
-                                </div>
-                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -5361,7 +5357,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                 }
                             >
                                 {isPairChannelDuoAiRoom || isTeamPairRoom ? (
-                                    pt('waitingLobby.startAi')
+                                    `${pt('waitingLobby.startAi')} (⚡${pairAiLobbyActionPointCostLabel(myRoom.selectedGameMode, myRoom.settings, lobbyChannel, currentUserWithStatus)})`
                                 ) : isPairPetRoom ? (
                                     pt('rankedMatch.queueWithAp', { cost: pairRankedMatchApButtonLabel })
                                 ) : myRoom?.roomKind === 'friendly_4p' ||
@@ -5472,6 +5468,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 compact={isHandheld}
                 seatChromeTone={lobbyTone}
                 hideDuoAiOpponentColumn={false}
+                stackTeamsVertically
                 roomKind={duoRoom.roomKind}
                 ownerId={duoRoom.ownerId}
                 ownerName={duoRoom.ownerName}
@@ -5550,7 +5547,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 editRoomDisabled={editRoomDisabled}
                 onStartAi={() => void startPairAiFromRoomSettings()}
                 startAiDisabled={!duoCanStartAiMatch}
-                startAiLabel={pt('waitingLobby.startAi')}
+                startAiLabel={`${pt('waitingLobby.startAi')} (⚡${pairAiLobbyActionPointCostLabel(duoRoom.selectedGameMode, duoRoom.settings, lobbyChannel, currentUserWithStatus)})`}
             />
         );
     };
@@ -5647,7 +5644,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             preferredGameSettingsBucket={pairLobbyPreferredBucketForEmbeddedRoomCreate(lobbyChannel, createModalRoomKind)}
             seedFromSession={pairDraftGameSeed}
             onClose={() => {
-                if (!isBusy) setPairLobbyRoomForm('closed');
+                if (!isBusy) showLobbyRoomListScreen();
             }}
             onConfigureApply={handlePairDraftConfigureApply}
             transformSettingsBeforeStart={transformPairDraftLobbySettings}
@@ -5687,7 +5684,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             }
             pairRoomHandheldBusy={isBusy}
             onPairRoomHandheldCancel={() => {
-                if (!isBusy) setPairLobbyRoomForm('closed');
+                if (!isBusy) showLobbyRoomListScreen();
             }}
             onPairRoomHandheldSubmit={() => handlePairLobbyRoomFormPrimarySubmit()}
             pairRoomEmbeddedColumnFooter={
@@ -5695,7 +5692,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                     <Button
                         type="button"
                         disabled={isBusy}
-                        onClick={() => setPairLobbyRoomForm('closed')}
+                        onClick={() => showLobbyRoomListScreen()}
                         colorScheme="none"
                         className={`!justify-center rounded-xl border border-white/20 bg-zinc-800/60 !font-bold !text-zinc-200 ${
                             isHandheld ? '!py-2 !text-xs' : '!py-2.5 !text-sm'
@@ -5722,7 +5719,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                             : pairLobbyRoomForm === 'propose'
                               ? pt('waitingLobby.propose')
                               : lobbyChannel === 'playful' && createModalRoomKind === 'arena_ai'
-                                ? pt('waitingLobby.startAiGame')
+                                ? `${pt('waitingLobby.startAiGame')} (⚡${pairAiLobbyActionPointCostLabel(createModalDraftGame.mode, createModalDraftGame.settings, lobbyChannel, currentUserWithStatus)})`
                                 : pt('waitingLobby.create')}
                     </Button>
                 </>
@@ -5882,6 +5879,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             pairLobbyProposeHasChanges,
             handlePairDraftConfigureApply,
             transformPairDraftLobbySettings,
+            showLobbyRoomListScreen,
         ],
     );
 
@@ -6039,7 +6037,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                         isHandheld ? 'flex flex-col justify-end p-0 sm:p-3 sm:justify-center' : 'flex items-center justify-center p-3'
                     }`}
                     role="presentation"
-                    onClick={() => !isBusy && setPairLobbyRoomForm('closed')}
+                    onClick={() => !isBusy && showLobbyRoomListScreen()}
                 >
                     <div
                         className={`relative flex w-full flex-col border border-amber-400/40 bg-gradient-to-b from-zinc-900 to-black shadow-2xl shadow-black/60 ring-1 ring-white/10 ${
@@ -6057,7 +6055,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                             disabled={isBusy}
                             onClick={(e) => {
                                 e.stopPropagation();
-                                if (!isBusy) setPairLobbyRoomForm('closed');
+                                if (!isBusy) showLobbyRoomListScreen();
                             }}
                             className="absolute right-2 top-2 z-[2] shrink-0 rounded-lg border border-white/20 bg-zinc-900/90 px-3 py-1.5 text-xs font-bold text-zinc-200 shadow-md ring-1 ring-white/10 transition hover:bg-zinc-800 hover:text-white disabled:cursor-not-allowed disabled:opacity-50 sm:right-3 sm:top-3 sm:px-3.5 sm:py-2 sm:text-sm"
                         >
@@ -6652,7 +6650,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                     <ArenaLobbyNavTitleBar
                         kind={lobbyChannel as ArenaLobbyNavKind}
                         lobbyIntent={lobbyIntent}
-                        onBackToProfile={backToProfile}
+                        onBackToProfile={handleLobbyNavBack}
                         titleHeadingClass={titleHeadingClass}
                     />
                     <div
@@ -6785,7 +6783,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                         <ArenaLobbyNavTitleBar
                             kind={lobbyChannel as ArenaLobbyNavKind}
                             lobbyIntent={lobbyIntent}
-                            onBackToProfile={backToProfile}
+                            onBackToProfile={handleLobbyNavBack}
                             titleHeadingClass={`${titleHeadingClass} text-base sm:text-lg lg:text-xl`}
                         />
                         {desktopLobbyChatPanel}
@@ -6803,7 +6801,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                         <ArenaLobbyNavTitleBar
                             kind={lobbyChannel as ArenaLobbyNavKind}
                             lobbyIntent={lobbyIntent}
-                            onBackToProfile={backToProfile}
+                            onBackToProfile={handleLobbyNavBack}
                             titleHeadingClass={`${titleHeadingClass} text-base sm:text-lg lg:text-xl`}
                         />
                         {desktopLobbyChatPanel}

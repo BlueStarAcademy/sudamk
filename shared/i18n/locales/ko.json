@@ -2472,6 +2472,17 @@
       "friends": "친구",
       "guild": "길드원"
     },
+    "lobbyChannel": {
+      "modalTitle": "채널 변경",
+      "modalHint": "채널당 최대 {{capacity}}명까지 접속할 수 있습니다.",
+      "full": "정원이 가득 찼습니다.",
+      "current": "현재 채널",
+      "select": "Ch.{{channel}}으로 이동",
+      "prevPage": "이전",
+      "nextPage": "다음",
+      "pageLabel": "{{page}} / {{total}}",
+      "changeButtonTitle": "채널 변경"
+    },
     "aiChallenge": {
       "strategic": "전략 AI대전",
       "playful": "놀이 AI대전",
@@ -3356,7 +3367,11 @@
     "equipmentDetailTitle": "{{name}} ({{level}}) - 클릭하여 상세보기",
     "tabs": {
       "ranking": "랭킹",
-      "arena": "경기장"
+      "arena": "경기장",
+      "profile": "프로필",
+      "content": "컨텐츠",
+      "users": "유저목록",
+      "homeAria": "홈 화면 탭"
     },
     "coreStatsTotal": "6개 핵심 능력치 합계",
     "adventureUnlockModal": "탐험 해금 모달",
@@ -5840,7 +5855,11 @@
         "changeTicket": "장비 변경권",
         "rewardRandom": "경기 결과에 따라 지급 여부·수량이 달라질 수 있습니다 (랜덤).",
         "changeTicketMax": "단계 기준 최대 {{count}}개 범위",
-        "defaultReward": "기본 보상",
+        "defaultReward": "획득 보상",
+        "statShortageWarning": "상대보다 능력치가 낮아 불리할 수 있습니다.",
+        "formatNeighborhood": "6인 풀리그",
+        "formatNational": "8강 토너먼트",
+        "formatWorld": "16강 토너먼트",
         "continueView": "이어서 보기",
         "viewResult": "결과보기",
         "inProgressToday": "오늘 진행한 경기가 있습니다. 결과를 확인하세요.",
@@ -5867,7 +5886,8 @@
         "opponentColumn": "상대",
         "avgStat": "평균 능력치",
         "badukAbility": "바둑능력",
-        "defaultRewardFallback": "기본 보상",
+        "defaultRewardFallback": "획득 보상",
+        "rankRewardLabel": "순위 보상",
         "continueViewAlt": "이어서 보기"
       },
       "help": {
@@ -6466,8 +6486,9 @@
       "invitesBlocked": "상대가 초대를 받지 않도록 설정했습니다.",
       "targetResting": "휴식 중인 유저는 초대할 수 없습니다.",
       "targetBusy": "경기 또는 협상 중인 유저는 초대할 수 없습니다.",
+      "targetOffline": "오프라인 유저는 초대할 수 없습니다.",
       "cooldown": "잠시 후 다시 초대할 수 있습니다 (10초)",
-      "lobbyOnly": "전략·놀이·페어 대국실에 머무는 유저만 초대할 수 있습니다.",
+      "lobbyOnly": "같은 접속 채널에 있는 유저만 초대할 수 있습니다.",
       "inviterLabel": "초대한 유저",
       "arenaInviteStrategic": "전략바둑 경기장",
       "arenaInvitePlayful": "놀이바둑 경기장",

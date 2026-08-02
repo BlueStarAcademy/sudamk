@@ -192,9 +192,23 @@ const PairAiDuoRoomInterior: React.FC<PairAiDuoRoomInteriorProps> = ({
 
     return (
         <div className={`flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${shellClass}`}>
-            <div className={`flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden ${compact ? 'gap-2 p-1.5' : 'gap-2.5 p-2 sm:p-2.5'}`}>
-                <div className={`min-h-0 min-w-0 shrink-0 overflow-x-auto ${teamBoxClass}`}>{seatGrid}</div>
-                {gameSettingsBlock}
+            <div
+                className={`flex min-h-0 flex-1 overflow-hidden ${
+                    compact
+                        ? 'flex-row gap-1.5 p-1.5'
+                        : 'grid grid-cols-[minmax(0,36%)_minmax(0,1fr)] items-stretch gap-3 p-2 sm:p-2.5'
+                }`}
+            >
+                <div
+                    className={`flex min-h-0 min-w-0 items-center justify-center overflow-x-auto overflow-y-auto ${
+                        compact ? `max-w-[42%] shrink-0 ${teamBoxClass}` : teamBoxClass
+                    }`}
+                >
+                    {seatGrid}
+                </div>
+                <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden ${compact ? 'gap-1.5' : 'gap-2.5'}`}>
+                    {gameSettingsBlock}
+                </div>
             </div>
             <div
                 className={`${actionBarClass} shrink-0 grid grid-cols-3 gap-1.5 sm:gap-2 ${compact ? 'mt-1.5 px-1.5 pb-1.5' : 'mt-2 px-2 pb-2 sm:px-2.5 sm:pb-2.5'} pb-[max(0px,env(safe-area-inset-bottom))]`}

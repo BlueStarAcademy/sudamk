@@ -2443,6 +2443,17 @@
       "friends": "Friends",
       "guild": "Guild"
     },
+    "lobbyChannel": {
+      "modalTitle": "Change channel",
+      "modalHint": "Each channel holds up to {{capacity}} players.",
+      "full": "This channel is full.",
+      "current": "Current channel",
+      "select": "Move to Ch.{{channel}}",
+      "prevPage": "Prev",
+      "nextPage": "Next",
+      "pageLabel": "{{page}} / {{total}}",
+      "changeButtonTitle": "Change channel"
+    },
     "aiChallenge": {
       "strategic": "Strategy AI",
       "playful": "Casual AI",
@@ -3327,7 +3338,11 @@
     "equipmentDetailTitle": "{{name}} ({{level}}) — tap for details",
     "tabs": {
       "ranking": "Ranking",
-      "arena": "Arena"
+      "arena": "Arena",
+      "profile": "Profile",
+      "content": "Content",
+      "users": "Users",
+      "homeAria": "Home tabs"
     },
     "coreStatsTotal": "Sum of 6 core stats",
     "adventureUnlockModal": "Exploration unlock modal",
@@ -5811,7 +5826,11 @@
         "changeTicket": "Gear change ticket",
         "rewardRandom": "Payout may vary by match result (random).",
         "changeTicketMax": "Up to {{count}} per stage",
-        "defaultReward": "Default reward",
+        "defaultReward": "Obtainable rewards",
+        "statShortageWarning": "Your stats are lower than the opponent — this match may be tough.",
+        "formatNeighborhood": "6-player round robin",
+        "formatNational": "Quarterfinal tournament",
+        "formatWorld": "Round of 16 tournament",
         "continueView": "Continue",
         "viewResult": "View result",
         "inProgressToday": "You have a match today. Check results.",
@@ -5839,6 +5858,7 @@
         "avgStat": "Avg stat",
         "badukAbility": "Go ability",
         "defaultRewardFallback": "Default reward",
+        "rankRewardLabel": "Rank rewards",
         "continueViewAlt": "Continue"
       },
       "help": {
@@ -6437,8 +6457,9 @@
       "invitesBlocked": "This user has disabled partner invites.",
       "targetResting": "Cannot invite users who are resting.",
       "targetBusy": "Cannot invite users in a match or negotiation.",
+      "targetOffline": "Cannot invite offline users.",
       "cooldown": "You can invite again shortly (10s)",
-      "lobbyOnly": "Only users in strategy, casual, or pair lobbies can be invited.",
+      "lobbyOnly": "Only users in the same lobby channel can be invited.",
       "inviterLabel": "Invited by",
       "arenaInviteStrategic": "Strategy arena",
       "arenaInvitePlayful": "Casual arena",

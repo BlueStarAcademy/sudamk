@@ -1,4 +1,4 @@
-import React, { type ReactNode } from 'react';
+import React, { useMemo, useState, type ReactNode } from 'react';
 import { UserWithStatus, ServerAction, UserStatus, GameMode } from '../../types.js';
 import Avatar from '../Avatar.js';
 import UserNicknameText from '../UserNicknameText.js';
@@ -6,8 +6,11 @@ import { AVATAR_POOL, BORDER_POOL, SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from
 import Button from '../Button.js';
 import { readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
+import { LOBBY_CHANNEL_MIN } from '../../shared/constants/lobbyChannel.js';
+import { resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
 import { userArenaChannelBadge } from '../../shared/utils/unifiedArenaLobbyUserList.js';
 import { useTranslation } from 'react-i18next';
+import LobbyChannelChangeModal from './LobbyChannelChangeModal.js';
 
 type UserListStats = { wins: number; losses: number; winRate: number; score?: number };
 
@@ -123,8 +126,12 @@ interface PlayerListProps {
     };
     /** 쿨다운 남은 시간 UI 갱신용(0.5~1초마다 증가) */
     inviteCooldownTicker?: number;
-    /** 페어 방 안일 때 내 상태 드롭다운 비활성화 */
+    /** @deprecated 상태 드롭다운 제거 — 채널 버튼 사용. 호환용으로 유지 */
     disableStatusSelect?: boolean;
+    /** @deprecated 모달은 PlayerList 내부에서 처리. 호환용 no-op */
+    onOpenLobbyChannelModal?: () => void;
+    /** 채널변경 모달 정원 집계용(전체 접속자). 없으면 users로 집계 */
+    lobbyChannelStatusMap?: Record<string, Pick<UserWithStatus, 'status' | 'lobbyChannel'> | undefined>;
     /** 유저 목록 제목(h2) 바로 아래 · 내 정보(본인 행) 위 — 전체/친구/길드원 등 */
     listScopeTabs?: ReactNode;
     /** 전략·놀이·페어 집계 로비: 본인 행에 파트너 초대 수신 거부(초대금지) 체크 */
@@ -148,13 +155,26 @@ const PlayerList: React.FC<PlayerListProps> = ({
     pairAlignedNativeCompact = false,
     pairInvite,
     inviteCooldownTicker = 0,
-    disableStatusSelect = false,
+    disableStatusSelect: _disableStatusSelect = false,
+    onOpenLobbyChannelModal: _onOpenLobbyChannelModal,
+    lobbyChannelStatusMap,
     listScopeTabs,
     showArenaPartnerInviteBlockToggle = false,
     hideHeading = false,
     hideScoreAndRecord = false,
 }) => {
     const { t } = useTranslation('lobby');
+    const [channelModalOpen, setChannelModalOpen] = useState(false);
+    const myChannel = resolveLobbyChannel(currentUser) ?? LOBBY_CHANNEL_MIN;
+    const statusMap = useMemo(() => {
+        if (lobbyChannelStatusMap) return lobbyChannelStatusMap;
+        const map: Record<string, Pick<UserWithStatus, 'status' | 'lobbyChannel'> | undefined> = {};
+        for (const u of users) {
+            if (u?.id) map[u.id] = u;
+        }
+        if (currentUser?.id) map[currentUser.id] = currentUser;
+        return map;
+    }, [lobbyChannelStatusMap, users, currentUser]);
     const me =
         users.find((user) => user.id === currentUser.id) ??
         users.find((user) => String(user?.id) === String(currentUser?.id));
@@ -267,25 +287,18 @@ const PlayerList: React.FC<PlayerListProps> = ({
                 </div>
                 {isCurrentUser ? (
                     <div className="flex items-center gap-1.5">
-                        <select
-                            value={currentUser.status}
-                            onChange={(e) => onAction({ type: 'SET_USER_STATUS', payload: { status: e.target.value } })}
-                            disabled={disableStatusSelect || !['waiting', 'resting'].includes(currentUser.status)}
-                            className={`bg-secondary border border-color rounded-lg text-center transition-colors focus:ring-accent focus:border-accent disabled:opacity-50 ${
+                        <button
+                            type="button"
+                            onClick={() => setChannelModalOpen(true)}
+                            className={`shrink-0 rounded-lg border border-amber-400/50 bg-amber-950/40 font-extrabold text-amber-100 transition-colors hover:border-amber-300 hover:bg-amber-900/50 ${
                                 pairAlignedNativeCompact
                                     ? 'w-[4.5rem] px-1 py-0.5 text-[0.65rem] sm:w-20 sm:px-2 sm:py-1 sm:text-xs lg:px-3 lg:py-1.5 lg:text-sm lg:w-24'
                                     : 'w-20 px-2 py-1 text-xs lg:px-3 lg:py-1.5 lg:text-sm lg:w-24'
                             }`}
-                            title={disableStatusSelect ? t('playerList.statusInPairRoom') : undefined}
+                            title={t('lobbyChannel.changeButtonTitle')}
                         >
-                            <option value="waiting">{t('playerList.status.waiting')}</option>
-                            <option value="resting">{t('playerList.status.resting')}</option>
-                            {!['waiting', 'resting'].includes(currentUser.status) && (
-                                <option value={currentUser.status} disabled>
-                                    {t(`playerList.status.${statusKeyByUserStatus[currentUser.status] ?? statusKeys.offline}`)}
-                                </option>
-                            )}
-                        </select>
+                            Ch.{myChannel}
+                        </button>
                     </div>
                 ) : (
                     <div className="flex items-center gap-2 flex-shrink-0">
@@ -432,6 +445,14 @@ const PlayerList: React.FC<PlayerListProps> = ({
                     <p className="text-center text-tertiary pt-8">{t('playerList.noOtherPlayers')}</p>
                 )}
             </ul>
+            {channelModalOpen ? (
+                <LobbyChannelChangeModal
+                    currentChannel={myChannel}
+                    userStatuses={statusMap}
+                    onAction={onAction}
+                    onClose={() => setChannelModalOpen(false)}
+                />
+            ) : null}
         </div>
     );
 };

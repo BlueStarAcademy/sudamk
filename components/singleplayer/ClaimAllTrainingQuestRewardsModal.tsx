@@ -61,115 +61,6 @@ function sumItemRewardCycles(
     }, 0);
 }
 
-/** 골드·다이아·강화석·장비 상자 행: 아이콘 열·숫자 열 정렬 */
-function ClaimAllTotalsBox({
-    totalGold,
-    totalDiamonds,
-    totalEnhanceStoneCycles,
-    totalEquipmentBoxCycles,
-    variant,
-}: {
-    totalGold: number;
-    totalDiamonds: number;
-    totalEnhanceStoneCycles: number;
-    totalEquipmentBoxCycles: number;
-    variant: 'compact' | 'comfortable';
-}) {
-    const { t } = useTranslation(['lobby', 'common']);
-    if (
-        totalGold <= 0 &&
-        totalDiamonds <= 0 &&
-        totalEnhanceStoneCycles <= 0 &&
-        totalEquipmentBoxCycles <= 0
-    ) {
-        return null;
-    }
-
-    const shell =
-        variant === 'compact'
-            ? 'w-full max-w-[13rem] space-y-1.5 rounded-lg border border-emerald-400/30 bg-gradient-to-br from-emerald-950/55 via-gray-900/80 to-slate-950/90 px-3 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_4px_18px_rgba(0,0,0,0.35)] sm:max-w-[13.5rem] sm:px-3.5 sm:py-2'
-            : 'w-full max-w-[14.5rem] space-y-2 rounded-xl border border-emerald-400/35 bg-gradient-to-br from-emerald-950/50 via-gray-900/85 to-slate-950/95 px-4 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_6px_22px_rgba(0,0,0,0.4)] sm:max-w-[15rem] sm:px-4 sm:py-3.5';
-
-    const titleClass =
-        variant === 'compact'
-            ? 'text-center text-xs font-bold leading-snug text-amber-100/95 sm:text-sm'
-            : 'text-center text-base font-bold text-amber-100 sm:text-lg';
-
-    const rowGrid = 'grid grid-cols-[2.5rem_minmax(0,1fr)] items-center gap-x-2';
-    const iconWrap = 'flex h-7 items-center justify-center sm:h-8';
-    const iconClass = variant === 'compact' ? 'h-6 w-6 sm:h-7 sm:w-7' : 'h-7 w-7 sm:h-8 sm:w-8';
-    const numClass =
-        variant === 'compact'
-            ? 'text-right text-sm font-bold tabular-nums tracking-tight text-yellow-300 sm:text-base'
-            : 'text-right text-lg font-bold tabular-nums tracking-tight text-yellow-300 sm:text-xl';
-    const diaClass =
-        variant === 'compact'
-            ? 'text-right text-sm font-bold tabular-nums tracking-tight text-cyan-300 sm:text-base'
-            : 'text-right text-lg font-bold tabular-nums tracking-tight text-cyan-300 sm:text-xl';
-    const itemClass =
-        variant === 'compact'
-            ? 'text-right text-sm font-bold tabular-nums tracking-tight text-violet-200 sm:text-base'
-            : 'text-right text-lg font-bold tabular-nums tracking-tight text-violet-200 sm:text-xl';
-
-    return (
-        <div className={shell}>
-            <h3 className={titleClass}>{t('singleplayer.totalSum')}</h3>
-            <div className="flex flex-col gap-2 sm:gap-2.5">
-                {totalGold > 0 && (
-                    <div className={rowGrid}>
-                        <div className={iconWrap}>
-                            <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className={`${iconClass} shrink-0 object-contain`} />
-                        </div>
-                        <span className={numClass}>+{formatGoldAmountKoG(totalGold)}</span>
-                    </div>
-                )}
-                {totalDiamonds > 0 && (
-                    <div className={rowGrid}>
-                        <div className={iconWrap}>
-                            <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className={`${iconClass} shrink-0 object-contain`} />
-                        </div>
-                        <span className={diaClass}>+{formatWalletDiamonds(totalDiamonds)}</span>
-                    </div>
-                )}
-                {totalEnhanceStoneCycles > 0 && (
-                    <div className={rowGrid}>
-                        <div className={iconWrap}>
-                            <img
-                                src="/images/materials/materials1.webp"
-                                alt={t('singleplayer.enhanceStone')}
-                                className={`${iconClass} shrink-0 object-contain`}
-                            />
-                        </div>
-                        <span className={itemClass}>
-                            {t('singleplayer.claimAllItemCycles', {
-                                name: t('singleplayer.enhanceStone'),
-                                cycles: totalEnhanceStoneCycles,
-                            })}
-                        </span>
-                    </div>
-                )}
-                {totalEquipmentBoxCycles > 0 && (
-                    <div className={rowGrid}>
-                        <div className={iconWrap}>
-                            <img
-                                src="/images/Box/EquipmentBox1.webp"
-                                alt={t('singleplayer.equipmentBox')}
-                                className={`${iconClass} shrink-0 object-contain`}
-                            />
-                        </div>
-                        <span className={itemClass}>
-                            {t('singleplayer.claimAllItemCycles', {
-                                name: t('singleplayer.equipmentBox'),
-                                cycles: totalEquipmentBoxCycles,
-                            })}
-                        </span>
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-}
-
 function resolveMissionDisplayName(missionId: string, fallbackName: string): string {
     return SINGLE_PLAYER_MISSIONS.find((m) => m.id === missionId)?.name ?? fallbackName;
 }
@@ -242,55 +133,280 @@ function aggregateClaimedItems(items: InventoryItem[]): Array<{ key: string; nam
     });
 }
 
-function ClaimedItemsSection({ items, compact }: { items: InventoryItem[]; compact?: boolean }) {
+const CLAIM_MODAL_FRAME =
+    'overflow-hidden rounded-2xl border border-amber-500/25 bg-gradient-to-b from-zinc-950/95 via-zinc-900/90 to-black shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_12px_40px_rgba(0,0,0,0.45)]';
+
+function ClaimHeroHeader({ previewMode, compact }: { previewMode: boolean; compact?: boolean }) {
     const { t } = useTranslation(['lobby', 'common']);
-    const localizedItemName = useLocalizedInventoryItemName();
-    const aggregated = useMemo(() => aggregateClaimedItems(items), [items]);
-    if (!aggregated.length) return null;
-
-    const rowPad = compact ? 'px-2 py-1.5' : 'px-3 py-2';
-    const iconClass = compact ? 'h-7 w-7' : 'h-8 w-8';
-    const nameClass = compact ? 'text-xs sm:text-[13px]' : 'text-sm';
-    const qtyClass = compact ? 'text-xs sm:text-[13px]' : 'text-sm';
-
     return (
         <div
             className={
                 compact
-                    ? 'w-full rounded-lg border border-amber-500/20 bg-gradient-to-b from-zinc-900/80 to-black/80 px-2 py-2'
-                    : 'rounded-xl border border-amber-500/20 bg-gradient-to-b from-zinc-900/80 to-black/80 p-3'
+                    ? 'shrink-0 border-b border-amber-500/15 bg-gradient-to-r from-amber-950/55 via-black/35 to-amber-950/55 px-3 py-3 text-center'
+                    : 'shrink-0 border-b border-amber-500/15 bg-gradient-to-r from-amber-950/55 via-black/35 to-amber-950/55 px-5 py-5 text-center'
             }
         >
-            <h3
+            <p
                 className={
                     compact
-                        ? 'mb-2 text-center text-[11px] font-bold text-amber-100/90'
-                        : 'mb-3 flex items-center justify-center gap-2 text-sm font-bold text-amber-100/90'
+                        ? 'text-[9px] font-semibold uppercase tracking-[0.22em] text-amber-200/65'
+                        : 'text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-200/70'
                 }
             >
-                {t('singleplayer.claimAllObtainedItems')}
-            </h3>
-            <div className="flex flex-col gap-1.5">
-                {aggregated.map((row) => (
+                Reward
+            </p>
+            <h2
+                className={
+                    compact
+                        ? 'mt-1 bg-gradient-to-r from-amber-50 via-amber-200 to-amber-100 bg-clip-text text-sm font-black tracking-tight text-transparent sm:text-base'
+                        : 'mt-2 bg-gradient-to-r from-amber-50 via-amber-200 to-amber-100 bg-clip-text text-xl font-black tracking-tight text-transparent sm:text-2xl'
+                }
+            >
+                {previewMode ? t('singleplayer.claimAllPreviewTitle') : t('singleplayer.claimAllSuccess')}
+            </h2>
+        </div>
+    );
+}
+
+function ClaimSectionTitle({ children, compact }: { children: React.ReactNode; compact?: boolean }) {
+    return (
+        <h3
+            className={
+                compact
+                    ? 'mb-2 flex items-center justify-center gap-2 text-[11px] font-bold text-amber-100/90'
+                    : 'mb-3 flex items-center justify-center gap-2 text-sm font-bold text-amber-100/90'
+            }
+        >
+            <span className="h-px w-5 bg-gradient-to-r from-transparent to-amber-500/50 sm:w-6" aria-hidden />
+            {children}
+            <span className="h-px w-5 bg-gradient-to-l from-transparent to-amber-500/50 sm:w-6" aria-hidden />
+        </h3>
+    );
+}
+
+function ClaimFacilityRows({
+    rewards,
+    compact,
+}: {
+    rewards: ClaimAllTrainingQuestRewardsModalProps['rewards'];
+    compact?: boolean;
+}) {
+    return (
+        <div className={compact ? 'flex flex-col gap-1.5' : 'flex flex-col gap-2'}>
+            {rewards.map((reward) => {
+                const missionInfo = SINGLE_PLAYER_MISSIONS.find((m) => m.id === reward.missionId);
+                const displayName = resolveMissionDisplayName(reward.missionId, reward.missionName);
+                return (
                     <div
-                        key={row.key}
-                        className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2 rounded-md bg-black/35 ${rowPad}`}
+                        key={reward.missionId}
+                        className={
+                            compact
+                                ? 'flex items-start justify-between gap-2 rounded-xl border border-white/[0.06] bg-gradient-to-r from-zinc-900/80 via-black/40 to-zinc-900/70 px-2.5 py-2 shadow-inner'
+                                : 'flex items-center justify-between gap-3 rounded-xl border border-white/[0.06] bg-gradient-to-r from-zinc-900/80 via-black/40 to-zinc-900/70 px-3 py-2.5 shadow-inner'
+                        }
                     >
-                        <img
-                            src={row.image}
-                            alt=""
-                            className={`${iconClass} shrink-0 object-contain`}
-                            aria-hidden
-                        />
-                        <span className={`min-w-0 truncate text-left font-semibold text-gray-100 ${nameClass}`}>
-                            {localizedItemName(row.name)}
-                        </span>
-                        <span className={`shrink-0 font-bold tabular-nums text-violet-200 ${qtyClass}`}>
-                            {t('singleplayer.claimAllItemQty', { quantity: row.quantity })}
-                        </span>
+                        <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                            {missionInfo && (
+                                <img
+                                    src={missionInfo.image}
+                                    alt={
+                                        typeof reward.missionLevel === 'number' && reward.missionLevel >= 1
+                                            ? `${displayName} Lv.${reward.missionLevel}`
+                                            : displayName
+                                    }
+                                    className={
+                                        compact
+                                            ? 'mt-0.5 h-9 w-9 shrink-0 rounded-lg object-cover ring-1 ring-amber-400/25'
+                                            : 'h-11 w-11 shrink-0 rounded-xl object-cover ring-1 ring-amber-400/25'
+                                    }
+                                    loading="lazy"
+                                    decoding="async"
+                                    onError={(e) => {
+                                        const target = e.target as HTMLImageElement;
+                                        target.style.display = 'none';
+                                    }}
+                                />
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <h3
+                                    className={
+                                        compact
+                                            ? 'break-words text-left text-xs font-semibold leading-snug text-amber-50 sm:text-[13px]'
+                                            : 'truncate text-left text-sm font-bold text-amber-50'
+                                    }
+                                >
+                                    {formatMissionLabel(displayName, reward.missionLevel)}
+                                </h3>
+                            </div>
+                        </div>
+                        <div className="flex shrink-0 items-center gap-1.5">
+                            <ClaimRewardAmount reward={reward} />
+                        </div>
                     </div>
-                ))}
-            </div>
+                );
+            })}
+        </div>
+    );
+}
+
+type ClaimRewardSummaryTile = {
+    key: string;
+    icon: string;
+    iconAlt: string;
+    nameLabel: string;
+    amountLabel: string;
+    amountClass: string;
+    tileClass: string;
+};
+
+/** 골드·다이아·강화석·장비상자를 2x2 획득 보상 그리드로 표시 */
+function ClaimAllRewardsSummary({
+    totalGold,
+    totalDiamonds,
+    totalEnhanceStoneCycles,
+    totalEquipmentBoxCycles,
+    claimedItems,
+    compact,
+}: {
+    totalGold: number;
+    totalDiamonds: number;
+    totalEnhanceStoneCycles: number;
+    totalEquipmentBoxCycles: number;
+    claimedItems?: InventoryItem[];
+    compact?: boolean;
+}) {
+    const { t } = useTranslation(['lobby', 'common']);
+    const localizedItemName = useLocalizedInventoryItemName();
+    const aggregatedItems = useMemo(
+        () => (claimedItems?.length ? aggregateClaimedItems(claimedItems) : []),
+        [claimedItems],
+    );
+
+    const tiles = useMemo(() => {
+        const next: ClaimRewardSummaryTile[] = [];
+        if (totalGold > 0) {
+            next.push({
+                key: 'gold',
+                icon: '/images/icon/Gold.webp',
+                iconAlt: t('common:resources.gold'),
+                nameLabel: t('common:resources.gold'),
+                amountLabel: `+${formatGoldAmountKoG(totalGold)}`,
+                amountClass: 'text-amber-200',
+                tileClass:
+                    'border-amber-400/30 bg-gradient-to-b from-amber-950/55 via-amber-950/25 to-black/50 shadow-[inset_0_1px_0_rgba(251,191,36,0.12)]',
+            });
+        }
+        if (totalDiamonds > 0) {
+            next.push({
+                key: 'diamonds',
+                icon: '/images/icon/Zem.webp',
+                iconAlt: t('common:resources.diamonds'),
+                nameLabel: t('common:resources.diamonds'),
+                amountLabel: `+${formatWalletDiamonds(totalDiamonds)}`,
+                amountClass: 'text-cyan-200',
+                tileClass:
+                    'border-cyan-400/30 bg-gradient-to-b from-cyan-950/50 via-cyan-950/20 to-black/50 shadow-[inset_0_1px_0_rgba(34,211,238,0.12)]',
+            });
+        }
+        if (totalEnhanceStoneCycles > 0) {
+            next.push({
+                key: 'enhance_stone',
+                icon: '/images/materials/materials1.webp',
+                iconAlt: t('singleplayer.enhanceStone'),
+                nameLabel: t('singleplayer.enhanceStone'),
+                amountLabel: t('singleplayer.claimAllItemQty', { quantity: totalEnhanceStoneCycles }),
+                amountClass: 'text-violet-100',
+                tileClass:
+                    'border-violet-400/30 bg-gradient-to-b from-violet-950/50 via-violet-950/20 to-black/50 shadow-[inset_0_1px_0_rgba(167,139,250,0.12)]',
+            });
+        }
+        if (totalEquipmentBoxCycles > 0) {
+            next.push({
+                key: 'equipment_box',
+                icon: '/images/Box/EquipmentBox1.webp',
+                iconAlt: t('singleplayer.equipmentBox'),
+                nameLabel: t('singleplayer.equipmentBox'),
+                amountLabel: t('singleplayer.claimAllItemQty', { quantity: totalEquipmentBoxCycles }),
+                amountClass: 'text-rose-100',
+                tileClass:
+                    'border-rose-400/25 bg-gradient-to-b from-rose-950/45 via-rose-950/20 to-black/50 shadow-[inset_0_1px_0_rgba(251,113,133,0.1)]',
+            });
+        }
+        return next;
+    }, [t, totalDiamonds, totalEnhanceStoneCycles, totalEquipmentBoxCycles, totalGold]);
+
+    if (!tiles.length && !aggregatedItems.length) return null;
+
+    const shell = compact
+        ? 'w-full rounded-xl border border-amber-500/25 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-black/90 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+        : 'w-full rounded-2xl border border-amber-500/25 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-black/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
+    const tilePad = compact ? 'px-2 py-2.5' : 'px-3 py-3.5';
+    const iconClass = compact ? 'h-8 w-8' : 'h-10 w-10';
+    const nameText = compact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs';
+    const amountText = compact ? 'text-sm sm:text-[15px]' : 'text-base sm:text-lg';
+    const detailPad = compact ? 'px-2.5 py-1.5' : 'px-3 py-2.5';
+    const detailIcon = compact ? 'h-7 w-7' : 'h-8 w-8';
+    const detailText = compact ? 'text-xs sm:text-[13px]' : 'text-sm';
+
+    return (
+        <div className={shell}>
+            <ClaimSectionTitle compact={compact}>{t('singleplayer.claimAllObtainedItems')}</ClaimSectionTitle>
+            {tiles.length > 0 && (
+                <div className={`grid grid-cols-2 ${compact ? 'gap-2' : 'gap-2.5'}`}>
+                    {tiles.map((tile) => (
+                        <div
+                            key={tile.key}
+                            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border ${tile.tileClass} ${tilePad}`}
+                        >
+                            <img
+                                src={tile.icon}
+                                alt={tile.iconAlt}
+                                className={`${iconClass} shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]`}
+                            />
+                            <span className={`w-full truncate text-center font-semibold text-zinc-300/90 ${nameText}`} title={tile.nameLabel}>
+                                {tile.nameLabel}
+                            </span>
+                            <span
+                                className={`w-full truncate text-center font-extrabold tabular-nums tracking-tight ${amountText} ${tile.amountClass}`}
+                                title={tile.amountLabel}
+                            >
+                                {tile.amountLabel}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+            {aggregatedItems.length > 0 && (
+                <div
+                    className={`flex flex-col gap-1.5 ${
+                        tiles.length > 0
+                            ? compact
+                                ? 'mt-2.5 border-t border-amber-500/15 pt-2.5'
+                                : 'mt-3.5 border-t border-amber-500/15 pt-3.5'
+                            : ''
+                    }`}
+                >
+                    {aggregatedItems.map((row) => (
+                        <div
+                            key={row.key}
+                            className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-lg border border-white/[0.05] bg-black/40 ${detailPad}`}
+                        >
+                            <img
+                                src={row.image}
+                                alt=""
+                                className={`${detailIcon} shrink-0 object-contain`}
+                                aria-hidden
+                            />
+                            <span className={`min-w-0 truncate text-left font-semibold text-zinc-100 ${detailText}`}>
+                                {localizedItemName(row.name)}
+                            </span>
+                            <span className={`shrink-0 font-bold tabular-nums text-amber-200 ${detailText}`}>
+                                {t('singleplayer.claimAllItemQty', { quantity: row.quantity })}
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
         </div>
     );
 }
@@ -300,8 +416,8 @@ function ClaimRewardAmount({ reward }: { reward: ClaimAllTrainingQuestRewardsMod
     if (reward.rewardType === 'gold') {
         return (
             <>
-                <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className="h-4 w-4" />
-                <span className="text-xs font-bold tabular-nums text-yellow-300 sm:text-[13px]">
+                <img src="/images/icon/Gold.webp" alt={t('common:resources.gold')} className="h-5 w-5" />
+                <span className="text-xs font-extrabold tabular-nums text-amber-200 sm:text-sm">
                     +{formatGoldAmountKoG(reward.rewardAmount)}
                 </span>
             </>
@@ -310,8 +426,8 @@ function ClaimRewardAmount({ reward }: { reward: ClaimAllTrainingQuestRewardsMod
     if (reward.rewardType === 'diamonds') {
         return (
             <>
-                <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className="h-4 w-4" />
-                <span className="text-xs font-bold tabular-nums text-cyan-300 sm:text-[13px]">
+                <img src="/images/icon/Zem.webp" alt={t('common:resources.diamonds')} className="h-5 w-5" />
+                <span className="text-xs font-extrabold tabular-nums text-cyan-200 sm:text-sm">
                     +{formatWalletDiamonds(reward.rewardAmount)}
                 </span>
             </>
@@ -323,8 +439,8 @@ function ClaimRewardAmount({ reward }: { reward: ClaimAllTrainingQuestRewardsMod
     const cycles = reward.claimCycles ?? reward.rewardAmount;
     return (
         <>
-            <img src={icon} alt="" className="h-4 w-4 object-contain" />
-            <span className="text-xs font-bold tabular-nums text-violet-200 sm:text-[13px]">
+            <img src={icon} alt="" className="h-5 w-5 object-contain" />
+            <span className="text-xs font-extrabold tabular-nums text-violet-100 sm:text-sm">
                 {t('singleplayer.claimAllRandomItems', { name: typeName, cycles })}
             </span>
         </>
@@ -380,102 +496,59 @@ function MobileClaimBody({
     const previewMode = mode === 'preview';
 
     return (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            <h2 className="shrink-0 px-0.5 text-center text-xs font-bold leading-snug text-white/95 sm:text-sm">
-                {previewMode ? t('singleplayer.claimAllPreviewTitle') : t('singleplayer.claimAllSuccess')}
-            </h2>
+        <div className={`flex min-h-0 flex-1 flex-col overflow-hidden ${CLAIM_MODAL_FRAME}`}>
+            <ClaimHeroHeader previewMode={previewMode} compact />
 
-            <div
-                className="mt-1.5 min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-lg bg-gray-900/50 px-1.5 py-1.5 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:auto]"
-            >
-                <div className="flex flex-col gap-1">
-                    {rewards.map((reward) => {
-                        const missionInfo = SINGLE_PLAYER_MISSIONS.find((m) => m.id === reward.missionId);
-                        const displayName = resolveMissionDisplayName(reward.missionId, reward.missionName);
-                        return (
-                            <div
-                                key={reward.missionId}
-                                className="flex items-start justify-between gap-2 rounded-md bg-gray-800/50 px-2 py-1.5"
-                            >
-                                <div className="flex min-w-0 flex-1 items-start gap-2">
-                                    {missionInfo && (
-                                        <img
-                                            src={missionInfo.image}
-                                            alt={
-                                                typeof reward.missionLevel === 'number' && reward.missionLevel >= 1
-                                                    ? `${displayName} Lv.${reward.missionLevel}`
-                                                    : displayName
-                                            }
-                                            className="mt-0.5 h-8 w-8 shrink-0 rounded object-cover"
-                                            loading="lazy"
-                                            decoding="async"
-                                            onError={(e) => {
-                                                const target = e.target as HTMLImageElement;
-                                                target.style.display = 'none';
-                                            }}
-                                        />
-                                    )}
-                                    <div className="min-w-0 flex-1">
-                                        <h3 className="break-words text-left text-xs font-semibold leading-snug text-white sm:text-[13px]">
-                                            {formatMissionLabel(displayName, reward.missionLevel)}
-                                        </h3>
-                                    </div>
-                                </div>
-                                <div className="flex shrink-0 items-center gap-1 pt-0.5">
-                                    <ClaimRewardAmount reward={reward} />
-                                </div>
-                            </div>
-                        );
-                    })}
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pb-2.5 pt-2 sm:px-3 sm:pb-3">
+                <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-xl border border-white/[0.04] bg-black/30 px-2 py-2 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:auto]">
+                    <ClaimFacilityRows rewards={rewards} compact />
                 </div>
-            </div>
 
-            <div className="mt-2 flex shrink-0 flex-col items-center gap-2 border-t border-white/10 pt-2">
-                <ClaimAllTotalsBox
-                    totalGold={totalGold}
-                    totalDiamonds={totalDiamonds}
-                    totalEnhanceStoneCycles={previewMode ? totalEnhanceStoneCycles : 0}
-                    totalEquipmentBoxCycles={previewMode ? totalEquipmentBoxCycles : 0}
-                    variant="compact"
-                />
-                {!previewMode && items.length > 0 && (
-                    <div className="w-full max-w-[16rem]">
-                        <ClaimedItemsSection items={items} compact />
-                    </div>
-                )}
+                <div className="mt-2.5 flex shrink-0 flex-col items-center gap-2.5">
+                    <ClaimAllRewardsSummary
+                        totalGold={totalGold}
+                        totalDiamonds={totalDiamonds}
+                        totalEnhanceStoneCycles={totalEnhanceStoneCycles}
+                        totalEquipmentBoxCycles={totalEquipmentBoxCycles}
+                        claimedItems={!previewMode ? items : undefined}
+                        compact
+                    />
 
-                {previewMode ? (
-                    <div className="grid w-full grid-cols-2 gap-2">
+                    {previewMode ? (
+                        <div className="grid w-full grid-cols-2 gap-2">
+                            <Button
+                                onClick={handleAd}
+                                disabled={pending != null}
+                                colorScheme="none"
+                                bare
+                                className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !w-full !max-w-none !whitespace-nowrap !px-2 !text-xs sm:!text-sm`}
+                                cooldownMs={0}
+                            >
+                                {pending === 'ad' ? <AdDoubleButtonLabel claiming /> : <AdDoubleButtonLabel />}
+                            </Button>
+                            <Button
+                                onClick={handleNormal}
+                                disabled={pending != null}
+                                colorScheme="none"
+                                bare
+                                className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !w-full !max-w-none !whitespace-nowrap !px-2 !text-xs sm:!text-sm`}
+                                cooldownMs={0}
+                            >
+                                {pending === 'normal' ? t('singleplayer.claiming') : t('singleplayer.claimAllNormal')}
+                            </Button>
+                        </div>
+                    ) : (
                         <Button
-                            onClick={handleAd}
-                            disabled={pending != null}
+                            onClick={onClose}
                             colorScheme="none"
                             bare
-                            className={`${PREMIUM_QUEST_BTN.claimAllConfirm} mt-0.5 !w-full !max-w-none !whitespace-nowrap !px-2 !text-xs sm:!text-sm`}
+                            className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !max-w-[12rem]`}
                             cooldownMs={0}
                         >
-                            {pending === 'ad' ? (
-                                <AdDoubleButtonLabel claiming />
-                            ) : (
-                                <AdDoubleButtonLabel />
-                            )}
+                            {t('common:actions.ok')}
                         </Button>
-                        <Button
-                            onClick={handleNormal}
-                            disabled={pending != null}
-                            colorScheme="none"
-                            bare
-                            className={`${PREMIUM_QUEST_BTN.claimAllConfirm} mt-0.5 !w-full !max-w-none !whitespace-nowrap !px-2 !text-xs sm:!text-sm`}
-                            cooldownMs={0}
-                        >
-                            {pending === 'normal' ? t('singleplayer.claiming') : t('singleplayer.claimAllNormal')}
-                        </Button>
-                    </div>
-                ) : (
-                    <Button onClick={onClose} colorScheme="none" bare className={`${PREMIUM_QUEST_BTN.claimAllConfirm} mt-0.5`} cooldownMs={0}>
-                        {t('common:actions.ok')}
-                    </Button>
-                )}
+                    )}
+                </div>
             </div>
         </div>
     );
@@ -502,20 +575,13 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
     const claimedItems = Array.isArray(items) ? items : [];
     const totalEnhanceStoneCycles = sumItemRewardCycles(rewards, 'enhance_stone');
     const totalEquipmentBoxCycles = sumItemRewardCycles(rewards, 'equipment_box');
-    // 수령 후에는 실제 아이템 타일로 대체하므로 사이클 합계는 미리보기에서만 표시
-    const showItemCycleTotals = previewMode;
-    const hasTotals =
-        totalGold > 0 ||
-        totalDiamonds > 0 ||
-        (showItemCycleTotals && totalEnhanceStoneCycles > 0) ||
-        (showItemCycleTotals && totalEquipmentBoxCycles > 0) ||
-        (!previewMode && claimedItems.length > 0);
-    const totalsRowCount =
+    const summaryTileCount =
         (totalGold > 0 ? 1 : 0) +
         (totalDiamonds > 0 ? 1 : 0) +
-        (showItemCycleTotals && totalEnhanceStoneCycles > 0 ? 1 : 0) +
-        (showItemCycleTotals && totalEquipmentBoxCycles > 0 ? 1 : 0) +
-        (!previewMode && claimedItems.length > 0 ? 1 : 0);
+        (totalEnhanceStoneCycles > 0 ? 1 : 0) +
+        (totalEquipmentBoxCycles > 0 ? 1 : 0);
+    const claimedItemRowCount = !previewMode ? aggregateClaimedItems(claimedItems).length : 0;
+    const hasTotals = summaryTileCount > 0 || claimedItemRowCount > 0;
 
     const handleNormal = () => {
         if (!onClaimNormal || pending) return;
@@ -538,33 +604,34 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
 
     /** 헤더·푸터·패딩·본문 블록을 반영해 내용이 잘리지 않게 높이 추정, 뷰포트 상한 내에서만 캡 */
     const panelInitialHeight = useMemo(() => {
-        if (typeof window === 'undefined') return isCompactUi ? 560 : 640;
+        if (typeof window === 'undefined') return isCompactUi ? 620 : 720;
         const vh = window.innerHeight;
-        const cap = Math.floor(vh * 0.92);
+        const cap = Math.floor(vh * 0.9);
         const safe = Math.max(0, vh - Math.floor(vh * 0.08));
         const useCap = Math.min(cap, safe);
 
+        const summaryGridRows = Math.ceil(summaryTileCount / 2);
         if (isCompactUi) {
             const chrome = 56 + 8;
-            const bodyPad = 36;
-            const title = 40;
-            const row = 52;
-            const list = Math.max(48, rewards.length * row + 8);
-            const totals = hasTotals ? 48 + totalsRowCount * 36 : 0;
-            const btn = 96;
-            const inner = title + list + totals + btn;
-            return Math.min(Math.max(280, chrome + bodyPad + inner), useCap);
+            const bodyPad = 28;
+            const hero = 72;
+            const row = 58;
+            const list = Math.min(220, Math.max(64, rewards.length * row + 12));
+            const totals = hasTotals ? 40 + summaryGridRows * 88 + claimedItemRowCount * 36 : 0;
+            const btn = 88;
+            const inner = hero + list + totals + btn;
+            return Math.min(Math.max(360, chrome + bodyPad + inner), useCap);
         }
         const chrome = 52 + 48;
-        const bodyPad = 40;
-        const title = 56;
-        const row = 60;
-        const list = Math.max(56, rewards.length * row + 12);
-        const totals = hasTotals ? 56 + totalsRowCount * 40 : 0;
-        const btn = 72;
-        const inner = title + list + totals + btn;
-        return Math.min(Math.max(340, chrome + bodyPad + inner), useCap);
-    }, [claimedItems.length, hasTotals, isCompactUi, rewards.length, totalsRowCount]);
+        const bodyPad = 36;
+        const hero = 96;
+        const row = 68;
+        const list = Math.min(280, Math.max(80, rewards.length * row + 16));
+        const totals = hasTotals ? 52 + summaryGridRows * 100 + claimedItemRowCount * 40 : 0;
+        const btn = 80;
+        const inner = hero + list + totals + btn;
+        return Math.min(Math.max(420, chrome + bodyPad + inner), useCap);
+    }, [claimedItemRowCount, hasTotals, isCompactUi, rewards.length, summaryTileCount]);
 
     return (
         <DraggableWindow
@@ -573,19 +640,19 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
             closeOnOutsideClick={true}
             onClose={onClose}
             windowId="claim-all-training-quest-rewards"
-            initialWidth={isCompactUi ? 360 : 500}
+            initialWidth={isCompactUi ? 392 : 560}
             initialHeight={panelInitialHeight}
             isTopmost={isTopmost}
             zIndex={10000}
             mobileViewportFit={isCompactUi}
-            mobileViewportMaxHeightVh={92}
-            mobileViewportMaxHeightCss="min(92dvh, calc(100dvh - max(16px, env(safe-area-inset-top, 0px)) - max(16px, env(safe-area-inset-bottom, 0px))))"
-            pcViewportMaxHeightCss="min(92dvh, calc(100dvh - 1.5rem))"
+            mobileViewportMaxHeightVh={90}
+            mobileViewportMaxHeightCss="min(90dvh, calc(100dvh - max(16px, env(safe-area-inset-top, 0px)) - max(16px, env(safe-area-inset-bottom, 0px))))"
+            pcViewportMaxHeightCss="min(90dvh, calc(100dvh - 1.5rem))"
             bodyNoScroll={isCompactUi}
             bodyPaddingClassName={
                 isCompactUi
-                    ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2.5 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2 sm:px-3 sm:pb-[max(0.65rem,env(safe-area-inset-bottom,0px))] sm:pt-2.5'
-                    : 'p-4'
+                    ? 'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-2 pb-[max(0.45rem,env(safe-area-inset-bottom,0px))] pt-1.5 sm:px-2.5 sm:pb-[max(0.55rem,env(safe-area-inset-bottom,0px))] sm:pt-2'
+                    : 'p-3 sm:p-4'
             }
         >
             {isCompactUi ? (
@@ -604,97 +671,63 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
                     />
                 </div>
             ) : (
-                <div className="mx-auto flex w-full max-w-[min(100%,26rem)] min-h-0 flex-col text-center text-on-panel">
-                    <h2 className="mb-3 shrink-0 text-lg font-bold leading-snug sm:text-xl">
-                        {previewMode ? t('singleplayer.claimAllPreviewTitle') : t('singleplayer.claimAllSuccess')}
-                    </h2>
+                <div className={`${CLAIM_MODAL_FRAME} mx-auto flex w-full min-h-0 flex-col text-center text-on-panel`}>
+                    <ClaimHeroHeader previewMode={previewMode} />
 
-                    <div className="mb-3 min-h-0 space-y-1.5 overflow-x-hidden overflow-y-visible rounded-lg bg-gray-900/50 p-3">
-                        {rewards.map((reward) => {
-                            const missionInfo = SINGLE_PLAYER_MISSIONS.find((m) => m.id === reward.missionId);
-                            const displayName = resolveMissionDisplayName(reward.missionId, reward.missionName);
-                            return (
-                                <div
-                                    key={reward.missionId}
-                                    className="flex items-center justify-between gap-2 rounded-lg bg-gray-800/50 p-2.5"
+                    <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
+                        <div className="mb-3 max-h-[min(40vh,18rem)] min-h-0 overflow-x-hidden overflow-y-auto rounded-xl border border-white/[0.04] bg-black/30 p-3">
+                            <ClaimFacilityRows rewards={rewards} />
+                        </div>
+
+                        {hasTotals && (
+                            <div className="mb-4">
+                                <ClaimAllRewardsSummary
+                                    totalGold={totalGold}
+                                    totalDiamonds={totalDiamonds}
+                                    totalEnhanceStoneCycles={totalEnhanceStoneCycles}
+                                    totalEquipmentBoxCycles={totalEquipmentBoxCycles}
+                                    claimedItems={!previewMode ? claimedItems : undefined}
+                                />
+                            </div>
+                        )}
+
+                        {previewMode ? (
+                            <div className="grid grid-cols-2 justify-center gap-2.5 pt-0.5">
+                                <Button
+                                    onClick={handleAd}
+                                    disabled={pending != null}
+                                    colorScheme="none"
+                                    bare
+                                    className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !w-full !max-w-none !whitespace-nowrap !px-3`}
+                                    cooldownMs={0}
                                 >
-                                    <div className="flex min-w-0 flex-1 items-center gap-2">
-                                        {missionInfo && (
-                                            <img
-                                                src={missionInfo.image}
-                                                alt={
-                                                    typeof reward.missionLevel === 'number' && reward.missionLevel >= 1
-                                                        ? `${displayName} Lv.${reward.missionLevel}`
-                                                        : displayName
-                                                }
-                                                className="h-9 w-9 flex-shrink-0 rounded-lg object-cover"
-                                                onError={(e) => {
-                                                    const target = e.target as HTMLImageElement;
-                                                    target.style.display = 'none';
-                                                }}
-                                            />
-                                        )}
-                                        <div className="min-w-0 flex-1">
-                                            <h3 className="truncate text-left text-xs font-bold text-white sm:text-sm">
-                                                {formatMissionLabel(displayName, reward.missionLevel)}
-                                            </h3>
-                                        </div>
-                                    </div>
-                                    <div className="flex shrink-0 items-center gap-1.5">
-                                        <ClaimRewardAmount reward={reward} />
-                                    </div>
-                                </div>
-                            );
-                        })}
+                                    {pending === 'ad' ? <AdDoubleButtonLabel claiming /> : <AdDoubleButtonLabel />}
+                                </Button>
+                                <Button
+                                    onClick={handleNormal}
+                                    disabled={pending != null}
+                                    colorScheme="none"
+                                    bare
+                                    className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !w-full !max-w-none !whitespace-nowrap !px-3`}
+                                    cooldownMs={0}
+                                >
+                                    {pending === 'normal' ? t('singleplayer.claiming') : t('singleplayer.claimAllNormal')}
+                                </Button>
+                            </div>
+                        ) : (
+                            <div className="flex justify-center pt-0.5">
+                                <Button
+                                    onClick={onClose}
+                                    colorScheme="none"
+                                    bare
+                                    className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !max-w-[12.5rem]`}
+                                    cooldownMs={0}
+                                >
+                                    {t('common:actions.ok')}
+                                </Button>
+                            </div>
+                        )}
                     </div>
-
-                    {(totalGold > 0 || totalDiamonds > 0 || (previewMode && (totalEnhanceStoneCycles > 0 || totalEquipmentBoxCycles > 0))) && (
-                        <div className="mb-3 flex justify-center">
-                            <ClaimAllTotalsBox
-                                totalGold={totalGold}
-                                totalDiamonds={totalDiamonds}
-                                totalEnhanceStoneCycles={previewMode ? totalEnhanceStoneCycles : 0}
-                                totalEquipmentBoxCycles={previewMode ? totalEquipmentBoxCycles : 0}
-                                variant="comfortable"
-                            />
-                        </div>
-                    )}
-                    {!previewMode && claimedItems.length > 0 && (
-                        <div className="mb-3">
-                            <ClaimedItemsSection items={claimedItems} />
-                        </div>
-                    )}
-
-                    {previewMode ? (
-                        <div className="grid grid-cols-2 justify-center gap-2 pt-1">
-                            <Button
-                                onClick={handleAd}
-                                disabled={pending != null}
-                                colorScheme="none"
-                                bare
-                                className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !w-full !max-w-none !whitespace-nowrap !px-3`}
-                                cooldownMs={0}
-                            >
-                                {pending === 'ad' ? <AdDoubleButtonLabel claiming /> : <AdDoubleButtonLabel />}
-                            </Button>
-                            <Button
-                                onClick={handleNormal}
-                                disabled={pending != null}
-                                colorScheme="none"
-                                bare
-                                className={`${PREMIUM_QUEST_BTN.claimAllConfirm} !w-full !max-w-none !whitespace-nowrap !px-3`}
-                                cooldownMs={0}
-                            >
-                                {pending === 'normal' ? t('singleplayer.claiming') : t('singleplayer.claimAllNormal')}
-                            </Button>
-                        </div>
-                    ) : (
-                        <div className="flex justify-center pt-1">
-                            <Button onClick={onClose} colorScheme="none" bare className={PREMIUM_QUEST_BTN.claimAllConfirm} cooldownMs={0}>
-                                {t('common:actions.ok')}
-                            </Button>
-                        </div>
-                    )}
                 </div>
             )}
         </DraggableWindow>

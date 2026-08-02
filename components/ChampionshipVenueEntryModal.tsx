@@ -3,7 +3,6 @@ import i18n from '../shared/i18n/config.js';
 const tourT = (key: string, opts?: Record<string, unknown>) => i18n.t(`tournament:championship.venue.${key}`, opts);
 
 import DraggableWindow from './DraggableWindow.js';
-import Button from './Button.js';
 import { PortalHoverBubble } from './PortalHoverBubble.js';
 import { TournamentType, UserWithStatus, TournamentState } from '../types.js';
 import { CoreStat, ItemGrade, SpecialStat } from '../types/enums.js';
@@ -329,7 +328,13 @@ const rewardThumbRing = (piece: RewardPiece) => {
 
 const TIP_TOUCH_HOLD_MS = 420;
 
-const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean; compact?: boolean }> = ({ piece, fluid = true, compact = false }) => {
+const RewardThumb: React.FC<{
+    piece: RewardPiece;
+    fluid?: boolean;
+    compact?: boolean;
+    /** 입장 모달 보상 전용 — 더 큰 고정 썸 */
+    showcase?: boolean;
+}> = ({ piece, fluid = true, compact = false, showcase = false }) => {
     const [pressTip, setPressTip] = useState(false);
     const anchorRef = useRef<HTMLDivElement>(null);
     const tipHideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -350,16 +355,20 @@ const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean; compact?: boo
 
     const isTouchLikePointer = (e: React.PointerEvent) =>
         e.pointerType === 'touch' || e.pointerType === 'pen';
-    const box = fluid
-        ? 'aspect-square w-full min-h-0 min-w-0'
-        : compact
-          ? 'h-7 w-7 min-h-[1.75rem] min-w-[1.75rem] shrink-0 sm:h-9 sm:w-9 sm:min-h-[2.25rem] sm:min-w-[2.25rem] md:h-10 md:w-10 md:min-h-10 md:min-w-10'
-          : 'h-9 w-9 min-h-[2.25rem] min-w-[2.25rem] shrink-0 sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10';
-    const qtyClass = fluid
-        ? 'px-0.5 py-px text-[clamp(7px,2.2vw,11px)]'
-        : 'px-0.5 py-px text-[8px] sm:text-[9px]';
-    const padImg = fluid ? 'p-[6%] sm:p-[8%]' : 'p-0.5 sm:p-1';
-    const mysteryMarkClass = fluid ? 'text-[clamp(0.65rem,3.5vw,1.125rem)]' : 'text-lg';
+    const box = showcase
+        ? 'h-14 w-14 min-h-14 min-w-14 shrink-0 sm:h-16 sm:w-16 sm:min-h-16 sm:min-w-16'
+        : fluid
+          ? 'aspect-square w-full min-h-0 min-w-0'
+          : compact
+            ? 'h-9 w-9 min-h-[2.25rem] min-w-[2.25rem] shrink-0 sm:h-10 sm:w-10 sm:min-h-10 sm:min-w-10'
+            : 'h-11 w-11 min-h-[2.75rem] min-w-[2.75rem] shrink-0 sm:h-12 sm:w-12 sm:min-h-12 sm:min-w-12';
+    const qtyClass = showcase
+        ? 'px-1 py-0.5 text-[10px] sm:text-[11px]'
+        : fluid
+          ? 'px-0.5 py-px text-[clamp(8px,2.2vw,11px)]'
+          : 'px-0.5 py-px text-[10px] sm:text-[11px]';
+    const padImg = showcase || fluid ? 'p-[8%]' : 'p-0.5 sm:p-1';
+    const mysteryMarkClass = showcase ? 'text-xl sm:text-2xl' : fluid ? 'text-[clamp(0.75rem,3.5vw,1.125rem)]' : 'text-lg';
     /** 월드 등급 상자·변경권: 동일 프레임 + 살짝 더 선명하게 */
     const worldMysteryImgTone = 'opacity-[0.62] brightness-[0.68] contrast-[0.98]';
     const tierBg =
@@ -386,9 +395,11 @@ const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean; compact?: boo
         <div
             ref={anchorRef}
             className={`relative ${
-                fluid
-                    ? 'mx-auto w-full min-w-0 max-sm:max-w-[3.35rem] max-w-[2.5rem] sm:max-w-[2.75rem] md:max-w-[2.9rem] lg:max-w-[3.1rem]'
-                    : 'shrink-0'
+                showcase
+                    ? 'shrink-0'
+                    : fluid
+                      ? 'mx-auto w-full min-w-0 max-w-[3.25rem] sm:max-w-[3.5rem] md:max-w-[3.75rem]'
+                      : 'shrink-0'
             } ${tipOnly ? 'touch-manipulation' : ''}`}
             onMouseEnter={
                 tipOnly
@@ -524,46 +535,6 @@ const RewardThumb: React.FC<{ piece: RewardPiece; fluid?: boolean; compact?: boo
     );
 };
 
-const RewardStripRow: React.FC<{ piece: RewardPiece; rankThumbCompact?: boolean }> = ({ piece, rankThumbCompact = false }) => {
-    const hasCaption =
-        piece.captionBesideThumb &&
-        piece.captionBesideThumb.length > 0 &&
-        !piece.captionTooltipOnly;
-    const hasBelow = Boolean(piece.captionBelowThumb);
-    const alignClass = hasCaption ? 'items-start' : 'items-center';
-    const rowJustify = hasCaption ? '' : 'justify-center';
-    const layoutClass = hasCaption
-        ? 'items-start gap-1'
-        : hasBelow
-          ? 'flex-col items-center justify-center gap-0'
-          : `gap-1 ${alignClass} ${rowJustify}`;
-    return (
-        <div className={`flex min-w-0 w-full shrink-0 ${layoutClass}`}>
-            <RewardThumb piece={piece} fluid={!hasCaption} compact={rankThumbCompact && !hasCaption} />
-            {hasCaption ? (
-                <div className="min-w-0 flex flex-1 flex-col justify-center gap-0.5 text-[8px] leading-snug text-zinc-300 max-sm:break-words sm:text-[9px] md:text-[10px]">
-                    {piece.captionBesideThumb!.map((line, i) => (
-                        <div key={i}>{line}</div>
-                    ))}
-                </div>
-            ) : !piece.quantityOnThumbOnly && !hasBelow ? (
-                <span
-                    className="min-w-0 flex-1 truncate whitespace-nowrap text-[9px] font-medium text-zinc-200 max-sm:text-[8px] sm:text-[11px] md:text-xs"
-                    title={`${piece.label} ${piece.quantity}`}
-                >
-                    {piece.label}
-                    <span className="ml-1 tabular-nums font-semibold text-amber-200/90">{piece.quantity}</span>
-                </span>
-            ) : null}
-            {hasBelow ? (
-                <span className="max-w-full text-center text-[8px] font-semibold leading-tight text-zinc-400 sm:text-[10px] md:text-[11px]">
-                    {piece.captionBelowThumb}
-                </span>
-            ) : null}
-        </div>
-    );
-};
-
 /** 기대값 대비: 더 낮음 → 열세, 10% 이상 높음 → 우세, 그 사이는 중립 */
 function compareToneVsExpected(my: number, opponentExpected: number): 'better' | 'worse' | 'neutral' {
     if (my < opponentExpected) return 'worse';
@@ -590,49 +561,89 @@ function diffArrowBadgeClass(diff: number, tone: 'better' | 'worse' | 'neutral')
     return tone === 'better' ? 'text-emerald-400' : 'text-zinc-400';
 }
 
-const MyStatCompareCell: React.FC<{ my: number; opponentExpected: number; borderBottom?: boolean }> = ({
-    my,
-    opponentExpected,
-    borderBottom = true,
-}) => {
+const MyStatCompareValue: React.FC<{ my: number; opponentExpected: number }> = ({ my, opponentExpected }) => {
     const tone = compareToneVsExpected(my, opponentExpected);
     const diff = my - opponentExpected;
-    const valueCls = `font-mono text-xs font-bold tabular-nums leading-none max-sm:text-[9px] sm:text-sm md:text-base ${myStatValueToneClass(tone)}`;
     return (
-        <div
-            className={`flex min-h-[2rem] flex-col items-center justify-center gap-0.5 border-r border-white/[0.07] px-0.5 py-1 max-sm:min-h-[2rem] sm:min-h-[2.5rem] sm:px-1 sm:py-1.5 ${borderBottom ? 'border-b border-white/[0.07]' : ''}`}
-        >
-            <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5 sm:gap-x-1.5">
-                <span className={valueCls}>{my.toLocaleString()}</span>
-                {diff !== 0 && (
-                    <span
-                        className={`whitespace-nowrap text-[9px] font-bold tabular-nums leading-none max-sm:text-[8px] sm:text-[11px] md:text-xs ${diffArrowBadgeClass(diff, tone)}`}
-                        title={diff > 0 ? `+${diff}` : `${diff}`}
-                    >
-                        {diff > 0 ? `↑${diff}` : `↓${Math.abs(diff)}`}
-                    </span>
-                )}
-            </div>
+        <div className="flex flex-wrap items-center justify-center gap-x-1 gap-y-0.5">
+            <span className={`font-mono text-sm font-bold tabular-nums leading-none sm:text-base ${myStatValueToneClass(tone)}`}>
+                {my.toLocaleString()}
+            </span>
+            {diff !== 0 && (
+                <span
+                    className={`whitespace-nowrap text-[11px] font-bold tabular-nums leading-none sm:text-xs ${diffArrowBadgeClass(diff, tone)}`}
+                    title={diff > 0 ? `+${diff}` : `${diff}`}
+                >
+                    {diff > 0 ? `↑${diff}` : `↓${Math.abs(diff)}`}
+                </span>
+            )}
         </div>
     );
 };
 
-const SectionTitle: React.FC<{ children: React.ReactNode; accent: 'cyan' | 'amber' }> = ({ children, accent }) => {
-    const line =
-        accent === 'cyan'
-            ? 'from-cyan-400/50 via-cyan-300/20 to-transparent'
-            : 'from-amber-400/50 via-amber-300/15 to-transparent';
-    const text = accent === 'cyan' ? 'text-cyan-100/95' : 'text-amber-100/95';
-    return (
-        <div className="mb-1 flex items-center gap-1.5 max-sm:mb-0.5 max-sm:gap-1 sm:mb-1.5 sm:gap-2">
-            <span
-                className={`whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.08em] max-sm:tracking-[0.06em] sm:text-xs md:text-sm ${text}`}
-            >
-                {children}
-            </span>
-            <span className={`h-px min-w-0 flex-1 bg-gradient-to-r ${line}`} aria-hidden />
-        </div>
-    );
+type VenueModalAccent = {
+    ring: string;
+    glow: string;
+    chip: string;
+    chipText: string;
+    stageActive: string;
+    stageNext: string;
+    panelBorder: string;
+    panelGlow: string;
+    bar: string;
+    label: string;
+};
+
+/** 챔피언십 입장 모달 — 컴팩트 골드 CTA (내용물 폭) */
+const VENUE_ENTER_BTN_CLASS =
+    'inline-flex shrink-0 items-center justify-center gap-2 rounded-lg border border-amber-300/55 bg-gradient-to-b from-amber-400 via-amber-600 to-amber-950 px-4 py-2 text-[13px] font-semibold tracking-wide text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.28),0_3px_0_0_rgb(120,53,15),0_8px_18px_-10px_rgba(245,158,11,0.55)] transition-[transform,filter,box-shadow] hover:brightness-110 active:translate-y-px active:shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_1px_0_0_rgb(120,53,15)] disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none disabled:active:translate-y-0';
+
+const VENUE_AD_BTN_CLASS =
+    'inline-flex shrink-0 items-center justify-center rounded-lg border border-emerald-300/45 bg-gradient-to-b from-emerald-500/90 via-emerald-700 to-emerald-950 px-4 py-2 text-[13px] font-semibold tracking-wide text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.22),0_3px_0_0_rgb(6,78,59),0_8px_18px_-10px_rgba(16,185,129,0.45)] transition-[transform,filter,box-shadow] hover:brightness-110 active:translate-y-px active:shadow-[inset_0_1px_0_rgba(255,255,255,0.14),0_1px_0_0_rgb(6,78,59)] disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none disabled:active:translate-y-0';
+
+const VENUE_CONTINUE_BTN_CLASS =
+    'inline-flex shrink-0 items-center justify-center rounded-lg border border-amber-300/50 bg-gradient-to-b from-amber-500/90 via-amber-700 to-amber-950 px-4 py-2 text-[13px] font-semibold tracking-wide text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.25),0_3px_0_0_rgb(120,53,15)] transition-[transform,filter] hover:brightness-110 active:translate-y-px';
+
+const VENUE_MODAL_ACCENT: Record<TournamentType, VenueModalAccent> = {
+    neighborhood: {
+        ring: 'ring-emerald-400/30',
+        glow: 'from-emerald-700/30 via-amber-900/10 to-transparent',
+        chip: 'border-emerald-300/45 bg-gradient-to-b from-emerald-800/85 via-emerald-950/90 to-black/90',
+        chipText: 'text-emerald-50',
+        stageActive:
+            'bg-emerald-500 text-white ring-2 ring-amber-300/70 ring-offset-1 ring-offset-[#0a0b10]',
+        stageNext: 'bg-emerald-900/80 text-emerald-100 ring-1 ring-emerald-400/40 hover:bg-emerald-800',
+        panelBorder: 'border-emerald-400/25',
+        panelGlow: 'shadow-[inset_0_1px_0_rgba(167,243,208,0.12),0_12px_32px_-20px_rgba(16,185,129,0.35)]',
+        bar: 'from-emerald-300/90 via-amber-300/50 to-transparent',
+        label: 'text-emerald-100/95',
+    },
+    national: {
+        ring: 'ring-sky-400/30',
+        glow: 'from-sky-700/30 via-amber-900/10 to-transparent',
+        chip: 'border-sky-300/45 bg-gradient-to-b from-sky-800/85 via-sky-950/90 to-black/90',
+        chipText: 'text-sky-50',
+        stageActive:
+            'bg-sky-500 text-white ring-2 ring-amber-300/70 ring-offset-1 ring-offset-[#0a0b10]',
+        stageNext: 'bg-sky-900/80 text-sky-100 ring-1 ring-sky-400/40 hover:bg-sky-800',
+        panelBorder: 'border-sky-400/25',
+        panelGlow: 'shadow-[inset_0_1px_0_rgba(186,230,253,0.12),0_12px_32px_-20px_rgba(56,189,248,0.35)]',
+        bar: 'from-sky-300/90 via-amber-300/50 to-transparent',
+        label: 'text-sky-100/95',
+    },
+    world: {
+        ring: 'ring-violet-400/30',
+        glow: 'from-violet-700/30 via-amber-900/10 to-transparent',
+        chip: 'border-violet-300/45 bg-gradient-to-b from-violet-800/85 via-violet-950/90 to-black/90',
+        chipText: 'text-violet-50',
+        stageActive:
+            'bg-violet-500 text-white ring-2 ring-amber-300/70 ring-offset-1 ring-offset-[#0a0b10]',
+        stageNext: 'bg-violet-900/80 text-violet-100 ring-1 ring-violet-400/40 hover:bg-violet-800',
+        panelBorder: 'border-violet-400/25',
+        panelGlow: 'shadow-[inset_0_1px_0_rgba(221,214,254,0.12),0_12px_32px_-20px_rgba(139,92,246,0.35)]',
+        bar: 'from-violet-300/90 via-amber-300/50 to-transparent',
+        label: 'text-violet-100/95',
+    },
 };
 
 export interface ChampionshipVenueEntryModalProps {
@@ -663,10 +674,11 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     const definition = TOURNAMENT_DEFINITIONS[type];
     const venueLobbyBg = CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE[type];
     const isHandheld = useIsHandheldDevice(1025);
+    /** 이미지+VS/보상 구성에 맞춘 폭 (과도한 빈 여백 방지) */
     const entryModalWidth = useMemo(() => {
-        if (typeof window === 'undefined') return 760;
-        if (!isHandheld) return 760;
-        return Math.min(610, Math.max(340, window.innerWidth - 12));
+        if (typeof window === 'undefined') return 560;
+        if (!isHandheld) return Math.min(560, Math.max(520, window.innerWidth - 48));
+        return Math.min(392, Math.max(328, window.innerWidth - 12));
     }, [isHandheld]);
     const dungeonProgress = useMemo(
         () =>
@@ -681,15 +693,45 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
         [currentUser?.dungeonProgress, type]
     );
 
-    const maxUnlockedStage = useMemo(
-        () => (dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1),
-        [dungeonProgress.unlockedStages]
-    );
+    const unlockedStages = dungeonProgress.unlockedStages;
 
-    const [selectedStage, setSelectedStage] = useState(maxUnlockedStage);
+    /** 가장 최근 경기 단계 → 없으면 최고 언락 단계 */
+    const defaultStage = useMemo(() => {
+        const unlocked = unlockedStages.length > 0 ? unlockedStages : [1];
+        const unlockedSet = new Set(unlocked);
+        const pick = (stage: number | null | undefined) =>
+            stage != null && stage >= 1 && stage <= 10 && unlockedSet.has(stage) ? stage : null;
+
+        const fromInProgress = pick(inProgress?.currentStageAttempt);
+        if (fromInProgress != null) return fromInProgress;
+
+        let bestStage = 0;
+        let bestTime = -1;
+        const results = dungeonProgress.stageResults as Record<
+            number | string,
+            { clearTime?: number; cleared?: boolean }
+        >;
+        for (const [key, entry] of Object.entries(results || {})) {
+            const stage = Number(key);
+            if (!unlockedSet.has(stage) || !entry) continue;
+            const t = Number(entry.clearTime) || 0;
+            if (t > bestTime) {
+                bestTime = t;
+                bestStage = stage;
+            }
+        }
+        if (bestStage > 0) return bestStage;
+
+        const fromCleared = pick(dungeonProgress.currentStage);
+        if (fromCleared != null) return fromCleared;
+
+        return Math.max(...unlocked);
+    }, [unlockedStages, dungeonProgress.stageResults, dungeonProgress.currentStage, inProgress?.currentStageAttempt]);
+
+    const [selectedStage, setSelectedStage] = useState(defaultStage);
     useEffect(() => {
-        if (isOpen) setSelectedStage(maxUnlockedStage);
-    }, [isOpen, maxUnlockedStage]);
+        if (isOpen) setSelectedStage(defaultStage);
+    }, [isOpen, defaultStage]);
 
     const now = Date.now();
     let rewardClaimedKey: keyof UserWithStatus;
@@ -724,6 +766,20 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
         () => buildDungeonRankRewardGroupsForEntryModal(type, selectedStage),
         [type, selectedStage, t],
     );
+
+    /** 단계별 수령 가능 보상 — 이미지(고유)만 */
+    const rewardPreviewPieces = useMemo(() => {
+        const all = [...basePieces, ...rankRewardGroups.flatMap(g => g.pieces)];
+        const seen = new Set<string>();
+        const out: RewardPiece[] = [];
+        for (const p of all) {
+            const key = p.imageUrl || p.key;
+            if (!key || seen.has(key)) continue;
+            seen.add(key);
+            out.push(p);
+        }
+        return out;
+    }, [basePieces, rankRewardGroups]);
 
     const botStatRange = useMemo(() => getDungeonBotStatRangeForStage(selectedStage), [selectedStage]);
     const botAvgStat = useMemo(
@@ -771,6 +827,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     );
     const canEnterFresh = !showContinueFlow && isUnlocked && dailyEntryState.remaining > 0;
     const showAdEntryButton = !showContinueFlow && dailyEntryState.canWatchAd;
+    const isStatShortage = myBadukAbilityTotal < botBadukAbilityAvg;
 
     const handleClaimAdEntry = () => {
         if (adClaimPending) return;
@@ -793,291 +850,232 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
 
     if (!isOpen) return null;
 
+    const accent = VENUE_MODAL_ACCENT[type];
+    const formatLabelKey =
+        type === 'neighborhood'
+            ? 'championship.venue.formatNeighborhood'
+            : type === 'national'
+              ? 'championship.venue.formatNational'
+              : 'championship.venue.formatWorld';
+
     return (
         <DraggableWindow
             title={definition.name}
-            windowId={`championship-venue-entry-${type}`}
+            windowId={`championship-venue-entry-v6-${type}`}
             onClose={onClose}
             initialWidth={entryModalWidth}
-            initialHeight={720}
+            shrinkHeightToContent
+            bodyShrinkToContent
+            hideFooter
             modal
             isTopmost={isTopmost}
             mobileViewportFit
             mobileViewportMaxHeightCss="92dvh"
-            mobileViewportMaxHeightVh={94}
+            mobileViewportMaxHeightVh={92}
             bodyPaddingClassName="!p-0"
+            bodyNoScroll
         >
-            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden bg-[#07080c] text-zinc-100">
-                <div
-                    className="pointer-events-none absolute inset-0 opacity-[0.07]"
-                    style={{
-                        backgroundImage: `url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E")`,
-                    }}
-                    aria-hidden
-                />
-                <div className="pointer-events-none absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-amber-900/25 via-violet-900/10 to-transparent" aria-hidden />
-                <div className="pointer-events-none absolute -right-24 -top-24 h-48 w-48 rounded-full bg-purple-600/15 blur-3xl" aria-hidden />
-                <div className="pointer-events-none absolute -bottom-16 -left-16 h-40 w-40 rounded-full bg-amber-600/10 blur-3xl" aria-hidden />
+            <div className="relative flex flex-col overflow-hidden bg-[#0a0b10] text-zinc-100">
+                <div className="pointer-events-none absolute inset-0 opacity-[0.28]" aria-hidden>
+                    <img src={venueLobbyBg} alt="" className="h-full w-full scale-110 object-cover blur-2xl brightness-[0.3]" />
+                </div>
+                <div className={`pointer-events-none absolute inset-x-0 top-0 h-24 bg-gradient-to-b ${accent.glow}`} aria-hidden />
 
-                <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-0.5 p-1 sm:gap-1 sm:p-2 md:gap-1.5 md:p-3">
-                    <div className="relative flex h-[2.05rem] shrink-0 overflow-hidden rounded-lg ring-1 ring-amber-500/25 sm:h-[2.72rem] sm:rounded-xl md:h-[3.85rem]">
-                        <img src={venueLobbyBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
-                        <div className="absolute inset-0 bg-gradient-to-r from-black/92 via-black/55 to-black/25" />
-                        <div className="relative z-[1] flex flex-1 flex-col justify-center px-2 py-1 sm:px-3.5 sm:py-2">
-                            <span className="text-[8px] font-semibold uppercase tracking-[0.14em] text-amber-200/80 sm:text-[10px] sm:tracking-[0.2em] md:text-xs">
-                                Championship
-                            </span>
-                            <span className="line-clamp-1 text-sm font-bold leading-tight text-white drop-shadow-md sm:text-lg md:text-xl">
+                <div className="relative z-[1] flex flex-col gap-3 p-3 sm:gap-3.5 sm:p-3.5">
+                    {/* 모바일: 세로 스택 / PC: 이미지+정보 나란히 */}
+                    <div className="flex flex-col items-stretch gap-2.5 sm:flex-row sm:items-stretch sm:justify-center sm:gap-3">
+                        <div
+                            className={`relative h-36 w-full shrink-0 overflow-hidden rounded-xl border border-amber-400/30 sm:h-auto sm:w-[12.75rem] sm:min-h-[17.5rem] ${accent.ring} ring-1 shadow-[0_12px_28px_-16px_rgba(0,0,0,0.9)]`}
+                        >
+                            <img src={venueLobbyBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center" />
+                            <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/25 to-black/35" />
+                            <span
+                                className={`absolute left-1/2 top-0 z-[2] max-w-[92%] -translate-x-1/2 truncate rounded-b-md border border-t-0 px-2 py-0.5 text-[10px] font-black tracking-wide sm:rounded-b-lg sm:px-2.5 sm:text-xs ${accent.chip} ${accent.chipText}`}
+                            >
                                 {definition.name}
                             </span>
+                            <div className="absolute inset-x-0 bottom-0 z-[2] flex justify-center px-2 pb-2.5 sm:pb-3">
+                                <span
+                                    className={`inline-flex max-w-[92%] items-center justify-center truncate rounded-full border px-2.5 py-1 text-[11px] font-black tracking-wide shadow-[0_8px_20px_-8px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.18)] backdrop-blur-sm sm:px-3 sm:py-1.5 sm:text-xs ${accent.chip} ${accent.chipText}`}
+                                >
+                                    {t(formatLabelKey)}
+                                </span>
+                            </div>
                         </div>
-                        <div className="relative z-[1] flex items-center gap-1 pr-1.5 sm:gap-1.5 sm:pr-3 md:pr-4">
-                            <div className="rounded-md bg-black/55 px-1.5 py-0.5 ring-1 ring-amber-400/30 backdrop-blur-sm sm:rounded-lg sm:px-2.5 sm:py-1">
-                                <span className="block text-center text-[8px] font-semibold uppercase tracking-wide text-amber-200/85 sm:text-[10px]">
-                                    {t('championship.venue.stageLabel')}
-                                </span>
-                                <span className="block text-center text-sm font-black tabular-nums leading-none text-white sm:text-xl md:text-2xl">
-                                    {selectedStage}
-                                </span>
+
+                        <div className="flex w-full min-w-0 flex-col gap-2.5 sm:w-[18.5rem] sm:shrink-0">
+                            <div className={`flex flex-col rounded-xl border bg-black/50 p-2.5 sm:p-3 ${accent.panelBorder}`}>
+                                <div className="mb-2 flex items-center justify-between gap-2">
+                                    <span className={`min-w-0 truncate text-xs font-bold tracking-wide sm:text-sm ${accent.label}`}>
+                                        {t('championship.venue.vsOpponent')}
+                                    </span>
+                                    <label className="flex shrink-0 items-center">
+                                        <span className="sr-only">{t('championship.venue.stageSelect')}</span>
+                                        <select
+                                            value={selectedStage}
+                                            onChange={e => setSelectedStage(Number(e.target.value))}
+                                            className="max-w-[9rem] cursor-pointer appearance-none rounded-md border border-amber-300/35 bg-[#12141c] py-1 pl-2 pr-7 text-xs font-bold tabular-nums text-amber-50 outline-none ring-0 transition-colors hover:border-amber-300/55 focus:border-amber-300/70 sm:text-sm"
+                                            style={{
+                                                backgroundImage:
+                                                    "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23fcd34d' d='M3 4.5L6 8l3-3.5'/%3E%3C/svg%3E\")",
+                                                backgroundRepeat: 'no-repeat',
+                                                backgroundPosition: 'right 0.4rem center',
+                                            }}
+                                        >
+                                            {unlockedStages.map(stage => {
+                                                const cleared = isStageCleared(
+                                                    dungeonProgress.stageResults,
+                                                    stage,
+                                                    dungeonProgress.currentStage
+                                                );
+                                                return (
+                                                    <option key={stage} value={stage}>
+                                                        {t('championship.venue.stageUnit', { stage })}
+                                                        {cleared ? ' ✓' : ''}
+                                                    </option>
+                                                );
+                                            })}
+                                        </select>
+                                    </label>
+                                </div>
+
+                                <div className="overflow-hidden rounded-lg border border-white/10 bg-black/40">
+                                    <div className="grid grid-cols-[4rem_minmax(0,1fr)_minmax(0,1fr)] text-center text-xs sm:grid-cols-[4.5rem_minmax(0,1fr)_minmax(0,1fr)] sm:text-sm">
+                                        <div className="flex items-center justify-center border-b border-r border-white/10 bg-white/[0.03] px-1 py-2 font-semibold text-zinc-400">
+                                            {t('championship.venue.itemColumn')}
+                                        </div>
+                                        <div className="flex items-center justify-center border-b border-r border-white/10 bg-white/[0.03] px-1 py-2 font-semibold leading-tight text-zinc-300">
+                                            {t('championship.venue.avgStat')}
+                                        </div>
+                                        <div className="flex items-center justify-center border-b border-white/10 bg-white/[0.03] px-1 py-2 font-semibold leading-tight text-zinc-300">
+                                            {t('championship.venue.badukAbility')}
+                                        </div>
+
+                                        <div className="flex items-center justify-center border-b border-r border-white/10 bg-white/[0.03] px-1 py-2.5 font-semibold text-cyan-300">
+                                            {t('championship.venue.meColumn')}
+                                        </div>
+                                        <div className="flex items-center justify-center border-b border-r border-white/10 px-1 py-2.5">
+                                            <MyStatCompareValue my={myAvgStat} opponentExpected={botAvgStat} />
+                                        </div>
+                                        <div className="flex items-center justify-center border-b border-white/10 px-1 py-2.5">
+                                            <MyStatCompareValue
+                                                my={myBadukAbilityTotal}
+                                                opponentExpected={botBadukAbilityAvg}
+                                            />
+                                        </div>
+
+                                        <div className="flex items-center justify-center border-r border-white/10 bg-white/[0.03] px-1 py-2.5 font-semibold text-violet-300">
+                                            {t('championship.venue.opponentColumn')}
+                                        </div>
+                                        <div className="flex flex-col items-center justify-center border-r border-white/10 px-1 py-2.5">
+                                            <span className="font-mono text-sm font-bold tabular-nums text-violet-100 sm:text-base">
+                                                {botAvgStat.toLocaleString()}
+                                            </span>
+                                            <span className="font-mono text-[11px] tabular-nums text-zinc-400 sm:text-xs">
+                                                {botStatRange.minStat}~{botStatRange.maxStat}
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center justify-center px-1 py-2.5">
+                                            <span className="font-mono text-sm font-bold tabular-nums text-violet-100 sm:text-base">
+                                                {botBadukAbilityAvg.toLocaleString()}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className={`rounded-xl border bg-black/45 px-2.5 py-2.5 sm:px-3 sm:py-3 ${accent.panelBorder}`}>
+                                <div className="mb-2 flex items-center gap-2">
+                                    <span className="text-xs font-bold text-amber-100/90 sm:text-sm">
+                                        {t('championship.venue.defaultReward')}
+                                    </span>
+                                    <span className="h-px flex-1 bg-amber-300/20" aria-hidden />
+                                </div>
+                                <div className="flex flex-wrap items-center justify-center gap-2.5 sm:gap-3">
+                                    {rewardPreviewPieces.length === 0 ? (
+                                        <span className="text-sm text-zinc-500">—</span>
+                                    ) : (
+                                        rewardPreviewPieces.map(p => (
+                                            <RewardThumb
+                                                key={p.key}
+                                                piece={{ ...p, hideThumbQuantityBadge: true, quantity: '' }}
+                                                fluid={false}
+                                                showcase
+                                            />
+                                        ))
+                                    )}
+                                </div>
                             </div>
                         </div>
                     </div>
 
                     {showContinueFlow && (
-                        <div className="shrink-0 rounded-lg border border-amber-400/35 bg-gradient-to-r from-amber-950/50 via-yellow-950/25 to-amber-950/40 p-1.5 ring-1 ring-inset ring-amber-500/15 sm:rounded-xl sm:p-2.5 md:p-3">
-                            <p className="mb-1.5 text-center text-[11px] leading-snug text-amber-50/90 sm:mb-2 sm:text-sm md:text-base">
+                        <div className="rounded-xl border border-amber-400/40 bg-[#1a1408] p-2.5">
+                            <p className="mb-2 text-center text-xs leading-snug text-amber-50/95 sm:text-sm">
                                 {hasUnclaimedCompleteResult
                                     ? t('championship.venue.inProgressToday')
                                     : t('championship.venue.inProgress')}
                             </p>
-                            <Button
-                                onClick={() => {
-                                    onContinue();
-                                    onClose();
-                                }}
-                                colorScheme="none"
-                                className="w-full border border-amber-400/40 bg-gradient-to-r from-amber-600 via-amber-500 to-yellow-600 py-2 text-xs font-bold text-amber-950 shadow-lg shadow-amber-900/30 hover:from-amber-500 hover:to-yellow-500 sm:py-2.5 sm:text-base md:py-3 md:text-lg"
-                            >
-                                {continueLabel}
-                            </Button>
+                            <div className="flex justify-center">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        onContinue();
+                                        onClose();
+                                    }}
+                                    className={VENUE_CONTINUE_BTN_CLASS}
+                                >
+                                    {continueLabel}
+                                </button>
+                            </div>
                         </div>
                     )}
 
-                    <div className="shrink-0">
-                        <SectionTitle accent="cyan">{t('championship.venue.stageSelect')}</SectionTitle>
-                        <div className="grid grid-cols-5 gap-1 sm:gap-1.5 md:gap-2">
-                            {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map(stage => {
-                                const unlocked = dungeonProgress.unlockedStages.includes(stage);
-                                const maxUnlocked = dungeonProgress.unlockedStages.length > 0 ? Math.max(...dungeonProgress.unlockedStages) : 1;
-                                const cleared = isStageCleared(dungeonProgress.stageResults, stage, dungeonProgress.currentStage, maxUnlocked);
-                                const isNext = stage === dungeonProgress.currentStage + 1;
-                                const active = selectedStage === stage;
-                                return (
-                                    <button
-                                        key={stage}
-                                        type="button"
-                                        disabled={!unlocked}
-                                        onClick={() => unlocked && setSelectedStage(stage)}
-                                        className={`relative rounded-md py-1 text-center text-[11px] font-bold tabular-nums transition-all max-sm:text-[10px] sm:rounded-lg sm:py-2 sm:text-sm md:py-2.5 md:text-base ${
-                                            !unlocked
-                                                ? 'cursor-not-allowed bg-zinc-950/80 text-zinc-600 ring-1 ring-zinc-800'
-                                                : active
-                                                  ? 'bg-gradient-to-b from-violet-600 to-indigo-800 text-white shadow-[0_0_16px_-4px_rgba(139,92,246,0.55)] ring-2 ring-amber-300/70 ring-offset-1 ring-offset-[#07080c]'
-                                                  : isNext
-                                                    ? 'bg-gradient-to-b from-violet-800/90 to-zinc-900 text-violet-100 ring-1 ring-violet-400/35 hover:from-violet-700'
-                                                    : cleared
-                                                      ? 'bg-gradient-to-b from-emerald-950/80 to-zinc-900 text-emerald-200/90 ring-1 ring-emerald-500/25 hover:from-emerald-900/70'
-                                                      : 'bg-gradient-to-b from-zinc-800 to-zinc-950 text-zinc-200 ring-1 ring-white/10 hover:from-zinc-700'
-                                        }`}
-                                    >
-                                        {stage}
-                                        {cleared && (
-                                            <span className="absolute right-0.5 top-0.5 text-[8px] leading-none text-emerald-300 sm:right-1 sm:top-1 sm:text-[10px] md:text-xs" aria-hidden>
-                                                ✓
-                                            </span>
-                                        )}
-                                    </button>
-                                );
-                            })}
-                        </div>
-                    </div>
-
-                    <div className="shrink-0 rounded-lg border border-violet-500/25 bg-black/35 p-1 ring-1 ring-inset ring-violet-500/10 sm:rounded-xl sm:p-1.5 md:p-2">
-                        <SectionTitle accent="cyan">{t('championship.venue.vsOpponent')}</SectionTitle>
-                        <div className="mt-0.5 overflow-hidden rounded-lg border border-white/[0.06] bg-black/30 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                            <div className="grid grid-cols-[minmax(3.2rem,1fr)_minmax(0,1fr)_minmax(0,1fr)] items-stretch gap-0 text-center sm:grid-cols-[minmax(4.75rem,1fr)_minmax(0,1fr)_minmax(0,1fr)]">
-                                <div className="flex min-h-[2rem] items-center justify-center border-b border-r border-white/[0.07] bg-black/35 px-0.5 py-1 text-[9px] font-bold tracking-wide text-zinc-400 sm:min-h-[2.5rem] sm:py-1.5 sm:text-xs md:min-h-0 md:py-2 md:text-sm">
-                                    {t('championship.venue.itemColumn')}
-                                </div>
-                                <div className="flex min-h-[2rem] items-center justify-center border-b border-r border-white/[0.07] bg-black/35 px-0.5 py-1 text-[9px] font-bold tracking-wide text-cyan-200 sm:min-h-[2.5rem] sm:py-1.5 sm:text-xs md:min-h-0 md:py-2 md:text-sm">
-                                    {t('championship.venue.meColumn')}
-                                </div>
-                                <div className="flex min-h-[2rem] items-center justify-center border-b border-white/[0.07] bg-black/35 px-0.5 py-1 text-[9px] font-bold tracking-wide text-violet-200 sm:min-h-[2.5rem] sm:py-1.5 sm:text-xs md:min-h-0 md:py-2 md:text-sm">
-                                    {t('championship.venue.opponentColumn')}
-                                </div>
-
-                                <div className="flex min-h-[2.25rem] items-center justify-center border-b border-r border-white/[0.07] px-0.5 py-1 text-center text-[9px] font-semibold leading-tight text-zinc-300 sm:min-h-[2.5rem] sm:px-1 sm:py-2 sm:text-xs sm:leading-snug md:min-h-0 md:px-2 md:text-sm">
-                                    {t('championship.venue.avgStat')}
-                                </div>
-                                <MyStatCompareCell my={myAvgStat} opponentExpected={botAvgStat} borderBottom />
-                                <div className="flex min-h-[2.25rem] flex-col items-center justify-center border-b border-white/[0.07] px-0.5 py-1 sm:min-h-[2.5rem] sm:px-1 sm:py-1.5 md:min-h-0 md:py-2">
-                                    <div className="flex flex-wrap items-center justify-center gap-x-0.5 sm:gap-x-1">
-                                        <span className="font-mono text-xs font-bold tabular-nums text-violet-100 max-sm:text-[9px] sm:text-sm md:text-base">
-                                            {botAvgStat.toLocaleString()}
-                                        </span>
-                                        <span className="font-mono text-[8px] font-medium tabular-nums text-zinc-400 max-sm:text-[7px] sm:text-[10px] md:text-[11px]">
-                                            ({botStatRange.minStat}~{botStatRange.maxStat})
-                                        </span>
-                                    </div>
-                                </div>
-
-                                <div className="flex min-h-[2.25rem] items-center justify-center border-r border-white/[0.07] px-0.5 py-1 text-center text-[9px] font-semibold leading-tight text-zinc-300 sm:min-h-[2.5rem] sm:px-1 sm:py-2 sm:text-xs sm:leading-snug md:min-h-0 md:px-2 md:text-sm">
-                                    {t('championship.venue.badukAbility')}
-                                </div>
-                                <MyStatCompareCell my={myBadukAbilityTotal} opponentExpected={botBadukAbilityAvg} borderBottom={false} />
-                                <div className="flex min-h-[2.25rem] flex-col items-center justify-center px-0.5 py-1 sm:min-h-[2.5rem] sm:px-1 sm:py-1.5 md:min-h-0 md:py-2">
-                                    <span className="font-mono text-xs font-bold tabular-nums text-violet-100 max-sm:text-[9px] sm:text-sm md:text-base">
-                                        {botBadukAbilityAvg.toLocaleString()}
-                                    </span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <div className="flex min-h-[min(7rem,24dvh)] min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-zinc-600/35 bg-zinc-950/55 ring-1 ring-inset ring-white/[0.06] sm:rounded-xl">
-                        <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain p-1 [scrollbar-width:thin] [scrollbar-color:rgba(52,211,153,0.35)_transparent] sm:p-1.5 md:p-2">
-                            <div className="flex w-full min-w-0 flex-nowrap items-stretch gap-0">
-                                <div
-                                    className={`flex min-w-0 flex-col items-stretch gap-0 pr-px ${
-                                        type === 'world' && isHandheld
-                                            ? 'max-sm:min-w-[5.85rem] max-sm:flex-[1.42] flex-1 basis-0'
-                                            : 'flex-1 basis-0'
-                                    }`}
-                                >
-                                    <div className="flex min-h-6 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center sm:min-h-8">
-                                        <span className="whitespace-nowrap text-[8px] font-bold leading-none text-emerald-400 sm:text-xs sm:leading-tight md:text-sm">
-                                            {t('championship.venue.defaultRewardFallback')}
-                                        </span>
-                                    </div>
-                                    <div
-                                        className={`min-w-0 w-full pt-1 ${
-                                            type === 'world' && basePieces.length > 1
-                                                ? 'grid grid-cols-2 items-end justify-items-center gap-x-2'
-                                                : 'flex flex-col items-stretch gap-1'
-                                        }`}
-                                    >
-                                        {basePieces.length === 0 ? (
-                                            <span className="text-[10px] text-zinc-500 sm:text-sm">—</span>
-                                        ) : type === 'world' && basePieces.length > 1 ? (
-                                            basePieces.map(p => (
-                                                <div key={p.key} className="flex min-w-0 w-full justify-center">
-                                                    <RewardStripRow piece={p} />
-                                                </div>
-                                            ))
-                                        ) : (
-                                            basePieces.map(p => <RewardStripRow key={p.key} piece={p} />)
-                                        )}
-                                    </div>
-                                </div>
-                                {rankRewardGroups.length === 0 ? (
-                                    <div className="flex min-w-0 flex-1 basis-0 flex-col items-center justify-center border-l border-white/[0.08] pl-px sm:pl-0.5">
-                                        <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">{t('championship.venue.none')}</span>
-                                    </div>
-                                ) : (
-                                    rankRewardGroups.map(({ ranks, headRank, rankLabel, pieces }) => {
-                                        const noReward = pieces.length === 0;
-                                        const rankCompact = type === 'world' && isHandheld;
-                                        return (
-                                            <div
-                                                key={ranks.join('-')}
-                                                className={`flex min-w-0 flex-col items-stretch gap-0 border-l border-white/[0.08] pl-px sm:pl-0.5 ${
-                                                    rankCompact ? 'max-sm:flex-[0.86] flex-1 basis-0' : 'flex-1 basis-0'
-                                                }`}
-                                            >
-                                                <div className="flex min-h-6 w-full shrink-0 items-center justify-center border-b border-white/[0.07] px-0.5 pb-0.5 text-center sm:min-h-8">
-                                                    <span
-                                                        className={`max-w-full text-[9px] font-bold leading-tight sm:text-xs md:text-sm ${
-                                                            noReward ? 'truncate' : 'whitespace-nowrap'
-                                                        } ${
-                                                            headRank === 1
-                                                                ? 'text-amber-300'
-                                                                : headRank === 2
-                                                                  ? 'text-slate-200'
-                                                                  : headRank === 3
-                                                                    ? 'text-orange-300/95'
-                                                                    : 'text-zinc-300'
-                                                        }`}
-                                                        title={rankLabel}
-                                                    >
-                                                        {rankLabel}
-                                                    </span>
-                                                </div>
-                                                <div className="flex w-full min-w-0 flex-col items-stretch gap-1 pt-1">
-                                                    {noReward ? (
-                                                        <span className="text-center text-[9px] leading-tight text-zinc-500 sm:text-xs md:text-sm">{t('championship.venue.none')}</span>
-                                                    ) : (
-                                                        pieces.map(p => <RewardStripRow key={p.key} piece={p} rankThumbCompact={rankCompact} />)
-                                                    )}
-                                                </div>
-                                            </div>
-                                        );
-                                    })
-                                )}
-                            </div>
-                        </div>
-                    </div>
-
                     {!showContinueFlow && (
-                        <div className="relative z-10 flex shrink-0 flex-col items-center gap-1 border-t border-white/10 bg-[#07080c]/95 pt-1.5 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))] backdrop-blur-[2px] sm:gap-1.5 sm:pt-2.5 md:gap-2 md:pt-3">
+                        <div className="flex flex-col items-center gap-1.5 pb-[max(0.15rem,env(safe-area-inset-bottom,0px))] pt-0.5">
+                            {isStatShortage && (canEnterFresh || showAdEntryButton) && (
+                                <p className="max-w-[18rem] text-center text-xs font-medium leading-snug text-red-300/95 sm:text-sm">
+                                    {t('championship.venue.statShortageWarning')}
+                                </p>
+                            )}
                             {showAdEntryButton ? (
                                 <button
                                     type="button"
                                     onClick={handleClaimAdEntry}
                                     disabled={adClaimPending}
-                                    className="group relative mx-auto w-auto min-w-[10.5rem] max-w-[min(17rem,92vw)] overflow-hidden rounded-full border border-emerald-300/45 bg-gradient-to-b from-emerald-500 via-teal-600 to-emerald-950 px-5 py-2 text-xs font-bold text-white shadow-[0_10px_36px_-10px_rgba(16,185,129,0.55),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-emerald-200/50 disabled:pointer-events-none disabled:opacity-50 sm:min-w-[13rem] sm:px-9 sm:py-3 sm:text-base md:min-w-[14.5rem] md:px-11 md:py-3.5 md:text-lg"
+                                    className={VENUE_AD_BTN_CLASS}
                                 >
-                                    <span className="relative tracking-wide">
-                                        {adClaimPending
-                                            ? t('championship.venue.adEntryClaiming')
-                                            : isAdFree
-                                              ? t('championship.venue.extraEntry')
-                                              : t('championship.venue.watchAdForEntry')}
-                                    </span>
+                                    {adClaimPending
+                                        ? t('championship.venue.adEntryClaiming')
+                                        : isAdFree
+                                          ? t('championship.venue.extraEntry')
+                                          : t('championship.venue.watchAdForEntry')}
                                 </button>
                             ) : (
-                            <button
-                                type="button"
-                                onClick={() => {
-                                    if (canEnterFresh) {
-                                        onEnter(selectedStage);
-                                        onClose();
-                                    }
-                                }}
-                                disabled={!canEnterFresh}
-                                className="group relative mx-auto w-auto min-w-[11.5rem] max-w-[min(19rem,92vw)] overflow-hidden rounded-full border border-violet-300/45 bg-gradient-to-b from-violet-500 via-indigo-600 to-violet-950 px-4 py-2 text-xs font-bold text-white shadow-[0_10px_36px_-10px_rgba(109,40,217,0.65),inset_0_1px_0_rgba(255,255,255,0.22)] transition-all hover:border-violet-200/50 hover:shadow-[0_14px_40px_-8px_rgba(139,92,246,0.55)] disabled:pointer-events-none disabled:opacity-35 disabled:shadow-none sm:min-w-[14rem] sm:px-8 sm:py-3 sm:text-base md:min-w-[15.5rem] md:px-10 md:py-3.5 md:text-lg"
-                            >
-                                <span
-                                    className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/12 to-transparent opacity-0 transition-opacity group-hover:opacity-100"
-                                    aria-hidden
-                                />
-                                <span className="relative flex items-center justify-center gap-1.5 whitespace-nowrap sm:gap-2">
-                                    <span className="shrink-0 tracking-wide">{t('championship.venue.enter')}</span>
-                                    <span className="shrink-0 rounded-full bg-black/25 px-1.5 py-px text-[10px] font-extrabold tabular-nums leading-none text-violet-100 ring-1 ring-white/15 sm:px-2 sm:py-0.5 sm:text-sm md:text-base">
-                                        {t('championship.venue.stageUnit', { stage: selectedStage })}
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        if (canEnterFresh) {
+                                            onEnter(selectedStage);
+                                            onClose();
+                                        }
+                                    }}
+                                    disabled={!canEnterFresh}
+                                    className={VENUE_ENTER_BTN_CLASS}
+                                >
+                                    <span>{t('championship.venue.enter')}</span>
+                                    <span className="rounded-md bg-black/30 px-1.5 py-0.5 text-[11px] font-bold tabular-nums leading-none text-amber-50/95 ring-1 ring-white/15">
+                                        {dailyEntryState.remaining}/{dailyEntryState.max}
                                     </span>
-                                    <span className="shrink-0 tabular-nums text-violet-100/95">
-                                        ({dailyEntryState.remaining}/{dailyEntryState.max})
-                                    </span>
-                                </span>
-                            </button>
+                                </button>
                             )}
                             {!isUnlocked && (
-                                <p className="text-center text-[10px] leading-tight text-red-300/90 sm:text-sm md:text-base">
+                                <p className="text-center text-xs leading-tight text-red-300/90">
                                     {t('championship.venue.stageLocked')}
                                 </p>
                             )}
                             {!showAdEntryButton && isUnlocked && dailyEntryState.remaining <= 0 && (
-                                <p className="text-center text-[10px] leading-tight text-amber-200/80 sm:text-sm">
+                                <p className="text-center text-xs leading-tight text-amber-200/80">
                                     {t('championship.venue.dailyEntryExhausted')}
                                 </p>
                             )}

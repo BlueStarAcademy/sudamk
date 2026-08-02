@@ -24,7 +24,7 @@ export const SINGLE_PLAYER_LOBBY_IMG = "/images/bg/adventure-lobby.png";
 export const TOWER_CHALLENGE_LOBBY_IMG = "/images/tower/towergo.webp";
 /** 네이티브 모바일 도전의 탑 대기실 히어로(가로형 WebP, `public/images/tower/towergo.webp`) */
 export const TOWER_MOBILE_HERO_WEBP = "/images/tower/towergo.webp";
-/** PC 스테이지 패널 스크롤 배경 — 입장카드(towergo) 톤의 세로형 탑(하단=1층·상단=100층 꼭대기) */
+/** PC 스테이지 패널 등반 배경 — 세로형 탑(하단=1층 입구·상단=100층 꼭대기), 스크롤 연동 translate */
 export const TOWER_STAGE_SCROLL_BG_WEBP = "/images/tower/tower-stage-scroll.webp";
 /** 생산소 홈 입장 — 성소형 생산 게이트 (`bg/factorybg`) */
 export const FACTORY_GO_LOBBY_IMG = "/images/bg/factorybg.webp";

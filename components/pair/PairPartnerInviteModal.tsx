@@ -4,7 +4,10 @@ import type { UserWithStatus } from '../../types.js';
 import type { ServerAction } from '../../types.js';
 import PlayerList, { type PairInviteListTab } from '../waiting-room/PlayerList.js';
 import { UserStatus } from '../../types.js';
-import { userInUnifiedArenaLobbyUserList } from '../../shared/utils/unifiedArenaLobbyUserList.js';
+import { LOBBY_CHANNEL_MIN } from '../../shared/constants/lobbyChannel.js';
+import { resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
+import { useAppContext } from '../../hooks/useAppContext.js';
+import { getApiUrl } from '../../utils/apiConfig.js';
 
 type Props = {
     onClose: () => void;
@@ -19,6 +22,27 @@ type Props = {
     onViewUser: (userId: string) => void;
     inviteTargetSlot?: { team: 'teamA' | 'teamB'; index: 0 | 1 } | null;
 };
+
+type UserBrief = {
+    nickname: string;
+    avatarId?: string | null;
+    borderId?: string | null;
+    isAdmin?: boolean;
+    blockArenaPartnerInvites?: boolean;
+};
+
+function isLiveOnlineUser(u: UserWithStatus): boolean {
+    return u.status !== UserStatus.Offline && u.status !== UserStatus.Spectating;
+}
+
+function sortInviteUsers(a: UserWithStatus, b: UserWithStatus, selfId: string): number {
+    if (a.id === selfId) return -1;
+    if (b.id === selfId) return 1;
+    const aLive = isLiveOnlineUser(a) ? 0 : 1;
+    const bLive = isLiveOnlineUser(b) ? 0 : 1;
+    if (aLive !== bLive) return aLive - bLive;
+    return String(a.nickname || a.id).localeCompare(String(b.nickname || b.id), 'ko');
+}
 
 const PairPartnerInviteModal: React.FC<Props> = ({
     onClose,
@@ -35,49 +59,206 @@ const PairPartnerInviteModal: React.FC<Props> = ({
 }) => {
     const { t } = useTranslation(['pair', 'common', 'lobby']);
     const { t: tCommon } = useTranslation('common');
+    const { allUsers, guilds, handlers } = useAppContext();
     const [userTab, setUserTab] = useState<PairInviteListTab>('users');
     const [tick, setTick] = useState(0);
+    const [briefById, setBriefById] = useState<Record<string, UserBrief>>({});
 
     useEffect(() => {
-        const id = window.setInterval(() => setTick((t) => t + 1), 500);
+        const id = window.setInterval(() => setTick((n) => n + 1), 500);
         return () => window.clearInterval(id);
     }, []);
 
     void tick;
 
-    const friendSet = useMemo(() => new Set(friendIds), [friendIds]);
+    const myChannel = resolveLobbyChannel(currentUser) ?? LOBBY_CHANNEL_MIN;
+    const guild = guildId ? guilds[guildId] : undefined;
+    const guildMembers = guild?.members ?? [];
 
-    const pairLobbyUsers = useMemo(
-        () => onlineUsers.filter((u) => userInUnifiedArenaLobbyUserList(u)),
-        [onlineUsers],
-    );
+    useEffect(() => {
+        if (!guildId) return;
+        if ((guild?.members?.length ?? 0) > 0) return;
+        void handlers.handleAction({ type: 'GET_GUILD_INFO' });
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- guildId·멤버 수만
+    }, [guildId, guild?.members?.length]);
+
+    const onlineById = useMemo(() => {
+        const map = new Map<string, UserWithStatus>();
+        for (const u of onlineUsers) {
+            if (u?.id) map.set(u.id, u);
+        }
+        return map;
+    }, [onlineUsers]);
+
+    const allUsersById = useMemo(() => {
+        const map = new Map<string, { id: string; nickname?: string; avatarId?: string | null; borderId?: string | null; isAdmin?: boolean; guildId?: string | null; blockArenaPartnerInvites?: boolean }>();
+        for (const u of allUsers || []) {
+            if (u?.id) map.set(u.id, u);
+        }
+        return map;
+    }, [allUsers]);
+
+    const idsNeedingBrief = useMemo(() => {
+        const ids = new Set<string>();
+        for (const id of friendIds) {
+            if (!id || id === currentUserId) continue;
+            if (onlineById.has(id)) continue;
+            if (briefById[id]) continue;
+            if (allUsersById.get(id)?.nickname) continue;
+            ids.add(id);
+        }
+        for (const m of guildMembers) {
+            const id = m.userId;
+            if (!id || id === currentUserId) continue;
+            if (onlineById.has(id)) continue;
+            if (briefById[id]) continue;
+            if (m.nickname) continue;
+            if (allUsersById.get(id)?.nickname) continue;
+            ids.add(id);
+        }
+        return [...ids];
+    }, [friendIds, guildMembers, currentUserId, onlineById, briefById, allUsersById]);
+
+    useEffect(() => {
+        if (idsNeedingBrief.length === 0) return;
+        const controller = new AbortController();
+        (async () => {
+            try {
+                const res = await fetch(
+                    getApiUrl(`/api/users/brief?ids=${encodeURIComponent(idsNeedingBrief.join(','))}`),
+                    { signal: controller.signal },
+                );
+                if (!res.ok) return;
+                const data = await res.json();
+                if (!Array.isArray(data)) return;
+                setBriefById((prev) => {
+                    const next = { ...prev };
+                    for (const b of data as Array<UserBrief & { id?: string }>) {
+                        if (!b?.id) continue;
+                        next[b.id] = {
+                            nickname: b.nickname || b.id,
+                            avatarId: b.avatarId,
+                            borderId: b.borderId,
+                            isAdmin: b.isAdmin,
+                            blockArenaPartnerInvites: b.blockArenaPartnerInvites === true,
+                        };
+                    }
+                    return next;
+                });
+            } catch (e) {
+                if ((e as Error)?.name !== 'AbortError') {
+                    console.warn('[PairPartnerInviteModal] brief fetch failed:', e);
+                }
+            }
+        })();
+        return () => controller.abort();
+    }, [idsNeedingBrief]);
+
+    const resolveDisplayUser = (userId: string, fallbackNickname?: string, forceGuildId?: string | null): UserWithStatus => {
+        const live = onlineById.get(userId);
+        /** onlineUsers에 있으면 접속 중 — 실제 상태 유지(관전 포함). 없을 때만 오프라인 스텁 */
+        if (live) {
+            return forceGuildId != null ? { ...live, guildId: forceGuildId ?? live.guildId } : live;
+        }
+        const cached = allUsersById.get(userId);
+        const brief = briefById[userId];
+        const nickname =
+            fallbackNickname ||
+            brief?.nickname ||
+            cached?.nickname ||
+            (userId === currentUserId ? currentUser.nickname : undefined) ||
+            userId;
+        return {
+            ...(cached as object),
+            id: userId,
+            nickname,
+            avatarId: brief?.avatarId ?? cached?.avatarId,
+            borderId: brief?.borderId ?? cached?.borderId,
+            isAdmin: brief?.isAdmin ?? cached?.isAdmin ?? false,
+            guildId: forceGuildId ?? cached?.guildId ?? null,
+            blockArenaPartnerInvites:
+                brief?.blockArenaPartnerInvites === true || cached?.blockArenaPartnerInvites === true,
+            status: UserStatus.Offline,
+            friendIds: [],
+        } as UserWithStatus;
+    };
+
+    const statusMap = useMemo(() => {
+        const map: Record<string, Pick<UserWithStatus, 'status' | 'lobbyChannel'> | undefined> = {};
+        for (const u of onlineUsers) {
+            if (u?.id) map[u.id] = u;
+        }
+        map[currentUserId] = currentUser;
+        return map;
+    }, [onlineUsers, currentUser, currentUserId]);
+
+    /** 같은 접속 채널(Ch.N)에 있는 라이브 유저 */
+    const liveSameChannelUsers = useMemo(() => {
+        const others = onlineUsers.filter(
+            (u) =>
+                u &&
+                u.id !== currentUserId &&
+                isLiveOnlineUser(u) &&
+                resolveLobbyChannel(u) === myChannel,
+        );
+        const meLive = isLiveOnlineUser(currentUser)
+            ? { ...currentUser, lobbyChannel: myChannel }
+            : ({ ...currentUser, status: UserStatus.Online, lobbyChannel: myChannel } as UserWithStatus);
+        return [meLive, ...others];
+    }, [onlineUsers, currentUser, currentUserId, myChannel]);
+
+    const friendUsersIncludingOffline = useMemo(() => {
+        const me = resolveDisplayUser(currentUserId);
+        const rows = friendIds
+            .filter((id) => id && id !== currentUserId)
+            .map((id) => resolveDisplayUser(id));
+        return [me, ...rows].sort((a, b) => sortInviteUsers(a, b, currentUserId));
+        // resolveDisplayUser closes over caches; deps listed explicitly
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+    }, [friendIds, currentUserId, onlineById, allUsersById, briefById, currentUser]);
+
+    const guildUsersIncludingOffline = useMemo(() => {
+        const me = resolveDisplayUser(currentUserId, currentUser.nickname, guildId);
+        if (!guildId) return [me];
+        const memberIds = new Set<string>();
+        const rows: UserWithStatus[] = [];
+        for (const m of guildMembers) {
+            if (!m.userId || m.userId === currentUserId) continue;
+            if (memberIds.has(m.userId)) continue;
+            memberIds.add(m.userId);
+            rows.push(resolveDisplayUser(m.userId, m.nickname, guildId));
+        }
+        return [me, ...rows].sort((a, b) => sortInviteUsers(a, b, currentUserId));
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
+    }, [guildId, guildMembers, currentUserId, onlineById, allUsersById, briefById, currentUser]);
 
     const displayedUsers = useMemo(() => {
-        if (userTab === 'friends') {
-            return onlineUsers.filter((u) => friendSet.has(u.id));
-        }
-        if (userTab === 'guild') {
-            return onlineUsers.filter((u) => Boolean(guildId && u.guildId === guildId));
-        }
-        return pairLobbyUsers;
-    }, [userTab, onlineUsers, pairLobbyUsers, friendSet, guildId]);
+        if (userTab === 'friends') return friendUsersIncludingOffline;
+        if (userTab === 'guild') return guildUsersIncludingOffline;
+        return liveSameChannelUsers;
+    }, [userTab, friendUsersIncludingOffline, guildUsersIncludingOffline, liveSameChannelUsers]);
 
     const mergedCooldownUntil = useMemo(
         () => ({ ...cooldownUntilByInviteeId }),
-        [cooldownUntilByInviteeId, tick]
+        [cooldownUntilByInviteeId, tick],
     );
 
-    const getInviteDisabledReason = (u: UserWithStatus, tab: PairInviteListTab): string | null => {
+    const getInviteDisabledReason = (u: UserWithStatus, _tab: PairInviteListTab): string | null => {
         if (currentUser.status === UserStatus.Resting) return t('invite.restingSelf');
         if (u.id === currentUserId) return t('invite.cannotInviteSelf');
+        if (u.status === UserStatus.Offline) return t('invite.targetOffline');
         if (u.blockArenaPartnerInvites === true) return t('invite.invitesBlocked');
         if (u.status === UserStatus.Resting) return t('invite.targetResting');
-        if (u.status === UserStatus.InGame || u.status === UserStatus.Negotiating) {
+        if (
+            u.status === UserStatus.InGame ||
+            u.status === UserStatus.Negotiating ||
+            u.status === UserStatus.Spectating
+        ) {
             return t('invite.targetBusy');
         }
         const until = mergedCooldownUntil[u.id] ?? 0;
         if (Date.now() < until) return t('invite.cooldown');
-        if (tab === 'users' && !userInUnifiedArenaLobbyUserList(u)) {
+        if (resolveLobbyChannel(u) !== myChannel) {
             return t('invite.lobbyOnly');
         }
         return null;
@@ -110,6 +291,11 @@ const PairPartnerInviteModal: React.FC<Props> = ({
         }
     };
 
+    const currentUserForList = useMemo(
+        () => ({ ...currentUser, lobbyChannel: myChannel }),
+        [currentUser, myChannel],
+    );
+
     return (
         <div
             className="fixed inset-0 z-[85] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
@@ -141,7 +327,7 @@ const PairPartnerInviteModal: React.FC<Props> = ({
                         onClick={() => setUserTab('users')}
                         className={`rounded-lg px-2 py-1.5 text-xs font-bold ${userTab === 'users' ? 'bg-cyan-500 text-cyan-950' : 'text-cyan-100 hover:bg-cyan-950/45'}`}
                     >
-                        {t('lobby:userScope.all')}
+                        {`Ch.${myChannel}`}
                     </button>
                     <button
                         type="button"
@@ -163,9 +349,10 @@ const PairPartnerInviteModal: React.FC<Props> = ({
                         users={displayedUsers}
                         mode="pair"
                         onAction={onAction}
-                        currentUser={currentUser}
+                        currentUser={currentUserForList}
                         onViewUser={onViewUser}
                         lobbyType="strategic"
+                        lobbyChannelStatusMap={statusMap}
                         showArenaPartnerInviteBlockToggle
                         pairInvite={{
                             listTab: userTab,

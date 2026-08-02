@@ -341,6 +341,8 @@ export interface UserStatusInfo {
     arenaChannel?: ArenaChannel;
     /** PVP vs AI 로비 구분 — 대기실 유저 목록·방 필터에 사용 */
     lobbyIntent?: ArenaLobbyIntent;
+    /** 홈 접속 채널 Ch.1–Ch.100 */
+    lobbyChannel?: number;
     gameId?: string;
     spectatingGameId?: string;
     gameCategory?: GameCategory;
@@ -354,6 +356,7 @@ export type ServerAction =
     | { type: 'LOGOUT', payload?: never }
     // Social
     | { type: 'SEND_CHAT_MESSAGE', payload: { channel: string; text?: string; emoji?: string, location?: string } }
+    | { type: 'CHANGE_LOBBY_CHANNEL', payload: { channel: number } }
     | { type: 'SET_USER_STATUS', payload: { status: any } }
     | { type: 'UPDATE_REJECTION_SETTINGS', payload: { rejectedGameModes: GameMode[] } }
     | { type: 'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT', payload: { sortMode: string } }
