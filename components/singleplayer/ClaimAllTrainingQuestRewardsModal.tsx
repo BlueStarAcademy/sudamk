@@ -6,7 +6,6 @@ import { SINGLE_PLAYER_MISSIONS } from '../../constants/singlePlayerConstants.js
 import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
-import { useLocalizedInventoryItemName } from '../../shared/i18n/localizedCatalog.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import { getItemTemplateByName } from '../../utils/itemTemplateLookup.js';
 import { useAdContext } from '../ads/AdProvider.js';
@@ -23,6 +22,8 @@ interface ClaimAllTrainingQuestRewardsModalProps {
         rewardType: ClaimRewardType;
         rewardAmount: number;
         claimCycles?: number;
+        /** 수령 완료 후 해당 시설에서 실제 지급된 아이템 */
+        grantedItems?: InventoryItem[];
     }>;
     totalGold: number;
     totalDiamonds: number;
@@ -168,28 +169,14 @@ function ClaimHeroHeader({ previewMode, compact }: { previewMode: boolean; compa
     );
 }
 
-function ClaimSectionTitle({ children, compact }: { children: React.ReactNode; compact?: boolean }) {
-    return (
-        <h3
-            className={
-                compact
-                    ? 'mb-2 flex items-center justify-center gap-2 text-[11px] font-bold text-amber-100/90'
-                    : 'mb-3 flex items-center justify-center gap-2 text-sm font-bold text-amber-100/90'
-            }
-        >
-            <span className="h-px w-5 bg-gradient-to-r from-transparent to-amber-500/50 sm:w-6" aria-hidden />
-            {children}
-            <span className="h-px w-5 bg-gradient-to-l from-transparent to-amber-500/50 sm:w-6" aria-hidden />
-        </h3>
-    );
-}
-
 function ClaimFacilityRows({
     rewards,
     compact,
+    claimed,
 }: {
     rewards: ClaimAllTrainingQuestRewardsModalProps['rewards'];
     compact?: boolean;
+    claimed?: boolean;
 }) {
     return (
         <div className={compact ? 'flex flex-col gap-1.5' : 'flex flex-col gap-2'}>
@@ -239,8 +226,8 @@ function ClaimFacilityRows({
                                 </h3>
                             </div>
                         </div>
-                        <div className="flex shrink-0 items-center gap-1.5">
-                            <ClaimRewardAmount reward={reward} />
+                        <div className="flex shrink-0 flex-wrap items-center justify-end gap-1.5">
+                            <ClaimRewardAmount reward={reward} claimed={claimed} />
                         </div>
                     </div>
                 );
@@ -253,13 +240,12 @@ type ClaimRewardSummaryTile = {
     key: string;
     icon: string;
     iconAlt: string;
-    nameLabel: string;
     amountLabel: string;
     amountClass: string;
     tileClass: string;
 };
 
-/** 골드·다이아·강화석·장비상자를 2x2 획득 보상 그리드로 표시 */
+/** 골드·다이아·강화석·장비상자: 아이콘+수량만 한 줄로 표시 */
 function ClaimAllRewardsSummary({
     totalGold,
     totalDiamonds,
@@ -276,7 +262,6 @@ function ClaimAllRewardsSummary({
     compact?: boolean;
 }) {
     const { t } = useTranslation(['lobby', 'common']);
-    const localizedItemName = useLocalizedInventoryItemName();
     const aggregatedItems = useMemo(
         () => (claimedItems?.length ? aggregateClaimedItems(claimedItems) : []),
         [claimedItems],
@@ -289,7 +274,6 @@ function ClaimAllRewardsSummary({
                 key: 'gold',
                 icon: '/images/icon/Gold.webp',
                 iconAlt: t('common:resources.gold'),
-                nameLabel: t('common:resources.gold'),
                 amountLabel: `+${formatGoldAmountKoG(totalGold)}`,
                 amountClass: 'text-amber-200',
                 tileClass:
@@ -301,31 +285,30 @@ function ClaimAllRewardsSummary({
                 key: 'diamonds',
                 icon: '/images/icon/Zem.webp',
                 iconAlt: t('common:resources.diamonds'),
-                nameLabel: t('common:resources.diamonds'),
                 amountLabel: `+${formatWalletDiamonds(totalDiamonds)}`,
                 amountClass: 'text-cyan-200',
                 tileClass:
                     'border-cyan-400/30 bg-gradient-to-b from-cyan-950/50 via-cyan-950/20 to-black/50 shadow-[inset_0_1px_0_rgba(34,211,238,0.12)]',
             });
         }
-        if (totalEnhanceStoneCycles > 0) {
+        // 수령 완료 후에는 실제 지급 아이템(aggregatedItems)만 보여 랜덤 사이클 타일과 중복되지 않게 한다.
+        const showCyclePlaceholders = aggregatedItems.length === 0;
+        if (showCyclePlaceholders && totalEnhanceStoneCycles > 0) {
             next.push({
                 key: 'enhance_stone',
                 icon: '/images/materials/materials1.webp',
                 iconAlt: t('singleplayer.enhanceStone'),
-                nameLabel: t('singleplayer.enhanceStone'),
                 amountLabel: t('singleplayer.claimAllItemQty', { quantity: totalEnhanceStoneCycles }),
                 amountClass: 'text-violet-100',
                 tileClass:
                     'border-violet-400/30 bg-gradient-to-b from-violet-950/50 via-violet-950/20 to-black/50 shadow-[inset_0_1px_0_rgba(167,139,250,0.12)]',
             });
         }
-        if (totalEquipmentBoxCycles > 0) {
+        if (showCyclePlaceholders && totalEquipmentBoxCycles > 0) {
             next.push({
                 key: 'equipment_box',
                 icon: '/images/Box/EquipmentBox1.webp',
                 iconAlt: t('singleplayer.equipmentBox'),
-                nameLabel: t('singleplayer.equipmentBox'),
                 amountLabel: t('singleplayer.claimAllItemQty', { quantity: totalEquipmentBoxCycles }),
                 amountClass: 'text-rose-100',
                 tileClass:
@@ -333,85 +316,66 @@ function ClaimAllRewardsSummary({
             });
         }
         return next;
-    }, [t, totalDiamonds, totalEnhanceStoneCycles, totalEquipmentBoxCycles, totalGold]);
+    }, [aggregatedItems.length, t, totalDiamonds, totalEnhanceStoneCycles, totalEquipmentBoxCycles, totalGold]);
 
     if (!tiles.length && !aggregatedItems.length) return null;
 
     const shell = compact
-        ? 'w-full rounded-xl border border-amber-500/25 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-black/90 px-2.5 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-        : 'w-full rounded-2xl border border-amber-500/25 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-black/90 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
-    const tilePad = compact ? 'px-2 py-2.5' : 'px-3 py-3.5';
-    const iconClass = compact ? 'h-8 w-8' : 'h-10 w-10';
-    const nameText = compact ? 'text-[10px] sm:text-[11px]' : 'text-[11px] sm:text-xs';
-    const amountText = compact ? 'text-sm sm:text-[15px]' : 'text-base sm:text-lg';
-    const detailPad = compact ? 'px-2.5 py-1.5' : 'px-3 py-2.5';
-    const detailIcon = compact ? 'h-7 w-7' : 'h-8 w-8';
-    const detailText = compact ? 'text-xs sm:text-[13px]' : 'text-sm';
+        ? 'w-full rounded-xl border border-amber-500/25 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-black/90 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
+        : 'w-full rounded-2xl border border-amber-500/25 bg-gradient-to-b from-zinc-900/90 via-zinc-950/80 to-black/90 px-3 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]';
+    const tilePad = compact ? 'px-2 py-1.5' : 'px-2.5 py-2';
+    const iconClass = compact ? 'h-7 w-7' : 'h-8 w-8';
+    const amountText = compact ? 'text-xs sm:text-[13px]' : 'text-sm sm:text-[15px]';
 
     return (
         <div className={shell}>
-            <ClaimSectionTitle compact={compact}>{t('singleplayer.claimAllObtainedItems')}</ClaimSectionTitle>
-            {tiles.length > 0 && (
-                <div className={`grid grid-cols-2 ${compact ? 'gap-2' : 'gap-2.5'}`}>
-                    {tiles.map((tile) => (
-                        <div
-                            key={tile.key}
-                            className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-xl border ${tile.tileClass} ${tilePad}`}
+            <div className={`flex w-full min-w-0 flex-row flex-nowrap items-stretch justify-center overflow-x-auto overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] ${compact ? 'gap-1.5' : 'gap-2'}`}>
+                {tiles.map((tile) => (
+                    <div
+                        key={tile.key}
+                        className={`flex shrink-0 flex-row items-center gap-1.5 rounded-xl border ${tile.tileClass} ${tilePad}`}
+                        title={`${tile.iconAlt} ${tile.amountLabel}`}
+                    >
+                        <img
+                            src={tile.icon}
+                            alt={tile.iconAlt}
+                            className={`${iconClass} shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]`}
+                        />
+                        <span
+                            className={`shrink-0 font-extrabold tabular-nums tracking-tight ${amountText} ${tile.amountClass}`}
                         >
-                            <img
-                                src={tile.icon}
-                                alt={tile.iconAlt}
-                                className={`${iconClass} shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,0.45)]`}
-                            />
-                            <span className={`w-full truncate text-center font-semibold text-zinc-300/90 ${nameText}`} title={tile.nameLabel}>
-                                {tile.nameLabel}
-                            </span>
-                            <span
-                                className={`w-full truncate text-center font-extrabold tabular-nums tracking-tight ${amountText} ${tile.amountClass}`}
-                                title={tile.amountLabel}
-                            >
-                                {tile.amountLabel}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            )}
-            {aggregatedItems.length > 0 && (
-                <div
-                    className={`flex flex-col gap-1.5 ${
-                        tiles.length > 0
-                            ? compact
-                                ? 'mt-2.5 border-t border-amber-500/15 pt-2.5'
-                                : 'mt-3.5 border-t border-amber-500/15 pt-3.5'
-                            : ''
-                    }`}
-                >
-                    {aggregatedItems.map((row) => (
-                        <div
-                            key={row.key}
-                            className={`grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-2.5 rounded-lg border border-white/[0.05] bg-black/40 ${detailPad}`}
-                        >
-                            <img
-                                src={row.image}
-                                alt=""
-                                className={`${detailIcon} shrink-0 object-contain`}
-                                aria-hidden
-                            />
-                            <span className={`min-w-0 truncate text-left font-semibold text-zinc-100 ${detailText}`}>
-                                {localizedItemName(row.name)}
-                            </span>
-                            <span className={`shrink-0 font-bold tabular-nums text-amber-200 ${detailText}`}>
-                                {t('singleplayer.claimAllItemQty', { quantity: row.quantity })}
-                            </span>
-                        </div>
-                    ))}
-                </div>
-            )}
+                            {tile.amountLabel}
+                        </span>
+                    </div>
+                ))}
+                {aggregatedItems.map((row) => (
+                    <div
+                        key={row.key}
+                        className={`flex shrink-0 flex-row items-center gap-1.5 rounded-xl border border-white/[0.08] bg-black/40 ${tilePad}`}
+                        title={`${row.name} ${t('singleplayer.claimAllItemQty', { quantity: row.quantity })}`}
+                    >
+                        <img
+                            src={row.image}
+                            alt={row.name}
+                            className={`${iconClass} shrink-0 object-contain`}
+                        />
+                        <span className={`shrink-0 font-extrabold tabular-nums text-amber-200 ${amountText}`}>
+                            {t('singleplayer.claimAllItemQty', { quantity: row.quantity })}
+                        </span>
+                    </div>
+                ))}
+            </div>
         </div>
     );
 }
 
-function ClaimRewardAmount({ reward }: { reward: ClaimAllTrainingQuestRewardsModalProps['rewards'][number] }) {
+function ClaimRewardAmount({
+    reward,
+    claimed,
+}: {
+    reward: ClaimAllTrainingQuestRewardsModalProps['rewards'][number];
+    claimed?: boolean;
+}) {
     const { t } = useTranslation(['lobby', 'common']);
     if (reward.rewardType === 'gold') {
         return (
@@ -433,6 +397,28 @@ function ClaimRewardAmount({ reward }: { reward: ClaimAllTrainingQuestRewardsMod
             </>
         );
     }
+
+    // 수령 완료: 실제 나온 강화석·상자 아이콘+수량만 표시 (랜덤 플레이스홀더 금지)
+    const granted = Array.isArray(reward.grantedItems) ? aggregateClaimedItems(reward.grantedItems) : [];
+    if (claimed && granted.length > 0) {
+        return (
+            <>
+                {granted.map((row) => (
+                    <span
+                        key={row.key}
+                        className="inline-flex items-center gap-1"
+                        title={`${row.name} ${t('singleplayer.claimAllItemQty', { quantity: row.quantity })}`}
+                    >
+                        <img src={row.image} alt={row.name} className="h-5 w-5 object-contain" />
+                        <span className="text-xs font-extrabold tabular-nums text-violet-100 sm:text-sm">
+                            {t('singleplayer.claimAllItemQty', { quantity: row.quantity })}
+                        </span>
+                    </span>
+                ))}
+            </>
+        );
+    }
+
     const isEnhanceStone = reward.rewardType === 'enhance_stone';
     const icon = isEnhanceStone ? '/images/materials/materials1.webp' : '/images/Box/EquipmentBox1.webp';
     const typeName = isEnhanceStone ? t('singleplayer.enhanceStone') : t('singleplayer.equipmentBox');
@@ -501,7 +487,7 @@ function MobileClaimBody({
 
             <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-2.5 pb-2.5 pt-2 sm:px-3 sm:pb-3">
                 <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-y-contain rounded-xl border border-white/[0.04] bg-black/30 px-2 py-2 [-webkit-overflow-scrolling:touch] [scrollbar-gutter:auto]">
-                    <ClaimFacilityRows rewards={rewards} compact />
+                    <ClaimFacilityRows rewards={rewards} compact claimed={!previewMode} />
                 </div>
 
                 <div className="mt-2.5 flex shrink-0 flex-col items-center gap-2.5">
@@ -610,14 +596,13 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
         const safe = Math.max(0, vh - Math.floor(vh * 0.08));
         const useCap = Math.min(cap, safe);
 
-        const summaryGridRows = Math.ceil(summaryTileCount / 2);
         if (isCompactUi) {
             const chrome = 56 + 8;
             const bodyPad = 28;
             const hero = 72;
             const row = 58;
             const list = Math.min(220, Math.max(64, rewards.length * row + 12));
-            const totals = hasTotals ? 40 + summaryGridRows * 88 + claimedItemRowCount * 36 : 0;
+            const totals = hasTotals ? 56 : 0;
             const btn = 88;
             const inner = hero + list + totals + btn;
             return Math.min(Math.max(360, chrome + bodyPad + inner), useCap);
@@ -627,11 +612,11 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
         const hero = 96;
         const row = 68;
         const list = Math.min(280, Math.max(80, rewards.length * row + 16));
-        const totals = hasTotals ? 52 + summaryGridRows * 100 + claimedItemRowCount * 40 : 0;
+        const totals = hasTotals ? 64 : 0;
         const btn = 80;
         const inner = hero + list + totals + btn;
         return Math.min(Math.max(420, chrome + bodyPad + inner), useCap);
-    }, [claimedItemRowCount, hasTotals, isCompactUi, rewards.length, summaryTileCount]);
+    }, [hasTotals, isCompactUi, rewards.length]);
 
     return (
         <DraggableWindow
@@ -676,7 +661,7 @@ const ClaimAllTrainingQuestRewardsModal: React.FC<ClaimAllTrainingQuestRewardsMo
 
                     <div className="flex min-h-0 flex-1 flex-col px-4 pb-4 pt-3 sm:px-5 sm:pb-5">
                         <div className="mb-3 max-h-[min(40vh,18rem)] min-h-0 overflow-x-hidden overflow-y-auto rounded-xl border border-white/[0.04] bg-black/30 p-3">
-                            <ClaimFacilityRows rewards={rewards} />
+                            <ClaimFacilityRows rewards={rewards} claimed={!previewMode} />
                         </div>
 
                         {hasTotals && (

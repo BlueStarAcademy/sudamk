@@ -57,6 +57,10 @@ import {
 } from '../shared/utils/guildWarSchedule.js';
 import { aggregateGuildWarBoardTotals } from '../shared/utils/guildWarBoardOwner.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import {
+    assignPairSeasonHistoryTier,
+    buildPairSeasonRankingRows,
+} from '../shared/utils/pairSeasonHistory.js';
 import { applyCompletedResearchAll } from './guildService.js';
 
 let lastSeasonProcessed: SeasonInfo | null = null;
@@ -290,6 +294,11 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
         versusRankingsByVenue[venue] = eligibleUsers.map((user, index) => ({ user, rank: index + 1 }));
     }
 
+    /** 페어 시즌 랭킹(≥5판) — `rankingCache.calculatePairSeasonRanking` 과 동일 기준 */
+    const pairSeasonRankByUserId = new Map(
+        buildPairSeasonRankingRows(allUsers).map((row) => [row.userId, row] as const),
+    );
+
     for (const user of allUsers) {
         let bestTierInfo: { tierName: string; mode?: types.GameMode } | null = null;
         let bestTierRank = Infinity;
@@ -351,6 +360,13 @@ const processRewardsForSeason = async (season: SeasonInfo) => {
                 bestTierInfo = { tierName: currentTierName };
             }
         }
+
+        if (!user.seasonHistory) user.seasonHistory = {};
+        if (!user.seasonHistory[season.name]) user.seasonHistory[season.name] = {};
+        assignPairSeasonHistoryTier(
+            user.seasonHistory[season.name] as Record<string, string>,
+            pairSeasonRankByUserId.get(user.id),
+        );
 
         // 한 모드라도 랭킹에 올라 티어가 산정된 경우에만 시즌 테두리·우편 보상
         if (bestTierInfo) {

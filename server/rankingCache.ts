@@ -7,6 +7,7 @@ import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 import { pickChampionshipVersusSeasonRankingStats } from '../shared/utils/championshipVersusElo.js';
 import { getAdventureHuntingScore } from '../shared/utils/adventureHuntingScore.js';
+import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import type { User } from '../types/index.js';
 
 interface RankingEntry {
@@ -22,6 +23,13 @@ interface RankingEntry {
     league?: string;
     /** 통합 유저 레벨(랭킹 UI 표시용) */
     userLevel?: number;
+    /** 탐험 랭킹: 몬스터 이해도(도감 완성도) % */
+    monsterUnderstandingPercent?: number;
+    /** 챔피언십 랭킹: 초반/중반/종반·종합 능력치 */
+    openingAbility?: number;
+    midgameAbility?: number;
+    endgameAbility?: number;
+    totalAbility?: number;
 }
 
 function buildUserLevelMap(users: Array<{ id?: string; userLevel?: number } | null | undefined>): Map<string, number> {
@@ -50,6 +58,34 @@ function rankingListsMissingUserLevel(cache: RankingCache): boolean {
     );
 }
 
+/** 탐험 랭킹에 몬스터 이해도 %가 없는 구버전 캐시 → 재빌드 */
+function adventureRankingsMissingUnderstanding(cache: RankingCache): boolean {
+    const adventure = Array.isArray(cache.adventure) ? cache.adventure : [];
+    if (adventure.length === 0) return false;
+    return adventure.some(
+        (entry) =>
+            entry.monsterUnderstandingPercent == null ||
+            !Number.isFinite(Number(entry.monsterUnderstandingPercent)),
+    );
+}
+
+/** 챔피언십 랭킹에 능력치 필드가 없는 구버전 캐시 → 재빌드 */
+function championshipRankingsMissingAbility(cache: RankingCache): boolean {
+    const championship = Array.isArray(cache.championship) ? cache.championship : [];
+    if (championship.length === 0) return false;
+    return championship.some(
+        (entry) =>
+            entry.openingAbility == null ||
+            entry.midgameAbility == null ||
+            entry.endgameAbility == null ||
+            entry.totalAbility == null ||
+            !Number.isFinite(Number(entry.openingAbility)) ||
+            !Number.isFinite(Number(entry.midgameAbility)) ||
+            !Number.isFinite(Number(entry.endgameAbility)) ||
+            !Number.isFinite(Number(entry.totalAbility)),
+    );
+}
+
 interface RankingCache {
     strategic: RankingEntry[];
     pair: RankingEntry[];
@@ -72,13 +108,20 @@ let buildingPromise: Promise<RankingCache> | null = null;
 export async function buildRankingCache(): Promise<RankingCache> {
     const now = Date.now();
     
-    // 캐시가 유효하면 반환 (바둑능력·매너에 userLevel이 없는 구버전 캐시는 재빌드)
+    // 캐시가 유효하면 반환 (구버전 필드 누락 캐시는 재빌드)
     if (rankingCache && (now - rankingCache.timestamp) < CACHE_TTL) {
-        if (!rankingListsMissingUserLevel(rankingCache)) {
+        if (rankingListsMissingUserLevel(rankingCache)) {
+            console.log('[RankingCache] Rebuilding cache: combat/manner entries missing userLevel');
+            rankingCache = null;
+        } else if (adventureRankingsMissingUnderstanding(rankingCache)) {
+            console.log('[RankingCache] Rebuilding cache: adventure entries missing monsterUnderstandingPercent');
+            rankingCache = null;
+        } else if (championshipRankingsMissingAbility(rankingCache)) {
+            console.log('[RankingCache] Rebuilding cache: championship entries missing ability stats');
+            rankingCache = null;
+        } else {
             return rankingCache;
         }
-        console.log('[RankingCache] Rebuilding cache: combat/manner entries missing userLevel');
-        rankingCache = null;
     }
     
     // 이미 빌드 중이면 기존 Promise를 기다림 (동시 빌드 방지)
@@ -155,26 +198,28 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 return emptyCache;
             }
             
-            // 바둑능력(combat) 랭킹용: 장비/인벤토리 포함 사용자 1회 조회 (N번 getUser 호출 제거)
-            const combatUsersPromise = db
+            // 바둑능력·챔피언십 능력치용: 장비/인벤토리 포함 사용자 1회 조회
+            const equippedUsersBundlePromise = db
                 .getAllUsers({ includeEquipment: true, includeInventory: true, skipCache: true })
                 .then(async (usersWithEquipment) => {
                     const users = usersWithEquipment || [];
-                    const rankings = await calculateCombatRankings(users);
-                    return { rankings, users };
+                    const [combatRankings, championshipRankings] = await Promise.all([
+                        calculateCombatRankings(users),
+                        calculateChampionshipRankings(users),
+                    ]);
+                    return { combatRankings, championshipRankings, users };
                 })
                 .catch((error) => {
-                    console.error('[RankingCache] Error calculating combat rankings:', error);
-                    return { rankings: [], users: [] };
+                    console.error('[RankingCache] Error calculating equipped-user rankings:', error);
+                    return { combatRankings: [] as RankingEntry[], championshipRankings: [] as RankingEntry[], users: [] as any[] };
                 });
             
             // 병렬로 여러 랭킹 계산
             const [
                 strategicRankings,
                 pairRankings,
-                championshipRankings,
                 mannerRankings,
-                combatRankingsResult,
+                equippedUsersBundle,
                 adventureRankings,
                 strategicSeasonRankings,
                 pairSeasonRankings,
@@ -187,15 +232,11 @@ export async function buildRankingCache(): Promise<RankingCache> {
                     console.error('[RankingCache] Error calculating pair rankings:', err);
                     return [];
                 }),
-                Promise.resolve(calculateChampionshipRankings(allUsers)).catch((err) => {
-                    console.error('[RankingCache] Error calculating championship rankings:', err);
-                    return [];
-                }),
                 Promise.resolve(calculateMannerRankings(allUsers)).catch((err) => {
                     console.error('[RankingCache] Error calculating manner rankings:', err);
                     return [];
                 }),
-                combatUsersPromise,
+                equippedUsersBundlePromise,
                 Promise.resolve(calculateAdventureRankings(allUsers)).catch((err) => {
                     console.error('[RankingCache] Error calculating adventure rankings:', err);
                     return [];
@@ -210,9 +251,19 @@ export async function buildRankingCache(): Promise<RankingCache> {
                 })
             ]);
 
-            const combatRankings = combatRankingsResult?.rankings || [];
+            const combatRankings = equippedUsersBundle?.combatRankings || [];
+            let championshipRankings = equippedUsersBundle?.championshipRankings || [];
+            if (championshipRankings.length === 0) {
+                // 장비 조회 실패 시 ELO만이라도 채움
+                try {
+                    championshipRankings = await calculateChampionshipRankings(allUsers);
+                } catch (err) {
+                    console.error('[RankingCache] Error calculating championship rankings fallback:', err);
+                    championshipRankings = [];
+                }
+            }
             const userLevelMap = buildUserLevelMap(allUsers);
-            for (const user of combatRankingsResult?.users || []) {
+            for (const user of equippedUsersBundle?.users || []) {
                 if (!user?.id) continue;
                 userLevelMap.set(user.id, Math.max(1, Math.floor(Number(user.userLevel) || 1)));
             }
@@ -302,9 +353,11 @@ export async function buildRankingCache(): Promise<RankingCache> {
     return buildingPromise;
 }
 
-// 챔피언십 랭킹: 대전장(PVP·펫·페어) 시즌 ELO(1200점 기준) + 시즌 전적, 상위 100명
-function calculateChampionshipRankings(allUsers: any[]): RankingEntry[] {
+// 챔피언십 랭킹: 시즌 ELO + 전적 + 챔피언십 능력치(초/중/종·종합), 상위 100명
+async function calculateChampionshipRankings(allUsers: any[]): Promise<RankingEntry[]> {
     const rankings: RankingEntry[] = [];
+    const { calculateTotalStats } = await import('./statService.js');
+    const { championshipKataAbilityScore } = await import('../shared/constants/championshipRealMatch.js');
 
     for (const user of allUsers) {
         if (!user || !user.id) continue;
@@ -312,6 +365,25 @@ function calculateChampionshipRankings(allUsers: any[]): RankingEntry[] {
         if (!row) continue;
 
         const totalGames = row.seasonWins + row.seasonLosses;
+        let openingAbility = 0;
+        let midgameAbility = 0;
+        let endgameAbility = 0;
+        let totalAbility = 0;
+        try {
+            const stats = calculateTotalStats(user as User, 'championshipVenue');
+            openingAbility = championshipKataAbilityScore('opening', stats);
+            midgameAbility = championshipKataAbilityScore('midgame', stats);
+            endgameAbility = championshipKataAbilityScore('endgame', stats);
+            totalAbility = Object.values(stats).reduce((acc: number, v: number) => acc + (Number(v) || 0), 0);
+            totalAbility = Math.round(totalAbility);
+        } catch (err: any) {
+            console.warn(
+                '[RankingCache] championship ability stats failed for',
+                user.id,
+                err?.message || err,
+            );
+        }
+
         rankings.push({
             id: user.id,
             nickname: user.nickname || user.username,
@@ -324,6 +396,10 @@ function calculateChampionshipRankings(allUsers: any[]): RankingEntry[] {
             losses: row.seasonLosses,
             league: user.league,
             userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
+            openingAbility,
+            midgameAbility,
+            endgameAbility,
+            totalAbility,
         });
     }
 
@@ -346,6 +422,12 @@ function calculateAdventureRankings(allUsers: any[]): RankingEntry[] {
         const hunt = getAdventureHuntingScore(user.adventureProfile);
         if (hunt.score <= 0) continue;
 
+        let understandingPercent = 0;
+        try {
+            understandingPercent = getAdventureCodexCompletionBreakdown(user.adventureProfile).overallPercent;
+        } catch (err) {
+            console.warn('[RankingCache] adventure understanding percent failed for', user.id, err);
+        }
         rows.push({
             reachedAt: hunt.reachedAt,
             entry: {
@@ -360,6 +442,7 @@ function calculateAdventureRankings(allUsers: any[]): RankingEntry[] {
                 losses: 0,
                 league: user.league,
                 userLevel: Math.max(1, Math.floor(Number(user.userLevel) || 1)),
+                monsterUnderstandingPercent: Math.min(100, Math.max(0, Number(understandingPercent) || 0)),
             },
         });
     }

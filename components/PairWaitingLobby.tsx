@@ -133,6 +133,7 @@ import { PAIR_GO_GAME_MODES } from '../shared/utils/pairGameTurn.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { resolvePairPetMetaFromInventoryRow } from '../shared/utils/pairPetRoll.js';
 import { readPairRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
+import { computePairArenaAllTimeBestSeasonRecord } from '../shared/utils/pairSeasonHistory.js';
 import {
     buildPairLobbySettingChangeDiffRows,
     buildPairRoomLobbyGameSettingRows,
@@ -167,29 +168,6 @@ function pairLobbyPairModeOrDefault(mode: unknown): GameMode {
 function tierMetaByName(name: string | null | undefined) {
     if (!name) return null;
     return RANKING_TIERS.find((t) => t.name === name) ?? null;
-}
-
-/** `seasonHistory[시즌].pair` 문자열 기준 역대 최고 티어 + 시즌명 */
-function computePairArenaAllTimeBestSeasonRecord(
-    seasonHistory: UserWithStatus['seasonHistory'],
-): { tierName: string; seasonName: string } | null {
-    if (!seasonHistory || typeof seasonHistory !== 'object') return null;
-    const tierOrder = RANKING_TIERS.map((t) => t.name);
-    let best: { tierName: string; seasonName: string; idx: number } | null = null;
-    for (const seasonName of Object.keys(seasonHistory)) {
-        const hist = seasonHistory[seasonName];
-        const stored =
-            hist && typeof hist === 'object' && typeof (hist as Record<string, unknown>).pair === 'string'
-                ? ((hist as Record<string, unknown>).pair as string)
-                : undefined;
-        if (!stored || stored === pt('notParticipated') || !tierOrder.includes(stored)) continue;
-        const idx = tierOrder.indexOf(stored);
-        const next = { tierName: stored, seasonName, idx };
-        if (!best || idx < best.idx || (idx === best.idx && seasonName > best.seasonName)) {
-            best = next;
-        }
-    }
-    return best ? { tierName: best.tierName, seasonName: best.seasonName } : null;
 }
 
 function formatElapsedHhMmSs(totalSeconds: number): string {

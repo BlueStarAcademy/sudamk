@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { type ReactNode } from 'react';
 
 export type LobbyMatchKindTone = 'cyan' | 'amber' | 'violet' | 'fuchsia';
 
 export type LobbyMatchKindOption<T extends string = string> = {
     value: T;
-    label: string;
+    label: ReactNode;
     disabled?: boolean;
     tone?: LobbyMatchKindTone;
 };
@@ -88,7 +88,7 @@ function LobbyMatchKindPicker<T extends string>({
                                 if (opt.disabled) return;
                                 onChange(opt.value);
                             }}
-                            className={`rounded-lg px-1.5 py-1.5 text-[0.7rem] font-extrabold transition sm:px-2 sm:py-2 sm:text-sm ${
+                            className={`rounded-lg px-1.5 py-1.5 text-center text-[0.7rem] font-extrabold leading-tight whitespace-pre-line transition sm:px-2 sm:py-2 sm:text-sm ${
                                 sel
                                     ? TONE_ACTIVE[tone]
                                     : opt.disabled

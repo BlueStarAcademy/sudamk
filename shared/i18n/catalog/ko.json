@@ -1079,7 +1079,8 @@
       "loadFailed": "랭킹을 불러오는데 실패했습니다.",
       "empty": "랭킹 데이터가 없습니다.",
       "loadingMore": "로딩 중...",
-      "viewProfile": "{{name}} 프로필 보기"
+      "viewProfile": "{{name}} 프로필 보기",
+      "monsterUnderstanding": "몬스터 이해도 {{percent}}%"
     },
     "towerSummary": {
       "floorClear": "층 클리어",
@@ -2568,6 +2569,8 @@
         "matchArena": "경기장"
       },
       "queueRanked": "랭킹전",
+      "queuePairRanked": "페어랭킹전",
+      "queuePairRankedTab": "페어\n랭킹전",
       "queueNormal": "일반전",
       "matchTypeTitle": "경기 종류"
     },
@@ -3105,7 +3108,7 @@
       "startMissionTitle": "{{missionName}} 시작",
       "claimAllModalTitle": "수련 과제 일괄 수령",
       "claimAllPreviewTitle": "획득 보상",
-      "claimAllSuccess": "모든 수련 과제 보상을 수령했습니다!",
+      "claimAllSuccess": "생산물을 수확했습니다",
       "claimAllNormal": "수령하기",
       "claimAllAdDouble": "광고보기 200%",
       "claimAllAdFree": "광고보기 200%",
@@ -3213,6 +3216,7 @@
     "productionFactory": "생산소",
     "guildHomeTile": "길드",
     "rankTierLabel": "랭크",
+    "pairRankTierLabel": "페어",
     "champTierLabel": "챔스",
     "tierPeak": "최고 {{tier}}",
     "tierUnranked": "미참여",
@@ -5983,6 +5987,8 @@
       "title": "랭킹",
       "gameRankingTab": "게임랭킹",
       "badukRankingTab": "바둑랭킹",
+      "adventureRankingTab": "탐험랭킹",
+      "championshipRankingTab": "챔피언십랭킹",
       "loginRequired": "로그인 후 랭킹을 확인할 수 있습니다.",
       "championshipLoginHint": "로그인 후 챔피언십 랭킹을 확인할 수 있습니다.",
       "guideClose": "가이드 닫기",

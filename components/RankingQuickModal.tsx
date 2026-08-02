@@ -18,7 +18,8 @@ import type { MobileRankingGuideVariant } from './MobileRankingGuidePanel.js';
 /** 모바일 랭킹 퀵 모달: 탭당 하나의 랭킹 보드 */
 type RankingMobileTab = 'combat' | 'manner' | 'adventure' | 'strategic' | 'pair' | 'championship';
 
-type PcMainTab = 'game' | 'baduk';
+/** PC: 게임랭킹 / 바둑랭킹 / 탐험랭킹 / 챔피언십랭킹 */
+type PcMainTab = 'game' | 'baduk' | 'adventure' | 'championship';
 
 interface RankingQuickModalProps {
     onClose: () => void;
@@ -34,6 +35,13 @@ const MOBILE_RANKING_TAB_CONFIG: { id: RankingMobileTab; labelKey: string }[] = 
     { id: 'strategic', labelKey: 'rankingQuick.strategic' },
     { id: 'pair', labelKey: 'rankingQuick.pair' },
     { id: 'championship', labelKey: 'rankingQuick.championship' },
+];
+
+const PC_MAIN_TAB_CONFIG: { id: PcMainTab; labelKey: string; tone: 'game' | 'baduk' }[] = [
+    { id: 'game', labelKey: 'rankingQuick.gameRankingTab', tone: 'game' },
+    { id: 'baduk', labelKey: 'rankingQuick.badukRankingTab', tone: 'baduk' },
+    { id: 'adventure', labelKey: 'rankingQuick.adventureRankingTab', tone: 'game' },
+    { id: 'championship', labelKey: 'rankingQuick.championshipRankingTab', tone: 'baduk' },
 ];
 
 const PC_MAIN_TAB_BTN =
@@ -325,32 +333,29 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                 ) : (
                     <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-3 overflow-hidden">
                         <div className="flex shrink-0 flex-wrap gap-2" role="tablist" aria-label={t('rankingQuick.categoryAria')}>
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={pcMainTab === 'game'}
-                                onClick={() => setPcMainTab('game')}
-                                className={`${PC_MAIN_TAB_BTN} ${
-                                    pcMainTab === 'game'
-                                        ? 'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-800/70 to-amber-950/85 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-amber-300/30'
-                                        : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-amber-400/35 hover:text-amber-100'
-                                }`}
-                            >
-                                {t('rankingQuick.gameRankingTab')}
-                            </button>
-                            <button
-                                type="button"
-                                role="tab"
-                                aria-selected={pcMainTab === 'baduk'}
-                                onClick={() => setPcMainTab('baduk')}
-                                className={`${PC_MAIN_TAB_BTN} ${
-                                    pcMainTab === 'baduk'
+                            {PC_MAIN_TAB_CONFIG.map(({ id, labelKey, tone }) => {
+                                const selected = pcMainTab === id;
+                                const selectedClass =
+                                    tone === 'baduk'
                                         ? 'border-emerald-300/50 bg-gradient-to-b from-emerald-600/90 via-teal-800/75 to-zinc-950/90 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-emerald-300/25'
-                                        : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-emerald-400/35 hover:text-emerald-100'
-                                }`}
-                            >
-                                {t('rankingQuick.badukRankingTab')}
-                            </button>
+                                        : 'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-800/70 to-amber-950/85 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-amber-300/30';
+                                const idleClass =
+                                    tone === 'baduk'
+                                        ? 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-emerald-400/35 hover:text-emerald-100'
+                                        : 'border-white/12 bg-zinc-900/70 text-zinc-300 hover:border-amber-400/35 hover:text-amber-100';
+                                return (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        role="tab"
+                                        aria-selected={selected}
+                                        onClick={() => setPcMainTab(id)}
+                                        className={`${PC_MAIN_TAB_BTN} ${selected ? selectedClass : idleClass}`}
+                                    >
+                                        {t(labelKey)}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         <div className="min-h-0 flex-1 overflow-hidden rounded-xl shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-white/[0.06]">
@@ -372,14 +377,6 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                             panelTitle={t('rankingQuick.manner')}
                                         />
                                     </div>
-                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
-                                        <GameRankingBoard
-                                            lockedTab="adventure"
-                                            mobileSplitLarge
-                                            hideInlineGuide
-                                            panelTitle={t('rankingQuick.adventure')}
-                                        />
-                                    </div>
                                 </div>
                             )}
                             {pcMainTab === 'baduk' && (
@@ -390,6 +387,22 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
                                         {renderBadukRankingPanel('pair')}
                                     </div>
+                                </div>
+                            )}
+                            {pcMainTab === 'adventure' && (
+                                <div className="flex h-full min-h-0 overflow-hidden p-1.5 sm:p-2">
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
+                                        <GameRankingBoard
+                                            lockedTab="adventure"
+                                            mobileSplitLarge
+                                            hideInlineGuide
+                                            panelTitle={t('rankingQuick.adventure')}
+                                        />
+                                    </div>
+                                </div>
+                            )}
+                            {pcMainTab === 'championship' && (
+                                <div className="flex h-full min-h-0 overflow-hidden p-1.5 sm:p-2">
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg ring-1 ring-white/[0.06]">
                                         {renderChampionshipRankingPanel()}
                                     </div>

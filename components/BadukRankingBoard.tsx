@@ -5,6 +5,7 @@ import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScr
 import { useRanking } from '../hooks/useRanking.js';
 import { User } from '../types.js';
 import Avatar from './Avatar.js';
+import { RankPlaceMark } from './FantasyRankBadge.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { readPairRankedBlock, readStrategicRankedBlock } from '../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
@@ -73,19 +74,13 @@ const RankingRow = ({
                 onClick={handleClick}
                 title={!isCurrentUser && onViewUser ? t('rankingBoard.viewProfile', { name: user.nickname }) : ''}
             >
-                <span
-                    className={`w-8 shrink-0 text-center ${MOBILE_RANK_TEXT_CLASS} font-black tabular-nums ${
-                        typeof rank === 'number' && rank === 1
-                            ? 'text-amber-300'
-                            : typeof rank === 'number' && rank === 2
-                              ? 'text-slate-200'
-                              : typeof rank === 'number' && rank === 3
-                                ? 'text-amber-600/90'
-                                : 'text-primary'
-                    }`}
-                >
-                    {rank}
-                </span>
+                <div className="flex w-8 shrink-0 items-center justify-center">
+                    <RankPlaceMark
+                        rank={rank}
+                        size="sm"
+                        fallbackClassName={`${MOBILE_RANK_TEXT_CLASS} font-black tabular-nums text-primary`}
+                    />
+                </div>
                 <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={34} fixedFrameSize />
                 <div className={`ml-1.5 flex min-w-0 flex-1 flex-col gap-0.5 leading-tight ${MOBILE_RANK_TEXT_CLASS}`}>
                     <span className="shrink-0 font-extrabold tabular-nums text-amber-200">Lv.{displayLevel ?? '—'}</span>
@@ -102,19 +97,13 @@ const RankingRow = ({
             onClick={handleClick}
             title={!isCurrentUser && onViewUser ? t('rankingBoard.viewProfile', { name: user.nickname }) : ''}
         >
-            <span
-                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : 'w-8 text-xs'} ${
-                    !dense && typeof rank === 'number' && rank === 1
-                        ? 'text-amber-300'
-                        : !dense && typeof rank === 'number' && rank === 2
-                          ? 'text-slate-200'
-                          : !dense && typeof rank === 'number' && rank === 3
-                            ? 'text-amber-600/90'
-                            : ''
-                }`}
-            >
-                {rank}
-            </span>
+            <div className={`flex shrink-0 items-center justify-center ${dense ? 'w-5' : 'w-8'}`}>
+                <RankPlaceMark
+                    rank={rank}
+                    size={dense ? 'xs' : 'sm'}
+                    fallbackClassName={`text-center font-bold tabular-nums ${dense ? 'text-[8px]' : 'text-xs'}`}
+                />
+            </div>
             <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} fixedFrameSize />
             <div
                 className={`ml-1 flex min-w-0 flex-1 flex-col gap-px leading-tight ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}

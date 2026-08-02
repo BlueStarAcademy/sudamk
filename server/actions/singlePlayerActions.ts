@@ -1338,13 +1338,16 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             if (!user.singlePlayerMissions) user.singlePlayerMissions = {};
             const allLootItems: { itemId: string; quantity: number }[] = [];
+            const lootByMissionId = new Map<string, { itemId: string; quantity: number }[]>();
             let goldGain = 0;
             let diamondGain = 0;
 
             for (const reward of preview.rewards) {
                 if (isItemRewardType(reward.rewardType)) {
                     const rolls = rollProductionLoot(reward.rewardType, reward.missionLevel, reward.claimCycles);
-                    allLootItems.push(...mergeLootResults(rolls));
+                    const merged = mergeLootResults(rolls);
+                    lootByMissionId.set(reward.missionId, merged);
+                    allLootItems.push(...merged);
                 } else if (reward.rewardType === 'gold') {
                     goldGain += reward.rewardAmount * currencyMultiplier;
                 } else {
@@ -1353,6 +1356,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
 
             let grantedItems: ReturnType<typeof createItemInstancesFromReward> = [];
+            const grantedItemsByMissionId = new Map<string, ReturnType<typeof createItemInstancesFromReward>>();
             if (allLootItems.length > 0) {
                 const merged = mergeLootResults(allLootItems);
                 const itemsToCreate = createItemInstancesFromReward(
@@ -1369,6 +1373,12 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 user.inventory = updatedInventory;
                 // 모달 표시용: 스택 합쳐진 finalItemsToAdd가 아니라 실제 지급 목록
                 grantedItems = itemsToCreate;
+                for (const [missionId, loot] of lootByMissionId) {
+                    grantedItemsByMissionId.set(
+                        missionId,
+                        createItemInstancesFromReward(loot.map((r) => ({ itemId: r.itemId, quantity: r.quantity }))),
+                    );
+                }
             }
 
             user.gold += goldGain;
@@ -1398,11 +1408,18 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_ALL_TRAINING_QUEST_REWARDS');
 
+            // 시설별 실제 지급 아이템을 붙여 수령 후 모달에 구체 강화석·상자가 보이게 한다.
+            const rewardsWithGrantedItems = rewards.map((row) => {
+                const missionItems = grantedItemsByMissionId.get(row.missionId);
+                if (!missionItems?.length) return row;
+                return { ...row, grantedItems: missionItems };
+            });
+
             return {
                 clientResponse: {
                     updatedUser,
                     claimAllTrainingQuestRewards: {
-                        rewards,
+                        rewards: rewardsWithGrantedItems,
                         totalGold,
                         totalDiamonds,
                         totalItemCycles: preview.totalItemCycles,

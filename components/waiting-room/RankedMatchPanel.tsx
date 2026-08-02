@@ -4,17 +4,32 @@ import { GameMode, ServerAction, UserWithStatus } from '../../types.js';
 import type { RankingEntry } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
 import PairPetRankedMatchModeModal from '../pair/PairPetRankedMatchModeModal.js';
-import { RANKING_TIERS, SPECIAL_GAME_MODES } from '../../constants';
-import { effectiveStrategicRankedQueueApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
+import {
+    RANKING_TIERS,
+    SPECIAL_GAME_MODES,
+    RANKED_ELO_BASE_SCORE,
+    STRATEGIC_ACTION_POINT_COST,
+} from '../../constants';
+import {
+    effectiveStrategicRankedQueueApCostForUser,
+    effectivePairRankedApCostForUser,
+} from '../../shared/utils/pairPetArenaApDiscount.js';
 import {
     readStrategicRankedBlock,
     readStrategicNormalMatchRecord,
+    readPairRankedBlock,
 } from '../../shared/utils/unifiedRankedStatsMigration.js';
+import {
+    PAIR_SEASON_RANKING_MIN_GAMES,
+    computePairArenaAllTimeBestSeasonRecord,
+} from '../../shared/utils/pairSeasonHistory.js';
 import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useRanking } from '../../hooks/useRanking.js';
 import { getCurrentSeason, getPreviousSeason } from '../../utils/timeUtils.js';
 import LobbyMatchKindPicker, { type LobbyMatchKindOption } from './LobbyMatchKindPicker.js';
+
+export type ArenaMatchQueueKind = 'ranked' | 'pairRanked' | 'normal';
 
 /** 티어 안내 모달(TierInfoModal)과 동일한 기준: 시즌 랭킹 점수·순위·대국 수로 결정 */
 const getTier = (score: number, rank: number, totalGames: number) => {
@@ -108,6 +123,34 @@ function computeSeasonSnapshotFromUserStats(
     return { score: avgScore, rank, totalGames, wins, losses };
 }
 
+/** 페어 시즌 API 폴백 — rankingCache.calculatePairSeasonRanking 과 맞춤(자격 ≥5판) */
+function computePairSeasonSnapshotFromUserStats(
+    user: UserWithStatus,
+    rankings: RankingEntry[],
+): { score: number; rank: number; totalGames: number; wins: number; losses: number } {
+    const blk = readPairRankedBlock(
+        user.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>,
+    );
+    const wins = blk.wins;
+    const losses = blk.losses;
+    const totalGames = wins + losses;
+    const dr = user.dailyRankings?.pair;
+    const score =
+        dr && typeof dr.score === 'number' && Number.isFinite(dr.score)
+            ? RANKED_ELO_BASE_SCORE + dr.score
+            : blk.rankingScore;
+    const eligible = rankings.filter((r) => (r.totalGames ?? 0) >= PAIR_SEASON_RANKING_MIN_GAMES);
+    const myEntry = rankings.find((r) => r.id === user.id);
+    let rank: number;
+    if (myEntry) {
+        const rankAmongEligible = eligible.findIndex((r) => r.id === user.id) + 1;
+        rank = rankAmongEligible > 0 ? rankAmongEligible : eligible.length + 1;
+    } else {
+        rank = Math.max(eligible.length + 1, 500);
+    }
+    return { score, rank, totalGames, wins, losses };
+}
+
 interface RankedMatchPanelProps {
     currentUser: UserWithStatus;
     onAction: (action: ServerAction) => Promise<any>;
@@ -119,10 +162,10 @@ interface RankedMatchPanelProps {
     variant?: 'default' | 'nativeNarrow';
     /** PC 집계 대기실 좌열: 패널 높이를 본문에 맞춤(남는 세로 공간을 늘리지 않음) */
     shrinkToContent?: boolean;
-    /** 랭크전(기본) / 일반전 매칭 큐 */
-    queueKind?: 'ranked' | 'normal';
-    /** 제공 시 시즌 영역 상단에 랭킹전/일반전 탭 표시 */
-    onSelectQueueKind?: (queue: 'ranked' | 'normal') => void;
+    /** 랭크전(기본) / 페어랭킹전 / 일반전 매칭 큐 */
+    queueKind?: ArenaMatchQueueKind;
+    /** 제공 시 시즌 영역 상단에 랭킹전/페어랭킹전/일반전 탭 표시 */
+    onSelectQueueKind?: (queue: ArenaMatchQueueKind) => void;
     /**
      * `dedicated`: 홈→랭킹전 — 상단 모드 선택, 좌 시즌 / 우 설명·설정·매칭.
      * 시작 버튼/모달 없이 바로 큐잉.
@@ -150,8 +193,11 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     const [elapsedTime, setElapsedTime] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
+    const isPairRanked = queueKind === 'pairRanked';
+    const isNormalQueue = queueKind === 'normal';
     const { rankings } = useRanking('strategic', undefined, undefined, true);
-    const { rankedMatchingQueue } = useAppContext();
+    const { rankings: pairSeasonRankings } = useRanking('pair', undefined, undefined, true);
+    const { rankedMatchingQueue, pairRooms } = useAppContext();
 
     const strategicRankedQueueCountsByMode = useMemo(() => {
         const counts: Partial<Record<GameMode, number>> = {};
@@ -169,17 +215,42 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         return counts;
     }, [rankedMatchingQueue, queueKind]);
 
-    const rankedActionPointCost = useMemo(
-        () => effectiveStrategicRankedQueueApCostForUser(currentUser),
-        [currentUser],
-    );
+    const pairPetRankedQueueCountsByMode = useMemo(() => {
+        const counts: Partial<Record<GameMode, number>> = {};
+        for (const m of RANKED_STRATEGIC_MODES) counts[m] = 0;
+        const rooms = Object.values((pairRooms || {}) as Record<string, {
+            lobbyChannel?: string;
+            roomKind?: string;
+            phase?: string;
+            selectedGameMode?: GameMode;
+            extraPairMembers?: unknown[];
+        }>);
+        for (const r of rooms) {
+            if ((r.lobbyChannel ?? 'pair') !== 'pair') continue;
+            if (r.roomKind !== 'ai_duel' || r.phase !== 'matching') continue;
+            if ((r.extraPairMembers?.length ?? 0) > 0) continue;
+            const m = r.selectedGameMode;
+            if (!m || !RANKED_STRATEGIC_MODES.includes(m)) continue;
+            counts[m] = (counts[m] ?? 0) + 1;
+        }
+        return counts;
+    }, [pairRooms]);
+
+    const rankedActionPointCost = useMemo(() => {
+        if (isPairRanked) {
+            return effectivePairRankedApCostForUser(currentUser, STRATEGIC_ACTION_POINT_COST, {
+                lobbyChannel: 'pair',
+            });
+        }
+        return effectiveStrategicRankedQueueApCostForUser(currentUser);
+    }, [currentUser, isPairRanked]);
 
     const normalMatchRecord = useMemo(
         () => readStrategicNormalMatchRecord(currentUser.stats as Record<string, unknown>),
         [currentUser.stats],
     );
 
-    const currentSeasonTierAndScore = useMemo(() => {
+    const strategicCurrentSeasonTierAndScore = useMemo(() => {
         const eligible = rankings.filter((r) => (r.totalGames ?? 0) >= 10);
         const myEntry = rankings.find((r) => r.id === currentUser.id);
         const fromApi = myEntry
@@ -207,6 +278,41 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         return { tier, ...merged };
     }, [rankings, currentUser]);
 
+    const pairCurrentSeasonTierAndScore = useMemo(() => {
+        const eligible = pairSeasonRankings.filter(
+            (r) => (r.totalGames ?? 0) >= PAIR_SEASON_RANKING_MIN_GAMES,
+        );
+        const myEntry = pairSeasonRankings.find((r) => r.id === currentUser.id);
+        const fromApi = myEntry
+            ? (() => {
+                  const rankAmongEligible = eligible.findIndex((r) => r.id === currentUser.id) + 1;
+                  const rank = rankAmongEligible > 0 ? rankAmongEligible : eligible.length + 1;
+                  return {
+                      score: myEntry.score ?? 0,
+                      rank,
+                      totalGames: myEntry.totalGames ?? 0,
+                      wins: myEntry.wins ?? 0,
+                      losses: myEntry.losses ?? 0,
+                  };
+              })()
+            : computePairSeasonSnapshotFromUserStats(currentUser, pairSeasonRankings);
+        const statBlk = readPairRankedBlock(
+            currentUser.stats as Record<string, { wins?: number; losses?: number; rankingScore?: number }>,
+        );
+        const merged = {
+            ...fromApi,
+            wins: statBlk.wins,
+            losses: statBlk.losses,
+            totalGames: statBlk.wins + statBlk.losses,
+        };
+        const tier = getTier(merged.score, merged.rank, merged.totalGames);
+        return { tier, ...merged };
+    }, [pairSeasonRankings, currentUser]);
+
+    const currentSeasonTierAndScore = isPairRanked
+        ? pairCurrentSeasonTierAndScore
+        : strategicCurrentSeasonTierAndScore;
+
     const isFirstSeason = useMemo(() => {
         const prevSeason = getPreviousSeason();
         const history = currentUser.seasonHistory?.[prevSeason.name];
@@ -216,6 +322,11 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
 
     /** 역대 최고 티어 + 달성 시즌명(시즌 히스토리 전체 스캔, 없으면 서버 previousSeasonTier + 직전 시즌) */
     const allTimeBestSeason = useMemo(() => {
+        if (isPairRanked) {
+            const fromPairHistory = computePairArenaAllTimeBestSeasonRecord(currentUser.seasonHistory);
+            if (fromPairHistory) return fromPairHistory;
+            return null;
+        }
         const fromHistory = computeAllTimeBestSeasonRecord(currentUser.seasonHistory, STRATEGIC_LOBBY_MODES);
         if (fromHistory) return fromHistory;
         const pt = currentUser.previousSeasonTier;
@@ -223,7 +334,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
             return { tierName: pt, seasonName: getPreviousSeason().name };
         }
         return null;
-    }, [currentUser.seasonHistory, currentUser.previousSeasonTier]);
+    }, [currentUser.seasonHistory, currentUser.previousSeasonTier, isPairRanked]);
 
     // 매칭 중일 때 경과 시간 업데이트
     useEffect(() => {
@@ -249,7 +360,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         try {
             const result: any = await onAction({
                 type: 'START_RANKED_MATCHING',
-                payload: { lobbyType: 'strategic', selectedModes, queueKind }
+                payload: { lobbyType: 'strategic', selectedModes, queueKind: isNormalQueue ? 'normal' : 'ranked' }
             });
             setIsModalOpen(false);
             
@@ -266,9 +377,38 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         }
     };
 
+    const startPairPetRankedMatching = async (mode: GameMode) => {
+        try {
+            const result: any = await onAction({
+                type: 'PAIR_QUEUE_PET_RANKED',
+                payload: { mode },
+            });
+            const error = result?.error;
+            if (error) {
+                window.alert(typeof error === 'string' ? error : String(error));
+                return;
+            }
+            setIsModalOpen(false);
+            const gameId = result?.gameId || result?.clientResponse?.gameId;
+            if (gameId) {
+                if (onMatchingStateChange) onMatchingStateChange(false, 0);
+                return;
+            }
+            if (onMatchingStateChange) {
+                onMatchingStateChange(true, Date.now());
+            }
+        } catch (error) {
+            console.error('Failed to start pair pet ranked matching:', error);
+        }
+    };
+
     const handleCancelMatching = async () => {
         try {
-            await onAction({ type: 'CANCEL_RANKED_MATCHING' });
+            if (isPairRanked) {
+                await onAction({ type: 'PAIR_CANCEL_PAIR_PET_MATCHING' });
+            } else {
+                await onAction({ type: 'CANCEL_RANKED_MATCHING' });
+            }
             if (onMatchingStateChange) {
                 onMatchingStateChange(false, 0);
             }
@@ -290,12 +430,17 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         return false;
     }, [isFirstSeason, allTimeBestSeason, currentSeasonName]);
 
-    const queueKindOptions = useMemo<LobbyMatchKindOption<'ranked' | 'normal'>[]>(
+    const queueKindOptions = useMemo<LobbyMatchKindOption<ArenaMatchQueueKind>[]>(
         () => [
             {
                 value: 'ranked',
                 label: t('arenaLobby.queueRanked', '랭킹전'),
                 tone: 'amber',
+            },
+            {
+                value: 'pairRanked',
+                label: t('arenaLobby.queuePairRankedTab', '페어\n랭킹전'),
+                tone: 'violet',
             },
             {
                 value: 'normal',
@@ -359,9 +504,11 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                       : 'whitespace-nowrap text-xl lg:text-2xl'
                             }`}
                         >
-                            {queueKind === 'normal'
+                            {isNormalQueue
                                 ? t('ranked.normalPanelTitle', '일반전')
-                                : t('ranked.panelTitle', '랭킹전')}
+                                : isPairRanked
+                                  ? t('arenaLobby.queuePairRanked', '페어랭킹전')
+                                  : t('ranked.panelTitle', '랭킹전')}
                         </h2>
                     </div>
                     {dedicated ? (
@@ -383,13 +530,17 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             <span className={`flex items-center justify-center gap-0.5 ${nativeNarrow ? '' : 'gap-1.5'}`}>
                                 <span className={nativeNarrow ? 'text-[0.65rem] sm:text-xs' : ''}>⚔️</span>
                                 <span className={nativeNarrow ? 'text-[0.65rem] sm:text-xs' : ''}>
-                                    {queueKind === 'normal'
+                                    {isNormalQueue
                                         ? nativeNarrow
                                             ? t('ranked.startNormalShort', '시작')
                                             : t('ranked.startNormal', '일반전 시작')
-                                        : nativeNarrow
-                                          ? t('ranked.startShort')
-                                          : t('ranked.start')}{' '}
+                                        : isPairRanked
+                                          ? nativeNarrow
+                                              ? t('ranked.startShort')
+                                              : t('arenaLobby.queuePairRanked', '페어랭킹전')
+                                          : nativeNarrow
+                                            ? t('ranked.startShort')
+                                            : t('ranked.start')}{' '}
                                     (⚡{rankedActionPointCost})
                                 </span>
                             </span>
@@ -418,19 +569,27 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                                 <PairPetRankedMatchModeModal
                                     presentation="dedicatedHome"
-                                    variant="strategic_arena"
+                                    variant={isPairRanked ? 'pair_pet' : 'strategic_arena'}
                                     initialMode={GameMode.Standard}
-                                    queueCountByMode={strategicRankedQueueCountsByMode}
+                                    queueCountByMode={
+                                        isPairRanked
+                                            ? pairPetRankedQueueCountsByMode
+                                            : strategicRankedQueueCountsByMode
+                                    }
                                     currentUser={currentUser}
                                     isBusy={false}
                                     isMatching={isMatching}
                                     matchingElapsedSeconds={elapsedTime}
                                     onCancelMatching={() => void handleCancelMatching()}
                                     onClose={() => undefined}
-                                    onQueue={(mode) => void startStrategicRankedMatching([mode])}
+                                    onQueue={(mode) =>
+                                        void (isPairRanked
+                                            ? startPairPetRankedMatching(mode)
+                                            : startStrategicRankedMatching([mode]))
+                                    }
                                     seasonColumnHeader={queueKindTabs}
                                     currentSeasonPanel={
-                                        queueKind === 'normal' ? (
+                                        isNormalQueue ? (
                                 <div className="flex-shrink-0 rounded-lg border border-cyan-500/40 bg-gradient-to-br from-cyan-950/50 via-slate-900/40 to-teal-950/40 p-2.5 sm:p-3">
                                     <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300 sm:text-xs">
                                         {t('ranked.normalPanelTitle', '일반전')}
@@ -526,7 +685,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                         )
                                     }
                                     bestSeasonPanel={
-                                        queueKind === 'normal' ? null : (
+                                        isNormalQueue ? null : (
                                 <div className="group relative overflow-hidden rounded-lg bg-gradient-to-br from-amber-900/40 via-yellow-900/30 to-orange-900/40 border-2 border-amber-500/50 p-2.5 sm:p-3 shadow-[0_4px_20px_rgba(251,191,36,0.3)] hover:border-amber-400/70 hover:shadow-[0_6px_24px_rgba(251,191,36,0.4)] transition-all duration-300">
                                     <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-transparent to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                     <div className="relative z-10 flex flex-col gap-1.5">
@@ -625,7 +784,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                         {!dedicated ? (
                         <div className="relative z-10 flex flex-shrink-0 flex-col gap-2 overflow-visible">
                             {queueKindTabs}
-                            {queueKind === 'normal' ? (
+                            {isNormalQueue ? (
                                 <div className="flex-shrink-0 rounded-lg border border-cyan-500/40 bg-gradient-to-br from-cyan-950/50 via-slate-900/40 to-teal-950/40 p-2.5 sm:p-3">
                                     <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300 sm:text-xs">
                                         {t('ranked.normalPanelTitle', '일반전')}
@@ -649,7 +808,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             ) : null}
                             <div
                                 className={`flex-shrink-0 ${
-                                    queueKind === 'normal'
+                                    isNormalQueue
                                         ? 'hidden'
                                         : nativeNarrow
                                           ? 'flex min-w-0 flex-col gap-2'
@@ -882,13 +1041,19 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
 
             {!dedicated && isModalOpen ? (
                 <PairPetRankedMatchModeModal
-                    variant="strategic_arena"
+                    variant={isPairRanked ? 'pair_pet' : 'strategic_arena'}
                     initialMode={GameMode.Standard}
-                    queueCountByMode={strategicRankedQueueCountsByMode}
+                    queueCountByMode={
+                        isPairRanked ? pairPetRankedQueueCountsByMode : strategicRankedQueueCountsByMode
+                    }
                     currentUser={currentUser}
                     isBusy={false}
                     onClose={() => setIsModalOpen(false)}
-                    onQueue={(mode) => void startStrategicRankedMatching([mode])}
+                    onQueue={(mode) =>
+                        void (isPairRanked
+                            ? startPairPetRankedMatching(mode)
+                            : startStrategicRankedMatching([mode]))
+                    }
                 />
             ) : null}
         </>

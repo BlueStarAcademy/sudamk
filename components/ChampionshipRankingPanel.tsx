@@ -6,6 +6,7 @@ import { useRanking } from '../hooks/useRanking.js';
 import { RankingEntry } from '../hooks/useRanking.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import Avatar from './Avatar.js';
+import { RankPlaceMark } from './FantasyRankBadge.js';
 import { pickChampionshipVersusSeasonRankingStats } from '../shared/utils/championshipVersusElo.js';
 import { getCurrentSeason } from '../shared/utils/timeUtils.js';
 
@@ -35,6 +36,7 @@ const CompactRankRow: React.FC<{
     dense?: boolean;
     lobbyNativeMobile?: boolean;
 }> = ({ entry, isCurrentUser, onViewUser, dense, lobbyNativeMobile = false }) => {
+    const { t } = useTranslation('tournament');
     const avatarUrl = AVATAR_POOL.find(a => a.id === entry.avatarId)?.url;
     const borderUrl = BORDER_POOL.find(b => b.id === entry.borderId)?.url;
     const r = entry.rank === 0 ? 0 : entry.rank;
@@ -45,19 +47,20 @@ const CompactRankRow: React.FC<{
             onClick={!isCurrentUser && onViewUser ? () => onViewUser(entry.id) : undefined}
             title={!isCurrentUser ? t('championship.ranking.viewProfile', { name: entry.nickname }) : ''}
         >
-            <span
-                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : lobbyNativeMobile ? `w-9 ${MOBILE_RANK_TEXT_CLASS}` : 'w-8 text-xs'} ${
-                    !dense && r === 1
-                        ? 'text-amber-300'
-                        : !dense && r === 2
-                          ? 'text-slate-200'
-                          : !dense && r === 3
-                            ? 'text-amber-600/90'
-                            : ''
+            <div
+                className={`flex shrink-0 items-center justify-center ${
+                    dense ? 'w-5' : lobbyNativeMobile ? 'w-9' : 'w-8'
                 }`}
             >
-                {entry.rank === 0 ? '-' : entry.rank}
-            </span>
+                <RankPlaceMark
+                    rank={r}
+                    size={dense ? 'xs' : 'sm'}
+                    dashPlaceholder={entry.rank === 0}
+                    fallbackClassName={`text-center font-bold tabular-nums ${
+                        dense ? 'text-[8px]' : lobbyNativeMobile ? MOBILE_RANK_TEXT_CLASS : 'text-xs'
+                    }`}
+                />
+            </div>
             <Avatar userId={entry.id} userName={entry.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : lobbyNativeMobile ? 38 : 28} />
             <span
                 className={`ml-1 flex-1 truncate font-semibold ${dense ? 'text-[8px]' : lobbyNativeMobile ? `ml-1.5 ${MOBILE_RANK_TEXT_CLASS}` : 'ml-1.5 text-xs'}`}
@@ -78,12 +81,17 @@ const RankRow: React.FC<{
     isCurrentUser: boolean;
     onViewUser: (userId: string) => void;
 }> = ({ entry, isCurrentUser, onViewUser }) => {
-    const rankDisplay = useMemo(() => {
-        if (entry.rank === 1) return <span className="text-3xl" role="img" aria-label="Gold Trophy">🥇</span>;
-        if (entry.rank === 2) return <span className="text-3xl" role="img" aria-label="Silver Trophy">🥈</span>;
-        if (entry.rank === 3) return <span className="text-3xl" role="img" aria-label="Bronze Trophy">🥉</span>;
-        return <span className="text-2xl font-bold text-gray-300">{entry.rank}</span>;
-    }, [entry.rank]);
+    const { t } = useTranslation(['tournament', 'lobby']);
+    const rankDisplay = useMemo(
+        () => (
+            <RankPlaceMark
+                rank={entry.rank}
+                size="md"
+                fallbackClassName="text-2xl font-bold tabular-nums text-gray-300"
+            />
+        ),
+        [entry.rank],
+    );
     const avatarUrl = AVATAR_POOL.find(a => a.id === entry.avatarId)?.url;
     const borderUrl = BORDER_POOL.find(b => b.id === entry.borderId)?.url;
 
@@ -304,14 +312,12 @@ const ChampionshipRankingPanel: React.FC<ChampionshipRankingPanelProps> = ({
                                 <div className="w-14 flex-shrink-0 flex flex-col items-center justify-center text-center">
                                     {myRankDisplay.rank === null ? (
                                         <span className="text-2xl font-bold text-gray-400">-</span>
-                                    ) : myRankDisplay.rank === 1 ? (
-                                        <span className="text-3xl">🥇</span>
-                                    ) : myRankDisplay.rank === 2 ? (
-                                        <span className="text-3xl">🥈</span>
-                                    ) : myRankDisplay.rank === 3 ? (
-                                        <span className="text-3xl">🥉</span>
                                     ) : (
-                                        <span className="text-2xl font-bold text-gray-300">{myRankDisplay.rank}</span>
+                                        <RankPlaceMark
+                                            rank={myRankDisplay.rank}
+                                            size="md"
+                                            fallbackClassName="text-2xl font-bold tabular-nums text-gray-300"
+                                        />
                                     )}
                                 </div>
                                 <Avatar

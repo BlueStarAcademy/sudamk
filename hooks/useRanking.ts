@@ -12,6 +12,13 @@ export interface RankingEntry {
     losses: number;
     league?: string;
     userLevel?: number;
+    /** 탐험 랭킹: 몬스터 이해도(도감 완성도) % */
+    monsterUnderstandingPercent?: number;
+    /** 챔피언십 랭킹: 초반/중반/종반·종합 능력치 */
+    openingAbility?: number;
+    midgameAbility?: number;
+    endgameAbility?: number;
+    totalAbility?: number;
 }
 
 export interface RankingResponse {

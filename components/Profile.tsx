@@ -1376,6 +1376,7 @@ const Profile: React.FC<ProfileProps> = () => {
         const nh = isNativeMobile && !readableHome;
         const ch = nativeCompactHome;
         const rankTier = overallTiers.strategicTier;
+        const pairTier = overallTiers.pairTier;
         const champTier = championshipVenueStrip.tier;
         const peakName =
             typeof currentUserWithStatus.previousSeasonTier === 'string' &&
@@ -1390,7 +1391,7 @@ const Profile: React.FC<ProfileProps> = () => {
             hint?: string,
         ) => (
             <div
-                className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-white/12 bg-gradient-to-b from-black/45 to-black/25 ${
+                className={`flex min-w-0 flex-1 items-center gap-1.5 rounded-lg border border-white/12 bg-gradient-to-b from-black/45 to-black/25 ${
                     nh ? 'px-1.5 py-1' : ch ? 'px-1.5 py-1' : 'px-2 py-1.5'
                 }`}
             >
@@ -1434,12 +1435,17 @@ const Profile: React.FC<ProfileProps> = () => {
         return (
             <div className="w-full min-w-0 overflow-hidden rounded-lg border border-zinc-600/80 bg-gradient-to-b from-zinc-800 to-zinc-900 shadow-inner">
                 <div className={nh ? 'min-h-0 px-1 py-0.5' : ch ? 'min-h-0 p-0.5' : 'min-h-0 p-1'}>
-                    <div className="flex min-w-0 gap-1.5">
+                    <div className="flex min-w-0 gap-1">
                         {tierChip(
                             t('rankTierLabel'),
                             rankTier,
                             `${overallTiers.strategicIntegratedScore}${t('points')}`,
                             peakName ? t('tierPeak', { tier: peakName }) : undefined,
+                        )}
+                        {tierChip(
+                            t('pairRankTierLabel'),
+                            pairTier,
+                            `${overallTiers.pairSeasonScore}${t('points')}`,
                         )}
                         {tierChip(
                             t('champTierLabel'),
@@ -1455,6 +1461,8 @@ const Profile: React.FC<ProfileProps> = () => {
         currentUserWithStatus.previousSeasonTier,
         isNativeMobile,
         nativeCompactHome,
+        overallTiers.pairSeasonScore,
+        overallTiers.pairTier,
         overallTiers.strategicIntegratedScore,
         overallTiers.strategicTier,
         readableHome,

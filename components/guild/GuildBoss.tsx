@@ -25,6 +25,7 @@ import { computeGuildBossUserMaxHp } from '../../shared/constants/guildBossBalan
 import type { BattleLogEntry, GuildBossBattleResult } from '../../types/index.js';
 import { calculateTotalStats } from '../../utils/statUtils.js';
 import Avatar from '../Avatar.js';
+import FantasyRankBadge from '../FantasyRankBadge.js';
 import UserNicknameText from '../UserNicknameText.js';
 import EquipmentEnhancementBadge from '../EquipmentEnhancementBadge.js';
 import {
@@ -59,25 +60,9 @@ import {
     PC_LOBBY_DESKTOP_SHELL_PADDING_CLASS,
 } from '../../shared/constants/pcShellLayout.js';
 
-const GUILD_BOSS_TOP_RANK_BADGE_CLASS: Record<1 | 2 | 3, string> = {
-    1: 'bg-gradient-to-br from-amber-100 via-yellow-400 to-amber-700 text-amber-950 ring-2 ring-amber-200/90 shadow-[0_0_12px_rgba(251,191,36,0.42)]',
-    2: 'bg-gradient-to-br from-slate-50 via-slate-300 to-slate-600 text-slate-900 ring-2 ring-slate-200/85 shadow-[0_2px_8px_rgba(148,163,184,0.35)]',
-    3: 'bg-gradient-to-br from-orange-200 via-amber-700 to-orange-950 text-orange-50 ring-2 ring-orange-300/75 shadow-[0_2px_8px_rgba(194,65,12,0.28)]',
-};
-
-const GuildBossTopRankBadge: React.FC<{ place: 1 | 2 | 3; compact?: boolean }> = ({ place, compact = false }) => {
-    const { t } = useTranslation(['guild', 'common']);
-    return (
-    <span
-        className={`inline-flex shrink-0 items-center justify-center rounded-full font-black tabular-nums ${
-            compact ? 'h-5 w-5 text-[10px]' : 'h-8 w-8 text-sm'
-        } ${GUILD_BOSS_TOP_RANK_BADGE_CLASS[place]}`}
-        aria-label={t('boss.placeAria', { place })}
-    >
-        {place}
-    </span>
-    );
-};
+const GuildBossTopRankBadge: React.FC<{ place: 1 | 2 | 3; compact?: boolean }> = ({ place, compact = false }) => (
+    <FantasyRankBadge place={place} size={compact ? 'xs' : 'sm'} />
+);
 
 const gradeBackgrounds: Record<ItemGrade, string> = {
     normal: '/images/equipments/normalbgi.webp',

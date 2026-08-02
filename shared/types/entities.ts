@@ -689,7 +689,8 @@ export type User = {
   borderId: string;
   ownedBorders: string[];
   previousSeasonTier?: string | null;
-  seasonHistory?: Record<string, Partial<Record<GameMode, string>>>;
+  /** 시즌명 → 모드별 티어. 페어 랭킹전은 synthetic `'pair'` 키(GameMode 아님) */
+  seasonHistory?: Record<string, Partial<Record<GameMode | 'pair', string>>>;
   tournamentScore: number;
   league: LeagueTier;
   mannerMasteryApplied?: boolean;

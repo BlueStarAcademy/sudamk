@@ -5,8 +5,34 @@ import { RANKING_TIERS } from '../../constants';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../../shared/constants/rankingModalScrollbar.js';
 import { useRanking } from '../../hooks/useRanking.js';
 import { pickChampionshipVersusSeasonRankingStats } from '../../shared/utils/championshipVersusElo.js';
-import SeasonalBadukRankingRow from './SeasonalBadukRankingRow.js';
+import { championshipKataAbilityScore } from '../../shared/constants/championshipRealMatch.js';
+import { calculateTotalStats } from '../../services/statService.js';
+import SeasonalBadukRankingRow, { type SeasonalBadukRankingRowUser } from './SeasonalBadukRankingRow.js';
 import { formatCurrentSeasonLabel } from '../../shared/utils/rankingSeasonDisplay.js';
+
+function resolveChampionshipAbilityFields(user: UserWithStatus | null | undefined): {
+    openingAbility: number;
+    midgameAbility: number;
+    endgameAbility: number;
+    totalAbility: number;
+} {
+    if (!user) {
+        return { openingAbility: 0, midgameAbility: 0, endgameAbility: 0, totalAbility: 0 };
+    }
+    try {
+        const stats = calculateTotalStats(user, 'championshipVenue');
+        return {
+            openingAbility: championshipKataAbilityScore('opening', stats),
+            midgameAbility: championshipKataAbilityScore('midgame', stats),
+            endgameAbility: championshipKataAbilityScore('endgame', stats),
+            totalAbility: Math.round(
+                Object.values(stats).reduce((acc, v) => acc + (Number(v) || 0), 0),
+            ),
+        };
+    } catch {
+        return { openingAbility: 0, midgameAbility: 0, endgameAbility: 0, totalAbility: 0 };
+    }
+}
 
 const CHAMPIONSHIP_TOP = 100;
 const INITIAL_DISPLAY = 30;
@@ -37,8 +63,30 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
     const { t } = useTranslation('lobby');
     const { rankings, loading, error } = useRanking('championship', CHAMPIONSHIP_TOP, 0);
 
+    const myAbilityFallback = useMemo(
+        () => resolveChampionshipAbilityFields(currentUser),
+        [currentUser],
+    );
+
     const allRankedUsers = useMemo(() => {
-        return rankings.map((entry) => ({
+        return rankings.map((entry) => {
+            const fromApi =
+                entry.openingAbility != null &&
+                entry.midgameAbility != null &&
+                entry.endgameAbility != null &&
+                entry.totalAbility != null;
+            const ability =
+                fromApi
+                    ? {
+                          openingAbility: Number(entry.openingAbility),
+                          midgameAbility: Number(entry.midgameAbility),
+                          endgameAbility: Number(entry.endgameAbility),
+                          totalAbility: Number(entry.totalAbility),
+                      }
+                    : entry.id === currentUser.id
+                      ? myAbilityFallback
+                      : undefined;
+            return {
                 id: entry.id,
                 nickname: entry.nickname,
                 avatarId: entry.avatarId,
@@ -50,10 +98,12 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                 losses: entry.losses,
                 league: entry.league,
                 userLevel: entry.userLevel,
+                ...(ability ?? {}),
                 stats: {} as Record<string, unknown>,
                 dailyRankings: {} as Record<string, unknown>,
-            }));
-    }, [rankings]);
+            };
+        });
+    }, [rankings, currentUser.id, myAbilityFallback]);
 
     const eligibleRankedUsers = allRankedUsers.filter((u) => u.totalGames >= MIN_GAMES_FOR_TIER);
     const sproutTier = RANKING_TIERS[RANKING_TIERS.length - 1];
@@ -83,6 +133,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                     wins: 0,
                     losses: 0,
                     userLevel: typeof currentUser.userLevel === 'number' ? currentUser.userLevel : undefined,
+                    ...myAbilityFallback,
                     stats: {} as Record<string, unknown>,
                     dailyRankings: {} as Record<string, unknown>,
                 },
@@ -104,13 +155,14 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
                 wins: versus.seasonWins,
                 losses: versus.seasonLosses,
                 userLevel: typeof currentUser.userLevel === 'number' ? currentUser.userLevel : undefined,
+                ...myAbilityFallback,
                 stats: {} as Record<string, unknown>,
                 dailyRankings: {} as Record<string, unknown>,
             },
             rank,
             dashPlaceholder: false as const,
         };
-    }, [myRankIndex, allRankedUsers, currentUser, eligibleRankedUsers]);
+    }, [myRankIndex, allRankedUsers, currentUser, eligibleRankedUsers, myAbilityFallback]);
 
     const [displayCount, setDisplayCount] = useState(INITIAL_DISPLAY);
     const loadMoreRef = useRef<HTMLLIElement>(null);
@@ -162,17 +214,7 @@ const ChampionshipRankingList: React.FC<ChampionshipRankingListProps> = ({
 
     const renderRankItem = useCallback(
         (
-            user: {
-                id: string;
-                nickname: string;
-                avatarId: string;
-                borderId: string;
-                avgScore: number;
-                totalGames: number;
-                wins: number;
-                losses: number;
-                userLevel?: number;
-            },
+            user: SeasonalBadukRankingRowUser,
             rank: number,
             isMyRankDisplay: boolean,
             dashPlaceholder = false,

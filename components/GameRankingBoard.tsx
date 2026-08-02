@@ -5,11 +5,18 @@ import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScr
 import { useRanking } from '../hooks/useRanking.js';
 import { User } from '../types.js';
 import Avatar from './Avatar.js';
+import { RankPlaceMark } from './FantasyRankBadge.js';
 import UserNicknameText from './UserNicknameText.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import { calculateTotalStats } from '../services/statService.js';
 import { getAdventureHuntingScore } from '../shared/utils/adventureHuntingScore.js';
+import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import MobileRankingGuidePanel from './MobileRankingGuidePanel.js';
+
+function formatMonsterUnderstandingPercent(percent: number): string {
+    const clamped = Math.min(100, Math.max(0, percent));
+    return clamped >= 10 ? `${Math.round(clamped)}` : `${Math.round(clamped * 10) / 10}`;
+}
 
 const IS_DEV = import.meta.env.DEV;
 /** 모바일·랭킹 모달 다열: 바둑랭킹(splitStack) 행과 동일한 글자·아바타 스케일 */
@@ -60,6 +67,7 @@ const RankingRow = ({
     mobileWide,
     currentUserId,
     currentUserLevel,
+    monsterUnderstandingPercent,
 }: {
     user: User & { userLevel?: number };
     rank: number;
@@ -71,11 +79,19 @@ const RankingRow = ({
     mobileWide?: boolean;
     currentUserId?: string;
     currentUserLevel?: number;
+    /** 탐험 랭킹 전용: 점수 왼쪽에 몬스터 이해도 % 표시 */
+    monsterUnderstandingPercent?: number;
 }) => {
     const { t } = useTranslation('game');
     const displayLevel = resolveRankingRowUserLevel(user, currentUserId, currentUserLevel);
     const avatarUrl = useMemo(() => AVATAR_POOL.find(a => a.id === user.avatarId)?.url, [user.avatarId]);
     const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
+    const understandingLabel =
+        monsterUnderstandingPercent != null && Number.isFinite(monsterUnderstandingPercent)
+            ? t('rankingBoard.monsterUnderstanding', {
+                  percent: formatMonsterUnderstandingPercent(monsterUnderstandingPercent),
+              })
+            : null;
 
     const handleClick = () => {
         if (!isCurrentUser && onViewUser) {
@@ -94,19 +110,13 @@ const RankingRow = ({
                 onClick={handleClick}
                 title={!isCurrentUser && onViewUser ? t('rankingBoard.viewProfile', { name: user.nickname }) : ''}
             >
-                <span
-                    className={`w-10 shrink-0 text-center sm:w-11 ${MOBILE_RANK_TEXT_CLASS} font-black tabular-nums ${
-                        typeof rank === 'number' && rank === 1
-                            ? 'text-amber-300'
-                            : typeof rank === 'number' && rank === 2
-                              ? 'text-slate-200'
-                              : typeof rank === 'number' && rank === 3
-                                ? 'text-amber-600/90'
-                                : 'text-primary'
-                    }`}
-                >
-                    {rank}
-                </span>
+                <div className="flex w-10 shrink-0 items-center justify-center sm:w-11">
+                    <RankPlaceMark
+                        rank={rank}
+                        size="sm"
+                        fallbackClassName={`${MOBILE_RANK_TEXT_CLASS} font-black tabular-nums text-primary`}
+                    />
+                </div>
                 <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={avatarSize} fixedFrameSize />
                 <div className={`flex min-w-0 flex-1 flex-col gap-0.5 leading-tight ${MOBILE_RANK_TEXT_CLASS}`}>
                     <span className="shrink-0 font-extrabold tabular-nums text-amber-200">Lv.{displayLevel ?? '—'}</span>
@@ -119,9 +129,19 @@ const RankingRow = ({
                         className="min-w-0 truncate font-bold"
                     />
                 </div>
-                <span className={`w-[5rem] shrink-0 text-right font-mono sm:w-24 ${MOBILE_RANK_SCORE_CLASS}`}>
-                    {value.toLocaleString()}
-                </span>
+                <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+                    {understandingLabel && (
+                        <span
+                            className="max-w-[5.5rem] truncate text-right text-[10px] font-semibold leading-tight text-violet-200/90 sm:max-w-none sm:text-xs"
+                            title={understandingLabel}
+                        >
+                            {understandingLabel}
+                        </span>
+                    )}
+                    <span className={`w-[5rem] shrink-0 text-right font-mono sm:w-24 ${MOBILE_RANK_SCORE_CLASS}`}>
+                        {value.toLocaleString()}
+                    </span>
+                </div>
             </div>
         );
     }
@@ -132,19 +152,13 @@ const RankingRow = ({
             onClick={handleClick}
             title={!isCurrentUser && onViewUser ? t('rankingBoard.viewProfile', { name: user.nickname }) : ''}
         >
-            <span
-                className={`text-center font-bold ${dense ? 'w-5 text-[8px]' : 'w-8 text-xs'} ${
-                    !dense && typeof rank === 'number' && rank === 1
-                        ? 'text-amber-300'
-                        : !dense && typeof rank === 'number' && rank === 2
-                          ? 'text-slate-200'
-                          : !dense && typeof rank === 'number' && rank === 3
-                            ? 'text-amber-600/90'
-                            : ''
-                }`}
-            >
-                {rank}
-            </span>
+            <div className={`flex shrink-0 items-center justify-center ${dense ? 'w-5' : 'w-8'}`}>
+                <RankPlaceMark
+                    rank={rank}
+                    size={dense ? 'xs' : 'sm'}
+                    fallbackClassName={`text-center font-bold tabular-nums ${dense ? 'text-[8px]' : 'text-xs'}`}
+                />
+            </div>
             <Avatar userId={user.id} userName={user.nickname} avatarUrl={avatarUrl} borderUrl={borderUrl} size={dense ? 20 : 28} fixedFrameSize />
             <div
                 className={`ml-1 flex min-w-0 flex-1 flex-col gap-px leading-tight ${dense ? 'text-[8px]' : 'ml-1.5 text-xs'}`}
@@ -161,11 +175,23 @@ const RankingRow = ({
                     className="min-w-0 truncate font-semibold"
                 />
             </div>
-            <span
-                className={`text-right font-mono ${dense ? `w-11 ${DENSE_RANK_SCORE_CLASS}` : `w-20 ${DESKTOP_RANK_SCORE_CLASS}`}`}
-            >
-                {value.toLocaleString()}
-            </span>
+            <div className={`flex shrink-0 items-center ${dense ? 'gap-0.5' : 'gap-1.5'}`}>
+                {understandingLabel && (
+                    <span
+                        className={`text-right font-semibold leading-tight text-violet-200/90 ${
+                            dense ? 'max-w-[3.25rem] truncate text-[7px]' : 'text-[10px] sm:text-xs'
+                        }`}
+                        title={understandingLabel}
+                    >
+                        {understandingLabel}
+                    </span>
+                )}
+                <span
+                    className={`text-right font-mono ${dense ? `w-11 ${DENSE_RANK_SCORE_CLASS}` : `w-20 ${DESKTOP_RANK_SCORE_CLASS}`}`}
+                >
+                    {value.toLocaleString()}
+                </span>
+            </div>
         </div>
     );
 };
@@ -206,21 +232,53 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
     const currentUserLevel = currentUserWithStatus?.userLevel;
     const currentUserId = currentUserWithStatus?.id;
 
+    const currentUserUnderstandingPercent = useMemo(() => {
+        if (activeTab !== 'adventure' || !currentUserWithStatus) return undefined;
+        try {
+            return getAdventureCodexCompletionBreakdown(currentUserWithStatus.adventureProfile).overallPercent;
+        } catch {
+            return 0;
+        }
+    }, [activeTab, currentUserWithStatus]);
+
     const rankings = useMemo(() => {
-        return rankingEntries.map((entry) => ({
-            user: {
-                id: entry.id,
-                nickname: entry.nickname,
-                avatarId: entry.avatarId,
-                borderId: entry.borderId,
-                userLevel:
-                    entry.userLevel ??
-                    (entry.id === currentUserId && typeof currentUserLevel === 'number' ? currentUserLevel : undefined),
-            } as User,
-            value: entry.score,
-            rank: entry.rank,
-        }));
-    }, [rankingEntries, currentUserId, currentUserLevel]);
+        return rankingEntries.map((entry) => {
+            let monsterUnderstandingPercent: number | undefined;
+            if (activeTab === 'adventure') {
+                if (
+                    entry.monsterUnderstandingPercent != null &&
+                    Number.isFinite(Number(entry.monsterUnderstandingPercent))
+                ) {
+                    monsterUnderstandingPercent = Number(entry.monsterUnderstandingPercent);
+                } else if (entry.id === currentUserId && currentUserUnderstandingPercent != null) {
+                    // 구버전 API 캐시일 때 내 행만 클라이언트로 보정
+                    monsterUnderstandingPercent = currentUserUnderstandingPercent;
+                }
+            }
+            return {
+                user: {
+                    id: entry.id,
+                    nickname: entry.nickname,
+                    avatarId: entry.avatarId,
+                    borderId: entry.borderId,
+                    userLevel:
+                        entry.userLevel ??
+                        (entry.id === currentUserId && typeof currentUserLevel === 'number'
+                            ? currentUserLevel
+                            : undefined),
+                } as User,
+                value: entry.score,
+                rank: entry.rank,
+                monsterUnderstandingPercent,
+            };
+        });
+    }, [
+        rankingEntries,
+        currentUserId,
+        currentUserLevel,
+        activeTab,
+        currentUserUnderstandingPercent,
+    ]);
 
     // 페이지네이션: 초기 10명, 스크롤 시 10명씩 추가
     const [displayCount, setDisplayCount] = useState(10);
@@ -266,17 +324,19 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
         }
         
         let value;
+        let monsterUnderstandingPercent: number | undefined;
         if (activeTab === 'combat') {
             const totalStats = calculateTotalStats(currentUserWithStatus);
             value = Object.values(totalStats).reduce((acc, val) => acc + val, 0);
         } else if (activeTab === 'adventure') {
             value = getAdventureHuntingScore(currentUserWithStatus.adventureProfile).score;
+            monsterUnderstandingPercent = currentUserUnderstandingPercent ?? 0;
         } else {
             value = currentUserWithStatus.mannerScore;
         }
         
-        return { user: currentUserWithStatus, value, rank: 'N/A' };
-    }, [rankings, currentUserWithStatus, activeTab]);
+        return { user: currentUserWithStatus, value, rank: 'N/A' as const, monsterUnderstandingPercent };
+    }, [rankings, currentUserWithStatus, activeTab, currentUserUnderstandingPercent]);
 
     return (
         <div
@@ -380,6 +440,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                                         mobileWide={wide}
                                         currentUserId={currentUserId}
                                         currentUserLevel={currentUserLevel}
+                                        monsterUnderstandingPercent={currentUserRanking.monsterUnderstandingPercent}
                                     />
                                 </div>
                             )}
@@ -399,6 +460,7 @@ const GameRankingBoard: React.FC<GameRankingBoardProps> = ({
                                             mobileWide={wide}
                                             currentUserId={currentUserId}
                                             currentUserLevel={currentUserLevel}
+                                            monsterUnderstandingPercent={r.monsterUnderstandingPercent}
                                         />
                                     ))}
                                     {displayCount < rankings.length && (

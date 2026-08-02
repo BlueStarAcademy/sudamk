@@ -22,6 +22,7 @@ import {
 import { championshipVersusDuelVenueModeLabelKo } from '../shared/utils/championshipVersusDuelWeekLog.js';
 import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
 import Avatar from './Avatar.js';
+import { RankPlaceMark } from './FantasyRankBadge.js';
 import { isSameDayKST } from '../utils/timeUtils.js';
 import { getChampionshipDungeonDailyEntryState } from '../shared/utils/championshipDungeonDailyEntry.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -350,12 +351,16 @@ const RankItem: React.FC<RankItemProps> = ({ user, rank, isMyRankDisplay }) => {
 
     const score = user.tournamentScore || 0;
 
-    const rankDisplay = useMemo(() => {
-        if (rank === 1) return <span className="text-3xl" role="img" aria-label="Gold Trophy">🥇</span>;
-        if (rank === 2) return <span className="text-3xl" role="img" aria-label="Silver Trophy">🥈</span>;
-        if (rank === 3) return <span className="text-3xl" role="img" aria-label="Bronze Trophy">🥉</span>;
-        return <span className="text-2xl font-bold text-gray-300">{rank}</span>;
-    }, [rank]);
+    const rankDisplay = useMemo(
+        () => (
+            <RankPlaceMark
+                rank={rank}
+                size="md"
+                fallbackClassName="text-2xl font-bold tabular-nums text-gray-300"
+            />
+        ),
+        [rank],
+    );
 
     const isCurrentUserInList = !isMyRankDisplay && user.id === currentUserWithStatus.id;
     const baseClass = 'flex items-center rounded-lg';

@@ -1087,7 +1087,8 @@
       "loadFailed": "Failed to load ranking.",
       "empty": "No ranking data.",
       "loadingMore": "Loading…",
-      "viewProfile": "View {{name}} profile"
+      "viewProfile": "View {{name}} profile",
+      "monsterUnderstanding": "Monster understanding {{percent}}%"
     },
     "towerSummary": {
       "floorClear": "Floor cleared",
@@ -2539,6 +2540,8 @@
         "matchArena": "Arena"
       },
       "queueRanked": "Ranked",
+      "queuePairRanked": "Pair Ranked",
+      "queuePairRankedTab": "Pair\nRanked",
       "queueNormal": "Normal",
       "matchTypeTitle": "Match type"
     },
@@ -2848,7 +2851,7 @@
       "startMissionTitle": "Start {{missionName}}",
       "claimAllModalTitle": "Claim all training rewards",
       "claimAllPreviewTitle": "Rewards earned",
-      "claimAllSuccess": "All training quest rewards claimed!",
+      "claimAllSuccess": "Products harvested",
       "claimAllNormal": "Claim",
       "claimAllAdDouble": "Watch Ad 200%",
       "claimAllAdFree": "Watch Ad 200%",
@@ -3184,6 +3187,7 @@
     "productionFactory": "Factory",
     "guildHomeTile": "Guild",
     "rankTierLabel": "Rank",
+    "pairRankTierLabel": "Pair",
     "champTierLabel": "Champ",
     "tierPeak": "Peak {{tier}}",
     "tierUnranked": "Unranked",
@@ -5954,6 +5958,8 @@
       "title": "Ranking",
       "gameRankingTab": "Game ranking",
       "badukRankingTab": "Go ranking",
+      "adventureRankingTab": "Exploration ranking",
+      "championshipRankingTab": "Championship ranking",
       "loginRequired": "Log in to view rankings.",
       "championshipLoginHint": "Log in to view championship rankings.",
       "guideClose": "Close guide",

@@ -2,6 +2,7 @@ import React, { useMemo, useState, useCallback, useRef, useEffect } from 'react'
 import { useTranslation } from 'react-i18next';
 import { User, UserWithStatus, GameMode } from '../../types.js';
 import Avatar from '../Avatar.js';
+import { RankPlaceMark } from '../FantasyRankBadge.js';
 import { RANKING_TIERS, AVATAR_POOL, BORDER_POOL } from '../../constants';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
@@ -303,48 +304,18 @@ const RankingList: React.FC<RankingListProps> = ({
         
         const rankSmall = pairAlignedNativeCompact || splitStack;
 
-        // 랭킹 표시 아이콘 (메달·숫자 크기)
         const rankDisplay = () => {
-            const medalSeasonal = rankSmall
-                ? 'text-3xl leading-none sm:text-4xl'
-                : 'text-4xl leading-none sm:text-5xl';
-            const medalLegacy = rankSmall ? 'text-2xl sm:text-3xl' : 'text-3xl sm:text-4xl';
             const numSeasonal = rankSmall
                 ? 'text-base sm:text-lg tabular-nums'
                 : 'text-lg sm:text-xl lg:text-2xl tabular-nums';
             const numLegacy = rankSmall ? 'text-xs sm:text-sm' : 'text-sm sm:text-base';
-
-            if (dashPlaceholder) {
-                return (
-                    <span className={`${rankStyle.rankText} ${seasonalBadukInlineLayout ? numSeasonal : numLegacy} tabular-nums`}>-</span>
-                );
-            }
-
-            if (rank === 1) {
-                return (
-                    <span className={seasonalBadukInlineLayout ? medalSeasonal : medalLegacy} role="img" aria-label="Gold Medal">
-                        🥇
-                    </span>
-                );
-            }
-            if (rank === 2) {
-                return (
-                    <span className={seasonalBadukInlineLayout ? medalSeasonal : medalLegacy} role="img" aria-label="Silver Medal">
-                        🥈
-                    </span>
-                );
-            }
-            if (rank === 3) {
-                return (
-                    <span className={seasonalBadukInlineLayout ? medalSeasonal : medalLegacy} role="img" aria-label="Bronze Medal">
-                        🥉
-                    </span>
-                );
-            }
             return (
-                <span className={`${rankStyle.rankText} ${seasonalBadukInlineLayout ? numSeasonal : numLegacy}`}>
-                    {rank}
-                </span>
+                <RankPlaceMark
+                    rank={rank}
+                    size={rankSmall ? 'md' : seasonalBadukInlineLayout ? 'lg' : 'md'}
+                    dashPlaceholder={dashPlaceholder}
+                    fallbackClassName={`${rankStyle.rankText} ${seasonalBadukInlineLayout ? numSeasonal : numLegacy}`}
+                />
             );
         };
 

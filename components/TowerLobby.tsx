@@ -7,6 +7,7 @@ import { useAppContext } from '../hooks/useAppContext.js';
 import { useTowerRanking } from '../hooks/useTowerRanking.js';
 import Button from './Button.js';
 import Avatar from './Avatar.js';
+import { RankPlaceMark } from './FantasyRankBadge.js';
 import { AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import StageClearRewardPreview from './rewards/StageClearRewardPreview.js';
@@ -832,19 +833,13 @@ const TowerLobby: React.FC<TowerLobbyProps> = ({ presentation = 'full' }) => {
                                               : 'border border-amber-700/25 bg-gray-900/45 hover:border-amber-600/40'
                                     }`}
                                 >
-                                    <span
-                                        className={`w-6 shrink-0 text-xs font-bold sm:text-sm ${
-                                            rank === 1
-                                                ? 'text-yellow-300'
-                                                : rank === 2
-                                                  ? 'text-gray-300'
-                                                  : rank === 3
-                                                    ? 'text-amber-500'
-                                                    : 'text-amber-300'
-                                        }`}
-                                    >
-                                        {rank}
-                                    </span>
+                                    <div className="flex w-7 shrink-0 items-center justify-center">
+                                        <RankPlaceMark
+                                            rank={rank}
+                                            size="sm"
+                                            fallbackClassName="text-xs font-bold tabular-nums text-amber-300 sm:text-sm"
+                                        />
+                                    </div>
                                     <Avatar
                                         userId={user.id}
                                         userName={user.nickname}
@@ -1333,19 +1328,13 @@ const TowerLobby: React.FC<TowerLobbyProps> = ({ presentation = 'full' }) => {
                                                     : 'border border-amber-700/30 bg-gray-800/40 hover:border-amber-600/50 hover:bg-gray-700/50'
                                             }`}
                                         >
-                                            <span
-                                                className={`w-6 shrink-0 text-center text-xs font-bold ${
-                                                    rank === 1
-                                                        ? 'text-yellow-300'
-                                                        : rank === 2
-                                                          ? 'text-gray-300'
-                                                          : rank === 3
-                                                            ? 'text-amber-500'
-                                                            : 'text-amber-300'
-                                                }`}
-                                            >
-                                                {rank}
-                                            </span>
+                                            <div className="flex w-7 shrink-0 items-center justify-center">
+                                                <RankPlaceMark
+                                                    rank={rank}
+                                                    size="sm"
+                                                    fallbackClassName="text-center text-xs font-bold tabular-nums text-amber-300"
+                                                />
+                                            </div>
                                             <Avatar
                                                 userId={user.id}
                                                 userName={user.nickname}

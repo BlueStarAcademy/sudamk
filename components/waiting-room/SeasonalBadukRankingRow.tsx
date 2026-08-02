@@ -2,6 +2,7 @@ import React, { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AVATAR_POOL, BORDER_POOL } from '../../constants';
 import Avatar from '../Avatar.js';
+import { RankPlaceMark } from '../FantasyRankBadge.js';
 import { translateRankingTierName } from '../../shared/i18n/rankingTierText.js';
 
 export interface SeasonalBadukRankingRowUser {
@@ -14,6 +15,11 @@ export interface SeasonalBadukRankingRowUser {
     wins: number;
     losses: number;
     userLevel?: number;
+    /** 챔피언십 랭킹: 초반/중반/종반·종합 능력치 */
+    openingAbility?: number;
+    midgameAbility?: number;
+    endgameAbility?: number;
+    totalAbility?: number;
 }
 
 export interface SeasonalBadukRankingTier {
@@ -45,8 +51,17 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
     currentUserId,
     currentUserLevel,
 }) => {
-    const { t } = useTranslation('lobby');
+    const { t } = useTranslation(['lobby', 'tournament', 'common']);
     const tierDisplayName = translateRankingTierName(tier.name);
+    const hasChampionshipAbility =
+        user.openingAbility != null &&
+        user.midgameAbility != null &&
+        user.endgameAbility != null &&
+        user.totalAbility != null &&
+        Number.isFinite(user.openingAbility) &&
+        Number.isFinite(user.midgameAbility) &&
+        Number.isFinite(user.endgameAbility) &&
+        Number.isFinite(user.totalAbility);
     const wins = user.wins || 0;
     const losses = user.losses || 0;
     const winRate = wins + losses > 0 ? Math.round((wins / (wins + losses)) * 100) : 0;
@@ -116,34 +131,15 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
     const borderUrl = BORDER_POOL.find((b) => b.id === user.borderId)?.url;
 
     const rankDisplay = () => {
-        const medalSeasonal = rankSmall ? 'text-3xl leading-none sm:text-4xl' : 'text-4xl leading-none sm:text-5xl';
         const numSeasonal = rankSmall ? 'text-base sm:text-lg tabular-nums' : 'text-lg sm:text-xl lg:text-2xl tabular-nums';
-
-        if (dashPlaceholder) {
-            return <span className={`${rankStyle.rankText} ${numSeasonal} tabular-nums`}>-</span>;
-        }
-        if (rank === 1) {
-            return (
-                <span className={medalSeasonal} role="img" aria-label="Gold Medal">
-                    🥇
-                </span>
-            );
-        }
-        if (rank === 2) {
-            return (
-                <span className={medalSeasonal} role="img" aria-label="Silver Medal">
-                    🥈
-                </span>
-            );
-        }
-        if (rank === 3) {
-            return (
-                <span className={medalSeasonal} role="img" aria-label="Bronze Medal">
-                    🥉
-                </span>
-            );
-        }
-        return <span className={`${rankStyle.rankText} ${numSeasonal}`}>{rank}</span>;
+        return (
+            <RankPlaceMark
+                rank={rank}
+                size={rankSmall ? 'md' : 'lg'}
+                dashPlaceholder={dashPlaceholder}
+                fallbackClassName={`${rankStyle.rankText} ${numSeasonal}`}
+            />
+        );
     };
 
     const winRateClass = winRate >= 60 ? 'text-green-400' : winRate >= 50 ? 'text-yellow-400' : 'text-gray-400';
@@ -204,6 +200,24 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
                 >
                     {user.nickname}
                 </span>
+                {hasChampionshipAbility && (
+                    <div
+                        className={`mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 font-semibold tabular-nums text-violet-200/90 ${
+                            rankSmall ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
+                        }`}
+                        title={t('tournament:championshipAbility')}
+                        aria-label={t('tournament:championshipAbility')}
+                    >
+                        <span className="shrink-0 text-violet-300/80">{t('common:coreAbility.opening')}</span>
+                        <span className="font-mono font-bold text-amber-100/95">{Math.round(user.openingAbility!)}</span>
+                        <span className="shrink-0 text-violet-300/80">{t('common:coreAbility.midgame')}</span>
+                        <span className="font-mono font-bold text-amber-100/95">{Math.round(user.midgameAbility!)}</span>
+                        <span className="shrink-0 text-violet-300/80">{t('common:coreAbility.endgame')}</span>
+                        <span className="font-mono font-bold text-amber-100/95">{Math.round(user.endgameAbility!)}</span>
+                        <span className="shrink-0 text-fuchsia-300/85">{t('tournament:overallAbility')}</span>
+                        <span className="font-mono font-black text-fuchsia-100">{Math.round(user.totalAbility!)}</span>
+                    </div>
+                )}
             </div>
             <div className="relative z-10 flex shrink-0 flex-col items-end gap-0.5 text-right">
                 <span
