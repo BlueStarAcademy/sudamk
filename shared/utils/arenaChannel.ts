@@ -7,11 +7,14 @@ import type { ArenaChannel } from '../types/api.js';
 export const ARENA_CHANNEL_LABEL: Record<ArenaChannel, string> = {
     strategic: '전략',
     pair: '페어',
-    playful: '놀이',
+    playful: '놀이터',
+    friendly: '친선전',
 };
 
 export function normalizeArenaChannel(value: unknown): ArenaChannel | null {
-    return value === 'strategic' || value === 'pair' || value === 'playful' ? value : null;
+    return value === 'strategic' || value === 'pair' || value === 'playful' || value === 'friendly'
+        ? value
+        : null;
 }
 
 export function arenaChannelForGameMode(mode: GameMode | null | undefined): Exclude<ArenaChannel, 'pair'> | null {

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { Guild, GuildMember } from '../../types/entities.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import Avatar from '../Avatar.js';
+import { AVATAR_POOL, BORDER_POOL } from '../../constants/index.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
 
 interface GuildInfoPanelProps {
@@ -70,6 +71,11 @@ const GuildInfoPanel: React.FC<GuildInfoPanelProps> = ({ guild, members }) => {
                         const user = allUsers?.find(u => u.id === member.userId);
                         const isCurrentUser = member.userId === currentUserWithStatus?.id;
                         const canManage = isLeader || (isOfficer && member.role === 'member');
+                        const avatarId = member.avatarId ?? (isCurrentUser ? currentUserWithStatus?.avatarId : undefined) ?? user?.avatarId;
+                        const borderId = member.borderId ?? (isCurrentUser ? currentUserWithStatus?.borderId : undefined) ?? user?.borderId;
+                        const avatarUrl = avatarId ? AVATAR_POOL.find(a => a.id === avatarId)?.url : undefined;
+                        const borderUrl = borderId ? BORDER_POOL.find(b => b.id === borderId)?.url : undefined;
+                        const displayName = member.nickname || user?.nickname || 'Unknown';
 
                         return (
                             <div
@@ -77,9 +83,9 @@ const GuildInfoPanel: React.FC<GuildInfoPanelProps> = ({ guild, members }) => {
                                 className="flex items-center justify-between p-3 bg-gray-700/50 rounded-lg hover:bg-gray-700/70 transition-colors"
                             >
                                 <div className="flex items-center gap-3">
-                                    <Avatar userId={member.userId} userName={user?.nickname || 'Unknown'} size={40} />
+                                    <Avatar userId={member.userId} userName={displayName} size={40} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                                     <div>
-                                        <p className="text-white font-semibold">{user?.nickname || 'Unknown'}</p>
+                                        <p className="text-white font-semibold">{displayName}</p>
                                         <p className="text-xs text-gray-400">
                                             {roleLabel(member.role)}
                                         </p>

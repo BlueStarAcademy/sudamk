@@ -2,12 +2,16 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { ArenaLobbyIntent } from '../../shared/types/api.js';
 
-export type ArenaLobbyNavKind = 'pair' | 'strategic' | 'playful';
+export type ArenaLobbyNavKind = 'pair' | 'strategic' | 'playful' | 'friendly';
 
 type TitleBarProps = {
     kind: ArenaLobbyNavKind;
     lobbyIntent?: ArenaLobbyIntent;
-    /** 프로필로 이동(대기실 이탈 등은 부모에서 비동기 처리) */
+    /** @deprecated 큐 탭은 대국 설정 패널 좌열로 이동됨 — 무시됨 */
+    matchQueueKind?: 'ranked' | 'normal';
+    /** @deprecated 큐 탭은 대국 설정 패널 좌열로 이동됨 — 무시됨 */
+    onSelectMatchQueue?: (queue: 'ranked' | 'normal') => void;
+    /** 프로필로 이동(대기실 이탈 로직은 부모에서 비동기 처리) */
     onBackToProfile: () => void;
     titleHeadingClass: string;
     className?: string;
@@ -18,7 +22,7 @@ function destinationTitleKey(kind: ArenaLobbyNavKind, intent: ArenaLobbyIntent):
     return `${kind}${suffix}`;
 }
 
-/** 뒤로가기 + 현재 경기장 제목. 경기장 전환은 `ArenaLobbySwitchGrid`에서 처리한다. */
+/** 뒤로가기 + 현재 경기장 제목. (홈 입장카드 정렬 후 로비 내 채널 전환 그리드는 제거됨) */
 export const ArenaLobbyNavTitleBar: React.FC<TitleBarProps> = ({
     kind,
     lobbyIntent = 'pvp',
@@ -32,7 +36,9 @@ export const ArenaLobbyNavTitleBar: React.FC<TitleBarProps> = ({
             ? 'border-amber-400/45 bg-black/20'
             : kind === 'pair'
               ? 'border-violet-400/50 bg-violet-950/20'
-              : 'border-cyan-400/45 bg-black/25';
+              : kind === 'friendly'
+                ? 'border-emerald-400/45 bg-emerald-950/20'
+                : 'border-cyan-400/45 bg-black/25';
 
     const displayTitle = t(`arenaLobby.destinationTitle.${destinationTitleKey(kind, lobbyIntent)}`);
 

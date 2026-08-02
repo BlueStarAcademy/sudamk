@@ -1,9 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { BOARD_SETTLE_BEFORE_SCORING_MS } from '../shared/constants/boardSettleTiming.js';
-import {
-    SCORING_OVERLAY_MAX_WAIT_MS,
-    SCORING_PROGRESS_DURATION_MS,
-} from '../shared/constants/scoringOverlayTiming.js';
+import { SCORING_OVERLAY_MAX_WAIT_MS } from '../shared/constants/scoringOverlayTiming.js';
 import { consumePveBoardSettledForScoring } from '../shared/utils/pveScoringBoardSettleSignal.js';
 
 /** 계가(집 계산) 종료·연출 대상인지 — 따내기·기권·시간패 등은 제외 */
@@ -19,8 +16,28 @@ export function isScoreBasedScoringPresentation(
 }
 
 /**
- * 계가 중 스캔 오버레이를 재생하고, 최소 연출 시간(7초)과 결과 데이터 준비가
- * 모두 충족된 뒤에만 결과 모달·영토 표시를 허용한다.
+ * 계가 오버레이 종료 여부.
+ * 결과가 준비되면 경과 시간과 무관하게 즉시 완료하고,
+ * 미준비 시에는 진행 표시 예상 시간(7초)만으로는 끝내지 않으며 상한(maxWait)에서만 강제 종료한다.
+ */
+export function shouldCompleteScoringOverlay(params: {
+    elapsedMs: number;
+    resultContentReady: boolean;
+    maxWaitMs?: number;
+}): boolean {
+    const {
+        elapsedMs,
+        resultContentReady,
+        maxWaitMs = SCORING_OVERLAY_MAX_WAIT_MS,
+    } = params;
+    if (resultContentReady) return true;
+    if (elapsedMs >= maxWaitMs) return true;
+    return false;
+}
+
+/**
+ * 계가 중 스캔 오버레이를 재생하고, 결과 데이터가 준비되면 남은 연출을 스킵한다.
+ * 결과가 없으면 진행 표시를 유지하다가 상한(15초)에서 강제 종료한다.
  */
 export function useScoringOverlayPresentation(params: {
     gameId: string;
@@ -95,21 +112,15 @@ export function useScoringOverlayPresentation(params: {
                   ? BOARD_SETTLE_BEFORE_SCORING_MS
                   : 0;
 
-        const tryCompleteOverlay = () => {
-            const shownAt = overlayShownAtRef.current;
-            if (shownAt == null) return;
-            const elapsed = Date.now() - shownAt;
-            if (elapsed >= SCORING_PROGRESS_DURATION_MS && resultContentReadyRef.current) {
-                completeOverlay();
-            }
-        };
-
         const showTimer = setTimeout(() => {
             overlayShownAtRef.current = Date.now();
             setShowScoringOverlay(true);
-            const minDurationTimer = setTimeout(tryCompleteOverlay, SCORING_PROGRESS_DURATION_MS);
+            if (resultContentReadyRef.current) {
+                completeOverlay();
+                return;
+            }
             const maxWaitTimer = setTimeout(completeOverlay, SCORING_OVERLAY_MAX_WAIT_MS);
-            timerIdsRef.current.push(minDurationTimer, maxWaitTimer);
+            timerIdsRef.current.push(maxWaitTimer);
         }, settleMs);
         timerIdsRef.current.push(showTimer);
     }, [
@@ -125,19 +136,14 @@ export function useScoringOverlayPresentation(params: {
         const shownAt = overlayShownAtRef.current;
         if (shownAt == null) return;
         const elapsed = Date.now() - shownAt;
-        if (elapsed >= SCORING_PROGRESS_DURATION_MS && resultContentReady) {
+        if (
+            shouldCompleteScoringOverlay({
+                elapsedMs: elapsed,
+                resultContentReady,
+            })
+        ) {
             completeOverlay();
-            return;
         }
-        if (!resultContentReady) return;
-        const remaining = Math.max(0, SCORING_PROGRESS_DURATION_MS - elapsed);
-        const waitTimer = setTimeout(() => {
-            if (resultContentReadyRef.current) {
-                completeOverlay();
-            }
-        }, remaining);
-        timerIdsRef.current.push(waitTimer);
-        return () => clearTimeout(waitTimer);
     }, [resultContentReady, showScoringOverlay, scoringOverlayCompleted]);
 
     return { showScoringOverlay, scoringOverlayCompleted, isScoreBasedPresentation };

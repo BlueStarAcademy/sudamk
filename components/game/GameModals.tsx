@@ -34,8 +34,10 @@ import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import ColorStartConfirmationModal from '../ColorStartConfirmationModal.js';
 import PairTurnOrderModal from '../PairTurnOrderModal.js';
 import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+export type GameConfirmModalType = 'resign' | 'resignShortRanked' | null;
+
 interface GameModalsProps extends GameProps {
-    confirmModalType: 'resign' | null;
+    confirmModalType: GameConfirmModalType;
     onHideConfirmModal: () => void;
     showResultModal: boolean;
     onCloseResults: () => void;
@@ -244,12 +246,28 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
         return null;
     };
 
-    const confirmModalContent = {
+    const confirmModalContent: Record<
+        Exclude<GameConfirmModalType, null>,
+        { title: string; lead: string; detail: string; confirmText: string; onConfirm: () => void }
+    > = {
         resign: {
             title: tx('game:gameModals.resignConfirmTitle'),
             lead: tx('game:gameModals.resignConfirmLead'),
             detail: tx('game:gameModals.resignConfirmDetail'),
             confirmText: tx('game:gameModals.resignConfirmButton'),
+            onConfirm: () => onAction({ type: 'RESIGN_GAME', payload: { gameId } }),
+        },
+        resignShortRanked: {
+            title: tx('game:gameModals.resignShortRankedTitle', '조기 기권 경고'),
+            lead: tx(
+                'game:gameModals.resignShortRankedLead',
+                '10수 미만에 기권하면 랭킹 점수 감점이 2배가 됩니다.',
+            ),
+            detail: tx(
+                'game:gameModals.resignShortRankedDetail',
+                '지금 기권하면 패배 처리되며, 랭킹 점수 감점이 2배·매너 점수 20점 감점됩니다. 승자의 점수 상승은 절반만 적용되고, 양쪽 모두 행동력은 소모됩니다.',
+            ),
+            confirmText: tx('game:gameModals.resignShortRankedButton', '그래도 기권'),
             onConfirm: () => onAction({ type: 'RESIGN_GAME', payload: { gameId } }),
         },
     };

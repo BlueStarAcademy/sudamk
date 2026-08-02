@@ -13,7 +13,7 @@ import {
     pairAggregateRoomSeatDelegateBtnToneClass,
 } from '../waiting-room/waitingLobbyHomePanelStyles.js';
 
-export type PairRoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
+export type PairRoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'team_pair' | 'arena_ai';
 
 function seatGridPetMutedHeadingClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') return 'text-cyan-200/95';
@@ -537,7 +537,7 @@ function pairSeatMemberToGridCell(m: PairSeatMember): GridCell {
 }
 
 function membersToTwoSlots(members: PairSeatMember[] | undefined): [GridCell, GridCell] {
-    const users = (members || []).filter((m) => m.kind === 'user' || m.kind === 'pet');
+    const users = (members || []).filter((m) => m.kind === 'user' || m.kind === 'pet' || m.kind === 'ai');
     const c0: GridCell = users[0]
         ? {
               userId: users[0].id,
@@ -715,6 +715,9 @@ export interface PairRoomSeatGridProps {
     onViewOtherSeatPetDetail?: (petAiParticipantId: string) => void;
     onInvitePartnerSlot?: () => void;
     onInviteEmptySlot?: (team: 'teamA' | 'teamB', index: 0 | 1) => void;
+    /** 친선전·4인: 상대 빈 슬롯에 로비 AI 추가/제거 */
+    allowOpponentLobbyAiFill?: boolean;
+    onSetLobbyAiSeat?: (team: 'teamB', index: 0 | 1, enabled: boolean) => void;
     onCommitSeatAssignments?: (teamA: string[], teamB: string[]) => void | Promise<void>;
     /** 방장: 해당 유저 강퇴 확인 모달을 띄움 */
     onKickRoomMemberRequest?: (userId: string) => void;
@@ -760,6 +763,8 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     onViewOtherSeatPetDetail,
     onInvitePartnerSlot,
     onInviteEmptySlot,
+    allowOpponentLobbyAiFill = false,
+    onSetLobbyAiSeat,
     onCommitSeatAssignments,
     onKickRoomMemberRequest,
     onDelegateRoomOwnershipRequest,
@@ -777,31 +782,46 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     const { t } = useTranslation('pair');
     const teamsContainerClass = stackTeamsVertically
         ? compact
-            ? 'flex w-full min-w-0 flex-col gap-2'
-            : 'flex w-full min-w-0 flex-col gap-3 sm:gap-4'
+            ? 'flex w-full min-w-0 flex-col gap-1.5'
+            : 'flex w-full min-w-0 flex-col gap-2 sm:gap-2.5'
         : compact
           ? 'flex w-full min-w-0 flex-row gap-2 sm:gap-3'
           : 'flex w-full min-w-0 flex-row gap-3 sm:gap-4';
+    const verticalVsDivider = stackTeamsVertically ? (
+        <div className={`flex shrink-0 items-center justify-center ${compact ? 'py-0.5' : 'py-1'}`} aria-hidden>
+            <span
+                className={`font-extrabold tracking-[0.28em] text-amber-200/90 drop-shadow-[0_0_10px_rgba(251,191,36,0.22)] ${
+                    compact ? 'text-[10px]' : 'text-xs sm:text-sm'
+                }`}
+            >
+                VS
+            </span>
+        </div>
+    ) : null;
     const viewerPetAiId = `pet-ai-${viewerId}`;
     const isPetPairLobby = roomKind === 'ai_duel';
     const isFriendlyTwoPet = roomKind === 'friendly_2p';
-    const isFriendly = roomKind === 'friendly_4p';
+    const isFriendly = roomKind === 'friendly_4p' || roomKind === 'team_pair';
 
     const partnerSlotFilled = Boolean(partnerId && !String(partnerId).startsWith('pet-ai-'));
     const partnerDisplayId = partnerSlotFilled ? partnerId : undefined;
     const partnerDisplayName = partnerSlotFilled ? partnerName || t('partner') : undefined;
     const isOwnerViewer = viewerId === ownerId;
     const canOfferKick = Boolean(isOwnerViewer && onKickRoomMemberRequest);
-    const canClickPartnerSlot = Boolean(isOwnerViewer && onInvitePartnerSlot && !partnerSlotFilled && roomKind === 'duo_match');
+    const canClickPartnerSlot = Boolean(
+        isOwnerViewer &&
+            onInvitePartnerSlot &&
+            !partnerSlotFilled &&
+            (roomKind === 'duo_match' || roomKind === 'team_pair'),
+    );
     const inviteOpen = (team: 'teamA' | 'teamB', index: 0 | 1) =>
         isOwnerViewer && onInviteEmptySlot ? () => onInviteEmptySlot(team, index) : undefined;
     const canDragAssign = Boolean(
         isOwnerViewer &&
             onCommitSeatAssignments &&
-            roomKind !== 'ai_duel' &&
-            roomKind !== 'friendly_2p' &&
-            roomKind !== 'arena_ai' &&
-            roomKind !== 'duo_match',
+            (roomKind === 'friendly_4p' ||
+                roomKind === 'team_pair' ||
+                (roomKind === 'duo_match' && (allowOpponentLobbyAiFill || oneSlotPerTeam))),
     );
 
     const gridA = useMemo(() => membersToTwoSlots(teamAMembers), [teamAMembers]);
@@ -883,6 +903,46 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                     compact={compact}
                     lobbyChromeTone={seatChromeTone}
                     actionFooter={emptySeatKickReserveFooter}
+                />
+            );
+        }
+        const isLobbyAiCell = Boolean(cell.userId && String(cell.kind).toLowerCase() === 'ai');
+        if (isLobbyAiCell && cell.userId && cell.name) {
+            const canRemoveAi =
+                allowOpponentLobbyAiFill &&
+                isOwnerViewer &&
+                team === 'teamB' &&
+                Boolean(onSetLobbyAiSeat);
+            return (
+                <SeatTile
+                    key={`${team}-lobby-ai-${slotIdx}`}
+                    tone="filled"
+                    label={cell.name}
+                    userId={cell.userId}
+                    userName={cell.name}
+                    subLabel={t('room.kataAi')}
+                    accent={accent}
+                    isRoomHost={false}
+                    showReady
+                    compact={compact}
+                    lobbyChromeTone={seatChromeTone}
+                    actionFooter={
+                        canRemoveAi ? (
+                            <button
+                                type="button"
+                                disabled={kickUiDisabled}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSetLobbyAiSeat?.('teamB', slotIdx, false);
+                                }}
+                                className={`${kickStripBtnClass} border border-zinc-400/55 bg-zinc-900/70 text-zinc-100 hover:border-zinc-300/60 hover:bg-zinc-800/55 disabled:pointer-events-none disabled:opacity-45`}
+                            >
+                                {t('room.removeAi', 'AI 제거')}
+                            </button>
+                        ) : (
+                            emptySeatKickReserveFooter
+                        )
+                    }
                 />
             );
         }
@@ -989,21 +1049,64 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 />
             );
         }
+        const canAddLobbyAi =
+            allowOpponentLobbyAiFill &&
+            isOwnerViewer &&
+            team === 'teamB' &&
+            Boolean(onSetLobbyAiSeat) &&
+            !cell.userId;
+        const emptyAiFooter =
+            canAddLobbyAi || (opts.onOpen && allowOpponentLobbyAiFill && team === 'teamB' && isOwnerViewer) ? (
+                <div className="flex w-full min-w-0 gap-0.5">
+                    {opts.onOpen ? (
+                        <button
+                            type="button"
+                            disabled={kickUiDisabled}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                opts.onOpen?.();
+                            }}
+                            className={`${kickStripBtnClass} border border-sky-400/55 bg-sky-950/70 text-sky-100 hover:border-sky-300/60 hover:bg-sky-900/55 disabled:pointer-events-none disabled:opacity-45`}
+                        >
+                            {t('room.inviteShort', '초대')}
+                        </button>
+                    ) : null}
+                    {canAddLobbyAi ? (
+                        <button
+                            type="button"
+                            disabled={kickUiDisabled}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSetLobbyAiSeat?.('teamB', slotIdx, true);
+                            }}
+                            className={`${kickStripBtnClass} border border-violet-400/55 bg-violet-950/70 text-violet-100 hover:border-violet-300/60 hover:bg-violet-900/55 disabled:pointer-events-none disabled:opacity-45`}
+                        >
+                            {t('room.addAi', 'AI')}
+                        </button>
+                    ) : null}
+                </div>
+            ) : (
+                emptySeatKickReserveFooter
+            );
         return (
             <SeatTile
                 key={`${team}-empty-${slotIdx}`}
                 tone="open"
                 label={opts.emptyLabel}
-                subLabel={opts.emptySub}
+                subLabel={
+                    canAddLobbyAi
+                        ? t('room.tapInviteOrAi', '초대 또는 AI')
+                        : opts.emptySub
+                }
                 accent={accent}
-                onOpenClick={opts.onOpen}
+                onOpenClick={canAddLobbyAi ? undefined : opts.onOpen}
                 onDropUser={canDragAssign ? handleDrop : undefined}
                 dropTeam={team}
                 dropIndex={slotIdx}
                 isDropTarget={canDragAssign}
                 compact={compact}
                 lobbyChromeTone={seatChromeTone}
-                actionFooter={emptySeatKickReserveFooter}
+                actionFooter={emptyAiFooter}
             />
         );
     };
@@ -1057,6 +1160,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                             onOpen: inviteOpen('teamA', 1),
                         })}
                     </TeamPanel>
+                    {verticalVsDivider}
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
                             emptyLabel: t('room.emptySlot'),
@@ -1123,8 +1227,14 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                     </TeamPanel>
                     <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={1}>
                         {renderHumanSlot(slotB0, 0, 'teamB', accentB, {
-                            emptyLabel: t('room.opponent'),
-                            emptySub: inviteOpen('teamB', 0) ? t('room.tapToInvite') : t('room.waitingShort'),
+                            emptyLabel: allowOpponentLobbyAiFill ? t('room.addAi', 'AI') : t('room.opponent'),
+                            emptySub: allowOpponentLobbyAiFill
+                                ? inviteOpen('teamB', 0)
+                                    ? t('room.tapInviteOrAi', '초대 또는 AI')
+                                    : t('room.addAi', 'AI')
+                                : inviteOpen('teamB', 0)
+                                  ? t('room.tapToInvite')
+                                  : t('room.waitingShort'),
                             onOpen: inviteOpen('teamB', 0),
                         })}
                     </TeamPanel>
@@ -1174,8 +1284,9 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     /**
      * 2인 페어(전략·놀이 등): 4칸(2×2) — 우리 팀 2슬롯 + 상대 팀 2슬롯.
      * AI 대전 시 상대는 `pair-opponent-ai` / `pair-opponent-pet`에 대응하는 봇 프로필을 미리 표시(대기 중 teamB 비어 있을 때).
+     * 친선전 로비 AI 채우기(`allowOpponentLobbyAiFill`)일 때는 합성 고정을 쓰지 않는다.
      */
-    if (roomKind === 'duo_match' && !isFriendly) {
+    if (roomKind === 'duo_match' && !isFriendly && !allowOpponentLobbyAiFill) {
         const hostHomeTeam = pickOwnerHomeTeam(ownerId, teamAMembers, teamBMembers);
         const accentA = hostHomeTeam === 'teamA' ? 'ally' : 'enemy';
         const accentB = hostHomeTeam === 'teamB' ? 'ally' : 'enemy';
@@ -1266,6 +1377,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                             onOpen: undefined,
                         })}
                     </TeamPanel>
+                    {verticalVsDivider}
                     <TeamPanel title="" subtitle="" variant="enemy" compact={compact} seatColumns={2}>
                         {renderHumanSlot(gridB[0], 0, 'teamB', 'enemy', {
                             emptyLabel: t('room.opponent'),
@@ -1307,6 +1419,7 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                           })
                         : null}
                 </TeamPanel>
+                {verticalVsDivider}
                 <TeamPanel title="" subtitle="" variant={hostHomeTeam === 'teamB' ? 'ally' : 'enemy'} compact={compact} seatColumns={teamSeatCols}>
                     {renderHumanSlot(gridB[0], 0, 'teamB', accentB, {
                         emptyLabel: t('room.emptySlot'),

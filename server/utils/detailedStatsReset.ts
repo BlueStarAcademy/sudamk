@@ -2,6 +2,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, RANKED_ELO_BASE_SCORE } from '.
 import {
     STRATEGIC_RANKED_STAT_KEY,
     STRATEGIC_RANKED_MATCH_RECORD_KEY,
+    STRATEGIC_NORMAL_MATCH_RECORD_KEY,
 } from '../../shared/constants/userRankedStats.js';
 import type { DetailedStatResetScope } from '../../shared/types/detailedStatReset.js';
 import {
@@ -57,6 +58,7 @@ function applyModeStatScopeReset(stats: Record<string, ModeStatRow>, mode: strin
 function resetStrategicSeasonRanking(user: User, now: number): void {
     const stats = user.stats as Record<string, ModeStatRow>;
     stats[STRATEGIC_RANKED_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
+    stats[STRATEGIC_NORMAL_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
     stats[STRATEGIC_RANKED_STAT_KEY] = { rankingScore: RANKED_ELO_BASE_SCORE };
 
     if (!user.cumulativeRankingScore) user.cumulativeRankingScore = {};

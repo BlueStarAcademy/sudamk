@@ -504,22 +504,36 @@ export type AdventureProfile = {
   adventureMapTreasurePickSession?: import('../utils/adventureMapTreasureRewards.js').AdventureMapTreasurePickSession;
 };
 
+export type TrainingQuestRewardType = 'gold' | 'diamonds' | 'enhance_stone' | 'equipment_box';
+
 export type SinglePlayerMissionLevelInfo = {
     level: number;
-    unlockStageId?: string; // 레벨 10 오픈조건 (선택적)
+    /** @deprecated 유저 레벨 해금으로 대체 — 하위 호환용 옵션 */
+    unlockStageId?: string;
     productionRateMinutes: number; // 생산속도 (분)
-    rewardAmount: number; // 생산량
-    maxCapacity: number; // 최대생산량
+    rewardAmount: number; // 생산량 (통화) 또는 사이클당 1 (다이아/아이템)
+    maxCapacity: number; // 최대생산량(통화) 또는 최대 대기 사이클
 };
 
 export type SinglePlayerMissionInfo = {
     id: string;
     name: string;
     description: string;
-    unlockStageId: string; // 최초 오픈조건 (레벨 1)
-    rewardType: 'gold' | 'diamonds';
+    /** 시설 오픈에 필요한 유저 레벨 */
+    unlockUserLevel: number;
+    /** @deprecated unlockUserLevel 사용 */
+    unlockStageId?: string;
+    rewardType: TrainingQuestRewardType;
     image: string;
     levels: SinglePlayerMissionLevelInfo[]; // 레벨 1-10 정보
+    /** 보관 성장 기준 (Lv1) */
+    baseCap: number;
+    /** 강화 XP 계수 (미지정 시 baseCap). 골드 대형 보관과 XP 분리용 */
+    enhanceXpBase?: number;
+    /** 강화 골드 비용 티어 계수 */
+    tierGoldBase: number;
+    /** 시설 티어 1..8 */
+    tier: number;
 };
 
 export type SinglePlayerMissionState = {
@@ -1040,7 +1054,7 @@ export type GameSettings = {
   byoyomiCount: number;
   pairGame?: {
     /** 대기 방이 속한 경기장 — 인게임 배경(페어 전용 이미지 vs 전략/놀이 CSS) 구분 */
-    lobbyChannel?: 'pair' | 'strategic' | 'playful';
+    lobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly';
     roomId: string;
     pairMode: 'pvp' | 'ai';
     teamA: {
@@ -1577,6 +1591,8 @@ export type LiveGameSession = {
   diceGoOvershotTicker?: { maxDice: number; lastCaptureBonus: number } | null;
   gameStartTime?: number; // 게임 시작 시간 (초기화 시점)
   isEarlyTermination?: boolean; // 조기 종료 여부
+  /** 랭킹전 유효 착수 10수 미만 종료 — 승 Elo ½ / 패 Elo ×2 / 패자 매너 -20 / 양쪽 AP 소모 유지 */
+  shortRankedGamePenalty?: boolean;
   badMannerPlayerId?: string; // 비매너 행동자 ID
   isRankedGame?: boolean; // true면 랭킹전, false면 친선전 (기본값: false)
   diceGoItemUses?: { [playerId: string]: { odd: number; even: number; low: number; high: number } };

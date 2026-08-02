@@ -112,9 +112,9 @@ export const PET_MGMT_HATCHERY_MOBILE_STACK_CLASS = 'flex w-full min-w-0 flex-co
 /** 부화장 모바일 — VIP·일반 슬롯 가로 2열 */
 export const PET_MGMT_HATCHERY_MOBILE_SLOTS_ROW_CLASS = 'grid w-full min-w-0 grid-cols-2 gap-1.5 items-stretch';
 
-/** 부화장 모바일 — 보유 알 한 줄 압축 */
+/** 부화장 모바일 — 보유 알(종류별 세로 스택) */
 export const PET_MGMT_HATCHERY_EGG_INVENTORY_MOBILE_CLASS =
-    'flex w-full shrink-0 items-center gap-1.5 rounded-lg border border-white/[0.09] bg-gradient-to-br from-zinc-900/70 via-black/70 to-zinc-950/90 px-2 py-1 shadow-md ring-1 ring-black/50';
+    'flex w-full shrink-0 items-stretch gap-2 rounded-lg border border-white/[0.09] bg-gradient-to-br from-zinc-900/70 via-black/70 to-zinc-950/90 px-2 py-1.5 shadow-md ring-1 ring-black/50';
 
 /** 부화장 PC 슬롯 — 헤더·챔버·액션 3단 고정 */
 export const PET_MGMT_HATCHERY_SLOT_OUTER_CLASS =
@@ -152,13 +152,13 @@ export const PET_MGMT_HATCHERY_BTN_CLASS = `!min-h-0 !w-full !min-w-0 !rounded !
 
 export const PET_MGMT_HATCHERY_BTN_STACK_CLASS = `${PET_MGMT_HATCHERY_BTN_CLASS} !flex !h-full !flex-col !items-center !justify-center !gap-0.5`;
 
-/** 수련 탭 PC — 6슬롯 2×3 그리드 */
+/** 수련 탭 PC — 슬롯을 가로 한 줄에 하나씩(1열) */
 export const PET_MGMT_TR_SLOTS_DESKTOP_CLASS =
-    'grid w-full min-w-0 grid-cols-2 gap-2 content-start items-stretch [&>*]:min-h-0 [&>*]:min-w-0';
+    'grid w-full min-w-0 grid-cols-1 gap-2 content-start items-stretch [&>*]:min-h-0 [&>*]:min-w-0';
 
-/** 수련 탭 모바일 — 2열 그리드 */
+/** 수련 탭 모바일 — 슬롯을 가로 한 줄에 하나씩(1열) */
 export const PET_MGMT_TR_SLOTS_GRID_CLASS =
-    'grid w-full min-w-0 grid-cols-1 gap-2 content-start items-stretch sm:grid-cols-2 [&>*]:min-h-0 [&>*]:min-w-0';
+    'grid w-full min-w-0 grid-cols-1 gap-2 content-start items-stretch [&>*]:min-h-0 [&>*]:min-w-0';
 
 /** 수련 탭 PC — 슬롯·펫 이미지 */
 export const PET_MGMT_TR_PET_IMG_CLASS = 'h-[5rem] w-[5rem] shrink-0 rounded object-contain';
@@ -200,24 +200,26 @@ export const PET_MGMT_TR_REWARD_BOX_CLASS =
 export const PET_MGMT_TR_REWARD_ROW_INNER_CLASS =
     'flex w-full min-w-0 max-w-full flex-nowrap items-center justify-center gap-0.5 overflow-hidden';
 
-/** 확률보상 영혼석 전경 — 정수 픽셀 고정(퍼센트 스케일 흐림 방지) */
-export const PET_MGMT_TR_SOUL_FG_IMG_CLASS = 'relative z-[2] h-7 w-7 shrink-0 object-contain';
+/** 확률보상 영혼석 전경 — 확정보상 아이콘(PET_MGMT_TR_ICON_IMG)과 동일 크기 */
+export const PET_MGMT_TR_SOUL_FG_IMG_CLASS = 'relative z-[2] h-8 w-8 shrink-0 object-contain';
 
-/** 확률보상 2종 — 박스 내 수납용 축소 */
-export const PET_MGMT_TR_SOUL_COL_2_CLASS =
-    'flex w-[2.375rem] shrink-0 flex-col items-center justify-center gap-0.5';
+/** @deprecated 확률보상도 확정보상과 동일 크기 사용 */
+export const PET_MGMT_TR_SOUL_COL_2_CLASS = PET_MGMT_TR_SOUL_COL;
 
-export const PET_MGMT_TR_ICON_BOX_2_CLASS = 'h-[2.375rem] w-[2.375rem] shrink-0';
+/** @deprecated */
+export const PET_MGMT_TR_ICON_BOX_2_CLASS = PET_MGMT_TR_ICON_BOX;
 
-export const PET_MGMT_TR_SOUL_FG_IMG_MD_CLASS = 'relative z-[2] h-[1.625rem] w-[1.625rem] shrink-0 object-contain';
+/** @deprecated */
+export const PET_MGMT_TR_SOUL_FG_IMG_MD_CLASS = PET_MGMT_TR_SOUL_FG_IMG_CLASS;
 
-/** 확률보상 3종 — 박스 내 수납용 축소 */
-export const PET_MGMT_TR_SOUL_COL_3_CLASS =
-    'flex w-8 shrink-0 flex-col items-center justify-center gap-0.5';
+/** @deprecated */
+export const PET_MGMT_TR_SOUL_COL_3_CLASS = PET_MGMT_TR_SOUL_COL;
 
-export const PET_MGMT_TR_ICON_BOX_3_CLASS = 'h-8 w-8 shrink-0';
+/** @deprecated */
+export const PET_MGMT_TR_ICON_BOX_3_CLASS = PET_MGMT_TR_ICON_BOX;
 
-export const PET_MGMT_TR_SOUL_FG_IMG_SM_CLASS = 'relative z-[2] h-6 w-6 shrink-0 object-contain';
+/** @deprecated */
+export const PET_MGMT_TR_SOUL_FG_IMG_SM_CLASS = PET_MGMT_TR_SOUL_FG_IMG_CLASS;
 
 /** @deprecated — PET_MGMT_TR_REWARD_BLOCK_CLASS 별칭 */
 export const PET_MGMT_TR_REWARD_BLOCK_MOBILE_CLASS = PET_MGMT_TR_REWARD_BLOCK_CLASS;

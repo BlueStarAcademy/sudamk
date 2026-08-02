@@ -25,9 +25,13 @@ const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({
     const trainingGuide = useScreenGuide('trainingQuest', { active: embedded || open });
 
     const questBody = (
-        <div className="flex min-h-0 w-full min-w-0 flex-col bg-gradient-to-b from-zinc-950/80 via-black/30 to-emerald-950/20">
+        <div className="relative flex min-h-0 w-full min-w-0 flex-col overflow-hidden bg-gradient-to-b from-[#1c1812] via-[#0b0d12] to-black">
             <div
-                className="box-border flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden px-1 pb-0.5 pt-0 sm:px-1.5 sm:pb-1 sm:pt-0.5"
+                className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_55%_at_50%_-10%,rgba(251,191,36,0.14),transparent_55%),radial-gradient(60%_40%_at_90%_20%,rgba(16,185,129,0.1),transparent_50%)]"
+                aria-hidden
+            />
+            <div
+                className="relative box-border flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden px-2 pb-1.5 pt-1 sm:px-3 sm:pb-2 sm:pt-1.5"
                 role="region"
                 aria-label={t('singleplayer.trainingQuestListAria')}
             >
@@ -64,8 +68,8 @@ const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({
                 title={t('singleplayer.trainingQuestModalTitle')}
                 windowId="training-quest-modal"
                 onClose={onClose}
-                initialWidth={860}
-                shrinkHeightToContent
+                initialWidth={980}
+                initialHeight={820}
                 modal
                 closeOnOutsideClick
                 mobileViewportFit

@@ -143,13 +143,10 @@ const getShopActionPointBadgeFromReward = (reward: QuestReward): string | null =
 
 const AchievementTrackPanel: React.FC<{
     currentUser: UserWithStatus;
-    onAction: (action: ServerAction) => void;
     isMobile: boolean;
-    /** PC 2:1 분할 우측 사이드바 — 컴팩트 카드·인라인 상세 */
-    compact?: boolean;
     claimPendingKey?: string | null;
     onClaimAchievement: (trackId: string, stageIndex: number) => void;
-}> = ({ currentUser, onAction, isMobile, compact = false, claimPendingKey = null, onClaimAchievement }) => {
+}> = ({ currentUser, isMobile, claimPendingKey = null, onClaimAchievement }) => {
     const { t } = useTranslation('quests');
     const [viewIndices, setViewIndices] = useState<Record<string, number>>({});
 
@@ -163,29 +160,17 @@ const AchievementTrackPanel: React.FC<{
         return sum + claimedIndices.length;
     }, 0);
 
-    const shellClass = compact
-        ? 'flex h-full min-h-0 flex-col'
-        : `rounded-2xl border border-slate-400/15 bg-slate-950/75 shadow-[0_20px_56px_-24px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/[0.07] ${isMobile ? 'p-3' : 'p-4'}`;
-
     return (
-        <div className={shellClass}>
-            <div className={`flex shrink-0 items-center justify-between gap-2 ${compact ? 'mb-2.5 px-0.5' : 'mb-4 gap-3'}`}>
-                <h3
-                    className={`font-bold tracking-tight text-white ${compact ? 'text-base' : isMobile ? 'text-base' : 'text-lg'}`}
-                >
-                    {compact ? t('achievements.compact') : t('achievements.all')}
+        <div className="flex min-h-0 flex-col">
+            <div className={`flex shrink-0 items-center justify-between gap-2 ${isMobile ? 'mb-2' : 'mb-3'}`}>
+                <h3 className={`font-bold tracking-tight text-white ${isMobile ? 'text-base' : 'text-lg'}`}>
+                    {t('achievements.all')}
                 </h3>
-                <span
-                    className={`rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 font-bold tabular-nums text-amber-50 ${
-                        compact ? 'px-2.5 py-1 text-xs' : `px-3 py-1 ${isMobile ? 'text-sm' : 'text-sm'}`
-                    }`}
-                >
+                <span className="rounded-full border border-amber-400/30 bg-gradient-to-b from-amber-950/90 via-slate-950/95 to-slate-950 px-2.5 py-1 text-xs font-bold tabular-nums text-amber-50 sm:px-3 sm:text-sm">
                     {totalClaimed}/{totalStages}
                 </span>
             </div>
-            <ul
-                className={`min-h-0 ${compact ? 'flex-1 space-y-2 overflow-y-auto overflow-x-hidden overscroll-contain pr-1 [scrollbar-width:thin] [scrollbar-color:rgba(148,163,184,0.4)_transparent]' : isMobile ? 'space-y-2' : 'space-y-3'}`}
-            >
+            <ul className={`min-h-0 ${isMobile ? 'space-y-2' : 'space-y-2.5'}`}>
                 {ACHIEVEMENT_TRACKS.map((track) => {
                     const trackState = currentUser.quests?.achievements?.tracks?.[track.id] ?? { currentIndex: 0, claimedIndices: [] };
                     const claimedIndices = Array.isArray(trackState.claimedIndices) ? trackState.claimedIndices : [];
@@ -197,39 +182,36 @@ const AchievementTrackPanel: React.FC<{
                     const isCurrentStage = viewIndex === currentIndex;
                     const canClaim = isCurrentStage && isCleared && !isClaimed;
                     const achProgress = getAchievementProgressDisplay(stage, currentUser as User);
+                    const progressPct =
+                        achProgress && achProgress.target > 0
+                            ? Math.min(100, (achProgress.current / achProgress.target) * 100)
+                            : isCleared
+                              ? 100
+                              : 0;
 
-                    const navBtnClass = `flex shrink-0 flex-col items-center justify-center rounded-lg border border-slate-600/40 bg-slate-800/60 font-semibold text-slate-200 transition-colors hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-35 ${
-                        compact
-                            ? 'min-w-[2.75rem] px-1.5 py-2'
-                            : isMobile
-                              ? 'min-w-[2.25rem] px-1 py-1.5'
-                              : 'min-w-[3.25rem] px-2 py-2.5'
-                    }`;
-                    const navArrowClass =
-                        compact ? 'text-xl leading-none' : isMobile ? 'text-lg leading-none' : 'text-2xl leading-none';
-                    const navLabelClass =
-                        compact ? 'text-[11px] leading-tight' : isMobile ? 'text-[10px] leading-tight' : 'text-xs leading-tight';
-                    const claimLabel = isClaimed ? t('claim.complete') : canClaim ? t('claim.claim') : isCurrentStage ? t('claim.inProgress') : t('claim.record');
+                    const claimLabel = isClaimed
+                        ? t('claim.complete')
+                        : canClaim
+                          ? t('claim.claim')
+                          : isCurrentStage
+                            ? t('claim.inProgress')
+                            : t('claim.record');
                     const claimPending = claimPendingKey === `achievement-${track.id}-${viewIndex}`;
                     const claimButtonLabel = claimPending ? t('claim.claiming') : claimLabel;
-                    const mobileAchievementLayout = isMobile && !compact;
-                    const claimButtonClass = `relative inline-flex shrink-0 items-center justify-center gap-1 rounded-lg border font-semibold transition-[transform,box-shadow,border-color,background-color] duration-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ${
-                        compact
-                            ? 'min-w-[5.75rem] gap-1 px-2 py-1.5 text-xs'
-                            : mobileAchievementLayout
-                              ? 'gap-1.5 px-2.5 py-1.5 text-xs'
-                              : 'min-w-[6.5rem] gap-1.5 px-2.5 py-2 text-sm'
-                    } ${
-                        canClaim
-                            ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50 hover:border-amber-300/45 hover:from-amber-400/30 active:scale-[0.99]'
-                            : 'cursor-default border-slate-600/40 bg-slate-800/60 text-slate-300'
-                    }`;
+
+                    const navBtnClass =
+                        'flex h-9 w-7 shrink-0 items-center justify-center rounded-lg border border-slate-600/40 bg-slate-800/60 text-xl leading-none font-semibold text-slate-200 transition-colors hover:bg-slate-700/70 disabled:cursor-not-allowed disabled:opacity-35 sm:h-10 sm:w-8';
+
                     const claimRewardButton = (
                         <button
                             type="button"
                             onClick={() => onClaimAchievement(track.id, viewIndex)}
                             disabled={!canClaim || claimPending}
-                            className={`${claimButtonClass} disabled:cursor-not-allowed disabled:opacity-60`}
+                            className={`relative inline-flex h-9 w-full items-center justify-center gap-1 rounded-lg border px-2 text-xs font-semibold shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] transition-[transform,box-shadow,border-color,background-color] duration-200 disabled:cursor-not-allowed disabled:opacity-60 sm:h-10 sm:gap-1.5 sm:px-2.5 sm:text-sm ${
+                                canClaim
+                                    ? 'border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50 hover:border-amber-300/45 hover:from-amber-400/30 active:scale-[0.99]'
+                                    : 'cursor-default border-slate-600/40 bg-slate-800/60 text-slate-300'
+                            }`}
                         >
                             {canClaim ? (
                                 <span
@@ -237,11 +219,7 @@ const AchievementTrackPanel: React.FC<{
                                     aria-hidden
                                 />
                             ) : null}
-                            <img
-                                src="/images/icon/Zem.webp"
-                                alt=""
-                                className={`object-contain ${compact || mobileAchievementLayout ? 'h-5 w-5' : 'h-6 w-6'}`}
-                            />
+                            <img src="/images/icon/Zem.webp" alt="" className="h-5 w-5 object-contain" />
                             <span className={`font-bold tabular-nums ${canClaim ? 'text-amber-100' : 'text-slate-200'}`}>
                                 {stage.rewardDiamonds}
                             </span>
@@ -249,137 +227,110 @@ const AchievementTrackPanel: React.FC<{
                         </button>
                     );
 
-                    return (
-                        <li
-                            key={track.id}
-                            className={`rounded-xl border border-slate-500/25 bg-gradient-to-br from-slate-900/95 via-[#0f1118]/98 to-[#080a0f] shadow-[0_12px_40px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/[0.07] ${
-                                compact ? 'p-2.5' : 'rounded-2xl p-2.5 sm:p-3'
-                            }`}
-                        >
-                            <div className={`flex items-stretch gap-1 ${compact ? 'mb-2' : 'mb-2.5 gap-1.5'}`}>
-                                <button
-                                    type="button"
-                                    onClick={() => setViewIndices((prev) => ({ ...prev, [track.id]: Math.max(0, viewIndex - 1) }))}
-                                    disabled={viewIndex <= 0}
-                                    className={navBtnClass}
-                                    aria-label={t('achievements.prevAria')}
-                                >
-                                    <span className={navArrowClass} aria-hidden>
-                                        ‹
-                                    </span>
-                                    <span className={navLabelClass}>{t('achievements.prev')}</span>
-                                </button>
+                    const progressBlock = (
+                        <div className={`flex min-w-0 items-center gap-2 ${isMobile ? 'w-full' : 'w-[12rem] shrink-0 sm:w-[14rem]'}`}>
+                            <div
+                                className={`relative min-w-0 flex-1 overflow-hidden rounded-full border border-slate-600/40 bg-slate-950/85 shadow-[inset_0_2px_6px_rgba(0,0,0,0.5)] ${
+                                    isMobile ? 'h-2.5' : 'h-3'
+                                }`}
+                            >
                                 <div
-                                    className={`flex min-w-0 flex-1 items-center justify-center rounded-lg border border-amber-500/35 bg-gradient-to-b from-slate-900/92 to-black/55 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-400/10 ${
-                                        compact
-                                            ? 'gap-2 px-2.5 py-1.5'
-                                            : mobileAchievementLayout
-                                              ? 'flex-col gap-0.5 px-2 py-1.5'
-                                              : 'gap-2 px-3 py-2'
+                                    className="absolute inset-y-0 left-0 overflow-hidden rounded-full shadow-[0_0_10px_rgba(251,191,36,0.28)]"
+                                    style={{ width: `${progressPct}%` }}
+                                >
+                                    <div className="h-full w-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-amber-300" />
+                                    <div className="pointer-events-none absolute inset-0 rounded-full bg-gradient-to-b from-white/[0.22] to-transparent" />
+                                </div>
+                            </div>
+                            <span
+                                className={`shrink-0 tabular-nums font-medium ${
+                                    isCleared ? 'text-emerald-300' : 'text-amber-200/85'
+                                } ${isMobile ? 'text-[11px]' : 'text-sm'}`}
+                            >
+                                {achProgress
+                                    ? `${achProgress.current}/${achProgress.target}`
+                                    : isCleared
+                                      ? t('achievements.cleared')
+                                      : t('achievements.notCleared')}
+                            </span>
+                        </div>
+                    );
+
+                    const titleBlock = (
+                        <div className="min-w-0 flex-1">
+                            <div className="flex min-w-0 items-center gap-1.5">
+                                <span
+                                    className={`min-w-0 truncate font-semibold tracking-tight text-slate-100 ${
+                                        isMobile ? 'text-sm' : 'text-base'
                                     }`}
                                 >
-                                    <span
-                                        className={`font-semibold tracking-tight text-slate-100 ${
-                                            compact
-                                                ? 'min-w-0 truncate text-sm'
-                                                : mobileAchievementLayout
-                                                  ? 'w-full text-center text-xs leading-snug'
-                                                  : 'min-w-0 truncate text-base'
-                                        }`}
-                                    >
-                                        {track.title}
-                                    </span>
-                                    <span
-                                        className={`shrink-0 rounded-full border border-amber-500/35 bg-black/45 font-bold tabular-nums text-amber-100 ${
-                                            compact
-                                                ? 'px-2 py-0.5 text-[11px]'
-                                                : mobileAchievementLayout
-                                                  ? 'px-2 py-px text-[10px]'
-                                                  : 'px-2.5 py-0.5 text-xs'
-                                        }`}
-                                    >
-                                        {viewIndex + 1}/{track.stages.length}
-                                    </span>
-                                </div>
-                                <button
-                                    type="button"
-                                    onClick={() =>
-                                        setViewIndices((prev) => ({
-                                            ...prev,
-                                            [track.id]: Math.min(track.stages.length - 1, viewIndex + 1),
-                                        }))
-                                    }
-                                    disabled={viewIndex >= track.stages.length - 1}
-                                    className={navBtnClass}
-                                    aria-label={t('achievements.nextAria')}
-                                >
-                                    <span className={navArrowClass} aria-hidden>
-                                        ›
-                                    </span>
-                                    <span className={navLabelClass}>{t('achievements.next')}</span>
-                                </button>
+                                    {stage.title}
+                                </span>
+                                <span className="shrink-0 rounded-full border border-amber-500/35 bg-black/45 px-1.5 py-px text-[10px] font-bold tabular-nums text-amber-100 sm:px-2 sm:text-[11px]">
+                                    {viewIndex + 1}/{track.stages.length}
+                                </span>
                             </div>
+                            <p className={`mt-0.5 truncate text-slate-400 ${isMobile ? 'text-[11px]' : 'text-xs'}`}>
+                                {track.title}
+                            </p>
+                        </div>
+                    );
 
-                            {mobileAchievementLayout ? (
-                                <div className="flex flex-col gap-1.5">
-                                    <div className="w-full text-center">
-                                        <span className="block text-sm font-bold leading-snug tracking-tight text-slate-100">
-                                            {stage.title}
-                                        </span>
-                                        {achProgress ? (
-                                            <span
-                                                className={`mt-1 block text-center text-xs font-semibold tabular-nums ${
-                                                    isCleared ? 'text-emerald-300' : 'text-slate-400'
-                                                }`}
-                                            >
-                                                {t('achievements.progress', { current: achProgress.current, target: achProgress.target })}
-                                            </span>
-                                        ) : (
-                                            <span
-                                                className={`mt-1 block text-center text-xs font-semibold ${
-                                                    isCleared ? 'text-emerald-300' : 'text-slate-400'
-                                                }`}
-                                            >
-                                                {isCleared ? t('achievements.cleared') : t('achievements.notCleared')}
-                                            </span>
-                                        )}
-                                    </div>
-                                    <div className="flex items-center justify-center">
-                                        {claimRewardButton}
+                    const cardShell =
+                        'rounded-2xl border border-slate-500/25 bg-gradient-to-br from-slate-900/95 via-[#0f1118]/98 to-[#080a0f] p-2.5 shadow-[0_12px_40px_-18px_rgba(0,0,0,0.65),inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/[0.07] sm:p-3';
+
+                    const prevBtn = (
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setViewIndices((prev) => ({ ...prev, [track.id]: Math.max(0, viewIndex - 1) }))
+                            }
+                            disabled={viewIndex <= 0}
+                            className={navBtnClass}
+                            aria-label={t('achievements.prevAria')}
+                        >
+                            ‹
+                        </button>
+                    );
+                    const nextBtn = (
+                        <button
+                            type="button"
+                            onClick={() =>
+                                setViewIndices((prev) => ({
+                                    ...prev,
+                                    [track.id]: Math.min(track.stages.length - 1, viewIndex + 1),
+                                }))
+                            }
+                            disabled={viewIndex >= track.stages.length - 1}
+                            className={navBtnClass}
+                            aria-label={t('achievements.nextAria')}
+                        >
+                            ›
+                        </button>
+                    );
+
+                    return (
+                        <li key={track.id} className={cardShell}>
+                            {isMobile ? (
+                                <div className="flex min-w-0 items-stretch gap-1.5">
+                                    {prevBtn}
+                                    <div className="min-w-0 flex-1">
+                                        {titleBlock}
+                                        <div className="mt-1.5 flex min-w-0 items-center gap-1.5">
+                                            {nextBtn}
+                                            {progressBlock}
+                                        </div>
+                                        <div className="mt-1.5 w-full">{claimRewardButton}</div>
                                     </div>
                                 </div>
                             ) : (
-                            <div className="flex min-w-0 items-center gap-2">
-                                <div className="flex min-w-0 flex-1 flex-col gap-1 text-center">
-                                    <span
-                                        className={`font-bold leading-snug tracking-tight text-slate-100 ${
-                                            compact ? 'line-clamp-2 text-sm' : 'line-clamp-2 text-lg'
-                                        }`}
-                                    >
-                                        {stage.title}
-                                    </span>
-                                    {achProgress ? (
-                                        <span
-                                            className={`text-center font-semibold tabular-nums ${
-                                                isCleared ? 'text-emerald-300' : 'text-slate-400'
-                                            } ${compact ? 'text-xs' : 'text-sm'}`}
-                                        >
-                                            {t('achievements.progress', { current: achProgress.current, target: achProgress.target })}
-                                        </span>
-                                    ) : (
-                                        <span
-                                            className={`text-center font-semibold ${
-                                                isCleared ? 'text-emerald-300' : 'text-slate-400'
-                                            } ${compact ? 'text-xs' : 'text-sm'}`}
-                                        >
-                                            {isCleared ? t('achievements.cleared') : t('achievements.notCleared')}
-                                        </span>
-                                    )}
+                                <div className="flex min-w-0 items-center gap-2">
+                                    {prevBtn}
+                                    {titleBlock}
+                                    {nextBtn}
+                                    {progressBlock}
+                                    <div className="w-[6.75rem] shrink-0">{claimRewardButton}</div>
                                 </div>
-                                <div className="flex shrink-0 items-center self-center">
-                                    {claimRewardButton}
-                                </div>
-                            </div>
                             )}
                         </li>
                     );
@@ -919,12 +870,6 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
         });
     };
 
-    useEffect(() => {
-        if (!isMobile && activeTab === 'achievements') {
-            setActiveTab('daily');
-        }
-    }, [isMobile, activeTab]);
-
     const modalInitialWidth = useMemo(() => {
         if (typeof window === 'undefined') return 800;
         if (!isMobile) return 800;
@@ -1031,8 +976,8 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
 
     const questTabs = (
         <div
-            className={`mb-3 grid shrink-0 gap-0.5 rounded-xl border border-slate-600/35 bg-slate-950/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-amber-500/[0.08] sm:gap-1 ${
-                isMobile ? 'sticky top-0 z-20 mb-2 grid-cols-4 backdrop-blur-sm' : 'mb-3 grid-cols-3'
+            className={`mb-3 grid shrink-0 grid-cols-4 gap-0.5 rounded-xl border border-slate-600/35 bg-slate-950/70 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-amber-500/[0.08] sm:gap-1 ${
+                isMobile ? 'sticky top-0 z-20 mb-2 backdrop-blur-sm' : ''
             }`}
         >
             <button
@@ -1074,22 +1019,20 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
                     <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
                 )}
             </button>
-            {isMobile ? (
-                <button
-                    type="button"
-                    onClick={() => setActiveTab('achievements')}
-                    className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
-                        activeTab === 'achievements'
-                            ? 'bg-gradient-to-b from-violet-500/90 to-indigo-800/95 text-violet-50 shadow-md ring-1 ring-violet-300/35'
-                            : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
-                    }`}
-                >
-                    {t('tabs.achievements')}
-                    {hasClaimableAchievements && (
-                        <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
-                    )}
-                </button>
-            ) : null}
+            <button
+                type="button"
+                onClick={() => setActiveTab('achievements')}
+                className={`relative rounded-lg py-1.5 text-[11px] font-semibold transition-all sm:py-2 sm:text-sm ${
+                    activeTab === 'achievements'
+                        ? 'bg-gradient-to-b from-violet-500/90 to-indigo-800/95 text-violet-50 shadow-md ring-1 ring-violet-300/35'
+                        : 'text-slate-400 hover:bg-slate-800/80 hover:text-slate-200'
+                }`}
+            >
+                {t('tabs.achievements')}
+                {hasClaimableAchievements && (
+                    <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
+                )}
+            </button>
         </div>
     );
 
@@ -1115,39 +1058,23 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
     );
 
     const questBody = (
-        <div className={`flex min-h-0 ${embedded || !isMobile ? 'h-full' : 'w-full'} ${isMobile ? 'flex-col' : 'flex-row gap-3'}`}>
-            {isMobile && activeTab === 'achievements' ? (
-                <>
-                    {questTabs}
-                    <div className="w-full min-w-0 overflow-x-hidden pb-1 pr-1">
-                        <AchievementTrackPanel currentUser={currentUser} onAction={onAction} isMobile={isMobile} claimPendingKey={claimAction.pendingKey} onClaimAchievement={handleClaimAchievement} />
-                    </div>
-                </>
+        <div className={`flex min-h-0 w-full flex-col ${embedded || !isMobile ? 'h-full' : ''}`}>
+            {questTabs}
+            {activeTab === 'achievements' ? (
+                <div
+                    className={`min-h-0 min-w-0 overflow-x-hidden pb-1 pr-1 ${
+                        embedded || !isMobile ? questListScrollClass : 'w-full'
+                    }`}
+                >
+                    <AchievementTrackPanel
+                        currentUser={currentUser}
+                        isMobile={isMobile}
+                        claimPendingKey={claimAction.pendingKey}
+                        onClaimAchievement={handleClaimAchievement}
+                    />
+                </div>
             ) : (
-                <>
-                    <div className={`flex min-h-0 min-w-0 flex-col ${isMobile ? 'flex-1' : 'flex-[2]'}`}>
-                        {questTabs}
-                        {questMainContent}
-                    </div>
-                    {!isMobile ? (
-                        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col border-l border-slate-600/35 pl-3">
-                            {hasClaimableAchievements ? (
-                                <span
-                                    className="absolute right-0 top-0 z-[1] h-2 w-2 rounded-full bg-red-500 ring-2 ring-red-500/30"
-                                    aria-label={t('achievements.claimableAria')}
-                                />
-                            ) : null}
-                            <AchievementTrackPanel
-                                compact
-                                currentUser={currentUser}
-                                onAction={onAction}
-                                isMobile={false}
-                                claimPendingKey={claimAction.pendingKey}
-                                onClaimAchievement={handleClaimAchievement}
-                            />
-                        </div>
-                    ) : null}
-                </>
+                questMainContent
             )}
         </div>
     );

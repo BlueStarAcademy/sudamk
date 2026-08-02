@@ -4,6 +4,7 @@ import { SinglePlayerMissionInfo } from '../../types.js';
 import Button from '../Button.js';
 import AlertModal from '../AlertModal.js';
 import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
+import { highTierLootChancePercent } from '../../shared/utils/trainingQuestLoot.js';
 
 const ENHANCE_GAUGE_DURATION = 3000;
 
@@ -22,6 +23,8 @@ export type TrainingQuestEnhancePanelProps = {
     onConfirm: () => Promise<void>;
     /** 2×3 그리드 셀 등 좁은 공간 */
     compact?: boolean;
+    /** 스탯을 가로로 나란히 배치 (모달 강화 패널용) */
+    horizontal?: boolean;
     /** 상위 구역에서 제목을 표시할 때 */
     hideHeader?: boolean;
 };
@@ -90,115 +93,218 @@ const statRow = (
     icon: React.ReactNode,
     label: string,
     before: string,
-    after: string,
+    after: string | null,
     delta: string | null,
     compact = false,
-) => (
-    <div
-        className={`flex items-center gap-1 rounded border border-white/[0.06] bg-slate-900/45 px-1.5 leading-none whitespace-nowrap ${
-            compact ? 'min-h-[1.25rem] py-0.5 text-[10px] sm:text-[11px]' : 'min-h-[1.65rem] py-1 text-xs sm:text-sm'
-        }`}
-    >
-        {icon}
-        <span className={`shrink-0 font-medium text-slate-500 ${compact ? 'w-7' : 'w-9'}`}>{label}</span>
-        <div className="min-w-0 flex-1 truncate text-right tabular-nums">
-            <span className="text-slate-300">{before}</span>
-            <span className="mx-0.5 text-slate-600">→</span>
-            <span className="font-semibold text-emerald-200">{after}</span>
-            {delta ? <span className="ml-0.5 font-semibold text-lime-400">{delta}</span> : null}
-        </div>
-    </div>
-);
+    /** 라벨(위) / 수치(아래) 세로 배치 */
+    stacked = false,
+) => {
+    const valueNode =
+        after == null ? (
+            <span className="font-semibold text-emerald-200">{before}</span>
+        ) : (
+            <>
+                <span className="text-slate-300">{before}</span>
+                <span className="mx-0.5 text-slate-600">→</span>
+                <span className="font-semibold text-emerald-200">{after}</span>
+                {delta ? <span className="ml-0.5 font-semibold text-lime-400">{delta}</span> : null}
+            </>
+        );
 
-/** 중간 열: 다음 레벨 효과 미리보기 */
-export const TrainingQuestNextLevelEffects: React.FC<TrainingQuestEnhancePanelProps> = (props) => {
-    const { mission, currentLevel, compact = false, hideHeader = false } = props;
-    const { t } = useTranslation('lobby');
-    const model = buildTrainingQuestEnhanceModel(props);
-
-    if (model.isMaxLevel) {
+    if (stacked) {
         return (
-            <p className={`font-semibold text-amber-200/90 ${compact ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-[11px]'}`}>
-                {t('singleplayer.maxLevelReached')}
-            </p>
+            <div
+                className={`flex min-w-0 flex-col items-center justify-center gap-0.5 rounded border border-white/[0.06] bg-slate-900/45 px-1 text-center leading-tight ${
+                    compact ? 'py-1 text-[10px] sm:text-[11px]' : 'py-1.5 text-xs sm:text-sm'
+                }`}
+            >
+                <div className="flex items-center justify-center gap-0.5 whitespace-nowrap">
+                    {icon}
+                    <span className="font-medium text-slate-500">{label}</span>
+                </div>
+                <div className="min-w-0 whitespace-nowrap tabular-nums">{valueNode}</div>
+            </div>
         );
     }
 
-    const { currentLevelInfo, nextLevelInfo } = model;
-    if (!nextLevelInfo) return null;
+    return (
+        <div
+            className={`flex items-center gap-1 rounded border border-white/[0.06] bg-slate-900/45 px-1.5 leading-tight ${
+                compact ? 'min-h-[1.35rem] py-0.5 text-[10px] sm:text-[11px]' : 'min-h-[1.65rem] py-1 text-xs sm:text-sm'
+            }`}
+        >
+            {icon}
+            <span className={`shrink-0 font-medium text-slate-500 ${compact ? 'w-7' : 'w-9'}`}>{label}</span>
+            <div className="min-w-0 flex-1 text-right tabular-nums">{valueNode}</div>
+        </div>
+    );
+};
 
+/** 중간 열: 다음 레벨 효과 미리보기 (최대 레벨이면 현재 생산 정보만 표시) */
+export const TrainingQuestNextLevelEffects: React.FC<TrainingQuestEnhancePanelProps> = (props) => {
+    const { mission, currentLevel, compact = false, hideHeader = false, horizontal = false } = props;
+    const { t } = useTranslation('lobby');
+    const model = buildTrainingQuestEnhanceModel(props);
+    const { currentLevelInfo, nextLevelInfo } = model;
+
+    if (!currentLevelInfo && !nextLevelInfo) return null;
+
+    const isMaxLevel = model.isMaxLevel || !nextLevelInfo;
     const statGap = compact ? 'gap-px' : 'gap-1';
     const labelSize = compact ? 'text-[9px] sm:text-[10px]' : 'text-xs sm:text-sm';
     const iconSize = compact ? 'h-3.5 w-3.5' : 'h-4 w-4 sm:h-[1.125rem] sm:w-[1.125rem]';
 
-    return (
-        <div className={`flex min-w-0 flex-col overflow-hidden ${compact ? 'gap-px' : 'gap-1'}`}>
-            {!hideHeader &&
-                (!compact ? (
-                    <p className="truncate whitespace-nowrap text-xs font-bold text-violet-200/90 sm:text-sm">
-                        {t('singleplayer.nextLevelEffects', { level: currentLevel + 1 })}
-                    </p>
-                ) : (
-                    <p className="truncate whitespace-nowrap text-[9px] font-bold text-violet-200/90 sm:text-[10px]">
-                        {t('singleplayer.nextLevelEffectsCompact', { level: currentLevel + 1 })}
-                    </p>
-                ))}
-            <div className={`flex flex-col ${statGap}`}>
-                {statRow(
-                    <img src="/images/icon/timer.webp" alt="" className={`${iconSize} shrink-0 opacity-90`} />,
-                    t('singleplayer.production'),
-                    currentLevelInfo ? t('singleplayer.productionRateMinutes', { minutes: currentLevelInfo.productionRateMinutes }) : '—',
-                    t('singleplayer.productionRateMinutes', { minutes: nextLevelInfo.productionRateMinutes }),
-                    model.productionRateChange !== 0
-                        ? model.productionRateChange > 0
-                          ? `(-${model.productionRateChange.toFixed(1)})`
-                          : `(+${Math.abs(model.productionRateChange).toFixed(1)})`
-                        : null,
-                    compact,
-                )}
-                {statRow(
-                    <img
-                        src={mission.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp'}
-                        alt=""
-                        className={`${iconSize} shrink-0 opacity-95`}
-                    />,
-                    t('singleplayer.productionAmount'),
-                    currentLevelInfo ? currentLevelInfo.rewardAmount.toLocaleString() : '—',
-                    nextLevelInfo.rewardAmount.toLocaleString(),
-                    model.rewardAmountChange !== 0
-                        ? `(${model.rewardAmountChange > 0 ? `+${model.rewardAmountChange}` : String(model.rewardAmountChange)})`
-                        : null,
-                    compact,
-                )}
-                {statRow(
-                    <span className={`flex ${iconSize} shrink-0 items-center justify-center rounded bg-violet-500/35 text-[8px] font-bold text-violet-100`}>
-                        M
-                    </span>,
-                    t('singleplayer.storage'),
-                    currentLevelInfo ? currentLevelInfo.maxCapacity.toLocaleString() : '—',
-                    nextLevelInfo.maxCapacity.toLocaleString(),
-                    model.maxCapacityChange !== 0
-                        ? `(${model.maxCapacityChange > 0 ? `+${model.maxCapacityChange}` : String(model.maxCapacityChange)})`
-                        : null,
-                    compact,
-                )}
-            </div>
+    const productionStat = statRow(
+        <img src="/images/icon/timer.webp" alt="" className={`${iconSize} shrink-0 opacity-90`} />,
+        t('singleplayer.production'),
+        currentLevelInfo ? t('singleplayer.productionRateMinutes', { minutes: currentLevelInfo.productionRateMinutes }) : '—',
+        isMaxLevel || !nextLevelInfo
+            ? null
+            : t('singleplayer.productionRateMinutes', { minutes: nextLevelInfo.productionRateMinutes }),
+        !isMaxLevel && model.productionRateChange !== 0
+            ? model.productionRateChange > 0
+              ? `(-${model.productionRateChange.toFixed(1)})`
+              : `(+${Math.abs(model.productionRateChange).toFixed(1)})`
+            : null,
+        compact,
+        horizontal,
+    );
+    const amountIconSrc =
+        mission.rewardType === 'gold'
+            ? '/images/icon/Gold.webp'
+            : mission.rewardType === 'diamonds'
+              ? '/images/icon/Zem.webp'
+              : mission.rewardType === 'enhance_stone'
+                ? '/images/materials/materials1.webp'
+                : '/images/Box/EquipmentBox1.webp';
+    const amountStat = statRow(
+        <img src={amountIconSrc} alt="" className={`${iconSize} shrink-0 opacity-95`} />,
+        t('singleplayer.productionAmount'),
+        currentLevelInfo ? currentLevelInfo.rewardAmount.toLocaleString() : '—',
+        isMaxLevel || !nextLevelInfo ? null : nextLevelInfo.rewardAmount.toLocaleString(),
+        !isMaxLevel && model.rewardAmountChange !== 0
+            ? `(${model.rewardAmountChange > 0 ? `+${model.rewardAmountChange}` : String(model.rewardAmountChange)})`
+            : null,
+        compact,
+        horizontal,
+    );
 
+    const itemRewardType =
+        mission.rewardType === 'enhance_stone' || mission.rewardType === 'equipment_box'
+            ? mission.rewardType
+            : null;
+    const highGradeRow =
+        itemRewardType && currentLevelInfo ? (
             <div
-                className={`relative w-full shrink-0 overflow-hidden rounded-full bg-emerald-950/70 ring-1 ring-inset ring-white/[0.06] ${compact ? 'h-2.5' : 'h-4'}`}
+                className={`flex min-w-0 flex-col items-center justify-center gap-0.5 rounded border border-violet-400/20 bg-violet-950/30 px-1 text-center leading-tight ${
+                    compact ? 'py-1 text-[10px] sm:text-[11px]' : 'py-1.5 text-xs sm:text-sm'
+                }`}
             >
-                <div
-                    className="h-full bg-gradient-to-r from-emerald-400 via-lime-400 to-yellow-300 transition-all duration-300"
-                    style={{ width: `${Math.min(100, model.xpPercent)}%` }}
-                />
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-1">
-                    <span
-                        className={`max-w-full truncate font-bold tabular-nums text-white [text-shadow:0_0_3px_rgba(0,0,0,0.85)] ${labelSize}`}
-                    >
-                        {model.xpLabel}
-                    </span>
+                <span className="font-medium text-violet-200/80">{t('singleplayer.highGradeLabel')}</span>
+                <div className="whitespace-nowrap tabular-nums">
+                    {isMaxLevel ? (
+                        <span className="font-semibold text-emerald-200">
+                            {highTierLootChancePercent(itemRewardType, currentLevel)}%
+                        </span>
+                    ) : (
+                        <>
+                            <span className="text-slate-300">{highTierLootChancePercent(itemRewardType, currentLevel)}%</span>
+                            <span className="mx-0.5 text-slate-600">→</span>
+                            <span className="font-semibold text-emerald-200">
+                                {highTierLootChancePercent(itemRewardType, currentLevel + 1)}%
+                            </span>
+                        </>
+                    )}
                 </div>
             </div>
+        ) : null;
+    const storageStat = statRow(
+        <span className={`flex ${iconSize} shrink-0 items-center justify-center rounded bg-violet-500/35 text-[8px] font-bold text-violet-100`}>
+            M
+        </span>,
+        t('singleplayer.storage'),
+        currentLevelInfo ? currentLevelInfo.maxCapacity.toLocaleString() : '—',
+        isMaxLevel || !nextLevelInfo ? null : nextLevelInfo.maxCapacity.toLocaleString(),
+        !isMaxLevel && model.maxCapacityChange !== 0
+            ? `(${model.maxCapacityChange > 0 ? `+${model.maxCapacityChange}` : String(model.maxCapacityChange)})`
+            : null,
+        compact,
+        horizontal,
+    );
+
+    const xpBar = isMaxLevel ? null : (
+        <div
+            className={`relative w-full shrink-0 overflow-hidden rounded-full bg-emerald-950/70 ring-1 ring-inset ring-white/[0.06] ${
+                compact ? 'h-2.5' : horizontal ? 'h-5' : 'h-4'
+            }`}
+        >
+            <div
+                className="h-full bg-gradient-to-r from-emerald-400 via-lime-400 to-yellow-300 transition-all duration-300"
+                style={{ width: `${Math.min(100, model.xpPercent)}%` }}
+            />
+            <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-1">
+                <span
+                    className={`max-w-full whitespace-nowrap font-bold tabular-nums text-white [text-shadow:0_0_3px_rgba(0,0,0,0.85)] ${labelSize}`}
+                >
+                    {model.xpLabel}
+                </span>
+            </div>
+        </div>
+    );
+
+    const header = !hideHeader ? (
+        isMaxLevel ? (
+            <p
+                className={`font-bold text-amber-200/90 ${
+                    compact
+                        ? 'truncate whitespace-nowrap text-[9px] sm:text-[10px]'
+                        : 'text-xs sm:text-sm'
+                }`}
+            >
+                {t('singleplayer.maxLevelReached')}
+            </p>
+        ) : compact && !horizontal ? (
+            <p className="truncate whitespace-nowrap text-[9px] font-bold text-violet-200/90 sm:text-[10px]">
+                {t('singleplayer.nextLevelEffectsCompact', { level: currentLevel + 1 })}
+            </p>
+        ) : (
+            <p className="text-xs font-bold text-violet-200/90 sm:text-sm">
+                {t('singleplayer.nextLevelEffects', { level: currentLevel + 1 })}
+            </p>
+        )
+    ) : null;
+
+    if (horizontal) {
+        return (
+            <div className="flex min-w-0 w-full flex-col gap-1.5">
+                {header}
+                <div
+                    className={`grid min-w-0 ${
+                        highGradeRow
+                            ? 'grid-cols-[minmax(0,1.3fr)_minmax(0,0.75fr)_minmax(0,0.85fr)_minmax(0,0.9fr)]'
+                            : 'grid-cols-[minmax(0,1.45fr)_minmax(0,0.85fr)_minmax(0,1fr)]'
+                    } ${compact ? 'gap-1' : 'gap-1 sm:gap-1.5'}`}
+                >
+                    {productionStat}
+                    {amountStat}
+                    {storageStat}
+                    {highGradeRow}
+                </div>
+                {xpBar}
+            </div>
+        );
+    }
+
+    return (
+        <div className={`flex min-w-0 flex-col overflow-hidden ${compact ? 'gap-px' : 'gap-1'}`}>
+            {header}
+            <div className={`flex flex-col ${statGap}`}>
+                {productionStat}
+                {amountStat}
+                {storageStat}
+                {highGradeRow}
+            </div>
+            {xpBar}
         </div>
     );
 };

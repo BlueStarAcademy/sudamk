@@ -150,7 +150,8 @@ import {
     ChampionshipMobileScoreCell,
     ChampionshipMobileScoringCountdownCell,
 } from './championship/ChampionshipArenaScorePanels.js';
-import { markChampionshipArenaExitSuppressRedirect, replaceAppHash } from '../utils/appUtils.js';
+import { navigateToHomeChampionship } from '../utils/appUtils.js';
+import { useAppContext } from '../hooks/useAppContext.js';
 import InlineLoadingSpinner from './ui/InlineLoadingSpinner.js';
 
 /** 서버 inferDungeonStageAttempt와 동일 — currentStageAttempt 누락 시에도 보상 버튼·COMPLETE_DUNGEON_STAGE 단계 일치 */
@@ -5617,6 +5618,7 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
     } = props;
     const abilityKataLadder = championshipAbilityKataLadderProp ?? CHAMPIONSHIP_ABILITY_KATA_LADDER;
     useTranslation('tournament');
+    const { handlers: championshipNavHandlers } = useAppContext();
     
     // React 훅 규칙: 모든 훅은 조건문 밖에서 호출되어야 함
     const [lastUserMatchSgfIndex, setLastUserMatchSgfIndex] = useState<number | null>(null);
@@ -6799,7 +6801,6 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
 
     const performChampionshipArenaExitToLobby = useCallback(async () => {
         userInitiatedArenaExitRef.current = true;
-        markChampionshipArenaExitSuppressRedirect();
         if (autoNextTimerRef.current) {
             clearInterval(autoNextTimerRef.current);
             autoNextTimerRef.current = null;
@@ -6825,8 +6826,8 @@ export const TournamentBracket: React.FC<TournamentBracketProps> = (props) => {
             console.error('[TournamentBracket] SAVE_TOURNAMENT_PROGRESS failed:', e);
         }
         onAction({ type: 'LEAVE_TOURNAMENT_VIEW' });
-        replaceAppHash('#/tournament');
-    }, [tournament.type, onAction, displayTournament]);
+        navigateToHomeChampionship(championshipNavHandlers.openChampionship);
+    }, [tournament.type, onAction, displayTournament, championshipNavHandlers.openChampionship]);
 
     const handleChampionshipArenaExitClick = useCallback(() => {
         if (tournament.currentStageAttempt != null || tournament.status === 'round_in_progress') {

@@ -78,6 +78,7 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
                             '모험 몬스터 대전: 승리 시 기본 EXP(판 크기) + 몬스터 레벨 보너스, 패배·휴먼 패는 0.',
                             '전략바둑 대기실 AI: 승리 시 `strategicLobbyAiWinXp`(판별 기본 EXP × 계가 최대 턴이면 ×1.5), 패배 0.',
                             '그 외 전략 모드 기본값: 승리 100, 무승부 0, 패배 25 (무효국 제외).',
+                            '랭킹전(휴먼) 승리: 위 기본 승리에 `RANKED_WIN_USER_XP_MULTIPLIER`(×5)를 곱한 뒤 이후 배율 적용. 패배는 배율 없음.',
                             'AI 대국(모험·전략 대기실 AI 제외): 위 값에 ×0.2.',
                             '전략 PVP/PVE(모험·전략 대기실 AI 제외): 상대 레벨 − 내 레벨에 따라 (1 + 차이×0.1)배, 0.5~1.5로 클램프 후 반올림.',
                             '특수 능력치: 전략 모드는 EXP% 보너스, 놀이 모드는 놀이 EXP% 보너스가 (1 + 합계%)로 곱해짐.',
@@ -152,7 +153,7 @@ const XpFormulaReferencePanel: React.FC<XpFormulaReferencePanelProps> = ({ onBac
                         items={[
                             '싱글플레이: 스테이지 `firstClear`의 exp·골드·아이템 — 최초 클리어 1회만 지급(재도전·재클리어 보상 없음).',
                             '도전의 탑: 해당 층 `TOWER_STAGES`의 `rewards.firstClear.exp` — 최초 클리어이며 이번 입장에 행동력이 실제 소모된 승리에만.',
-                            '2인 페어바둑: 아래 「페어바둑 롤 구간」의 strategyXp를 굴린 뒤 난이도·승패 배율·보상 VIP를 적용 (별도 함수).',
+                            '2인 페어바둑: 아래 「페어바둑 롤 구간」의 strategyXp를 굴린 뒤 난이도·승패 배율 적용. 페어 랭킹전 승리 시 `RANKED_WIN_USER_XP_MULTIPLIER`(×5), 이후 보상 VIP.',
                         ]}
                     />
                 </section>

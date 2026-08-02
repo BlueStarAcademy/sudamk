@@ -1,6 +1,6 @@
 import React, { useMemo, useState, useCallback, useEffect, useRef, useId } from 'react';
 import { UserWithStatus, GameMode, EquipmentSlot, InventoryItem, ItemGrade, ServerAction, LeagueTier, CoreStat, SpecialStat, MythicStat, ItemOptionType, TournamentState, User } from '../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, CHAMPIONSHIP_PVP_VENUE_BG_WEBP, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, RANKING_TIERS, getSinglePlayerStages } from '../constants';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, AVATAR_POOL, BORDER_POOL, LEAGUE_DATA, CORE_STATS_DATA, SPECIAL_STATS_DATA, MYTHIC_STATS_DATA, emptySlotImages, TOURNAMENT_DEFINITIONS, CHAMPIONSHIP_PVP_VENUE_BG_WEBP, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, RANKING_TIERS } from '../constants';
 import { PVP_ARENA_ENTRY_IMG, AI_ARENA_ENTRY_IMG, STRATEGIC_GO_LOBBY_IMG, PLAYFUL_GO_LOBBY_IMG, PAIR_GO_LOBBY_IMG, SINGLE_PLAYER_LOBBY_IMG, TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP } from '../assets.js';
 import Avatar from './Avatar.js';
 import ProfileHomeIdentityHeader from './profile/ProfileHomeIdentityHeader.js';
@@ -13,6 +13,8 @@ import { calculateUserEffects } from '../services/effectService.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import QuickAccessSidebar from './QuickAccessSidebar.js';
 import PcLobbyCenterColumn from './shell/PcLobbyCenterColumn.js';
+import HomeEntranceHub from './home/HomeEntranceHub.js';
+import HomeViewerOnlineUsersColumn from './quick-panel/HomeViewerOnlineUsersColumn.js';
 import {
     PC_HOME_LEFT_COLUMN_CLASS,
     PC_HOME_LEFT_COLUMN_GAP_CLASS,
@@ -62,7 +64,6 @@ import {
     canUsePairHatcherySlot,
 } from '../shared/constants/pairHatchery.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
-import { arenaLobbyHash } from '../shared/utils/arenaLobbyDestination.js';
 import { sumLobbyAiMatchRecordFromStats } from '../shared/utils/lobbyAiMatchRecord.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
@@ -716,7 +717,6 @@ const Profile: React.FC<ProfileProps> = () => {
         currentRoute,
         arenaEntranceAvailability,
         arenaEntranceFromServer,
-        singlePlayerStagesListRevision,
         waitingRoomChats,
     } = useAppContext();
     const adventureCodexDonutGradId = useId().replace(/:/g, '');
@@ -859,7 +859,7 @@ const Profile: React.FC<ProfileProps> = () => {
         calculateTime();
         const interval = setInterval(calculateTime, 60 * 60 * 1000); // Update every hour
         return () => clearInterval(interval);
-    }, []);
+    }, [t]);
 
     // Get guild info: context(guilds+user.guildId) 또는 GET_GUILD_INFO 성공 시 저장한 길드 (새로고침 시 guildId가 늦게 올 수 있음)
     const [checkedGuildFromApi, setCheckedGuildFromApi] = useState<Guild | null>(null);
@@ -1154,13 +1154,46 @@ const Profile: React.FC<ProfileProps> = () => {
         [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.clearedSinglePlayerStages, t],
     );
 
-    const onSelectArenaIntent = (intent: 'pvp' | 'ai') => {
-        tryArenaEnter('strategicLobby', () => {
-            window.location.hash = arenaLobbyHash({ intent, channel: 'strategic' });
+    const onSelectMatchArena = () => {
+        const rankedOpen = !getArenaEntryLockReason('strategicLobby');
+        const normalOpen = !getArenaEntryLockReason('normalLobby');
+        if (!rankedOpen && !normalOpen) {
+            tryArenaEnter('strategicLobby', () => {
+                handlers.openMatchArena?.();
+            });
+            return;
+        }
+        handlers.openMatchArena?.();
+    };
+    const onSelectFriendlyLobby = () => {
+        tryArenaEnter('friendlyLobby', () => {
+            handlers.openFriendlyLobby?.();
         });
     };
-    const onSelectTournamentLobby = () => tryArenaEnter('championship', () => { window.location.hash = '#/tournament'; });
-    const onSelectSinglePlayerLobby = () => tryArenaEnter('singleplayer', () => { window.location.hash = '#/singleplayer'; });
+    const onSelectPlaygroundLobby = () => {
+        tryArenaEnter('playfulLobby', () => {
+            handlers.openPlaygroundLobby?.();
+        });
+    };
+    const onSelectGuildLobby = () => {
+        window.location.hash = '#/guild';
+    };
+    const onSelectTournamentLobby = () =>
+        tryArenaEnter('championship', () => {
+            handlers.openChampionship?.();
+        });
+    const onSelectSinglePlayerLobby = () =>
+        tryArenaEnter('singleplayer', () => {
+            handlers.openSinglePlayerLobby?.();
+        });
+    const onSelectTowerLobby = () =>
+        tryArenaEnter('tower', () => {
+            handlers.openTowerLobby?.();
+        });
+    const onSelectAdventureLobby = () =>
+        tryArenaEnter('adventure', () => {
+            handlers.openAdventureLobby?.();
+        });
 
     const aiLobbyRecordByKind = useMemo(() => {
         const strategic = sumLobbyAiMatchRecordFromStats(stats, 'strategic');
@@ -1183,7 +1216,7 @@ const Profile: React.FC<ProfileProps> = () => {
             } catch {
                 // ignore
             }
-            window.location.hash = '#/pvp/pair';
+            window.location.hash = '#/pvp/friendly';
         });
     }, [tryArenaEnter]);
 
@@ -1317,160 +1350,94 @@ const Profile: React.FC<ProfileProps> = () => {
     const profileStackScrollInnerClass =
         'flex min-h-full w-full flex-col items-stretch justify-center gap-0 py-0.5';
 
+    /** 길드 UI 대신 랭크·챔피언십 듀얼 티어 */
     const ProfileGuildPanelContent = useMemo(() => {
         const nh = isNativeMobile && !readableHome;
         const ch = nativeCompactHome;
-        return (
-            <div className="w-full min-w-0 overflow-hidden rounded-lg border border-zinc-600/80 bg-gradient-to-b from-zinc-800 to-zinc-900 shadow-inner">
-                <div className={nh ? 'min-h-0 px-1 py-0.5' : ch ? 'min-h-0 p-0.5 sm:p-0.5' : 'min-h-0 p-0.5 sm:p-1'}>
-                    {!guildCheckDone ? (
-                        <div className="w-full min-h-[32px] p-1.5" aria-hidden="true" />
-                    ) : !meetsGuildLevelForFeatures && !currentUserWithStatus.guildId ? (
+        const rankTier = overallTiers.strategicTier;
+        const champTier = championshipVenueStrip.tier;
+        const peakName =
+            typeof currentUserWithStatus.previousSeasonTier === 'string' &&
+            currentUserWithStatus.previousSeasonTier &&
+            currentUserWithStatus.previousSeasonTier !== '미참여'
+                ? currentUserWithStatus.previousSeasonTier
+                : null;
+        const tierChip = (
+            label: string,
+            tier: { name: string; icon: string; color: string },
+            scoreText: string,
+            hint?: string,
+        ) => (
+            <div
+                className={`flex min-w-0 flex-1 items-center gap-2 rounded-lg border border-white/12 bg-gradient-to-b from-black/45 to-black/25 ${
+                    nh ? 'px-1.5 py-1' : ch ? 'px-1.5 py-1' : 'px-2 py-1.5'
+                }`}
+            >
+                <img
+                    src={tier.icon}
+                    alt=""
+                    className={`shrink-0 object-contain drop-shadow-[0_2px_6px_rgba(0,0,0,0.65)] ${
+                        ch || nh ? 'h-8 w-8' : 'h-9 w-9 sm:h-10 sm:w-10'
+                    }`}
+                />
+                <div className="min-w-0 flex-1 text-left">
+                    <div
+                        className={`flex min-w-0 items-baseline justify-between gap-1.5 ${
+                            nh ? 'text-[9px]' : 'text-[10px]'
+                        }`}
+                    >
+                        <span className="truncate font-bold tracking-wide text-zinc-300">{label}</span>
+                        {hint ? (
+                            <span className="shrink-0 truncate font-semibold text-zinc-500">{hint}</span>
+                        ) : null}
+                    </div>
+                    <div className="mt-0.5 flex min-w-0 items-end justify-between gap-1.5">
                         <div
-                            className={`px-2 py-1.5 text-center leading-snug text-zinc-300 ${
-                                nh ? 'text-[10px]' : ch ? 'text-[10px] sm:text-[11px]' : readableHome ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'
+                            className={`min-w-0 truncate font-black leading-tight ${tier.color} ${
+                                nh ? 'text-[11px]' : 'text-xs sm:text-sm'
                             }`}
                         >
-                            {t('guildLockedLevel', { level: MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES })}
+                            {tier.name}
                         </div>
-                    ) : guildInfo ? (
-                        <div className={`flex min-w-0 flex-nowrap items-center gap-1.5 px-0.5 py-0.5 ${ch ? 'sm:gap-1.5 sm:px-0.5 sm:py-0.5' : 'sm:gap-2 sm:px-1 sm:py-1'}`}>
-                            {guildInfo.icon ? (
-                                <GuildMark
-                                    icon={guildInfo.icon}
-                                    alt={guildInfo.name}
-                                    size={ch ? 32 : 40}
-                                    tone="plain"
-                                />
-                            ) : (
-                                <div
-                                    className={`flex shrink-0 items-center justify-center overflow-hidden rounded-md border border-color bg-secondary/50 ${
-                                        ch ? 'h-8 w-8' : readableHome ? 'h-9 w-9 sm:h-10 sm:w-10' : nh ? 'h-9 w-9' : 'h-9 w-9 sm:h-10 sm:w-10'
-                                    }`}
-                                >
-                                    <img src="/images/button/guild.webp" alt={t('guildLocked')} className={`object-contain ${nh ? 'h-7 w-7' : 'h-7 w-7 sm:h-8 sm:w-8'}`} />
-                                </div>
-                            )}
-                            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-hidden sm:gap-1.5">
-                                <span
-                                    className={`shrink-0 rounded-md border border-amber-500/45 bg-amber-950/45 font-semibold leading-tight text-amber-100 ${
-                                        nh ? 'px-1.5 py-0 text-[10px]' : ch ? 'px-1.5 py-0 text-[10px] sm:text-[11px]' : readableHome ? 'px-1.5 py-0.5 text-xs sm:px-2 sm:text-sm' : 'px-1.5 py-0.5 text-[11px] sm:text-xs'
-                                    }`}
-                                >
-                                    Lv.{guildInfo.level || 1}
-                                </span>
-                                <div
-                                    className="min-w-0 truncate font-semibold text-white"
-                                    style={{
-                                        fontSize: nh
-                                            ? 'clamp(0.78rem, 2.1vw, 0.9rem)'
-                                            : ch
-                                              ? 'clamp(0.72rem, 1.75vw, 0.88rem)'
-                                              : readableHome
-                                                ? 'clamp(0.9rem, 1.9vw, 1.05rem)'
-                                                : 'clamp(0.82rem, 1.6vw, 0.95rem)',
-                                    }}
-                                    title={guildInfo.name}
-                                >
-                                    {guildInfo.name}
-                                </div>
-                            </div>
-                            {meetsGuildLevelForFeatures ? (
-                                <Button
-                                    onClick={() => {
-                                        window.location.hash = '#/guild';
-                                    }}
-                                    colorScheme="none"
-                                    className={`!shrink-0 !whitespace-nowrap rounded-md border border-amber-500/55 bg-gradient-to-b from-zinc-700 to-zinc-800 !font-semibold !leading-none !text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_2px_6px_rgba(0,0,0,0.35)] hover:border-amber-400/70 hover:from-zinc-600 hover:to-zinc-700 hover:!text-white ${
-                                        ch
-                                            ? '!px-2 !py-1 !text-[10px] sm:!text-[11px]'
-                                            : readableHome
-                                              ? '!px-2.5 !py-1.5 !text-xs sm:!text-sm'
-                                              : nh
-                                                ? '!px-2 !py-1 !text-[10px]'
-                                                : '!px-2 !py-1 !text-[10px] sm:!px-2.5 sm:!py-1 sm:!text-[11px]'
-                                    }`}
-                                    title={t('guildHome')}
-                                >
-                                    {t('guildEnter')}
-                                </Button>
-                            ) : (
-                                <div className="flex shrink-0 flex-col items-end gap-1">
-                                    <Button
-                                        type="button"
-                                        disabled
-                                        colorScheme="none"
-                                        className={`!shrink-0 cursor-not-allowed !whitespace-nowrap rounded-md border border-zinc-600 bg-zinc-800/80 !text-zinc-400 ${
-                                            nh ? '!px-2 !py-1 !text-[10px]' : '!px-2.5 !py-1 !text-[11px] sm:!text-xs'
-                                        }`}
-                                        title={t('guildLevelHint', { level: MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES })}
-                                    >
-                                        {t('lock')}
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        onClick={() => {
-                                            if (!window.confirm(t('guildLeaveConfirm'))) return;
-                                            void handlers.handleAction({ type: 'LEAVE_GUILD' });
-                                        }}
-                                        colorScheme="none"
-                                        className={`!shrink-0 !whitespace-nowrap rounded-md border border-rose-500/50 bg-rose-950/40 !font-semibold !text-rose-100 hover:border-rose-400 ${
-                                            nh ? '!px-2 !py-0.5 !text-[10px]' : '!px-2 !py-1 !text-[10px] sm:!text-xs'
-                                        }`}
-                                    >
-                                        {t('guildLeave')}
-                                    </Button>
-                                </div>
-                            )}
+                        <div
+                            className={`shrink-0 font-black tabular-nums tracking-tight text-amber-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.85)] ${
+                                nh ? 'text-[12px]' : ch ? 'text-[13px]' : 'text-sm sm:text-[15px]'
+                            }`}
+                        >
+                            {scoreText}
                         </div>
-                    ) : guildLoadingFailed || (meetsGuildLevelForFeatures && !currentUserWithStatus.guildId) ? (
-                        meetsGuildLevelForFeatures ? (
-                            <div className="flex min-w-0 items-center gap-2">
-                                <div className="flex min-w-0 flex-1 flex-nowrap gap-2">
-                                    <Button
-                                        onClick={() => setIsGuildCreateModalOpen(true)}
-                                        colorScheme="none"
-                                        className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}
-                                    >
-                                        {t('guildCreate')}
-                                    </Button>
-                                    <Button
-                                        onClick={() => setIsGuildJoinModalOpen(true)}
-                                        colorScheme="none"
-                                        className={`min-w-0 flex-1 justify-center whitespace-nowrap !py-0.5 rounded-xl border border-indigo-400/50 bg-gradient-to-r from-indigo-500/90 via-purple-500/90 to-pink-500/90 text-white shadow-[0_12px_32px_-18px_rgba(99,102,241,0.85)] hover:from-indigo-400 hover:to-pink-400 ${nh ? '!text-[10px]' : ''}`}
-                                    >
-                                        {t('guildJoin')}
-                                    </Button>
-                                </div>
-                            </div>
-                        ) : (
-                            <div
-                                className={`px-2 py-1.5 text-center leading-snug text-zinc-300 ${
-                                    nh ? 'text-[10px]' : ch ? 'text-[10px] sm:text-[11px]' : readableHome ? 'text-xs sm:text-sm' : 'text-[11px] sm:text-xs'
-                                }`}
-                            >
-                                {t('guildLevelNotice', {
-                                    level: MIN_COMBINED_LEVEL_FOR_GUILD_FEATURES,
-                                    current: getCombinedStrategyPlayfulLevel(currentUserWithStatus),
-                                })}
-                            </div>
-                        )
-                    ) : (
-                        <div className="w-full min-h-[32px] p-1.5" aria-hidden="true" />
-                    )}
+                    </div>
+                </div>
+            </div>
+        );
+        return (
+            <div className="w-full min-w-0 overflow-hidden rounded-lg border border-zinc-600/80 bg-gradient-to-b from-zinc-800 to-zinc-900 shadow-inner">
+                <div className={nh ? 'min-h-0 px-1 py-0.5' : ch ? 'min-h-0 p-0.5' : 'min-h-0 p-1'}>
+                    <div className="flex min-w-0 gap-1.5">
+                        {tierChip(
+                            t('rankTierLabel'),
+                            rankTier,
+                            `${overallTiers.strategicIntegratedScore}${t('points')}`,
+                            peakName ? t('tierPeak', { tier: peakName }) : undefined,
+                        )}
+                        {tierChip(
+                            t('champTierLabel'),
+                            champTier,
+                            `${championshipVenueStrip.rating}${t('points')}`,
+                        )}
+                    </div>
                 </div>
             </div>
         );
     }, [
-        currentUserWithStatus,
-        handlers,
-        guildInfo,
-        guildCheckDone,
-        guildLoadingFailed,
+        championshipVenueStrip,
+        currentUserWithStatus.previousSeasonTier,
         isNativeMobile,
-        readableHome,
-        meetsGuildLevelForFeatures,
         nativeCompactHome,
+        overallTiers.strategicIntegratedScore,
+        overallTiers.strategicTier,
+        readableHome,
+        t,
     ]);
 
     const coreStatComputeBundle = useMemo(() => {
@@ -2056,15 +2023,6 @@ const Profile: React.FC<ProfileProps> = () => {
     );
 
     const singleProgress = currentUserWithStatus.singlePlayerProgress ?? 0;
-    const singlePlayerTotalStages = useMemo(
-        () => getSinglePlayerStages().length,
-        [singlePlayerStagesListRevision]
-    );
-    const singleStageLabel = singleProgress >= 40 ? t('stageLabels.master')
-        : singleProgress >= 30 ? t('stageLabels.advanced')
-        : singleProgress >= 20 ? t('stageLabels.intermediate')
-        : singleProgress >= 10 ? t('stageLabels.beginner')
-        : t('stageLabels.intro');
     const towerCurrentFloor = Math.max(1, (currentUserWithStatus as User)?.towerFloor ?? 0);
     const towerCurrentRank = (currentUserWithStatus as any)?.monthlyTowerRank ?? (currentUserWithStatus as any)?.towerRank ?? null;
     const adventureCodexBreakdown = getAdventureCodexCompletionBreakdown(currentUserWithStatus.adventureProfile);
@@ -2077,339 +2035,119 @@ const Profile: React.FC<ProfileProps> = () => {
     const adventureCodexDonutDash =
         (Math.min(100, Math.max(0, adventureCodexBreakdown.overallPercent)) / 100) * adventureCodexDonutC;
     /** 2×3: 1행 싱글·탑 / 2행 전략·놀이 / 3행 챔피언십·모험 (PC·모바일 홈 외 공용; 모바일 경기장 전용 화면은 별도) */
-    const lobbyGridShell =
-        isNativeMobile && profileTab !== 'home'
-            ? 'grid min-h-0 min-w-0 flex-1 grid-cols-2 grid-rows-[repeat(3,minmax(0,1fr))] gap-1.5 overflow-hidden px-0.5 pb-0.5 [&>*]:min-h-0 [&>*]:min-w-0'
-            : 'grid h-full min-h-0 w-full content-center grid-cols-2 grid-rows-[repeat(3,minmax(0,15rem))] gap-2.5 lg:gap-3 lg:grid-rows-[repeat(3,minmax(0,17.5rem))] [&>*]:min-h-0 [&>*]:min-w-0';
-
-    const mergedCardClass = 'flex h-full min-h-0 overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10';
-    const imagePaneClass = 'min-h-0 min-w-0 flex-[1.78] p-0.5';
-    /** PC 경기장 카드 우측: 타이틀 상단·버튼 하단 고정, 중간 통계 블록 세로 중앙 */
-    const infoPanelShellClass =
-        'flex h-full min-h-0 min-w-[196px] flex-[0.92] flex-col gap-2 border-l border-amber-200/20 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]';
-    const infoPanelMiddleClass =
-        'flex min-h-0 w-full min-w-0 flex-1 flex-col items-stretch justify-center gap-2 overflow-x-hidden overflow-y-auto overscroll-y-contain [scrollbar-gutter:auto]';
-    const infoTitleClass =
-        'inline-flex w-full shrink-0 items-center justify-center rounded-lg border border-amber-300/40 bg-gradient-to-r from-amber-950/80 via-zinc-900/90 to-amber-950/80 px-2 py-1 text-[15px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]';
-    const infoRowClass =
-        'grid w-full min-w-0 grid-cols-[minmax(4.25rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/12 bg-black/35 px-2.5 py-1.5 text-[12.5px] leading-snug';
-    const infoLabelClass = 'min-w-0 text-center font-semibold text-slate-300/95';
-    const infoValueClass = 'min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep';
     const hasPcHomeTrainingQuestReward =
         !isNativeMobile && userHasFullTrainingQuestReward(currentUserWithStatus);
-    const LobbyCards = (
-        <div className={lobbyGridShell}>
-            <div className="flex h-full min-h-0 min-w-0 flex-col">
-                {isNativeMobile && profileTab !== 'home' ? (
-                    <div
-                        onClick={onSelectSinglePlayerLobby}
-                        className="group border border-emerald-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden p-1"
-                    >
-                        <img src={SINGLE_PLAYER_LOBBY_IMG} alt={t('goSchool')} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                        <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/0 via-black/0 to-black/14" />
-                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">{t('goSchool')}</h2>
-                        <div className="flex min-h-0 w-full flex-1 rounded-md" />
-                    </div>
-                ) : (
-                    <div className={mergedCardClass}>
-                        <div className={imagePaneClass}>
-                            <div
-                                onClick={onSelectSinglePlayerLobby}
-                                className="group flex h-full min-h-0 w-full flex-col rounded-xl text-center transition-all transform hover:-translate-y-1 hover:shadow-green-500/30 cursor-pointer text-on-panel relative overflow-hidden"
-                            >
-                                <img src={SINGLE_PLAYER_LOBBY_IMG} alt={t('goSchool')} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                                <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/0 via-black/0 to-black/14" />
-                                <div className="flex min-h-0 w-full flex-1 rounded-md" />
-                            </div>
-                        </div>
-                        <div className={infoPanelShellClass}>
-                            <div className={infoTitleClass}>{t('goSchool')}</div>
-                            <div className={infoPanelMiddleClass}>
-                                <div className={infoRowClass}><span className={infoLabelClass}>{t('currentLocation')}</span><span className={infoValueClass}>{singleStageLabel}</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>{t('progress')}</span><span className={infoValueClass}>{singleProgress} / {singlePlayerTotalStages}</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>{t('cleared')}</span><span className={infoValueClass}>{Math.max(0, singleProgress)}</span></div>
-                            </div>
-                            {!isNativeMobile && (
-                                <Button
-                                    type="button"
-                                    onClick={() => handlers.openTrainingQuest()}
-                                    colorScheme="none"
-                                    bare
-                                    aria-label={
-                                        hasPcHomeTrainingQuestReward
-                                            ? t('trainingQuestRewardHint')
-                                            : t('trainingQuest')
-                                    }
-                                    className="relative w-full shrink-0 !justify-center rounded-lg border border-emerald-400/45 bg-gradient-to-b from-emerald-900/55 via-zinc-900/80 to-black/90 !px-2 !py-1.5 !text-[12px] !font-bold !text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_4px_18px_-10px_rgba(16,185,129,0.45)] hover:border-emerald-300/55 hover:from-emerald-800/65 hover:to-zinc-900"
-                                >
-                                    {t('trainingQuest')}
-                                    {hasPcHomeTrainingQuestReward && (
-                                        <span
-                                            className="absolute right-2 top-1/2 z-[1] h-2 w-2 -translate-y-1/2 rounded-full border-2 border-slate-950 bg-red-500 shadow-[0_0_6px_rgba(239,68,68,0.65)]"
-                                            aria-hidden
-                                            title={t('claimableReward')}
-                                        />
-                                    )}
-                                </Button>
-                            )}
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <div className="flex h-full min-h-0 min-w-0 flex-col">
-                {isNativeMobile && profileTab !== 'home' ? (
-                    <PveCard title={t('challengeTower')} imageUrl={TOWER_MOBILE_HERO_WEBP} layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
-                ) : (
-                    <div className={mergedCardClass}>
-                        <div className={imagePaneClass}>
-                            <PveCard title={t('challengeTower')} imageUrl={TOWER_MOBILE_HERO_WEBP} layout="tall" onClick={() => tryArenaEnter('tower', () => { window.location.hash = '#/tower'; })} compact={false} hideOverlayText={true} locked={!!getArenaEntryLockReason('tower')} lockReason={getArenaEntryLockReason('tower') ?? undefined} />
-                            </div>
-                            <div className={infoPanelShellClass}>
-                            <div className={infoTitleClass}>{t('challengeTower')}</div>
-                            <div className={infoPanelMiddleClass}>
-                                <div className={infoRowClass}><span className={infoLabelClass}>{t('currentFloor')}</span><span className={infoValueClass}>{t('floorUnit', { floor: towerCurrentFloor })}</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>{t('timeRemaining')}</span><span className={infoValueClass}>{towerTimeLeft}</span></div>
-                                <div className={infoRowClass}><span className={infoLabelClass}>{t('currentRank')}</span><span className={infoValueClass}>{towerCurrentRank ? t('rankUnit', { rank: towerCurrentRank }) : '-'}</span></div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <div
-                className={
-                    isNativeMobile && profileTab === 'home'
-                        ? 'flex min-h-0 min-w-0 flex-col gap-1.5'
-                        : 'col-span-2 grid h-full min-h-0 min-w-0 grid-cols-2 gap-2.5 lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0'
-                }
-            >
-                <div className={mergedCardClass}>
-                    <div className={imagePaneClass}>
-                        <PveCard
-                            title={t('pvpArena')}
-                            imageUrl={PVP_ARENA_ENTRY_IMG}
-                            layout="tall"
-                            onClick={() => onSelectArenaIntent('pvp')}
-                            compact={false}
-                            hideOverlayText
-                        />
-                    </div>
-                    <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
-                        <div className={`${infoTitleClass} text-fuchsia-100`}>{t('pvpArena')}</div>
-                        <PvpArenaHomeInfoMiddle
-                            tiers={overallTiers}
-                            playfulWins={aggregatedStats.playful.wins}
-                            playfulLosses={aggregatedStats.playful.losses}
-                            infoPanelMiddleClass={infoPanelMiddleClass}
-                            infoLabelClass={infoLabelClass}
-                            infoValueClass={infoValueClass}
-                        />
-                        <Button
-                            type="button"
-                            onClick={() => handlers.openDetailedStats('both')}
-                            colorScheme="none"
-                            bare
-                            className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50 hover:from-cyan-900/55 hover:via-fuchsia-900/45 hover:to-violet-900/50"
-                        >
-                            {t('detailedStatsBtn')}
-                        </Button>
-                    </div>
-                </div>
-                <div className={mergedCardClass}>
-                    <div className={imagePaneClass}>
-                        <PveCard
-                            title={t('aiArena')}
-                            imageUrl={AI_ARENA_ENTRY_IMG}
-                            layout="tall"
-                            onClick={() => onSelectArenaIntent('ai')}
-                            compact={false}
-                            hideOverlayText
-                        />
-                    </div>
-                    <div className={`${infoPanelShellClass} border-violet-300/25`}>
-                        <div className={`${infoTitleClass} text-violet-100`}>{t('aiArena')}</div>
-                        <div className={infoPanelMiddleClass}>
-                            <div className={infoRowClass}>
-                                <span className={infoLabelClass}>{t('strategicAiRecord')}</span>
-                                <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                    {aiLobbyRecordByKind.strategic.wins}{t('winShort')}{aiLobbyRecordByKind.strategic.losses}{t('loseShort')}
-                                </span>
-                            </div>
-                            <div className={infoRowClass}>
-                                <span className={infoLabelClass}>{t('pairAiRecord')}</span>
-                                <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                    {aiLobbyRecordByKind.pair.wins}{t('winShort')}{aiLobbyRecordByKind.pair.losses}{t('loseShort')}
-                                </span>
-                            </div>
-                            <div className={infoRowClass}>
-                                <span className={infoLabelClass}>{t('playfulAiRecord')}</span>
-                                <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                    {aiLobbyRecordByKind.playful.wins}{t('winShort')}{aiLobbyRecordByKind.playful.losses}{t('loseShort')}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="flex h-full min-h-0 min-w-0 flex-col">
-                {isNativeMobile && profileTab !== 'home' ? (
-                    <div onClick={getArenaEntryLockReason('championship') ? undefined : onSelectTournamentLobby} className={`group border border-fuchsia-400/40 flex h-full min-h-0 w-full flex-col rounded-xl text-center shadow-[0_14px_34px_-18px_rgba(0,0,0,0.8)] ring-1 ring-white/10 transition-all transform text-on-panel p-1 relative overflow-hidden ${getArenaEntryLockReason('championship') ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer hover:-translate-y-1 hover:shadow-purple-500/30'}`}>
-                        <img src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP} alt={t('championship')} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                        <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/4 via-black/0 to-black/14" />
-                        {getArenaEntryLockReason('championship') && (
-                            <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
-                                <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
-                                <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-rose-100 sm:text-xs">
-                                    {getArenaEntryLockReason('championship')}
-                                </span>
-                            </div>
-                        )}
-                        <h2 className="relative z-[1] mb-0.5 h-4 text-[10px] font-bold leading-tight text-white">{t('championship')}</h2>
-                        <div className="flex min-h-0 w-full flex-1 rounded-md" />
-                    </div>
-                ) : (
-                    <div className={mergedCardClass}>
-                        <div className={imagePaneClass}>
-                            <div onClick={getArenaEntryLockReason('championship') ? undefined : onSelectTournamentLobby} className={`group flex h-full min-h-0 w-full flex-col text-center transition-all transform text-on-panel relative overflow-hidden rounded-xl ${getArenaEntryLockReason('championship') ? 'cursor-not-allowed grayscale-[0.25] opacity-75' : 'cursor-pointer hover:-translate-y-1 hover:shadow-purple-500/30'}`}>
-                                <img src={CHAMPIONSHIP_PVP_VENUE_BG_WEBP} alt={t('championship')} className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                                <div className="pointer-events-none absolute inset-0 rounded-md bg-gradient-to-b from-black/4 via-black/0 to-black/14" />
-                                {getArenaEntryLockReason('championship') && (
-                                    <div className="pointer-events-none absolute inset-0 z-20 flex flex-col items-center justify-center bg-black/50 px-2 text-center">
-                                        <span className="text-[2rem] leading-none drop-shadow-[0_4px_12px_rgba(0,0,0,0.9)] sm:text-[2.4rem]">🔒</span>
-                                        <span className="mt-1 rounded-md border border-rose-300/40 bg-black/55 px-2 py-0.5 text-[10px] font-bold text-rose-100 sm:text-xs">
-                                            {getArenaEntryLockReason('championship')}
-                                        </span>
-                                    </div>
-                                )}
-                                <div className="flex min-h-0 w-full flex-1 rounded-md" />
-                            </div>
-                        </div>
-                        <div className={infoPanelShellClass}>
-                            <div className={infoTitleClass}>{t('championship')}</div>
-                            <div className={infoPanelMiddleClass}>
-                                <div className="flex w-full items-center gap-2 rounded-md border border-white/10 bg-white/[0.05] px-2 py-2">
-                                    <img
-                                        src={championshipVenueStrip.tier.icon}
-                                        alt=""
-                                        title={championshipVenueStrip.tierName}
-                                        className="h-9 w-9 shrink-0 object-contain sm:h-10 sm:w-10"
-                                    />
-                                    <div className="min-w-0 flex-1 text-center">
-                                        <span className={`${infoLabelClass} block text-[11px]`}>{t('integratedScore')}</span>
-                                        <span className={`${infoValueClass} block font-mono text-base text-amber-100 sm:text-lg`}>
-                                            {championshipVenueStrip.rating}{t('points')}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className={infoRowClass}>
-                                    <span className={`${infoLabelClass} self-start`}>{t('seasonRecord')}</span>
-                                    <div className={`${infoValueClass} flex flex-col items-end gap-0.5 font-mono text-[11px] leading-tight sm:text-xs`}>
-                                        {championshipVenueStrip.venueSeason.map((row) => (
-                                            <span key={row.label} className="whitespace-nowrap text-right">
-                                                <span className="text-slate-500">{row.label}</span>{' '}
-                                                <span className="text-primary">
-                                                    {row.wins}{t('winShort')} {row.losses}{t('loseShort')}
-                                                </span>
-                                            </span>
-                                        ))}
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                )}
-            </div>
-
-            <div className="flex h-full min-h-0 min-w-0 flex-col">
-                {isNativeMobile && profileTab !== 'home' ? (
-                    <PveCard
-                        title={t('adventure')}
-                        imageUrl={ADVENTURE_STAGES[0].mapWebp}
-                        layout="tall"
-                        onClick={() => tryArenaEnter('adventure', () => { window.location.hash = '#/adventure'; })}
-                        compact={true}
-                        locked={!!getArenaEntryLockReason('adventure')}
-                        lockReason={getArenaEntryLockReason('adventure') ?? undefined}
-                    />
-                ) : (
-                    <div className={mergedCardClass}>
-                        <div className={imagePaneClass}>
-                            <PveCard
-                                title={t('adventure')}
-                                imageUrl={ADVENTURE_STAGES[0].mapWebp}
-                                layout="tall"
-                                onClick={() => tryArenaEnter('adventure', () => { window.location.hash = '#/adventure'; })}
-                                compact={false}
-                                hideOverlayText={true}
-                                locked={!!getArenaEntryLockReason('adventure')}
-                                lockReason={getArenaEntryLockReason('adventure') ?? undefined}
-                            />
-                        </div>
-                        <div className={infoPanelShellClass}>
-                            <div className={infoTitleClass}>{t('adventure')}</div>
-                            <div className={infoPanelMiddleClass}>
-                                <div className="flex w-full items-center justify-center">
-                                    <div className="relative h-[6.5rem] w-[6.5rem] shrink-0">
-                                        <svg
-                                            viewBox={`0 0 ${(adventureCodexDonutR + 14) * 2} ${(adventureCodexDonutR + 14) * 2}`}
-                                            className="h-full w-full -rotate-90 text-zinc-800"
-                                            aria-hidden
-                                        >
-                                            <circle
-                                                cx={adventureCodexDonutR + 14}
-                                                cy={adventureCodexDonutR + 14}
-                                                r={adventureCodexDonutR}
-                                                fill="none"
-                                                stroke="currentColor"
-                                                strokeWidth={7}
-                                                className="text-zinc-800/95"
-                                            />
-                                            <circle
-                                                cx={adventureCodexDonutR + 14}
-                                                cy={adventureCodexDonutR + 14}
-                                                r={adventureCodexDonutR}
-                                                fill="none"
-                                                stroke={`url(#${adventureCodexDonutGradId})`}
-                                                strokeWidth={7}
-                                                strokeLinecap="round"
-                                                strokeDasharray={`${adventureCodexDonutDash} ${adventureCodexDonutC}`}
-                                            />
-                                            <defs>
-                                                <linearGradient id={adventureCodexDonutGradId} x1="0%" y1="0%" x2="100%" y2="100%">
-                                                    <stop offset="0%" stopColor="rgb(167, 139, 250)" />
-                                                    <stop offset="55%" stopColor="rgb(244, 114, 182)" />
-                                                    <stop offset="100%" stopColor="rgb(251, 191, 36)" />
-                                                </linearGradient>
-                                            </defs>
-                                        </svg>
-                                        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center text-center">
-                                            <span className="text-[1.05rem] font-black tabular-nums text-white drop-shadow sm:text-xl">
-                                                {adventureCodexOverallPercentText}
-                                            </span>
-                                            <span className="min-w-[5.25rem] text-center text-[10px] font-semibold tabular-nums text-zinc-400 sm:min-w-[6rem] sm:text-xs">
-                                                {adventureCodexBreakdown.totalSum}/{adventureCodexBreakdown.totalMax} Lv
-                                            </span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            <Button
-                                type="button"
-                                colorScheme="none"
-                                bare
-                                onClick={() => handlers.openAdventureMonsterCodexModal()}
-                                className="w-full shrink-0 !justify-center rounded-lg border border-violet-400/45 bg-gradient-to-r from-violet-950/55 via-purple-950/40 to-fuchsia-950/40 !px-2 !py-1.5 !text-[12px] !font-bold !text-violet-50 hover:from-violet-900/55 hover:via-purple-900/45 hover:to-fuchsia-900/45"
-                            >
-                                {t('monsterCodex')}
-                            </Button>
-                        </div>
-                    </div>
-                )}
-            </div>
-        </div>
+    const homeEntranceHandlers = useMemo(
+        () => ({
+            arena: onSelectMatchArena,
+            championship: onSelectTournamentLobby,
+            stage: onSelectSinglePlayerLobby,
+            tower: onSelectTowerLobby,
+            adventure: onSelectAdventureLobby,
+            factory: () => handlers.openTrainingQuest(),
+            friendly: onSelectFriendlyLobby,
+            playground: onSelectPlaygroundLobby,
+            guild: onSelectGuildLobby,
+        }),
+        [
+            handlers,
+            onSelectAdventureLobby,
+            onSelectFriendlyLobby,
+            onSelectGuildLobby,
+            onSelectMatchArena,
+            onSelectPlaygroundLobby,
+            onSelectSinglePlayerLobby,
+            onSelectTournamentLobby,
+            onSelectTowerLobby,
+        ],
     );
+    const homeEntranceCardState = useMemo(() => {
+        const towerLock = getArenaEntryLockReason('tower');
+        const adventureLock = getArenaEntryLockReason('adventure');
+        const champLock = getArenaEntryLockReason('championship');
+        const codexPct = Math.min(100, Math.max(0, adventureCodexBreakdown.overallPercent));
+        const codexLabel =
+            codexPct >= 10 ? `${Math.round(codexPct)}%` : `${Math.round(codexPct * 10) / 10}%`;
+        const hasGuild = !!guildInfo;
+        const showGuildCtas = guildCheckDone && !hasGuild && !currentUserWithStatus?.guildId;
+        return {
+            arena: {
+                tierIcon: overallTiers.strategicTier?.icon,
+                scoreText:
+                    overallTiers.strategicIntegratedScore != null
+                        ? `${overallTiers.strategicIntegratedScore}${t('points')}`
+                        : undefined,
+            },
+            championship: {
+                tierIcon: championshipVenueStrip.tier?.icon,
+                scoreText: `${championshipVenueStrip.rating}${t('points')}`,
+                locked: !!champLock,
+                lockReason: champLock ?? undefined,
+            },
+            stage: {
+                footerLeft: t('lobbyMetaStage'),
+                footerRight: `${singleProgress}/100`,
+            },
+            tower: {
+                footerLeft: t('floorUnit', { floor: towerCurrentFloor }),
+                footerRight: towerTimeLeft || undefined,
+                locked: !!towerLock,
+                lockReason: towerLock ?? undefined,
+            },
+            adventure: {
+                progressPercent: codexPct,
+                progressLabel: codexLabel,
+                locked: !!adventureLock,
+                lockReason: adventureLock ?? undefined,
+            },
+            factory: {
+                badge: hasPcHomeTrainingQuestReward,
+                infoLines: hasPcHomeTrainingQuestReward ? [t('claimableReward')] : undefined,
+            },
+            friendly: {
+                infoLines: [t('lobbyMetaFriendlyCustom'), t('lobbyMetaFriendlyPair')],
+            },
+            guild: hasGuild
+                ? {
+                      guild: {
+                          name: guildInfo.name,
+                          level: Math.max(1, Number(guildInfo.level) || 1),
+                          icon: guildInfo.icon,
+                          emblem: guildInfo.emblem,
+                      },
+                  }
+                : showGuildCtas
+                  ? {
+                        guild: null,
+                        guildCtas: {
+                            onJoin: () => setIsGuildJoinModalOpen(true),
+                            onCreate: () => setIsGuildCreateModalOpen(true),
+                            joinLabel: t('lobbyGuildJoin'),
+                            createLabel: t('lobbyGuildCreate'),
+                        },
+                    }
+                  : {},
+        };
+    }, [
+        adventureCodexBreakdown.overallPercent,
+        championshipVenueStrip.rating,
+        championshipVenueStrip.tier?.icon,
+        currentUserWithStatus?.guildId,
+        getArenaEntryLockReason,
+        guildCheckDone,
+        guildInfo,
+        hasPcHomeTrainingQuestReward,
+        overallTiers.strategicIntegratedScore,
+        overallTiers.strategicTier?.icon,
+        singleProgress,
+        t,
+        towerCurrentFloor,
+        towerTimeLeft,
+    ]);
+    const LobbyCards = (
+        <HomeEntranceHub handlers={homeEntranceHandlers} cardState={homeEntranceCardState} />
+    );
+
     const adminVipCorner =
         isClientAdmin(currentUserWithStatus) ? (
             <div className="pointer-events-auto absolute left-1 top-1 z-[4] max-[680px]:left-0.5 max-[680px]:top-0.5 sm:left-2 sm:top-1.5">
@@ -2729,76 +2467,13 @@ const Profile: React.FC<ProfileProps> = () => {
                             </div>
                         )}
                         {profileTab === 'arena' && (
-                            <div className="flex min-h-0 flex-1 items-stretch justify-center overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 pb-1">
-                                <div className="flex w-full max-w-3xl min-h-0 flex-1 flex-col gap-2.5">
-                                    <div className={`${mergedCardClass} min-h-0 flex-1`}>
-                                        <div className={imagePaneClass}>
-                                            <PveCard
-                                                title={t('pvpArena')}
-                                                imageUrl={PVP_ARENA_ENTRY_IMG}
-                                                layout="tall"
-                                                onClick={() => onSelectArenaIntent('pvp')}
-                                                compact={false}
-                                                hideOverlayText
-                                            />
-                                        </div>
-                                        <div className={`${infoPanelShellClass} border-fuchsia-300/25`}>
-                                            <div className={`${infoTitleClass} text-fuchsia-100`}>{t('pvpArena')}</div>
-                                            <PvpArenaHomeInfoMiddle
-                                                tiers={overallTiers}
-                                                playfulWins={aggregatedStats.playful.wins}
-                                                playfulLosses={aggregatedStats.playful.losses}
-                                                infoPanelMiddleClass={infoPanelMiddleClass}
-                                                infoLabelClass={infoLabelClass}
-                                                infoValueClass={infoValueClass}
-                                            />
-                                            <Button
-                                                type="button"
-                                                onClick={() => handlers.openDetailedStats('both')}
-                                                colorScheme="none"
-                                                bare
-                                                className="w-full shrink-0 !justify-center rounded-lg border border-fuchsia-300/45 bg-gradient-to-r from-cyan-950/50 via-fuchsia-950/40 to-violet-950/45 !px-2 !py-1.5 !text-[12px] !font-bold !text-fuchsia-50"
-                                            >
-                                                {t('detailedStatsBtn')}
-                                            </Button>
-                                        </div>
-                                    </div>
-                                    <div className={`${mergedCardClass} min-h-0 flex-1`}>
-                                        <div className={imagePaneClass}>
-                                            <PveCard
-                                                title={t('aiArena')}
-                                                imageUrl={AI_ARENA_ENTRY_IMG}
-                                                layout="tall"
-                                                onClick={() => onSelectArenaIntent('ai')}
-                                                compact={false}
-                                                hideOverlayText
-                                            />
-                                        </div>
-                                        <div className={`${infoPanelShellClass} border-violet-300/25`}>
-                                            <div className={`${infoTitleClass} text-violet-100`}>{t('aiArena')}</div>
-                                            <div className={infoPanelMiddleClass}>
-                                                <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>{t('strategicAiRecord')}</span>
-                                                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                                        {aiLobbyRecordByKind.strategic.wins}{t('winShort')}{aiLobbyRecordByKind.strategic.losses}{t('loseShort')}
-                                                    </span>
-                                                </div>
-                                                <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>{t('pairAiRecord')}</span>
-                                                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                                        {aiLobbyRecordByKind.pair.wins}{t('winShort')}{aiLobbyRecordByKind.pair.losses}{t('loseShort')}
-                                                    </span>
-                                                </div>
-                                                <div className={infoRowClass}>
-                                                    <span className={infoLabelClass}>{t('playfulAiRecord')}</span>
-                                                    <span className={`${infoValueClass} font-mono whitespace-nowrap`}>
-                                                        {aiLobbyRecordByKind.playful.wins}{t('winShort')}{aiLobbyRecordByKind.playful.losses}{t('loseShort')}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </div>
+                            <div className="flex min-h-0 flex-1 overflow-hidden px-1 pb-1">
+                                <HomeEntranceHub
+                                    handlers={homeEntranceHandlers}
+                                    cardState={homeEntranceCardState}
+                                    className="flex-1"
+                                    showAnnouncementBoard
+                                />
                             </div>
                         )}
                     </>
@@ -2808,9 +2483,10 @@ const Profile: React.FC<ProfileProps> = () => {
                     </div>
                 ) : (
                     <div className={`flex h-full min-h-0 min-w-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
-                        {/* 좌: 유저·펫 / 중: 로비 카드 / 우: 퀵 메뉴 (PC·웹) */}
+                        {/* 좌: 유저·펫 / 중: 입장카드·뷰어 / 중우: 접속자 / 우: 퀵 메뉴 */}
                         {renderProfileHomeLeftColumn(profileHomeLeftGridClassPc)}
                         <PcLobbyCenterColumn>{LobbyCards}</PcLobbyCenterColumn>
+                        <HomeViewerOnlineUsersColumn />
                         <div
                             className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`}
                             aria-label={t('quickMenuAria')}

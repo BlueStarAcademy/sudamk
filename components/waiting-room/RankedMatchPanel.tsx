@@ -6,11 +6,15 @@ import Button from '../Button.js';
 import PairPetRankedMatchModeModal from '../pair/PairPetRankedMatchModeModal.js';
 import { RANKING_TIERS, SPECIAL_GAME_MODES } from '../../constants';
 import { effectiveStrategicRankedQueueApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
-import { readStrategicRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
+import {
+    readStrategicRankedBlock,
+    readStrategicNormalMatchRecord,
+} from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useRanking } from '../../hooks/useRanking.js';
 import { getCurrentSeason, getPreviousSeason } from '../../utils/timeUtils.js';
+import LobbyMatchKindPicker, { type LobbyMatchKindOption } from './LobbyMatchKindPicker.js';
 
 /** 티어 안내 모달(TierInfoModal)과 동일한 기준: 시즌 랭킹 점수·순위·대국 수로 결정 */
 const getTier = (score: number, rank: number, totalGames: number) => {
@@ -115,6 +119,15 @@ interface RankedMatchPanelProps {
     variant?: 'default' | 'nativeNarrow';
     /** PC 집계 대기실 좌열: 패널 높이를 본문에 맞춤(남는 세로 공간을 늘리지 않음) */
     shrinkToContent?: boolean;
+    /** 랭크전(기본) / 일반전 매칭 큐 */
+    queueKind?: 'ranked' | 'normal';
+    /** 제공 시 시즌 영역 상단에 랭킹전/일반전 탭 표시 */
+    onSelectQueueKind?: (queue: 'ranked' | 'normal') => void;
+    /**
+     * `dedicated`: 홈→랭킹전 — 상단 모드 선택, 좌 시즌 / 우 설명·설정·매칭.
+     * 시작 버튼/모달 없이 바로 큐잉.
+     */
+    layout?: 'panel' | 'dedicated';
 }
 
 const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({ 
@@ -126,10 +139,14 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     onMatchingStateChange,
     variant = 'default',
     shrinkToContent = false,
+    queueKind = 'ranked',
+    onSelectQueueKind,
+    layout = 'panel',
 }) => {
     const { t } = useTranslation('lobby');
     const { t: tCommon } = useTranslation('common');
     const nativeNarrow = variant === 'nativeNarrow';
+    const dedicated = layout === 'dedicated';
     const [elapsedTime, setElapsedTime] = useState(0);
     const [isModalOpen, setIsModalOpen] = useState(false);
 
@@ -139,7 +156,8 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
     const strategicRankedQueueCountsByMode = useMemo(() => {
         const counts: Partial<Record<GameMode, number>> = {};
         for (const m of RANKED_STRATEGIC_MODES) counts[m] = 0;
-        const q = rankedMatchingQueue?.strategic as Record<string, { selectedModes?: GameMode[] }> | undefined;
+        const qKey = queueKind === 'normal' ? 'normal' : 'strategic';
+        const q = rankedMatchingQueue?.[qKey] as Record<string, { selectedModes?: GameMode[] }> | undefined;
         if (!q || typeof q !== 'object') return counts;
         for (const entry of Object.values(q)) {
             const modes = entry?.selectedModes;
@@ -149,11 +167,16 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
             }
         }
         return counts;
-    }, [rankedMatchingQueue]);
+    }, [rankedMatchingQueue, queueKind]);
 
     const rankedActionPointCost = useMemo(
         () => effectiveStrategicRankedQueueApCostForUser(currentUser),
         [currentUser],
+    );
+
+    const normalMatchRecord = useMemo(
+        () => readStrategicNormalMatchRecord(currentUser.stats as Record<string, unknown>),
+        [currentUser.stats],
     );
 
     const currentSeasonTierAndScore = useMemo(() => {
@@ -226,7 +249,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         try {
             const result: any = await onAction({
                 type: 'START_RANKED_MATCHING',
-                payload: { lobbyType: 'strategic', selectedModes }
+                payload: { lobbyType: 'strategic', selectedModes, queueKind }
             });
             setIsModalOpen(false);
             
@@ -267,15 +290,55 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         return false;
     }, [isFirstSeason, allTimeBestSeason, currentSeasonName]);
 
+    const queueKindOptions = useMemo<LobbyMatchKindOption<'ranked' | 'normal'>[]>(
+        () => [
+            {
+                value: 'ranked',
+                label: t('arenaLobby.queueRanked', '랭킹전'),
+                tone: 'amber',
+            },
+            {
+                value: 'normal',
+                label: t('arenaLobby.queueNormal', '일반전'),
+                tone: 'cyan',
+            },
+        ],
+        [t],
+    );
+
+    const queueKindTabs =
+        typeof onSelectQueueKind === 'function' ? (
+            <LobbyMatchKindPicker
+                layout="row"
+                ariaLabel={t('arenaLobby.matchTypeTitle', '경기 종류')}
+                options={queueKindOptions}
+                value={queueKind}
+                defaultTone="amber"
+                onChange={onSelectQueueKind}
+            />
+        ) : null;
+
     return (
         <>
             <div
                 className={`flex min-h-0 flex-col text-on-panel relative ${
-                    shrinkToContent ? 'h-auto flex-none overflow-x-hidden overflow-y-visible' : 'h-full'
-                } ${nativeNarrow ? 'overflow-y-auto overflow-x-hidden p-2' : shrinkToContent ? 'p-3 sm:p-3.5' : 'overflow-x-auto p-3 sm:p-3.5 lg:p-4'}`}
+                    dedicated
+                        ? 'h-full min-h-0 overflow-hidden p-2 sm:p-3'
+                        : shrinkToContent
+                          ? 'h-auto flex-none overflow-x-hidden overflow-y-visible'
+                          : 'h-full'
+                } ${
+                    dedicated
+                        ? ''
+                        : nativeNarrow
+                          ? 'overflow-y-auto overflow-x-hidden p-2'
+                          : shrinkToContent
+                            ? 'p-3 sm:p-3.5'
+                            : 'overflow-x-auto p-3 sm:p-3.5 lg:p-4'
+                }`}
             >
                 {/* 배경 그라데이션 효과 */}
-                <div className="absolute inset-0 bg-gradient-to-br from-indigo-900/10 via-purple-900/5 to-blue-900/10 pointer-events-none rounded-lg"></div>
+                <div className="absolute inset-0 bg-gradient-to-br from-amber-900/15 via-zinc-950/40 to-cyan-950/20 pointer-events-none rounded-lg"></div>
                 
                 {/* 헤더: 타이틀 + 랭킹전 시작/취소 버튼 */}
                 <div
@@ -289,13 +352,25 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                         <div className="h-6 w-1 flex-shrink-0 rounded-full bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.5)] sm:h-8"></div>
                         <h2
                             className={`min-w-0 truncate font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${
-                                nativeNarrow ? 'text-sm leading-tight' : 'whitespace-nowrap text-xl lg:text-2xl'
+                                dedicated
+                                    ? 'text-lg sm:text-xl lg:text-2xl'
+                                    : nativeNarrow
+                                      ? 'text-sm leading-tight'
+                                      : 'whitespace-nowrap text-xl lg:text-2xl'
                             }`}
                         >
-                            {t('ranked.panelTitle')}
+                            {queueKind === 'normal'
+                                ? t('ranked.normalPanelTitle', '일반전')
+                                : t('ranked.panelTitle', '랭킹전')}
                         </h2>
                     </div>
-                    {!isMatching ? (
+                    {dedicated ? (
+                        isMatching ? (
+                            <span className="shrink-0 text-[11px] font-semibold text-amber-200/70 sm:text-xs">
+                                {t('ranked.matching')}
+                            </span>
+                        ) : null
+                    ) : !isMatching ? (
                         <Button
                             onClick={() => setIsModalOpen(true)}
                             colorScheme="none"
@@ -308,7 +383,14 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             <span className={`flex items-center justify-center gap-0.5 ${nativeNarrow ? '' : 'gap-1.5'}`}>
                                 <span className={nativeNarrow ? 'text-[0.65rem] sm:text-xs' : ''}>⚔️</span>
                                 <span className={nativeNarrow ? 'text-[0.65rem] sm:text-xs' : ''}>
-                                    {nativeNarrow ? t('ranked.startShort') : t('ranked.start')} (⚡{rankedActionPointCost})
+                                    {queueKind === 'normal'
+                                        ? nativeNarrow
+                                            ? t('ranked.startNormalShort', '시작')
+                                            : t('ranked.startNormal', '일반전 시작')
+                                        : nativeNarrow
+                                          ? t('ranked.startShort')
+                                          : t('ranked.start')}{' '}
+                                    (⚡{rankedActionPointCost})
                                 </span>
                             </span>
                         </Button>
@@ -330,13 +412,248 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                     )}
                 </div>
                 
-                {!isMatching ? (
+                {(dedicated || !isMatching) ? (
                     <>
-                        <div className="relative z-10 flex flex-col gap-2 overflow-visible flex-shrink-0">
-                            {/* 현재 시즌 / 최고 시즌 — 기본 2열, 네이티브 좁은 열에서는 세로 스택 */}
+                        {dedicated ? (
+                            <div className="relative z-10 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                                <PairPetRankedMatchModeModal
+                                    presentation="dedicatedHome"
+                                    variant="strategic_arena"
+                                    initialMode={GameMode.Standard}
+                                    queueCountByMode={strategicRankedQueueCountsByMode}
+                                    currentUser={currentUser}
+                                    isBusy={false}
+                                    isMatching={isMatching}
+                                    matchingElapsedSeconds={elapsedTime}
+                                    onCancelMatching={() => void handleCancelMatching()}
+                                    onClose={() => undefined}
+                                    onQueue={(mode) => void startStrategicRankedMatching([mode])}
+                                    seasonColumnHeader={queueKindTabs}
+                                    currentSeasonPanel={
+                                        queueKind === 'normal' ? (
+                                <div className="flex-shrink-0 rounded-lg border border-cyan-500/40 bg-gradient-to-br from-cyan-950/50 via-slate-900/40 to-teal-950/40 p-2.5 sm:p-3">
+                                    <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300 sm:text-xs">
+                                        {t('ranked.normalPanelTitle', '일반전')}
+                                    </p>
+                                    <p className="mt-1.5 text-sm font-semibold leading-snug text-cyan-50/90">
+                                        {t('ranked.winsLossesWinRate', {
+                                            wins: normalMatchRecord.wins,
+                                            losses: normalMatchRecord.losses,
+                                        })}{' '}
+                                        <span className="font-bold text-cyan-100">
+                                            {(() => {
+                                                const g = normalMatchRecord.wins + normalMatchRecord.losses;
+                                                return g > 0
+                                                    ? ((normalMatchRecord.wins / g) * 100).toFixed(0)
+                                                    : '0';
+                                            })()}
+                                            %
+                                        </span>
+                                    </p>
+                                </div>
+                                        ) : (
+                                <div className="group relative overflow-hidden rounded-lg bg-gradient-to-br from-blue-900/40 via-indigo-900/30 to-purple-900/40 border-2 border-blue-500/50 p-2.5 sm:p-3 shadow-[0_4px_20px_rgba(59,130,246,0.3)] hover:border-blue-400/70 hover:shadow-[0_6px_24px_rgba(59,130,246,0.4)] transition-all duration-300">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-purple-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    <div className="relative z-10 flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between pb-1.5 border-b border-blue-400/30 gap-1">
+                                            <p className="text-[11px] sm:text-xs font-bold text-blue-300 uppercase tracking-wide leading-tight">{t('ranked.currentSeason')}</p>
+                                            <div className="w-1.5 h-1.5 bg-blue-400 rounded-full animate-pulse"></div>
+                                        </div>
+                                        {currentSeasonTierAndScore ? (
+                                            <>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative">
+                                                        <img 
+                                                            src={currentSeasonTierAndScore.tier.icon} 
+                                                            alt="" 
+                                                            className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(59,130,246,0.5)] group-hover:scale-110 transition-transform duration-300" 
+                                                        />
+                                                        <div className="absolute inset-0 bg-gradient-to-br from-blue-400/20 to-transparent rounded-lg blur-sm"></div>
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className={`text-sm font-bold break-words leading-snug ${currentSeasonTierAndScore.tier.color} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
+                                                            {currentSeasonTierAndScore.tier.name}
+                                                        </p>
+                                                        <p className="text-[10px] sm:text-xs text-blue-300/90 font-medium leading-snug mt-0.5">
+                                                            {currentSeasonName}{isFirstSeason ? t('ranked.firstSeason') : ''}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-gradient-to-r from-blue-900/50 to-indigo-900/50 rounded-md p-2 border border-blue-500/30">
+                                                    <div className="flex justify-between items-baseline gap-2">
+                                                        <span className="text-[10px] sm:text-xs text-blue-300/90 font-medium shrink-0">{t('ranked.currentScore')}</span>
+                                                        <span className="font-mono font-bold text-white text-base sm:text-lg tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] text-right">
+                                                            {(currentSeasonTierAndScore.score ?? 0).toLocaleString()}
+                                                        </span>
+                                                    </div>
+                                                    <div className="text-[10px] sm:text-xs text-blue-300/80 pt-1.5 border-t border-blue-400/20 leading-snug">
+                                                        {t('ranked.winsLossesWinRate', { wins: currentSeasonTierAndScore.wins, losses: currentSeasonTierAndScore.losses })}{' '}
+                                                        <span className="font-bold text-blue-200">
+                                                            {(() => {
+                                                                const g =
+                                                                    currentSeasonTierAndScore.wins +
+                                                                    currentSeasonTierAndScore.losses;
+                                                                return g > 0
+                                                                    ? ((currentSeasonTierAndScore.wins / g) * 100).toFixed(0)
+                                                                    : '0';
+                                                            })()}
+                                                            %
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="flex justify-between items-center gap-2 text-[10px] sm:text-xs pt-0.5">
+                                                    <span className="text-blue-300/80 font-medium shrink-0">{t('ranked.seasonBest')}</span>
+                                                    <span className="font-mono font-semibold text-blue-200 tabular-nums text-right break-all">
+                                                        {t('ranked.scorePoints', { score: currentSeasonTierAndScore.score.toLocaleString() })}{isFirstSeason ? t('ranked.sameScore') : ''}
+                                                    </span>
+                                                </div>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <div className="flex items-center gap-2">
+                                                    <img 
+                                                        src={RANKING_TIERS[RANKING_TIERS.length - 1].icon} 
+                                                        alt="" 
+                                                        className="w-8 h-8 flex-shrink-0 object-contain opacity-50" 
+                                                    />
+                                                    <p className="text-sm text-blue-300/80">{t('ranked.notAggregated')}</p>
+                                                </div>
+                                                <p className="text-[10px] sm:text-xs text-blue-300/70">{currentSeasonName}</p>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                                        )
+                                    }
+                                    bestSeasonPanel={
+                                        queueKind === 'normal' ? null : (
+                                <div className="group relative overflow-hidden rounded-lg bg-gradient-to-br from-amber-900/40 via-yellow-900/30 to-orange-900/40 border-2 border-amber-500/50 p-2.5 sm:p-3 shadow-[0_4px_20px_rgba(251,191,36,0.3)] hover:border-amber-400/70 hover:shadow-[0_6px_24px_rgba(251,191,36,0.4)] transition-all duration-300">
+                                    <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-transparent to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+                                    <div className="relative z-10 flex flex-col gap-1.5">
+                                        <div className="flex items-center justify-between pb-1.5 border-b border-amber-400/30 gap-1">
+                                            <p className="text-[11px] sm:text-xs font-bold text-amber-300 uppercase tracking-wide leading-tight">{t('ranked.bestSeason')}</p>
+                                            <span className="text-xs">⭐</span>
+                                        </div>
+                                        {bestSeasonSameAsCurrent && currentSeasonTierAndScore ? (
+                                            <>
+                                                <div className="flex items-center gap-2">
+                                                    <div className="relative">
+                                                        <img 
+                                                            src={currentSeasonTierAndScore.tier.icon} 
+                                                            alt="" 
+                                                            className="w-9 h-9 sm:w-10 sm:h-10 flex-shrink-0 object-contain drop-shadow-[0_2px_8px_rgba(251,191,36,0.5)] group-hover:scale-110 transition-transform duration-300" 
+                                                        />
+                                                        <div className="absolute inset-0 bg-gradient-to-br from-amber-400/20 to-transparent rounded-lg blur-sm"></div>
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p className={`text-sm font-bold break-words leading-snug ${currentSeasonTierAndScore.tier.color} drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}>
+                                                            {currentSeasonTierAndScore.tier.name}
+                                                        </p>
+                                                        <p className="text-[10px] sm:text-xs text-amber-300/90 font-medium leading-snug mt-0.5">
+                                                            {currentSeasonName}{isFirstSeason ? t('ranked.firstSeason') : ''}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-gradient-to-r from-amber-900/50 to-yellow-900/50 rounded-md p-2 border border-amber-500/30">
+                                                    <p className="font-mono font-bold text-white text-base sm:text-lg text-center tabular-nums drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                                        {t('ranked.scorePoints', { score: (currentSeasonTierAndScore.score ?? 0).toLocaleString() })}
+                                                    </p>
+                                                    <p className="text-[10px] sm:text-xs text-amber-300/80 pt-1.5 border-t border-amber-400/20 text-center leading-snug">
+                                                        {t('ranked.winsLossesWinRate', { wins: currentSeasonTierAndScore.wins, losses: currentSeasonTierAndScore.losses })}{' '}
+                                                        <span className="font-bold text-amber-200">
+                                                            {(() => {
+                                                                const g =
+                                                                    currentSeasonTierAndScore.wins +
+                                                                    currentSeasonTierAndScore.losses;
+                                                                return g > 0
+                                                                    ? ((currentSeasonTierAndScore.wins / g) * 100).toFixed(0)
+                                                                    : '0';
+                                                            })()}
+                                                            %
+                                                        </span>
+                                                    </p>
+                                                </div>
+                                            </>
+                                        ) : bestSeasonSameAsCurrent ? (
+                                            <div className="flex-1 flex flex-col justify-center py-2">
+                                                <p className="text-xs text-amber-300/70 text-center">{t('ranked.firstSeasonNone')}</p>
+                                                <p className="text-[10px] sm:text-xs text-amber-300/70 mt-0.5 text-center">{currentSeasonName}</p>
+                                            </div>
+                                        ) : allTimeBestSeason ? (
+                                            <>
+                                                <div className="flex items-center gap-2 py-1">
+                                                    <div className="relative shrink-0">
+                                                        <img
+                                                            src={
+                                                                tierMetaByName(allTimeBestSeason.tierName)?.icon ??
+                                                                RANKING_TIERS[RANKING_TIERS.length - 1].icon
+                                                            }
+                                                            alt=""
+                                                            className="h-9 w-9 object-contain drop-shadow-[0_2px_8px_rgba(251,191,36,0.45)] sm:h-10 sm:w-10"
+                                                        />
+                                                    </div>
+                                                    <div className="min-w-0 flex-1">
+                                                        <p
+                                                            className={`text-sm font-bold leading-snug break-words ${
+                                                                tierMetaByName(allTimeBestSeason.tierName)?.color ?? 'text-amber-200'
+                                                            } drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]`}
+                                                        >
+                                                            {allTimeBestSeason.tierName}
+                                                        </p>
+                                                        <p className="mt-0.5 whitespace-nowrap text-[10px] font-semibold text-amber-200/90 sm:text-xs">
+                                                            {allTimeBestSeason.seasonName}
+                                                        </p>
+                                                    </div>
+                                                </div>
+                                                <p className="border-t border-amber-400/20 pt-1 text-center text-[10px] text-amber-300/80 sm:text-xs">
+                                                    {t('ranked.allTimeBestTier')}
+                                                </p>
+                                            </>
+                                        ) : (
+                                            <div className="flex-1 flex flex-col justify-center py-2">
+                                                <p className="text-xs text-amber-300/70 text-center">-</p>
+                                                <p className="text-[10px] sm:text-xs text-amber-300/70 mt-0.5 text-center">{t('ranked.allTimeBestTier')}</p>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                                        )
+                                    }
+                                />
+                            </div>
+                        ) : null}
+                        {!dedicated ? (
+                        <div className="relative z-10 flex flex-shrink-0 flex-col gap-2 overflow-visible">
+                            {queueKindTabs}
+                            {queueKind === 'normal' ? (
+                                <div className="flex-shrink-0 rounded-lg border border-cyan-500/40 bg-gradient-to-br from-cyan-950/50 via-slate-900/40 to-teal-950/40 p-2.5 sm:p-3">
+                                    <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300 sm:text-xs">
+                                        {t('ranked.normalPanelTitle', '일반전')}
+                                    </p>
+                                    <p className="mt-1.5 text-sm font-semibold leading-snug text-cyan-50/90">
+                                        {t('ranked.winsLossesWinRate', {
+                                            wins: normalMatchRecord.wins,
+                                            losses: normalMatchRecord.losses,
+                                        })}{' '}
+                                        <span className="font-bold text-cyan-100">
+                                            {(() => {
+                                                const g = normalMatchRecord.wins + normalMatchRecord.losses;
+                                                return g > 0
+                                                    ? ((normalMatchRecord.wins / g) * 100).toFixed(0)
+                                                    : '0';
+                                            })()}
+                                            %
+                                        </span>
+                                    </p>
+                                </div>
+                            ) : null}
                             <div
                                 className={`flex-shrink-0 ${
-                                    nativeNarrow ? 'flex min-w-0 flex-col gap-2' : 'grid min-w-[16rem] grid-cols-2 gap-2.5 sm:gap-3'
+                                    queueKind === 'normal'
+                                        ? 'hidden'
+                                        : nativeNarrow
+                                          ? 'flex min-w-0 flex-col gap-2'
+                                          : 'grid min-w-[16rem] grid-cols-2 gap-2.5 sm:gap-3'
                                 }`}
                             >
                                 {/* 현재 시즌 */}
@@ -411,7 +728,6 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                         )}
                                     </div>
                                 </div>
-                                {/* 최고 시즌: 현재 시즌과 같으면 등급·점수·승패만, 아니면 역대 최고 등급만 */}
                                 <div className="group relative overflow-hidden rounded-lg bg-gradient-to-br from-amber-900/40 via-yellow-900/30 to-orange-900/40 border-2 border-amber-500/50 p-2.5 sm:p-3 shadow-[0_4px_20px_rgba(251,191,36,0.3)] hover:border-amber-400/70 hover:shadow-[0_6px_24px_rgba(251,191,36,0.4)] transition-all duration-300">
                                     <div className="absolute inset-0 bg-gradient-to-r from-amber-500/10 via-transparent to-orange-500/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                                     <div className="relative z-10 flex flex-col gap-1.5">
@@ -504,11 +820,13 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                 </div>
                             </div>
                         </div>
+                        ) : null}
                     </>
-                ) : (
+                ) : null}
+                {!dedicated && isMatching ? (
                     <div
                         className={`relative z-10 flex flex-col gap-3 overflow-hidden ${
-                            shrinkToContent ? 'flex-shrink-0' : 'min-h-0 flex-1'
+                            !shrinkToContent ? 'min-h-0 flex-1' : 'flex-shrink-0'
                         }`}
                     >
                         <div
@@ -559,10 +877,10 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             </div>
                         </div>
                     </div>
-                )}
+                ) : null}
             </div>
 
-            {isModalOpen && (
+            {!dedicated && isModalOpen ? (
                 <PairPetRankedMatchModeModal
                     variant="strategic_arena"
                     initialMode={GameMode.Standard}
@@ -572,7 +890,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                     onClose={() => setIsModalOpen(false)}
                     onQueue={(mode) => void startStrategicRankedMatching([mode])}
                 />
-            )}
+            ) : null}
         </>
     );
 };

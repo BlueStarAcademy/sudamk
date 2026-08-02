@@ -63,7 +63,9 @@ export type AppRoute = {
 };
 
 function parseLobbyChannel(value: string | undefined): ArenaChannel | null {
-    if (value === 'strategic' || value === 'pair' || value === 'playful') return value;
+    if (value === 'strategic' || value === 'pair' || value === 'playful' || value === 'friendly') {
+        return value;
+    }
     return null;
 }
 

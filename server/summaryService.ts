@@ -19,6 +19,7 @@ import {
     RANKED_ELO_K_FACTOR,
     RANKED_ELO_MIN_CHANGE,
     RANKED_ELO_MAX_CHANGE,
+    RANKED_WIN_USER_XP_MULTIPLIER,
 } from '../constants';
 import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../constants/towerConstants.js';
 import { updateQuestProgress } from './questService.js';
@@ -28,6 +29,10 @@ import { openEquipmentBox1, openGuildGradeBox, rollRandomEquipmentFromGradeWeigh
 import * as effectService from './effectService.js';
 import { isPveAbandonForfeitGame } from './utils/pveAbandonOnDisconnect.js';
 import { chargeActionPointsOnPveVictory } from './utils/actionPointSpendTiming.js';
+import {
+    applyShortRankedGameEloModifier,
+    countValidStoneMoves,
+} from '../shared/utils/shortRankedGamePenalty.js';
 import { randomUUID } from 'crypto';
 // FIX: Correctly import aiUser and getAiUser.
 import { aiUserId, getAiUser } from './aiPlayer.js';
@@ -94,10 +99,16 @@ import {
     STRATEGIC_RANKED_STAT_KEY,
     PAIR_RANKED_STAT_KEY,
     STRATEGIC_RANKED_MATCH_RECORD_KEY,
+    STRATEGIC_NORMAL_MATCH_RECORD_KEY,
     PAIR_RANKED_MATCH_RECORD_KEY,
     PAIR_ARENA_AI_MATCH_RECORD_KEY,
 } from '../shared/constants/userRankedStats.js';
-import { readStrategicRankedBlock, readPairRankedBlock, readPairArenaAiMatchRecord } from '../shared/utils/unifiedRankedStatsMigration.js';
+import {
+    readStrategicRankedBlock,
+    readPairRankedBlock,
+    readPairArenaAiMatchRecord,
+    readStrategicNormalMatchRecord,
+} from '../shared/utils/unifiedRankedStatsMigration.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { resolveLiveArenaPhaseGoldXpMultiplier } from '../shared/utils/liveArenaPhaseGoldXpMultiplier.js';
 import { effectivePvpEntryApCostForUser } from '../shared/utils/pairPetArenaApDiscount.js';
@@ -742,30 +753,64 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
         const now = Date.now();
         const gameStartTime = game.gameStartTime || game.createdAt || now;
         const gameDuration = now - gameStartTime;
-        const moveCount = game.moveHistory?.filter(m => m.x !== -1 && m.y !== -1).length || 0;
+        const moveCount = countValidStoneMoves(game.moveHistory);
+        const isRankedPvp =
+            Boolean(game.isRankedGame) && !game.isAiGame && !game.isSinglePlayer && !isTowerGame;
+        const shortRankedPenalty = isRankedPvp && moveCount < NO_CONTEST_MOVE_THRESHOLD;
 
-        // 조기 종료 조건 확인 (10턴 이내 또는 1분 이내 기권/접속 끊김)
-        isEarlyTermination =
-            (moveCount <= 10 || gameDuration < 60000) &&
-            (winReason === 'resign' || winReason === 'disconnect');
+        // 친선 등: 착수 10수 미만 기권/끊기 → 무효. 랭킹전은 승패 유지 + shortRankedGamePenalty.
+        const shortGameVoid =
+            !shortRankedPenalty &&
+            moveCount < NO_CONTEST_MOVE_THRESHOLD &&
+            (winReason === 'resign' || winReason === 'disconnect') &&
+            !game.isAiGame &&
+            !game.isSinglePlayer &&
+            !isTowerGame;
 
-        // 비매너 행동자 식별 (조기 종료를 한 사람)
-        if (isEarlyTermination) {
+        if (shortGameVoid) {
             if (winReason === 'resign') {
-                // 기권한 사람이 비매너 행동자
                 badMannerPlayerId = winner === Player.Black ? game.whitePlayerId! : game.blackPlayerId!;
-            } else if (winReason === 'disconnect') {
-                // 접속 끊긴 사람이 비매너 행동자
-                const disconnectedPlayerId =
+            } else {
+                badMannerPlayerId =
                     game.lastTimeoutPlayerId ||
                     (winner === Player.Black ? game.whitePlayerId! : game.blackPlayerId!);
-                badMannerPlayerId = disconnectedPlayerId;
             }
-        }
+            game.winner = Player.None;
+            game.winReason = winReason;
+            game.gameStatus = 'no_contest';
+            game.noContestInitiatorIds = badMannerPlayerId ? [badMannerPlayerId] : [];
+            game.isEarlyTermination = false;
+            game.shortRankedGamePenalty = false;
+            game.badMannerPlayerId = badMannerPlayerId ?? undefined;
+            isEarlyTermination = false;
+        } else {
+            // 조기 종료(-100 Elo): 랭킹 10수 미만 패널티와 겹치지 않음. 10수↑·1분 미만 기권/끊기 등.
+            isEarlyTermination =
+                !shortRankedPenalty &&
+                (moveCount < NO_CONTEST_MOVE_THRESHOLD || gameDuration < 60000) &&
+                (winReason === 'resign' || winReason === 'disconnect');
 
-        game.winner = winner;
-        game.winReason = winReason;
-        game.gameStatus = 'ended';
+            if (isEarlyTermination || shortRankedPenalty) {
+                if (winReason === 'resign') {
+                    badMannerPlayerId = winner === Player.Black ? game.whitePlayerId! : game.blackPlayerId!;
+                } else if (winReason === 'disconnect') {
+                    const disconnectedPlayerId =
+                        game.lastTimeoutPlayerId ||
+                        (winner === Player.Black ? game.whitePlayerId! : game.blackPlayerId!);
+                    badMannerPlayerId = disconnectedPlayerId;
+                } else if (shortRankedPenalty && winner !== Player.None) {
+                    // 계가 등: 패자에게 매너 패널티 대상 표시
+                    badMannerPlayerId = winner === Player.Black ? game.whitePlayerId! : game.blackPlayerId!;
+                }
+            }
+
+            game.winner = winner;
+            game.winReason = winReason;
+            game.gameStatus = 'ended';
+            game.isEarlyTermination = isEarlyTermination;
+            game.shortRankedGamePenalty = shortRankedPenalty;
+            game.badMannerPlayerId = badMannerPlayerId ?? undefined;
+        }
 
         try {
             const { stashEndedPvpGameRecordSnapshot } = await import('./gameRecordSnapshot.js');
@@ -783,9 +828,11 @@ export const endGame = async (game: LiveGameSession, winner: Player, winReason: 
         game.disconnectionCounts = {};
 
         // 디버깅: 승자 설정 로그
-        console.log(`[endGame] Game ${game.id} ended: winner=${winner === Player.Black ? 'Black' : winner === Player.White ? 'White' : 'None'}, winReason=${winReason}, finalScores=${JSON.stringify(game.finalScores)}`);
-        game.isEarlyTermination = isEarlyTermination; // 조기 종료 플래그
-        game.badMannerPlayerId = badMannerPlayerId ?? undefined; // 비매너 행동자 ID
+        console.log(`[endGame] Game ${game.id} ended: status=${game.gameStatus}, winner=${winner === Player.Black ? 'Black' : winner === Player.White ? 'White' : 'None'}, winReason=${winReason}, finalScores=${JSON.stringify(game.finalScores)}`);
+        if (game.gameStatus !== 'no_contest') {
+            game.isEarlyTermination = isEarlyTermination;
+            game.badMannerPlayerId = badMannerPlayerId ?? undefined;
+        }
     }
 
     // 도전의 탑 게임 처리는 processTowerGameSummary에서만 수행 (중복 업데이트 방지)
@@ -1727,6 +1774,9 @@ const processPlayerSummary = async (
         }
     } else if (!isNoContest && isStrategicLobbyAi) {
         xpGain = isWinner ? strategicLobbyAiWinXp(game.settings.boardSize, game.settings.scoringTurnLimit) : 0;
+    } else if (!isNoContest && game.isRankedGame && !isAiGame && isWinner) {
+        // 랭킹전 승리: 전략 기본 EXP(100)를 설계 배율로 상향 (이후 레벨·장비·완주·VIP 배율은 그대로 적용)
+        xpGain = Math.round(xpGain * RANKED_WIN_USER_XP_MULTIPLIER);
     }
 
     // Apply AI game penalty (모험·전략 대기실 AI는 별도 처리)
@@ -1888,6 +1938,9 @@ const processPlayerSummary = async (
                     : opponentStrategicBefore.rankingScore;
             const result = isWinner ? 'win' : isDraw ? 'draw' : 'loss';
             ratingChange = calculateEloChange(strategicBefore.rankingScore, oppR, result);
+            if (game.shortRankedGamePenalty) {
+                ratingChange = applyShortRankedGameEloModifier(ratingChange, result);
+            }
         }
         strategicRatingAfter = Math.max(0, strategicBefore.rankingScore + ratingChange);
     }
@@ -1911,8 +1964,21 @@ const processPlayerSummary = async (
     const initialMannerBeforeGame = player.mannerScore - mannerChangeFromActions;
 
     let mannerChangeFromGameEnd = 0;
-    if (isRankedDisconnectLoss) {
+    const isShortRankedLoser =
+        Boolean(game.shortRankedGamePenalty) &&
+        game.isRankedGame === true &&
+        !isAiGame &&
+        !isWinner &&
+        !isDraw &&
+        !isNoContest;
+    if (isShortRankedLoser) {
+        // 랭킹전 10수 미만 종료 패자: 매너 -20 (양쪽 AP는 환불 없이 소모 유지)
+        mannerChangeFromGameEnd = -NO_CONTEST_MANNER_PENALTY;
+    } else if (isRankedDisconnectLoss) {
         mannerChangeFromGameEnd = -50;
+    } else if (isNoContest && isInitiator && !isAiGame) {
+        // 친선 등 10수 미만 무효 유발자 매너 감점
+        mannerChangeFromGameEnd = -NO_CONTEST_MANNER_PENALTY;
     }
 
     const finalMannerScore = player.mannerScore + mannerChangeFromGameEnd;
@@ -1965,6 +2031,24 @@ const processPlayerSummary = async (
         };
         updatedPlayer.stats[STRATEGIC_RANKED_STAT_KEY] = {
             rankingScore: strategicRatingAfter,
+        };
+    }
+
+    // 일반전 매칭: 숨은 MMR·전적만 갱신 (랭킹점수·티어 불변)
+    if (game.isNormalMatchQueue && isStrategic && !isNoContest && !isAiGame && !isDraw) {
+        const {
+            readStrategicNormalMatchScore,
+            applyNormalMatchScoreDelta,
+            writeStrategicNormalMatchScore,
+        } = await import('../shared/utils/strategicNormalMmr.js');
+        const myMmr = readStrategicNormalMatchScore(updatedPlayer.stats as any);
+        const oppMmr = readStrategicNormalMatchScore(opponent.stats as any);
+        const nextMmr = applyNormalMatchScoreDelta(myMmr, oppMmr, isWinner);
+        writeStrategicNormalMatchScore(updatedPlayer.stats as Record<string, unknown>, nextMmr);
+        const normalRec = readStrategicNormalMatchRecord(updatedPlayer.stats as Record<string, unknown>);
+        updatedPlayer.stats[STRATEGIC_NORMAL_MATCH_RECORD_KEY] = {
+            wins: normalRec.wins + (isWinner ? 1 : 0),
+            losses: normalRec.losses + (isWinner ? 0 : 1),
         };
     }
 
@@ -2524,6 +2608,9 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
             goldGain = Math.round(goldGain * pairArenaPhaseMul);
             strategyXpGain = Math.round(strategyXpGain * pairArenaPhaseMul);
         }
+        if (game.isRankedGame && !game.isAiGame && isWinner && strategyXpGain > 0) {
+            strategyXpGain = Math.round(strategyXpGain * RANKED_WIN_USER_XP_MULTIPLIER);
+        }
         if (isWinner && !isNoContest && !isDraw && isRewardVipActive(user)) {
             goldGain = Math.round(goldGain * 2);
             strategyXpGain = Math.round(strategyXpGain * 2);
@@ -2767,20 +2854,27 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
         const refundNcP1 = effectivePvpEntryApCostForUser(p1 as User, game.mode, lobbyChNc);
         const refundNcP2 = effectivePvpEntryApCostForUser(p2 as User, game.mode, lobbyChNc);
         
-        // 기권으로 무효처리된 경우: 기권한 유저는 행동력 소모 유지, 상대방은 행동력 환불
-        if (winReason === 'resign' && winner !== Player.None) {
-            // 기권한 사람은 winner의 상대방
-            const resignedPlayerId = (winner === Player.Black && p1.id === blackPlayerId) || (winner === Player.White && p1.id === whitePlayerId)
-                ? p2.id
-                : p1.id;
-            
-            // 기권한 사람이 아닌 상대방에게 행동력 환불
+        // 기권·조기끊기로 무효: 유발자(기권자)는 AP 유지, 피해자만 환불
+        const voidInitiatorId =
+            (noContestInitiatorIds && noContestInitiatorIds[0]) ||
+            (winReason === 'resign' && winner !== Player.None
+                ? (winner === Player.Black && p1.id === blackPlayerId) ||
+                  (winner === Player.White && p1.id === whitePlayerId)
+                    ? p2.id
+                    : p1.id
+                : null);
+        if (
+            (winReason === 'resign' || winReason === 'disconnect') &&
+            voidInitiatorId &&
+            (game.moveHistory?.filter((m) => m.x !== -1 && m.y !== -1).length ?? 0) <
+                NO_CONTEST_MOVE_THRESHOLD
+        ) {
             const { broadcastUserUpdate } = await import('./socket.js');
-            if (resignedPlayerId === p1.id && p2.id !== aiUserId && !p2.isAdmin) {
+            if (voidInitiatorId === p1.id && p2.id !== aiUserId && !p2.isAdmin) {
                 recordActionPointRestore(p2, refundNcP2);
                 await db.updateUser(p2);
                 broadcastUserUpdate(p2, ['actionPoints', 'lastActionPointUpdate']);
-            } else if (resignedPlayerId === p2.id && p1.id !== aiUserId && !p1.isAdmin) {
+            } else if (voidInitiatorId === p2.id && p1.id !== aiUserId && !p1.isAdmin) {
                 recordActionPointRestore(p1, refundNcP1);
                 await db.updateUser(p1);
                 broadcastUserUpdate(p1, ['actionPoints', 'lastActionPointUpdate']);

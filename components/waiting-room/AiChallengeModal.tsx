@@ -36,6 +36,7 @@ import {
     PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS,
     LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS,
     LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS,
+    LOBBY_DENSE_SETTINGS_THREE_COLS_GRID_CLASS,
     LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS,
     PAIR_LOBBY_DENSE_SETTING_VALUE_READONLY_CLASS,
 } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
@@ -174,6 +175,17 @@ interface AiChallengeModalProps {
     pairFriendlyHumanClock?: boolean;
     /** 모달 용도·방 종류별 localStorage 분리(전략 「AI와 대결」vs「방 만들기」, 페어 종류별 등) */
     preferredGameSettingsBucket: AiLobbyPreferredGameSettingsBucket;
+    /** 대국 설정 제목·필드 바로 위(AI 대전 1:1/페어 등) */
+    aboveGameSettingsSlot?: ReactNode;
+    /**
+     * 대국 설정 블록 왼쪽(게임 모드 스트립 아래). AI 대전 게임 종류 레일 등.
+     * 모드 피커 전체 옆에 두지 않고 설정 영역에만 붙인다.
+     */
+    besideGameSettingsSlot?: ReactNode;
+    /** 대국 설정 필드 대신 표시(팀페어 좌석 등). 셸·종류 레일·모드 스트립은 유지 */
+    settingsContentOverride?: ReactNode;
+    /** 스택 인라인 하단 「시작」푸터 숨김(팀페어는 방 내부 시작 버튼 사용) */
+    hideStackedStartFooter?: boolean;
 }
 
 /** `PairPetRankedMatchModeModal` 랭킹 규칙 표와 동일한 모바일 밀집 행 */
@@ -656,6 +668,10 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     pairRoomLobbyChangePropose = false,
     pairFriendlyHumanClock = false,
     preferredGameSettingsBucket,
+    aboveGameSettingsSlot,
+    besideGameSettingsSlot,
+    settingsContentOverride,
+    hideStackedStartFooter = false,
 }) => {
     const { t } = useTranslation('lobby');
     const { t: tNeg } = useTranslation('negotiation');
@@ -1255,9 +1271,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                     handheldCompact
                                         ? `${LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS} mt-1.5 ${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} sm:mt-2`
                                         : pairRoomCreateThreeColumnGrid
-                                          ? `${LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS} mt-1.5 ${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} sm:mt-2`
+                                          ? `${LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS} mt-1.5 ${LOBBY_DENSE_SETTINGS_THREE_COLS_GRID_CLASS} sm:mt-2`
                                           : pairRoomEmbeddedRightSlot
-                                            ? 'mt-1.5 grid w-full min-w-0 grid-cols-2 content-start justify-center gap-x-2.5 gap-y-2 sm:mt-2 [&>div]:min-w-0'
+                                            ? `mt-1.5 ${LOBBY_DENSE_SETTINGS_THREE_COLS_GRID_CLASS}`
                                             : `mt-1.5 sm:mt-2 ${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS}`
                                 }
                             >
@@ -1367,6 +1383,24 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         const captureRuleSelected = modeIncludesCaptureRule(selectedGameMode, settings);
         const showChessScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && selectedGameMode === GameMode.Chess;
         const showScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && !captureRuleSelected && selectedGameMode !== GameMode.Castle && selectedGameMode !== GameMode.Chess;
+        /** 전략·놀이 AI 대전 인라인: AI단계·판 크기·계가 턴을 한 줄로 */
+        const horizontalPrimaryAiDuelSettings = Boolean(
+            denseSettings &&
+                embeddedPanel &&
+                embeddedPanelStackedLayout &&
+                !configureOnly &&
+                !pairRoomEmbeddedRightSlot,
+        );
+        const primaryAiDuelSettingsCount =
+            Number(showGoAiLevel) +
+            Number(showBoardSize) +
+            Number(showScoringTurnLimit || showChessScoringTurnLimit);
+        const primaryAiDuelSettingsRowColsClass =
+            primaryAiDuelSettingsCount >= 3
+                ? 'grid-cols-3'
+                : primaryAiDuelSettingsCount === 2
+                  ? 'grid-cols-2'
+                  : 'grid-cols-1';
 
         const AI_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((step, i) => ({
             value: [-31, -25, -21, -15, -12, -8, -3, -1, 3, 5][i],
@@ -1406,13 +1440,78 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         );
         const denseSettingsGridClass = proposeMobileStackedLayout
             ? 'grid w-full min-h-0 auto-rows-min min-w-0 grid-cols-1 content-start gap-y-1.5 overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0'
-            : useResponsiveDenseSettingsGrid
-              ? `${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} h-full max-h-full`
-              : pairRoomEmbeddedRightSlot
-                ? 'grid w-full min-h-0 auto-rows-min min-w-0 content-start justify-center gap-x-2.5 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 grid-cols-2 [&>div]:min-w-0'
-                : pairRoomCreateThreeColumnGrid
-                  ? `${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} h-full max-h-full`
-                  : `${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS} h-full max-h-full overflow-y-auto overflow-x-hidden pr-1`;
+            : pairRoomCreateThreeColumnGrid || pairRoomEmbeddedRightSlot
+              ? `${LOBBY_DENSE_SETTINGS_THREE_COLS_GRID_CLASS} h-full max-h-full`
+              : useResponsiveDenseSettingsGrid
+                ? `${LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS} h-full max-h-full`
+                : `${PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS} h-full max-h-full overflow-y-auto overflow-x-hidden pr-1`;
+
+        const goAiLevelSettingRow = showGoAiLevel ? (
+            <div className={settingRowClass}>
+                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>{t('aiChallengeModal.aiLevel')}</label>
+                <select
+                    value={settings.kataServerLevel ?? -12}
+                    onChange={e => handleSettingChange('kataServerLevel', parseInt(e.target.value, 10))}
+                    className={gameSettingsSelectClass}
+                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                >
+                    {AI_LEVELS.map(({ value, label }) => (
+                        <option key={value} value={value}>{label}</option>
+                    ))}
+                </select>
+            </div>
+        ) : null;
+
+        const boardSizeSettingRow = showBoardSize ? (
+            <div className={settingRowClass}>
+                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>{tNeg('settings.boardSize')}</label>
+                <select
+                    value={settings.boardSize}
+                    onChange={e => handleSettingChange('boardSize', parseInt(e.target.value, 10) as GameSettings['boardSize'])}
+                    className={gameSettingsSelectClass}
+                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                >
+                    {boardSizeOptions.map(size => (
+                        <option key={size} value={size}>{t('aiChallengeModal.linesUnit', { size })}</option>
+                    ))}
+                </select>
+            </div>
+        ) : null;
+
+        const scoringTurnLimitSettingRow = showScoringTurnLimit ? (
+            <div className={settingRowClass}>
+                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>{tNeg('settings.scoringTurns')}</label>
+                <select
+                    value={requiredScoringTurnLimit}
+                    onChange={e => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
+                    disabled
+                    className={gameSettingsSelectClass}
+                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                >
+                    {nonZeroScoringTurnLimitOptions.map(limit => (
+                        <option key={limit} value={limit}>
+                            {t('aiChallengeModal.turnsUnit', { count: limit })}
+                        </option>
+                    ))}
+                </select>
+            </div>
+        ) : showChessScoringTurnLimit ? (
+            <div className={settingRowClass}>
+                <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>{tNeg('settings.scoringTurns')}</label>
+                <select
+                    value={settings.scoringTurnLimit ?? getDefaultChessScoringTurnLimit(settings.boardSize ?? 13)}
+                    onChange={e => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
+                    className={gameSettingsSelectClass}
+                    style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
+                >
+                    {getChessScoringTurnLimitOptions(settings.boardSize ?? 13).map((limit) => (
+                        <option key={limit} value={limit}>
+                            {t('aiChallengeModal.turnsUnit', { count: limit })}
+                        </option>
+                    ))}
+                </select>
+            </div>
+        ) : null;
 
         return (
             <div
@@ -1432,73 +1531,20 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 onMouseDown={(e) => e.stopPropagation()}
                 onClick={(e) => e.stopPropagation()}
             >
-                {showGoAiLevel && (
-                    <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>{t('aiChallengeModal.aiLevel')}</label>
-                        <select
-                            value={settings.kataServerLevel ?? -12}
-                            onChange={e => handleSettingChange('kataServerLevel', parseInt(e.target.value, 10))}
-                            className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                        >
-                            {AI_LEVELS.map(({ value, label }) => (
-                                <option key={value} value={value}>{label}</option>
-                            ))}
-                        </select>
+                {horizontalPrimaryAiDuelSettings && primaryAiDuelSettingsCount > 0 ? (
+                    <div
+                        className={`col-span-full grid min-w-0 gap-x-2 gap-y-2 ${primaryAiDuelSettingsRowColsClass} [&>div]:min-w-0`}
+                    >
+                        {goAiLevelSettingRow}
+                        {boardSizeSettingRow}
+                        {scoringTurnLimitSettingRow}
                     </div>
-                )}
-
-                {showBoardSize && (
-                    <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>{tNeg('settings.boardSize')}</label>
-                        <select 
-                            value={settings.boardSize} 
-                            onChange={e => handleSettingChange('boardSize', parseInt(e.target.value, 10) as GameSettings['boardSize'])}
-                            className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                        >
-                            {boardSizeOptions.map(size => (
-                                <option key={size} value={size}>{t('aiChallengeModal.linesUnit', { size })}</option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-
-                {showScoringTurnLimit && (
-                    <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>{tNeg('settings.scoringTurns')}</label>
-                        <select 
-                            value={requiredScoringTurnLimit}
-                            onChange={e => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
-                            disabled
-                            className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                        >
-                            {nonZeroScoringTurnLimitOptions.map(limit => (
-                                <option key={limit} value={limit}>
-                                    {t('aiChallengeModal.turnsUnit', { count: limit })}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
-                )}
-
-                {showChessScoringTurnLimit && (
-                    <div className={settingRowClass}>
-                        <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>{tNeg('settings.scoringTurns')}</label>
-                        <select
-                            value={settings.scoringTurnLimit ?? getDefaultChessScoringTurnLimit(settings.boardSize ?? 13)}
-                            onChange={e => handleSettingChange('scoringTurnLimit', parseInt(e.target.value, 10))}
-                            className={gameSettingsSelectClass}
-                            style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
-                        >
-                            {getChessScoringTurnLimitOptions(settings.boardSize ?? 13).map((limit) => (
-                                <option key={limit} value={limit}>
-                                    {t('aiChallengeModal.turnsUnit', { count: limit })}
-                                </option>
-                            ))}
-                        </select>
-                    </div>
+                ) : (
+                    <>
+                        {goAiLevelSettingRow}
+                        {boardSizeSettingRow}
+                        {scoringTurnLimitSettingRow}
+                    </>
                 )}
 
                 {showMixModeSelection && (() => {
@@ -2309,9 +2355,10 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         </>
     );
 
-    const desktopGameSettingsBlock = (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-            {!(useLobbyDenseGameSettingsLayout && pairRoomEmbeddedRightSlot) ? (
+    const desktopGameSettingsInner = (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+            {aboveGameSettingsSlot ? <div className="mb-2 shrink-0">{aboveGameSettingsSlot}</div> : null}
+            {settingsContentOverride ? null : !(useLobbyDenseGameSettingsLayout && pairRoomEmbeddedRightSlot) ? (
                 <h4
                     className={`mb-2 flex-shrink-0 font-semibold ${
                         useLobbyDenseGameSettingsLayout ? denseSettingsHeadingToneClass : 'text-gray-300'
@@ -2330,9 +2377,18 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                         : ''
                 }`}
             >
-                {renderGameSettings()}
+                {settingsContentOverride ?? renderGameSettings()}
             </div>
         </div>
+    );
+
+    const desktopGameSettingsBlock = besideGameSettingsSlot ? (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-row gap-2 overflow-hidden">
+            <div className="flex shrink-0 flex-col self-stretch">{besideGameSettingsSlot}</div>
+            {desktopGameSettingsInner}
+        </div>
+    ) : (
+        desktopGameSettingsInner
     );
 
     /** 방 만들기 임베드(`embeddedShellClass`)와 동일한 본문 테두리·배경 */
@@ -2415,7 +2471,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             >
                 {desktopGameSettingsBlock}
             </div>
-            <div className="relative z-40 shrink-0">{stackedInlineStartFooter}</div>
+            {hideStackedStartFooter ? null : (
+                <div className="relative z-40 shrink-0">{stackedInlineStartFooter}</div>
+            )}
         </div>
     );
 
@@ -2502,6 +2560,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                 </span>
                             </div>
                             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-3 pb-1 pt-2">
+                                {aboveGameSettingsSlot ? <div className="mb-2 shrink-0">{aboveGameSettingsSlot}</div> : null}
                                 <div className={`min-h-0 min-w-0 flex-1 ${aiChallengeModalHandheldSettingsScrollShellClass(modalChrome)}`}>
                                     {renderGameSettings()}
                                 </div>

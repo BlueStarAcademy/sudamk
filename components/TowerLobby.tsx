@@ -15,16 +15,22 @@ import {
     resolveTowerPlainBlackCount,
     resolveTowerPlainWhiteCount,
 } from '../shared/utils/towerStageRules.js';
-import { TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP } from '../assets.js';
+import { TOWER_CHALLENGE_LOBBY_IMG, TOWER_MOBILE_HERO_WEBP, TOWER_STAGE_SCROLL_BG_WEBP } from '../assets.js';
 import { getKSTDate, getKSTMonth, getKSTFullYear } from '../utils/timeUtils.js';
 import QuickAccessSidebar from './QuickAccessSidebar.js';
 import PcLobbyCenterColumn from './shell/PcLobbyCenterColumn.js';
 import {
-    PC_HOME_LEFT_COLUMN_CLASS,
+    PC_LOBBY_DESKTOP_SHELL_PADDING_CLASS,
     PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS,
     PC_QUICK_RAIL_COLUMN_CLASS,
     PC_QUICK_RAIL_WRAPPER_CLASS,
 } from '../shared/constants/pcShellLayout.js';
+
+/** 도전의 탑 PC 좌열 — 홈 기본(43%/500)보다 좁혀 스테이지 열 확보 */
+const PC_TOWER_LEFT_COLUMN_CLASS =
+    'w-[min(32%,340px)] min-w-[260px] max-w-[340px] shrink-0';
+/** PC 스테이지 행 고정 높이 — 층 정보량 차이와 무관하게 통일 */
+const PC_TOWER_STAGE_ROW_HEIGHT_CLASS = 'h-[5rem] min-h-[5rem] max-h-[5rem]';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
 import { buildTowerShopPurchasableItem } from '../shared/constants/towerShopItems.js';
 import DraggableWindow from './DraggableWindow.js';
@@ -163,12 +169,20 @@ const TOWER_LOBBY_ITEM_SERVER_ID: Record<(typeof TOWER_LOBBY_INVENTORY_ITEMS)[nu
     refresh: '배치변경',
 };
 
-const TowerLobby: React.FC = () => {
+export type TowerLobbyProps = {
+    /** homeViewer: 홈 중앙 퀵유틸 — PC는 좌(기록·랭킹·아이템)/우(스테이지), 모바일은 히어로+드로어 */
+    presentation?: 'full' | 'homeViewer';
+};
+
+const TowerLobby: React.FC<TowerLobbyProps> = ({ presentation = 'full' }) => {
     const { t } = useTranslation('tower');
     const { t: tCommon } = useTranslation('common');
     const { t: tNav } = useTranslation('nav');
-        const { currentUser, currentUserWithStatus, handlers, towerRankingsRefetchTrigger } = useAppContext();
+    const { currentUser, currentUserWithStatus, handlers, towerRankingsRefetchTrigger } = useAppContext();
     const { isNativeMobile } = useNativeMobileShell();
+    const isHomeViewer = presentation === 'homeViewer';
+    /** 네이티브 모바일만 히어로+드로어+단열 스테이지. PC(홈뷰어 포함)는 좌우 구성 */
+    const useMobileTowerLayout = isNativeMobile;
     const towerScreenGuide = useScreenGuide('tower');
     const [isRewardModalOpen, setIsRewardModalOpen] = useState(false);
     const [towerPurchasingItemId, setTowerPurchasingItemId] = useState<string | null>(null);
@@ -222,7 +236,13 @@ const TowerLobby: React.FC = () => {
         return () => clearInterval(interval);
     }, []);
 
-    const onBackToProfile = () => window.location.hash = '#/home';
+    const onBackToProfile = () => {
+        if (isHomeViewer) {
+            handlers.closeQuickUtilityPanel?.();
+            return;
+        }
+        window.location.hash = '#/home';
+    };
 
     const openTowerItemPurchase = (itemId: string) => {
         setTowerPurchasingItemId(itemId);
@@ -319,16 +339,15 @@ const TowerLobby: React.FC = () => {
         }
         const row = el.querySelector<HTMLElement>(`[data-tower-floor="${towerProgressFloor}"]`);
         row?.scrollIntoView({ block: 'center', inline: 'nearest' });
-    }, [towerProgressFloor, isNativeMobile]);
+    }, [towerProgressFloor, useMobileTowerLayout]);
 
-    const rankingColClass = isNativeMobile
+    const rankingColClass = useMobileTowerLayout
         ? 'flex max-h-[32dvh] min-h-0 w-full flex-none flex-col gap-1 overflow-hidden pb-0.5'
-        : `flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col gap-2 overflow-hidden`;
-    const pcImageColClass =
-        'relative min-h-0 min-w-0 flex-[5_1_0%] overflow-hidden rounded-xl border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 shadow-2xl shadow-amber-900/50 backdrop-blur-md';
-    const stageColClass = isNativeMobile
+        : `flex h-full min-h-0 ${PC_TOWER_LEFT_COLUMN_CLASS} flex-col gap-2 overflow-hidden`;
+    /** PC: 스테이지 열 전폭 + 스크롤 탑 배경(이미지 레이어는 stagePanel 내부) */
+    const stageColClass = useMobileTowerLayout
         ? 'flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-lg border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 p-1 shadow-lg shadow-amber-900/40 backdrop-blur-md sm:p-2'
-        : 'flex min-h-0 min-w-0 flex-[7_1_0%] flex-col overflow-hidden rounded-xl border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 p-2 sm:p-3 shadow-2xl shadow-amber-900/50 backdrop-blur-md';
+        : 'relative flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-600/40 bg-zinc-950/80 p-2 shadow-2xl shadow-amber-900/50 sm:p-3';
     const quickColClass = `flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`;
 
     const renderTowerFloorRows = () =>
@@ -387,7 +406,7 @@ const TowerLobby: React.FC = () => {
                                         reward={stage.rewards.firstClear}
                                         claimed={isCleared}
                                         tabShelf={false}
-                                        isMobile={isNativeMobile}
+                                        isMobile={useMobileTowerLayout}
                                         usePremiumDesktop={false}
                                         align="end"
                                         resolveItemImage={resolveTowerRewardImage}
@@ -407,14 +426,18 @@ const TowerLobby: React.FC = () => {
                                 <div
                                     key={floor}
                                     data-tower-floor={floor}
-                                    className={`rounded-lg border flex items-center justify-between relative gap-2 p-2.5 sm:p-3 ${
+                                    className={`relative flex items-center justify-between gap-2 overflow-hidden rounded-lg border ${
+                                        useMobileTowerLayout
+                                            ? 'p-2.5 sm:p-3'
+                                            : `${PC_TOWER_STAGE_ROW_HEIGHT_CLASS} px-2.5 py-0 sm:px-3`
+                                    } ${
                                         isLocked
-                                            ? 'bg-gray-900/50 border-gray-700/50 opacity-60'
+                                            ? 'border-gray-700/50 bg-gray-950/55 opacity-60 backdrop-blur-[2px]'
                                             : isCurrent
-                                            ? 'bg-gradient-to-r from-amber-700/50 to-yellow-700/50 border-amber-500/70 shadow-lg shadow-amber-600/50'
+                                            ? 'border-amber-500/70 bg-gradient-to-r from-amber-800/70 to-yellow-800/55 shadow-lg shadow-amber-600/40 backdrop-blur-[2px]'
                                             : isCleared
-                                            ? 'bg-gray-700/40 border-amber-600/50 hover:bg-gray-600/50 hover:border-amber-500/70'
-                                            : 'bg-gray-800/30 border-amber-700/30 hover:bg-gray-700/40 hover:border-amber-600/50'
+                                            ? 'border-amber-600/45 bg-zinc-900/50 hover:border-amber-500/65 hover:bg-zinc-800/55 backdrop-blur-[2px]'
+                                            : 'border-amber-700/35 bg-zinc-950/45 hover:border-amber-600/50 hover:bg-zinc-900/50 backdrop-blur-[2px]'
                                     }`}
                                 >
                                     {/* 자물쇠 오버레이 */}
@@ -430,10 +453,10 @@ const TowerLobby: React.FC = () => {
                                         </div>
                                     )}
                                     {/* 왼쪽: 정보 영역 */}
-                                    <div className="flex min-w-0 flex-1 items-center gap-2.5">
+                                    <div className="flex min-h-0 min-w-0 flex-1 items-center gap-2 sm:gap-2.5">
                                         {/* 층수 */}
                                         <div
-                                            className="flex flex-shrink-0 items-center gap-1.5 rounded border border-amber-600/40 bg-amber-900/50 px-2 py-1.5 sm:px-2.5"
+                                            className="flex flex-shrink-0 items-center gap-1.5 rounded border border-amber-600/40 bg-amber-900/55 px-2 py-1.5 sm:px-2.5"
                                         >
                                             <span
                                                 className={`font-black text-lg sm:text-xl ${
@@ -452,15 +475,21 @@ const TowerLobby: React.FC = () => {
                                             )}
                                         </div>
 
-                                        {/* 바둑판·배치 / 목표·제한 → 두 줄로 가로 배치 */}
+                                        {/* 바둑판·배치 / 목표·제한 — PC는 고정 2줄(nowrap)로 행 높이 통일 */}
                                         <div
-                                            className="flex min-w-0 flex-1 flex-col gap-y-1.5 text-[11px] sm:text-xs"
+                                            className={`flex min-w-0 flex-1 flex-col justify-center text-[11px] sm:text-xs ${
+                                                useMobileTowerLayout ? 'gap-y-1.5' : 'gap-y-1 overflow-hidden'
+                                            }`}
                                         >
                                             {isCaptureMode && (
                                                 <>
-                                                    <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
-                                                        <div className="flex items-center gap-2 shrink-0">
-                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">{t('board')}</span>
+                                                    <div
+                                                        className={`flex min-w-0 items-center gap-x-4 sm:gap-x-5 ${
+                                                            useMobileTowerLayout ? 'flex-wrap gap-y-1' : 'flex-nowrap'
+                                                        }`}
+                                                    >
+                                                        <div className="flex shrink-0 items-center gap-2">
+                                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">{t('board')}</span>
                                                             <span
                                                                 className="font-bold tabular-nums text-amber-100"
                                                                 title={t('boardSize', { size: stage.boardSize })}
@@ -468,85 +497,99 @@ const TowerLobby: React.FC = () => {
                                                                 {stage.boardSize}×{stage.boardSize}
                                                             </span>
                                                         </div>
-                                                        <div className="flex items-center gap-2 min-w-0">
-                                                            <div className="flex items-center gap-3 flex-wrap">
-                                                                <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/Black.webp" alt={t('black')} className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
-                                                                    <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
-                                                                </div>
-                                                                <div className="flex items-center gap-1">
-                                                                    <img src="/images/single/White.webp" alt={t('white')} className="w-5 h-5 sm:w-6 sm:h-6 flex-shrink-0" />
-                                                                    <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
-                                                                </div>
+                                                        <div className="flex min-w-0 items-center gap-3">
+                                                            <div className="flex items-center gap-1">
+                                                                <img src="/images/single/Black.webp" alt={t('black')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                <span className="font-bold tabular-nums text-amber-200">{towerDisplayBlackPlain}</span>
+                                                            </div>
+                                                            <div className="flex items-center gap-1">
+                                                                <img src="/images/single/White.webp" alt={t('white')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
+                                                                <span className="font-bold tabular-nums text-amber-200">{towerDisplayWhitePlain}</span>
                                                             </div>
                                                         </div>
                                                     </div>
-                                                    <div className="flex flex-wrap items-center gap-x-5 sm:gap-x-6 gap-y-1 min-w-0">
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">{t('goal')}</span>
-                                                            <span className="text-yellow-300 font-bold">{t('blackCaptureGoal', { count: towerDisplayBlackTarget })}</span>
+                                                    <div
+                                                        className={`flex min-w-0 items-center gap-x-4 sm:gap-x-5 ${
+                                                            useMobileTowerLayout ? 'flex-wrap gap-y-1' : 'flex-nowrap'
+                                                        }`}
+                                                    >
+                                                        <div className="flex shrink-0 items-center gap-2">
+                                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">{t('goal')}</span>
+                                                            <span className="font-bold text-yellow-300">{t('blackCaptureGoal', { count: towerDisplayBlackTarget })}</span>
                                                         </div>
-                                                        <div className="flex items-center gap-2">
-                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">{t('limit')}</span>
-                                                            <span className="text-amber-200 font-bold tabular-nums">{t('turnUnit', { count: stage.blackTurnLimit })}</span>
+                                                        <div className="flex shrink-0 items-center gap-2">
+                                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">{t('limit')}</span>
+                                                            <span className="font-bold tabular-nums text-amber-200">{t('turnUnit', { count: stage.blackTurnLimit })}</span>
                                                         </div>
                                                     </div>
                                                 </>
                                             )}
 
                                             {!isCaptureMode && (
-                                                <div className="flex flex-col gap-y-1 min-w-0" title={getTargetInfo()}>
-                                                    <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 min-w-0 sm:gap-x-4">
-                                                        <div className="flex items-center gap-2 shrink-0">
-                                                            <span className="text-amber-400/90 font-semibold whitespace-nowrap">{t('board')}</span>
+                                                <div className="flex min-w-0 flex-col gap-y-1 overflow-hidden" title={getTargetInfo()}>
+                                                    <div
+                                                        className={`flex min-w-0 items-center gap-x-3 sm:gap-x-4 ${
+                                                            useMobileTowerLayout ? 'flex-wrap gap-y-0.5' : 'flex-nowrap'
+                                                        }`}
+                                                    >
+                                                        <div className="flex shrink-0 items-center gap-2">
+                                                            <span className="whitespace-nowrap font-semibold text-amber-400/90">{t('board')}</span>
                                                             <span className="font-bold tabular-nums text-amber-100">{stage.boardSize}×{stage.boardSize}</span>
                                                         </div>
                                                         {autoScoringLabel && (
-                                                            <div className="flex min-w-0 items-center gap-1.5">
-                                                                <span className="shrink-0 text-amber-400/90 font-semibold whitespace-nowrap">{t('scoring')}</span>
-                                                                <span className="min-w-0 truncate text-sky-300 font-bold tracking-tight">{autoScoringLabel}</span>
+                                                            <div className="flex min-w-0 items-center gap-1.5 overflow-hidden">
+                                                                <span className="shrink-0 whitespace-nowrap font-semibold text-amber-400/90">{t('scoring')}</span>
+                                                                <span className="min-w-0 truncate font-bold tracking-tight text-sky-300">{autoScoringLabel}</span>
                                                             </div>
                                                         )}
                                                     </div>
-                                                    <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-0.5 sm:gap-x-4">
+                                                    <div
+                                                        className={`flex min-w-0 items-center gap-x-2 sm:gap-x-3 ${
+                                                            useMobileTowerLayout ? 'flex-wrap gap-y-0.5' : 'flex-nowrap overflow-hidden'
+                                                        }`}
+                                                    >
                                                         {hasBaseMode ? (
                                                             <div className="flex items-center gap-1.5">
                                                                 <img src="/images/simbols/simbol4.webp" alt={t('baseAlt')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                <span className="text-sky-300 font-bold">{t('base')}{stage.baseStones}</span>
+                                                                <span className="font-bold text-sky-300">{t('base')}{stage.baseStones}</span>
                                                             </div>
                                                         ) : (
-                                                            <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5 sm:gap-x-3">
+                                                            <>
                                                                 <div className="flex items-center gap-1">
                                                                     <img src="/images/single/Black.webp" alt={t('black')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                    <span className="text-amber-200 font-bold tabular-nums">{towerDisplayBlackPlain}</span>
+                                                                    <span className="font-bold tabular-nums text-amber-200">{towerDisplayBlackPlain}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
                                                                     <img src="/images/single/White.webp" alt={t('white')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                    <span className="text-amber-200 font-bold tabular-nums">{towerDisplayWhitePlain}</span>
+                                                                    <span className="font-bold tabular-nums text-amber-200">{towerDisplayWhitePlain}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
                                                                     <img src="/images/single/BlackDouble.webp" alt={t('blackPatternAlt')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                    <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.blackPattern}</span>
+                                                                    <span className="font-bold tabular-nums text-amber-200">×{stage.placements.blackPattern}</span>
                                                                 </div>
                                                                 <div className="flex items-center gap-1">
                                                                     <img src="/images/single/WhiteDouble.webp" alt={t('blackPatternAlt')} className="h-5 w-5 flex-shrink-0 sm:h-6 sm:w-6" />
-                                                                    <span className="text-amber-200 font-bold tabular-nums">×{stage.placements.whitePattern}</span>
+                                                                    <span className="font-bold tabular-nums text-amber-200">×{stage.placements.whitePattern}</span>
                                                                 </div>
-                                                            </div>
+                                                            </>
                                                         )}
                                                     </div>
                                                 </div>
                                             )}
                                         </div>
                                         
-                                        {/* 보상 정보 (두 줄로 표시, 도전 버튼 왼쪽에 정렬) */}
-                                        <div className={`flex flex-col gap-1 flex-shrink-0 ml-auto ${isNativeMobile ? 'hidden' : ''}`}>
+                                        {/* 보상 정보 (PC 고정행 안에서 잘리지 않게 폭 제한) */}
+                                        <div
+                                            className={`ml-auto flex shrink-0 flex-col items-end justify-center gap-0.5 overflow-hidden ${
+                                                useMobileTowerLayout ? 'hidden' : 'max-w-[9.5rem] sm:max-w-[11rem]'
+                                            }`}
+                                        >
                                             {rewardInfoContent}
                                         </div>
                                     </div>
                                     
                                     {/* 오른쪽: 모바일은 보상/버튼 세로 배치, PC는 버튼 단독 */}
-                                    {isNativeMobile ? (
+                                    {useMobileTowerLayout ? (
                                         <div className="ml-2 flex flex-shrink-0 flex-col items-end gap-1.5">
                                             <div className="flex flex-col items-end gap-0.5 text-right">
                                                 {rewardInfoContent}
@@ -624,7 +667,7 @@ const TowerLobby: React.FC = () => {
 
 
     function renderTowerMainColumns() {
-        if (isNativeMobile) {
+        if (useMobileTowerLayout) {
             const inventory = currentUserWithStatus?.inventory || [];
             const getItemCount = (namesOrIds: readonly string[]): number =>
                 countTowerLobbyInventoryQty(inventory, namesOrIds);
@@ -919,271 +962,69 @@ const TowerLobby: React.FC = () => {
             );
         }
 
+        const stagePanel = (
+            <div className={stageColClass}>
+                <h2 className="relative z-20 mb-2 flex-shrink-0 bg-gradient-to-r from-amber-300 to-yellow-300 bg-clip-text text-base font-bold text-transparent drop-shadow-[0_0_4px_rgba(217,119,6,0.8)] sm:mb-3 sm:text-lg">
+                    스테이지
+                </h2>
+                <div
+                    ref={stageScrollRef}
+                    className={`relative z-10 min-h-0 flex-1 overflow-y-auto ${RANKING_MODAL_SLIM_SCROLL_Y}`}
+                >
+                    {/*
+                      스크롤 콘텐츠 높이 = 1~100층 전체.
+                      세로형 Tower 이미지를 콘텐츠에 맞춰 깔아 위로 갈수록(100층) 꼭대기가 보이게 함.
+                    */}
+                    <div className="relative">
+                        <div className="pointer-events-none absolute inset-0 z-0 overflow-hidden" aria-hidden>
+                            <img
+                                src={TOWER_STAGE_SCROLL_BG_WEBP}
+                                alt=""
+                                className="h-full w-full object-cover object-center"
+                                draggable={false}
+                            />
+                            <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-zinc-950/35 to-black/55" />
+                            <div className="absolute inset-0 bg-amber-950/10" />
+                        </div>
+                        <div className="relative z-10 space-y-1.5 py-0.5">{renderTowerFloorRows()}</div>
+                    </div>
+                </div>
+            </div>
+        );
+
+        /** PC 홈뷰어: AdventureLobby와 동일 — 좌(기록·랭킹·아이템) | 우(스테이지), 탑 이미지·퀵레일 없음 */
+        if (isHomeViewer) {
+            return (
+                <div
+                    className="flex h-full min-h-0 min-w-0 flex-1 flex-row gap-2 overflow-hidden"
+                    aria-label={t('title')}
+                >
+                    <div className={rankingColClass}>{renderPcLeftPanels()}</div>
+                    {stagePanel}
+                </div>
+            );
+        }
+
         return (
             <>
-                    {/* 좌측: 랭킹 Top 100 + 보유 아이템 (아래쪽 별도 패널). PC 타이틀·뒤로가기는 랭킹 패널 위에만 둬서 우측 열(이미지·스테이지·퀵메뉴)이 상단까지 올라오게 함 */}
+                    {/* 좌측: 랭킹 Top 100 + 보유 아이템. 타이틀은 좌열만 — 우측 스테이지·퀵메뉴가 상단까지 */}
                     <div className={rankingColClass}>
-                    {!isNativeMobile && (
-                        <div className={`shrink-0 ${towerTitleStripRow}`}>
-                            <button
-                                type="button"
-                                onClick={onBackToProfile}
-                                className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
-                                aria-label={tCommon('backAria')}
-                            >
-                                <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
-                            </button>
-                            <h1 className={towerTitleH1Class}>{t('title')}</h1>
-                        </div>
-                    )}
-                    {/* 랭킹 Top 100 (하단 여유 줄여서 보유 아이템 공간 확보) */}
-                    <div className="flex-1 min-h-0 flex flex-col bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 sm:p-3 overflow-hidden backdrop-blur-md shadow-2xl shadow-amber-900/50">
-                    <div className="flex items-center justify-between mb-2 flex-shrink-0">
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-base sm:text-lg font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                                랭킹 Top 100
-                            </h2>
-                            <span className="text-xs sm:text-sm font-semibold text-yellow-300">{timeUntilReset}</span>
-                        </div>
-                        <Button
-                            onClick={() => setIsRewardModalOpen(true)}
-                            colorScheme="none"
-                            className="!p-1.5 !min-w-0 border border-amber-600/50 bg-amber-900/40 hover:bg-amber-800/60 backdrop-blur-sm text-xs sm:text-sm text-amber-200"
+                    <div className={`shrink-0 ${towerTitleStripRow}`}>
+                        <button
+                            type="button"
+                            onClick={onBackToProfile}
+                            className="relative z-[1] shrink-0 transition-transform active:scale-90 hover:drop-shadow-lg"
+                            aria-label={tCommon('backAria')}
                         >
-                            보상정보
-                        </Button>
+                            <img src="/images/button/back.webp" alt="" className="h-9 w-9 sm:h-10 sm:w-10" />
+                        </button>
+                        <h1 className={towerTitleH1Class}>{t('title')}</h1>
                     </div>
-                    {/* PC: 내 기록(좌) + 예상 보상(우) 가로 2열 · 순위는 아래 표 상단 고정 행으로만 표시 */}
-                    <div className="mb-2 flex-shrink-0">
-                        <div className="overflow-hidden rounded-xl border-2 border-amber-500/60 bg-gradient-to-b from-amber-950/80 via-gray-900/90 to-amber-950/80 shadow-xl shadow-amber-900/40">
-                            <div className="border-b border-amber-600/50 bg-amber-900/30 px-3 py-2">
-                                <h3 className="bg-gradient-to-r from-yellow-200 to-amber-200 bg-clip-text text-sm font-bold text-transparent">
-                                    내 기록
-                                </h3>
-                            </div>
-                            <div className="grid grid-cols-1 divide-y divide-amber-700/35 sm:grid-cols-2 sm:divide-x sm:divide-y-0">
-                                <div className="space-y-2.5 p-3 text-sm">
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="text-amber-300/90">{t('allTimeBest')}</span>
-                                        <span className="font-bold text-yellow-200 tabular-nums">{t('floorTier', { floor: bestFloorAllTime })}</span>
-                                    </div>
-                                    <div className="flex items-center justify-between gap-2">
-                                        <span className="text-amber-300/90">{t('monthlyBest')}</span>
-                                        <span className="font-bold text-amber-100 tabular-nums">{t('floorTier', { floor: effectiveMonthlyFloorForReward })}</span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col gap-1.5 p-3">
-                                    <p className="text-[11px] font-semibold tracking-wide text-emerald-200/90">{t('expectedReward')}</p>
-                                    {myRewardTier ? (
-                                        <div className="flex flex-col gap-1.5 text-xs">
-                                            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                                                <span className="inline-flex items-center gap-1 text-yellow-200">
-                                                    <img src="/images/icon/Gold.webp" alt={tCommon('resources.gold')} className="h-4 w-4 shrink-0" />
-                                                    {formatGoldAmountKoG(myRewardTier.gold)}
-                                                </span>
-                                                <span className="inline-flex items-center gap-1 text-cyan-200">
-                                                    <img src="/images/icon/Zem.webp" alt={tCommon('resources.diamonds')} className="h-4 w-4 shrink-0" />
-                                                    {myRewardTier.diamonds}
-                                                </span>
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
-                                                    <span key={i} className="inline-flex items-center gap-1 text-amber-200">
-                                                        <img
-                                                            src={resolveTowerRewardImage(it.itemId)}
-                                                            alt={resolveTowerRewardDisplayName(it.itemId)}
-                                                            className="h-4 w-4 shrink-0"
-                                                        />
-                                                        ×{it.quantity}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                            <p className="text-[10px] leading-snug text-amber-400/85">
-                                                {t('rewardTierLine', { floor: myRewardTier.floor })}
-                                            </p>
-                                        </div>
-                                    ) : (
-                                        <p className="text-xs text-amber-400/80">{t('rewardFromFloor10Short')}</p>
-                                    )}
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                        {(() => {
-                            const pinned =
-                                myRankingEntry ??
-                                (effectiveMonthlyFloorForReward >= 10
-                                    ? {
-                                          id: currentUser!.id,
-                                          nickname: currentUser!.nickname,
-                                          avatarId: currentUser!.avatarId,
-                                          borderId: currentUser!.borderId,
-                                          rank: null as number | null,
-                                          displayFloor: effectiveMonthlyFloorForReward,
-                                      }
-                                    : null);
-                            if (!pinned) return null;
-                            const avatarUrl = AVATAR_POOL.find((a) => a.id === pinned.avatarId)?.url;
-                            const borderUrl = BORDER_POOL.find((b) => b.id === pinned.borderId)?.url;
-                            const pr = pinned.rank;
-                            return (
-                                <div className="mb-1.5 flex shrink-0 flex-col gap-0.5">
-                                    <div
-                                        className={`flex items-center gap-2 rounded-lg p-2 transition-all ${
-                                            'bg-gradient-to-r from-yellow-900/45 via-amber-800/45 to-orange-900/45 border-2 border-yellow-400/60 shadow-md shadow-yellow-900/30'
-                                        }`}
-                                    >
-                                        <span
-                                            className={`flex w-11 shrink-0 justify-center text-center text-[11px] font-bold leading-tight sm:w-12 sm:text-xs ${
-                                                pr === 1
-                                                    ? 'text-yellow-300'
-                                                    : pr === 2
-                                                      ? 'text-gray-300'
-                                                      : pr === 3
-                                                        ? 'text-amber-500'
-                                                        : pr !== null
-                                                          ? 'text-amber-300'
-                                                          : 'text-amber-200/90'
-                                            }`}
-                                        >
-                                            {pr !== null ? pr : t('unranked')}
-                                        </span>
-                                        <Avatar
-                                            userId={pinned.id}
-                                            userName={pinned.nickname}
-                                            avatarUrl={avatarUrl}
-                                            borderUrl={borderUrl}
-                                            size={32}
-                                        />
-                                        <div className="min-w-0 flex-1">
-                                            <p className="truncate text-xs font-semibold text-yellow-100 sm:text-sm">{pinned.nickname}</p>
-                                            <p className="text-[10px] text-amber-300/80 sm:text-xs">{t('floorLabel', { floor: pinned.displayFloor ?? 0 })}</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            );
-                        })()}
-                        <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overflow-x-hidden pr-1">
-                            {!myRankingEntry && effectiveMonthlyFloorForReward < 10 && (
-                                <p className="px-1 py-2 text-center text-xs text-amber-300/70">{t('rankingHint')}</p>
-                            )}
-                            {towerRankingsLoading && towerRankings.length === 0 ? (
-                                <p className="py-8 text-center text-amber-300/60">{t('rankingLoading')}</p>
-                            ) : top100Users.length > 0 ? (
-                                <>
-                                    {top100ScrollUsers.map((user) => {
-                                        const avatarUrl = AVATAR_POOL.find((a) => a.id === user.avatarId)?.url;
-                                        const borderUrl = BORDER_POOL.find((b) => b.id === user.borderId)?.url;
-                                        const isTop3 = (user as any).rank <= 3;
-                                        const rank = (user as any).rank;
-                                        return (
-                                            <div
-                                                key={user.id}
-                                                className={`flex items-center gap-2 rounded-lg p-2 transition-all ${
-                                                    isTop3
-                                                        ? 'border border-amber-500/50 bg-gradient-to-r from-amber-900/40 to-yellow-900/40 hover:from-amber-800/50 hover:to-yellow-800/50'
-                                                        : 'border border-amber-700/30 bg-gray-800/40 hover:bg-gray-700/50 hover:border-amber-600/50'
-                                                }`}
-                                            >
-                                                <span
-                                                    className={`w-6 flex-shrink-0 text-xs font-bold sm:text-sm ${
-                                                        rank === 1
-                                                            ? 'text-yellow-300'
-                                                            : rank === 2
-                                                              ? 'text-gray-300'
-                                                              : rank === 3
-                                                                ? 'text-amber-500'
-                                                                : 'text-amber-300'
-                                                    }`}
-                                                >
-                                                    {rank}
-                                                </span>
-                                                <Avatar
-                                                    userId={user.id}
-                                                    userName={user.nickname}
-                                                    avatarUrl={avatarUrl}
-                                                    borderUrl={borderUrl}
-                                                    size={32}
-                                                />
-                                                <div className="min-w-0 flex-1">
-                                                    <p className="truncate text-xs font-semibold text-amber-100 sm:text-sm">{user.nickname}</p>
-                                                    <p className="text-[10px] text-amber-300/80 sm:text-xs">{t('floorLabel', { floor: (user as any).displayFloor ?? 0 })}</p>
-                                                </div>
-                                            </div>
-                                        );
-                                    })}
-                                    {top100ScrollUsers.length === 0 && (
-                                        <p className="py-3 text-center text-[11px] text-amber-400/75">{t('noOtherRanked')}</p>
-                                    )}
-                                </>
-                            ) : (
-                                <p className="py-8 text-center text-amber-300/60">{t('rankingEmpty')}</p>
-                            )}
-                        </div>
-                    </div>
-                    </div>
-
-                    {/* 보유 아이템 (랭킹 하단 별도 패널, 잘리지 않도록) */}
-                    <div className="flex-shrink-0 bg-gradient-to-br from-gray-900/70 via-amber-950/60 to-gray-800/70 border-2 border-amber-600/40 rounded-xl p-2 backdrop-blur-md shadow-2xl shadow-amber-900/50">
-                        <div className="flex items-center justify-between mb-2">
-                            <h3 className="text-xs sm:text-sm font-bold text-transparent bg-clip-text bg-gradient-to-r from-amber-300 to-yellow-300 drop-shadow-[0_0_4px_rgba(217,119,6,0.8)]">
-                                보유 아이템
-                            </h3>
-                        </div>
-                        <div className="flex flex-row gap-2 justify-center items-center flex-wrap">
-                            {(() => {
-                                const inventory = currentUserWithStatus?.inventory || [];
-                                const getItemCount = (namesOrIds: readonly string[]): number =>
-                                    countTowerLobbyInventoryQty(inventory, namesOrIds);
-                                return TOWER_LOBBY_INVENTORY_ITEMS.map((item) => {
-                                    const count = getItemCount(item.namesOrIds);
-                                    const itemId = TOWER_LOBBY_ITEM_SERVER_ID[item.itemKey];
-                                    const name = t(`inventoryItems.${item.itemKey}`);
-                                    return (
-                                    <button
-                                        key={item.itemKey}
-                                        type="button"
-                                        className="flex flex-col items-center gap-0.5 bg-gray-800/40 border border-amber-700/30 rounded-lg p-2 hover:bg-gray-700/50 hover:border-amber-600/50 transition-colors"
-                                        onClick={() => openTowerItemPurchase(itemId)}
-                                    >
-                                        <div className="relative w-9 h-9 flex-shrink-0">
-                                            <img src={item.icon} alt={name} className="w-full h-full object-contain" />
-                                            <div className={`absolute -bottom-0.5 -right-0.5 text-[8px] font-bold rounded-full w-3.5 h-3.5 flex items-center justify-center border border-amber-900 ${count > 0 ? 'bg-yellow-400 text-gray-900' : 'bg-gray-600 text-gray-300'}`}>
-                                                {count}
-                                            </div>
-                                        </div>
-                                        <p className="text-[10px] font-semibold text-amber-100 text-center leading-tight">{name}</p>
-                                    </button>
-                                    );
-                                });
-                            })()}
-                        </div>
-                    </div>
+                    {renderPcLeftPanels()}
                     </div>
 
                     <PcLobbyCenterColumn transparentShell fullWidth>
-                        <div className="flex h-full min-h-0 w-full flex-row gap-2 overflow-hidden sm:gap-3">
-                            <div className={pcImageColClass}>
-                                <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-amber-600/10 via-transparent to-yellow-600/10" />
-                                <img
-                                    src={TOWER_CHALLENGE_LOBBY_IMG}
-                                    alt={t('towerAlt')}
-                                    className="relative z-10 h-full w-full object-cover object-center"
-                                />
-                            </div>
-                            <div className={stageColClass}>
-                                <h2 className="mb-3 flex-shrink-0 bg-gradient-to-r from-amber-300 to-yellow-300 bg-clip-text text-base font-bold text-transparent drop-shadow-[0_0_4px_rgba(217,119,6,0.8)] sm:text-lg">
-                                    스테이지
-                                </h2>
-                                <div
-                                    ref={stageScrollRef}
-                                    className={`min-h-0 flex-1 space-y-1.5 overflow-y-auto ${RANKING_MODAL_SLIM_SCROLL_Y}`}
-                                >
-                                    {renderTowerFloorRows()}
-                                </div>
-                            </div>
-                        </div>
+                        {stagePanel}
                     </PcLobbyCenterColumn>
 
                 <div className={quickColClass} aria-label={tNav('quickMenu.quickMenuAria')}>
@@ -1195,12 +1036,273 @@ const TowerLobby: React.FC = () => {
         );
     }
 
+    function renderPcLeftPanels() {
+        const inventory = currentUserWithStatus?.inventory || [];
+        const getItemCount = (namesOrIds: readonly string[]): number =>
+            countTowerLobbyInventoryQty(inventory, namesOrIds);
+
+        return (
+            <>
+                {/* 내 기록 + 예상 보상 */}
+                <div className="shrink-0 overflow-hidden rounded-xl border-2 border-amber-500/55 bg-gradient-to-b from-amber-950/85 via-zinc-950/90 to-amber-950/80 shadow-xl shadow-amber-900/35">
+                    <div className="flex items-center justify-between gap-2 border-b border-amber-600/45 bg-amber-900/35 px-2.5 py-1.5">
+                        <h3 className="bg-gradient-to-r from-yellow-200 to-amber-200 bg-clip-text text-sm font-bold text-transparent">
+                            내 기록
+                        </h3>
+                        <Button
+                            onClick={() => setIsRewardModalOpen(true)}
+                            colorScheme="none"
+                            className="!min-w-0 !px-2 !py-1 border border-amber-500/55 bg-amber-900/45 text-[11px] font-semibold text-amber-100 hover:bg-amber-800/60"
+                        >
+                            {t('rewardInfo')}
+                        </Button>
+                    </div>
+                    <div className="space-y-2 p-2.5">
+                        <div className="grid grid-cols-2 gap-1.5">
+                            <div className="rounded-lg border border-amber-600/40 bg-black/25 px-2 py-1.5 text-center">
+                                <p className="text-[10px] font-semibold text-amber-300/85">{t('allTimeBest')}</p>
+                                <p className="mt-0.5 text-base font-black tabular-nums text-yellow-200">
+                                    {t('floorTier', { floor: bestFloorAllTime })}
+                                </p>
+                            </div>
+                            <div className="rounded-lg border border-amber-600/40 bg-black/25 px-2 py-1.5 text-center">
+                                <p className="text-[10px] font-semibold text-amber-300/85">{t('monthlyBest')}</p>
+                                <p className="mt-0.5 text-base font-black tabular-nums text-amber-100">
+                                    {t('floorTier', { floor: effectiveMonthlyFloorForReward })}
+                                </p>
+                            </div>
+                        </div>
+
+                        <div className="rounded-lg border border-emerald-700/35 bg-emerald-950/25 px-2 py-1.5">
+                            <div className="mb-1.5 flex items-center justify-between gap-1">
+                                <p className="text-[11px] font-bold tracking-wide text-emerald-200/95">{t('expectedReward')}</p>
+                                {myRewardTier ? (
+                                    <span className="text-[10px] font-semibold text-emerald-300/80">
+                                        {t('rewardTierLine', { floor: myRewardTier.floor })}
+                                    </span>
+                                ) : null}
+                            </div>
+                            {myRewardTier ? (
+                                <div className="flex flex-wrap items-center gap-1.5">
+                                    <div
+                                        className="flex items-center gap-1 rounded-md border border-yellow-600/40 bg-black/30 px-1.5 py-1"
+                                        title={tCommon('resources.gold')}
+                                    >
+                                        <img src="/images/icon/Gold.webp" alt="" className="h-5 w-5 object-contain" />
+                                        <span className="text-xs font-bold tabular-nums text-yellow-200">
+                                            {formatGoldAmountKoG(myRewardTier.gold)}
+                                        </span>
+                                    </div>
+                                    <div
+                                        className="flex items-center gap-1 rounded-md border border-cyan-600/40 bg-black/30 px-1.5 py-1"
+                                        title={tCommon('resources.diamonds')}
+                                    >
+                                        <img src="/images/icon/Zem.webp" alt="" className="h-5 w-5 object-contain" />
+                                        <span className="text-xs font-bold tabular-nums text-cyan-200">
+                                            {myRewardTier.diamonds}
+                                        </span>
+                                    </div>
+                                    {myRewardTier.items.map((it: { itemId: string; quantity: number }, i: number) => (
+                                        <div
+                                            key={`${it.itemId}-${i}`}
+                                            className="relative flex h-9 w-9 items-center justify-center rounded-md border border-amber-500/45 bg-gradient-to-b from-amber-900/40 to-zinc-950/70 shadow-sm"
+                                            title={`${resolveTowerRewardDisplayName(it.itemId)} ×${it.quantity}`}
+                                        >
+                                            <img
+                                                src={resolveTowerRewardImage(it.itemId)}
+                                                alt={resolveTowerRewardDisplayName(it.itemId)}
+                                                className="h-7 w-7 object-contain drop-shadow"
+                                            />
+                                            <span className="absolute -bottom-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full border border-amber-900 bg-yellow-400 px-0.5 text-[9px] font-extrabold leading-none text-zinc-900">
+                                                {it.quantity}
+                                            </span>
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <p className="text-[11px] leading-snug text-amber-300/80">{t('rewardFromFloor10Short')}</p>
+                            )}
+                        </div>
+                    </div>
+                </div>
+
+                {/* 랭킹 Top 100 */}
+                <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/70 via-amber-950/55 to-gray-800/70 p-2 shadow-2xl shadow-amber-900/40 backdrop-blur-md">
+                    <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+                        <h2 className="bg-gradient-to-r from-amber-300 to-yellow-300 bg-clip-text text-sm font-bold text-transparent sm:text-base">
+                            랭킹 Top 100
+                        </h2>
+                        <span className="truncate text-[10px] font-semibold tabular-nums text-yellow-300/90 sm:text-xs">
+                            {timeUntilReset}
+                        </span>
+                    </div>
+                    {(() => {
+                        const pinned =
+                            myRankingEntry ??
+                            (effectiveMonthlyFloorForReward >= 10
+                                ? {
+                                      id: currentUser!.id,
+                                      nickname: currentUser!.nickname,
+                                      avatarId: currentUser!.avatarId,
+                                      borderId: currentUser!.borderId,
+                                      rank: null as number | null,
+                                      displayFloor: effectiveMonthlyFloorForReward,
+                                  }
+                                : null);
+                        if (!pinned) return null;
+                        const avatarUrl = AVATAR_POOL.find((a) => a.id === pinned.avatarId)?.url;
+                        const borderUrl = BORDER_POOL.find((b) => b.id === pinned.borderId)?.url;
+                        const pr = pinned.rank;
+                        return (
+                            <div className="mb-1.5 flex shrink-0 items-center gap-2 rounded-lg border-2 border-yellow-400/60 bg-gradient-to-r from-yellow-900/45 via-amber-800/45 to-orange-900/45 p-1.5 shadow-md shadow-yellow-900/25">
+                                <span
+                                    className={`flex w-10 shrink-0 justify-center text-center text-[11px] font-bold leading-tight ${
+                                        pr === 1
+                                            ? 'text-yellow-300'
+                                            : pr === 2
+                                              ? 'text-gray-300'
+                                              : pr === 3
+                                                ? 'text-amber-500'
+                                                : pr !== null
+                                                  ? 'text-amber-300'
+                                                  : 'text-amber-200/90'
+                                    }`}
+                                >
+                                    {pr !== null ? pr : t('unranked')}
+                                </span>
+                                <Avatar
+                                    userId={pinned.id}
+                                    userName={pinned.nickname}
+                                    avatarUrl={avatarUrl}
+                                    borderUrl={borderUrl}
+                                    size={30}
+                                />
+                                <div className="min-w-0 flex-1">
+                                    <p className="truncate text-xs font-semibold text-yellow-100">{pinned.nickname}</p>
+                                    <p className="text-[10px] text-amber-300/85">{t('floorLabel', { floor: pinned.displayFloor ?? 0 })}</p>
+                                </div>
+                            </div>
+                        );
+                    })()}
+                    <div className="min-h-0 flex-1 space-y-1.5 overflow-y-auto overflow-x-hidden pr-0.5">
+                        {!myRankingEntry && effectiveMonthlyFloorForReward < 10 && (
+                            <p className="px-1 py-2 text-center text-[11px] text-amber-300/70">{t('rankingHint')}</p>
+                        )}
+                        {towerRankingsLoading && towerRankings.length === 0 ? (
+                            <p className="py-6 text-center text-sm text-amber-300/60">{t('rankingLoading')}</p>
+                        ) : top100Users.length > 0 ? (
+                            <>
+                                {top100ScrollUsers.map((user) => {
+                                    const avatarUrl = AVATAR_POOL.find((a) => a.id === user.avatarId)?.url;
+                                    const borderUrl = BORDER_POOL.find((b) => b.id === user.borderId)?.url;
+                                    const isTop3 = (user as any).rank <= 3;
+                                    const rank = (user as any).rank;
+                                    return (
+                                        <div
+                                            key={user.id}
+                                            className={`flex items-center gap-2 rounded-lg p-1.5 transition-all ${
+                                                isTop3
+                                                    ? 'border border-amber-500/50 bg-gradient-to-r from-amber-900/40 to-yellow-900/40'
+                                                    : 'border border-amber-700/30 bg-gray-800/40 hover:border-amber-600/50 hover:bg-gray-700/50'
+                                            }`}
+                                        >
+                                            <span
+                                                className={`w-6 shrink-0 text-center text-xs font-bold ${
+                                                    rank === 1
+                                                        ? 'text-yellow-300'
+                                                        : rank === 2
+                                                          ? 'text-gray-300'
+                                                          : rank === 3
+                                                            ? 'text-amber-500'
+                                                            : 'text-amber-300'
+                                                }`}
+                                            >
+                                                {rank}
+                                            </span>
+                                            <Avatar
+                                                userId={user.id}
+                                                userName={user.nickname}
+                                                avatarUrl={avatarUrl}
+                                                borderUrl={borderUrl}
+                                                size={28}
+                                            />
+                                            <div className="min-w-0 flex-1">
+                                                <p className="truncate text-xs font-semibold text-amber-100">{user.nickname}</p>
+                                                <p className="text-[10px] text-amber-300/80">
+                                                    {t('floorLabel', { floor: (user as any).displayFloor ?? 0 })}
+                                                </p>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                                {top100ScrollUsers.length === 0 && (
+                                    <p className="py-3 text-center text-[11px] text-amber-400/75">{t('noOtherRanked')}</p>
+                                )}
+                            </>
+                        ) : (
+                            <p className="py-6 text-center text-sm text-amber-300/60">{t('rankingEmpty')}</p>
+                        )}
+                    </div>
+                </div>
+
+                {/* 보유 아이템 — 아이콘 슬롯 그리드 */}
+                <div className="shrink-0 rounded-xl border-2 border-amber-600/40 bg-gradient-to-br from-gray-900/75 via-amber-950/55 to-gray-800/75 p-2 shadow-2xl shadow-amber-900/40 backdrop-blur-md">
+                    <h3 className="mb-1.5 bg-gradient-to-r from-amber-300 to-yellow-300 bg-clip-text text-sm font-bold text-transparent">
+                        {t('ownedItems')}
+                    </h3>
+                    <div className="grid grid-cols-5 gap-1">
+                        {TOWER_LOBBY_INVENTORY_ITEMS.map((item) => {
+                            const count = getItemCount(item.namesOrIds);
+                            const itemId = TOWER_LOBBY_ITEM_SERVER_ID[item.itemKey];
+                            const name = t(`inventoryItems.${item.itemKey}`);
+                            const shop = buildTowerShopPurchasableItem(currentUserWithStatus!, itemId);
+                            const goldPrice = shop?.price?.gold;
+                            return (
+                                <button
+                                    key={item.itemKey}
+                                    type="button"
+                                    title={goldPrice != null ? `${name} · ${formatGoldAmountKoG(goldPrice)}` : name}
+                                    onClick={() => openTowerItemPurchase(itemId)}
+                                    className="group flex flex-col items-center gap-0.5 rounded-lg border border-amber-700/40 bg-gradient-to-b from-zinc-800/70 to-zinc-950/80 px-0.5 py-1.5 transition-all hover:border-amber-500/65 hover:from-amber-900/35 hover:to-zinc-950 active:scale-[0.97]"
+                                >
+                                    <div className="relative flex h-10 w-10 items-center justify-center rounded-md border border-amber-500/35 bg-black/35 shadow-inner">
+                                        <img
+                                            src={item.icon}
+                                            alt={name}
+                                            className="h-8 w-8 object-contain drop-shadow-[0_2px_4px_rgba(0,0,0,0.55)] transition-transform group-hover:scale-105"
+                                        />
+                                        <span
+                                            className={`absolute -bottom-1 -right-1 flex h-4 min-w-[1rem] items-center justify-center rounded-full border border-amber-950 px-0.5 text-[9px] font-extrabold leading-none ${
+                                                count > 0 ? 'bg-yellow-400 text-zinc-900' : 'bg-zinc-600 text-zinc-200'
+                                            }`}
+                                        >
+                                            {count}
+                                        </span>
+                                    </div>
+                                    <span className="max-w-full truncate text-center text-[9px] font-semibold leading-tight text-amber-100/95">
+                                        {name}
+                                    </span>
+                                </button>
+                            );
+                        })}
+                    </div>
+                </div>
+            </>
+        );
+    }
+
     return (
         <div
-            className={`relative flex w-full flex-col bg-lobby-shell-tower text-white ${isNativeMobile ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain' : 'h-full min-h-0 overflow-hidden'}`}
+            className={`relative flex w-full flex-col text-white ${
+                isHomeViewer
+                    ? 'h-full min-h-0 overflow-hidden bg-transparent'
+                    : isNativeMobile
+                      ? 'sudamr-native-route-root min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-y-contain bg-lobby-shell-tower'
+                      : `h-full min-h-0 overflow-hidden bg-lobby-shell-tower ${PC_LOBBY_DESKTOP_SHELL_PADDING_CLASS}`
+            }`}
         >
-            {/* 네이티브 모바일만 전역 헤더. PC는 랭킹 패널 상단 스트립으로만 표시해 우측 열이 화면 상단까지 올라오게 함 */}
-            {isNativeMobile && (
+            {/* 네이티브 풀페이지 전역 헤더. homeViewer는 퀵유틸 NavTitleBar 사용 */}
+            {isNativeMobile && !isHomeViewer && (
                 <header className="flex flex-shrink-0 px-1.5 py-2">
                     <div className={`w-full ${towerTitleStripVisual}`}>
                         <div className="grid w-full grid-cols-[2.5rem_minmax(0,1fr)_2.5rem] items-center gap-1">
@@ -1227,8 +1329,8 @@ const TowerLobby: React.FC = () => {
                     title={t('rewardModalTitle')}
                     onClose={() => setIsRewardModalOpen(false)}
                     windowId="tower-reward-info"
-                    initialWidth={isNativeMobile ? 680 : 640}
-                    initialHeight={isNativeMobile ? 620 : 760}
+                    initialWidth={useMobileTowerLayout ? 680 : 640}
+                    initialHeight={useMobileTowerLayout ? 620 : 760}
                     isTopmost
                 >
                     <div className="h-full space-y-3 overflow-y-auto pr-1 text-sm text-amber-100">
@@ -1289,12 +1391,14 @@ const TowerLobby: React.FC = () => {
                 </DraggableWindow>
             )}
 
-            {isNativeMobile ? (
+            {useMobileTowerLayout ? (
                 <div className="relative flex min-h-0 flex-1 flex-col overflow-x-hidden overflow-y-auto overscroll-y-contain px-1 py-1">
                     {renderTowerMainColumns()}
                 </div>
+            ) : isHomeViewer ? (
+                renderTowerMainColumns()
             ) : (
-                <div className={`flex min-h-0 w-full min-w-0 flex-1 flex-row overflow-hidden px-2 py-2 sm:px-3 sm:py-3 ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
+                <div className={`flex min-h-0 w-full min-w-0 flex-1 flex-row overflow-hidden ${PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS}`}>
                     {renderTowerMainColumns()}
                 </div>
             )}

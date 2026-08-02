@@ -7,7 +7,7 @@ import { resolveSinglePlayerAcademyModeGuideTabs } from '../../../utils/singlePl
 function baseStage(overrides: Partial<SinglePlayerStageInfo> = {}): SinglePlayerStageInfo {
   return {
     id: 'intro-1',
-    name: '스테이지 1',
+    name: '관문 1',
     level: SinglePlayerLevel.입문,
     actionPointCost: 1,
     boardSize: 9,

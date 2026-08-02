@@ -373,8 +373,8 @@ export const BATTLE_PLACEMENT_ZONES: { [key in Player.Black | Player.White]: { x
 };
 export const PLAYFUL_MODE_FOUL_LIMIT = 5;
 
-/** AI가 선공으로 플레이 화면에 진입할 때 클라이언트가 상태·애니메이션을 받을 시간 (ms) */
-export const AI_GAME_FIRST_MOVE_DELAY_MS = 2000;
+/** AI가 선공으로 플레이 화면에 진입할 때 클라이언트가 상태·애니메이션을 받을 짧은 버퍼 (ms) */
+export const AI_GAME_FIRST_MOVE_DELAY_MS = 400;
 
 /** 주사위바둑/도둑과경찰 등: AI가 연속 착수할 때 돌 사이 최소 간격 (메인 루프·AI 큐 공통) */
 export const PLAYFUL_AI_BATCH_STONE_INTERVAL_MS = 500;

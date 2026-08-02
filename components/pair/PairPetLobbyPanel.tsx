@@ -32,18 +32,11 @@ import {
     PET_MGMT_TR_HINT_TEXT,
     PET_MGMT_TR_ICON_BOX,
     PET_MGMT_TR_ICON_IMG,
-    PET_MGMT_TR_ICON_BOX_2_CLASS,
-    PET_MGMT_TR_ICON_BOX_3_CLASS,
     PET_MGMT_TR_REWARD_AMT_CLASS,
     PET_MGMT_TR_REWARD_BLOCK_CLASS,
     PET_MGMT_TR_REWARD_BOX_CLASS,
     PET_MGMT_TR_REWARD_LBL_CLASS,
     PET_MGMT_TR_REWARD_ROW_INNER_CLASS,
-    PET_MGMT_TR_SOUL_COL_2_CLASS,
-    PET_MGMT_TR_SOUL_COL_3_CLASS,
-    PET_MGMT_TR_SOUL_FG_IMG_CLASS,
-    PET_MGMT_TR_SOUL_FG_IMG_MD_CLASS,
-    PET_MGMT_TR_SOUL_FG_IMG_SM_CLASS,
     PET_MGMT_TR_SLOTS_DESKTOP_CLASS,
     PET_MGMT_TR_SLOTS_GRID_CLASS,
     PET_MGMT_TR_PET_IMG_CLASS,
@@ -275,28 +268,38 @@ function HatcheryOwnedEggThumb({
     showSpecialBadge?: boolean;
     compact?: boolean;
 }) {
+    const borderClass = showSpecialBadge
+        ? 'border-fuchsia-400/55 bg-fuchsia-950/35 ring-1 ring-fuchsia-400/25'
+        : 'border-amber-400/45 bg-amber-950/25 ring-1 ring-amber-400/20';
+
     return (
         <div
-            className={`relative flex shrink-0 items-center justify-center ${
-                compact ? 'h-8 w-8' : 'h-[3.75rem] w-[3.75rem] sm:h-[4.5rem] sm:w-[4.5rem]'
+            className={`relative flex w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-1 shadow-inner ${borderClass} ${
+                compact ? 'py-1' : 'py-1.5'
             }`}
             title={title}
         >
-            <img
-                src={imageUrl}
-                alt=""
-                className={`object-contain drop-shadow-[0_1px_4px_rgba(0,0,0,0.65)] ${
-                    compact ? 'h-7 w-7' : 'h-[3rem] w-[3rem] sm:h-[3.75rem] sm:w-[3.75rem]'
+            <div className={`relative flex shrink-0 items-center justify-center ${compact ? 'h-7 w-7' : 'h-10 w-10 sm:h-11 sm:w-11'}`}>
+                <img
+                    src={imageUrl}
+                    alt=""
+                    className={`object-contain drop-shadow-[0_1px_4px_rgba(0,0,0,0.65)] ${
+                        compact ? 'h-6 w-6' : 'h-9 w-9 sm:h-10 sm:w-10'
+                    }`}
+                    loading="lazy"
+                />
+                {showSpecialBadge ? (
+                    <span className="absolute -right-1 -top-1 z-[2] rounded bg-fuchsia-600/95 px-1 py-px text-[0.55rem] font-black leading-none text-white ring-1 ring-black/45">
+                        {tx('pair:lobby.specBadge')}
+                    </span>
+                ) : null}
+            </div>
+            <span
+                className={`inline-flex min-w-[2.25rem] items-center justify-center rounded-md border border-amber-300/35 bg-black/70 px-1.5 font-black tabular-nums leading-none text-amber-100 ${
+                    compact ? 'h-4 text-[0.7rem]' : 'h-5 text-[0.8rem] sm:text-[0.85rem]'
                 }`}
-                loading="lazy"
-            />
-            {showSpecialBadge ? (
-                <span className="absolute right-0 top-0 z-[2] min-w-[1.1rem] rounded-bl bg-fuchsia-600/90 px-1 py-0.5 text-[0.7rem] font-black leading-none text-white ring-1 ring-black/45">
-{tx('pair:lobby.specBadge')}
-                </span>
-            ) : null}
-            <span className="absolute -bottom-0.5 -right-0.5 z-[2] rounded bg-black/75 px-1 py-px text-[0.65rem] font-black tabular-nums text-amber-200 ring-1 ring-black/50">
-                {qty}
+            >
+                ×{qty}
             </span>
         </div>
     );
@@ -1545,9 +1548,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                     <div className="flex min-w-0 shrink-0 flex-col leading-none">
                         <span className={`${PET_MGMT_XBOLD} text-[11px] text-slate-300`}>{t('hatchery.ownedEggs')}</span>
                         <span className={`${PET_MGMT_CAPTION} text-slate-500`}>{t('hatchery.onePerHatch')}</span>
+                        <span className={`${PET_MGMT_BOLD} mt-0.5 tabular-nums text-xs text-amber-100`}>
+                            {t('hatchery.totalEggs', { count: eggCount })}
+                        </span>
                     </div>
-                    <span className={`${PET_MGMT_BOLD} shrink-0 tabular-nums text-xs text-amber-100`}>{eggCount}</span>
-                    <div className="ml-auto flex min-w-0 items-center justify-end gap-1.5">
+                    <div className="ml-auto flex min-w-0 max-w-[58%] flex-col items-stretch justify-center gap-1">
                         <HatcheryOwnedEggThumb
                             imageUrl={welcomeEggThumbSrc}
                             qty={welcomeEggCount}
@@ -1566,13 +1571,13 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
             ) : (
             <div
                 key="hatch-egg-inventory"
-                className={`relative ${PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} gap-0.5 rounded-lg border border-white/[0.09] bg-gradient-to-br from-zinc-900/70 via-black/70 to-zinc-950/90 p-1 shadow-md ${PET_MGMT_BASE} ring-1 ring-black/50`}
+                className={`relative ${PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} gap-0.5 overflow-visible rounded-lg border border-white/[0.09] bg-gradient-to-br from-zinc-900/70 via-black/70 to-zinc-950/90 p-1 shadow-md ${PET_MGMT_BASE} ring-1 ring-black/50`}
             >
                 <div className={`relative z-10 ${PET_MGMT_HATCHERY_SLOT_HEADER_CLASS}`}>
                     <span className={`${PET_MGMT_XBOLD} text-slate-300`}>{t('hatchery.ownedEggs')}</span>
                     <span className={`${PET_MGMT_BOLD} tabular-nums text-amber-100`}>{t('hatchery.totalEggs', { count: eggCount })}</span>
                 </div>
-                <div className="relative z-10 flex min-h-0 flex-1 flex-row items-center justify-center gap-3 overflow-hidden px-1 py-1 sm:gap-4">
+                <div className="relative z-10 flex min-h-0 flex-1 flex-col items-stretch justify-center gap-1.5 overflow-visible px-1 py-1">
                     <HatcheryOwnedEggThumb
                         imageUrl={welcomeEggThumbSrc}
                         qty={welcomeEggCount}
@@ -1796,26 +1801,20 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const trPetImgClass = useTapTrainingFlow ? PET_MGMT_TR_PET_IMG_MOBILE_CLASS : PET_MGMT_TR_PET_IMG_CLASS;
         const trSlotDropClass = useTapTrainingFlow ? PET_MGMT_TR_SLOT_DROP_MOBILE_CLASS : PET_MGMT_TR_SLOT_DROP_CLASS;
         const trSlotCardClass = useTapTrainingFlow ? PET_MGMT_TR_SLOT_CARD_MOBILE_CLASS : PET_MGMT_TR_SLOT_CARD_CLASS;
-        const getSoulRewardSizing = (soulItemCount: number) => {
+        /** 확률보상 아이콘·이미지는 확정보상과 동일 크기 */
+        const soulRewardSizing = {
+            colClass: `flex shrink-0 flex-col items-center justify-center ${trSoulCol}`,
+            iconBoxClass: trIconBox,
+            fgImgClass: `relative z-[2] shrink-0 object-contain ${trIconImg}`,
+        };
+        const soulRewardBlockClassForCount = (soulItemCount: number) => {
             if (soulItemCount >= 3) {
-                return {
-                    colClass: PET_MGMT_TR_SOUL_COL_3_CLASS,
-                    iconBoxClass: PET_MGMT_TR_ICON_BOX_3_CLASS,
-                    fgImgClass: PET_MGMT_TR_SOUL_FG_IMG_SM_CLASS,
-                };
+                return 'flex w-[10.75rem] min-w-[10.75rem] max-w-[10.75rem] shrink-0 flex-col items-center justify-center gap-1 self-center overflow-hidden subpixel-antialiased';
             }
             if (soulItemCount === 2) {
-                return {
-                    colClass: PET_MGMT_TR_SOUL_COL_2_CLASS,
-                    iconBoxClass: PET_MGMT_TR_ICON_BOX_2_CLASS,
-                    fgImgClass: PET_MGMT_TR_SOUL_FG_IMG_MD_CLASS,
-                };
+                return 'flex w-[7.25rem] min-w-[7.25rem] max-w-[7.25rem] shrink-0 flex-col items-center justify-center gap-1 self-center overflow-hidden subpixel-antialiased';
             }
-            return {
-                colClass: `flex shrink-0 flex-col items-center justify-center ${trSoulCol}`,
-                iconBoxClass: trIconBox,
-                fgImgClass: PET_MGMT_TR_SOUL_FG_IMG_CLASS,
-            };
+            return PET_MGMT_TR_REWARD_BLOCK_CLASS;
         };
 
         return (
@@ -1856,8 +1855,6 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             def.goldMin === def.goldMax
                                 ? formatGoldAmountKoG(def.goldMin)
                                 : `${formatGoldAmountKoG(def.goldMin)}~${formatGoldAmountKoG(def.goldMax)}`;
-                        const soulRewardSizing = getSoulRewardSizing(def.soulTable.length);
-
                         const fixedRewardBox = (
                             <div className={`${PET_MGMT_TR_REWARD_BOX_CLASS} border-amber-400/35 bg-amber-950/45`}>
                                 <div className={PET_MGMT_TR_REWARD_ROW_INNER_CLASS}>
@@ -1943,7 +1940,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             </div>
                         );
                         const soulRewardBlock = showSoulCandidates ? (
-                            <div className={PET_MGMT_TR_REWARD_BLOCK_CLASS}>
+                            <div className={soulRewardBlockClassForCount(def.soulTable.length)}>
                                 <span className={`${trLbl} whitespace-nowrap text-center leading-tight text-cyan-100/95`}>
                                     {def.soulTable.length > 1 ? t('training.probOneKind') : t('training.probReward')}
                                 </span>

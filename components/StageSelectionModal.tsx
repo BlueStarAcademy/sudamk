@@ -8,6 +8,7 @@ import { getSinglePlayerStages } from '../constants/singlePlayerConstants.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { CONSUMABLE_ITEMS } from '../constants';
 import { SPEED_TIME_PRESSURE_SCORING_SECONDS_PER_POINT } from '../shared/constants/speedTimePressure.js';
+import { formatSinglePlayerStageShortName } from '../utils/singlePlayerStageDisplayName.js';
 
 interface StageSelectionModalProps {
     currentUser: UserWithStatus;
@@ -18,7 +19,7 @@ interface StageSelectionModalProps {
 }
 
 const StageSelectionModal: React.FC<StageSelectionModalProps> = ({ currentUser, onClose, onAction, levelName, levelIdPrefix }) => {
-    const { t } = useTranslation('game');
+    const { t } = useTranslation(['game', 'profile']);
     const { singlePlayerStagesListRevision } = useAppContext();
     const userProgress = currentUser.singlePlayerProgress ?? 0;
 
@@ -51,7 +52,7 @@ const StageSelectionModal: React.FC<StageSelectionModalProps> = ({ currentUser, 
                             >
                                 {isCleared && <div className="absolute top-2 right-2 text-2xl">✅</div>}
                                 <div className="flex-grow flex flex-col items-center justify-center space-y-2">
-                                    <h3 className="font-bold text-lg">{stage.name}</h3>
+                                    <h3 className="font-bold text-lg">{formatSinglePlayerStageShortName(stage, t)}</h3>
                                     <p className="text-xs text-gray-400">
                                         {t('stageSelection.targetScore', { black: stage.targetScore.black > 0 ? stage.targetScore.black : '—', white: stage.targetScore.white > 0 ? stage.targetScore.white : '—' })}
                                     </p>

@@ -291,7 +291,7 @@ const GuildBossBattleArena: React.FC<GuildBossBattleArenaProps> = ({
 
     const attackSkillStrip = (
         <div
-            className={`relative z-10 flex max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1 overflow-x-auto rounded-xl border border-white/20 bg-black/45 p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
+            className={`relative z-10 flex max-w-full shrink-0 flex-row flex-nowrap items-center justify-center gap-1 overflow-visible rounded-xl border border-white/20 bg-black/45 p-1 ${
                 engageWave ? 'guild-boss-skill-strip--engage' : ''
             }`}
         >
@@ -414,7 +414,7 @@ const GuildBossBattleArena: React.FC<GuildBossBattleArenaProps> = ({
     if (compact) {
         return (
             <div className="flex h-full min-h-0 w-full flex-col gap-1 p-0.5">
-                <div className="relative flex min-h-0 flex-[1.65] flex-col overflow-hidden rounded-xl border border-amber-500/35 bg-black/45 p-1 shadow-inner">
+                <div className="relative flex min-h-0 flex-[1.65] flex-col overflow-visible rounded-xl border border-amber-500/35 bg-black/45 p-1 shadow-inner">
                     <div className="flex min-h-0 flex-1 flex-row items-stretch gap-0.5">
                         <div className={`relative z-10 flex min-h-0 min-w-0 flex-[1.05] flex-col items-center ${userActorClass}`}>
                             <div className="relative flex w-full min-h-0 flex-1 flex-col items-center justify-center">
@@ -543,7 +543,7 @@ const GuildBossBattleArena: React.FC<GuildBossBattleArenaProps> = ({
 
     return (
         <div className="flex h-full min-h-0 w-full flex-col gap-2 p-2">
-            <div className="relative flex min-h-0 flex-[1.15] flex-row items-stretch gap-2 overflow-hidden rounded-xl border border-amber-500/35 bg-black/45 p-3 shadow-inner">
+            <div className="relative flex min-h-0 flex-[1.15] flex-row items-stretch gap-2 overflow-visible rounded-xl border border-amber-500/35 bg-black/45 p-3 shadow-inner">
                 <div className={`relative z-10 flex min-h-0 min-w-0 flex-1 flex-col items-center ${userActorClass}`}>
                     <div className="relative flex w-full max-w-[16rem] flex-1 flex-col items-center justify-center">
                         <Avatar

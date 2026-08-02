@@ -17,14 +17,14 @@ const PROFILE_EDIT_GUIDE_BORDER_URL = PROFILE_EDIT_GUIDE_BORDER.url ?? '/images/
 /** 도움말·홈 안내용 — `assets.ts`·로비 UI와 동일한 경로 */
 const ADVENTURE_HELP_IMAGE = '/images/adventure.png';
 const ADVENTURE_HOME_ENTRY_IMAGE = ADVENTURE_STAGES[0].mapWebp;
-const SINGLE_PLAYER_ACADEMY_IMAGE = '/images/single/single.webp';
+const SINGLE_PLAYER_ACADEMY_IMAGE = '/images/bg/adventure-lobby.png';
 const TOWER_ENTRY_IMAGE = '/images/tower/towergo.webp';
 const CHAMPIONSHIP_ENTRY_IMAGE = '/images/championship/Champ1.webp';
 const STRATEGIC_LOBBY_IMAGE = '/images/RatingArena.webp';
 const PLAYFUL_LOBBY_IMAGE = '/images/PlayingArena.webp';
 const PAIR_LOBBY_IMAGE = '/images/2v2.webp';
 const PVP_HELP_IMAGE = '/images/bg/pvp.webp';
-const TOURNAMENT_LOBBY_IMAGE = '/images/Championship.webp';
+const TOURNAMENT_LOBBY_IMAGE = '/images/bg/champ4.webp';
 const HOME_BG_IMAGE = '/images/bg/mainbg.webp';
 const HELP_BUTTON_IMAGE = '/images/button/help.webp';
 const PET_HELP_HERO_IMAGE = '/images/bg/pet.webp';
@@ -140,7 +140,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                                 '가방: 장비·소모품·재료 인벤토리를 정리합니다.',
                                 '랭킹·채팅: 순위표와 채널 대화를 빠르게 엽니다.',
                                 '도감: 아이템 도감(별도 창)에서 전체 아이콘과 옵션을 봅니다.',
-                                '도움말: 지금 보고 있는 통합 안내입니다. 모험·챕터·탐험도는 「모험」, 바둑학원·도전의 탑은 「바둑학원 · 도전의 탑」, 대장간·강화·합성 규칙은 「장비 · 대장간」에서 확인합니다.',
+                                '도움말: 지금 보고 있는 통합 안내입니다. 탐험·챕터·탐험도는 「탐험」, 모험·도전의 탑은 「모험 · 도전의 탑」, 대장간·강화·합성 규칙은 「장비 · 대장간」에서 확인합니다.',
                                 '공지: 운영 공지와 이벤트를 확인합니다.',
                             ],
                         },
@@ -172,18 +172,18 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             items: [
                                 '1단계: 홈 프로필에서 닉네임, 레벨, 매너점수, 보유 재화를 확인합니다.',
                                 '2단계: 우편과 퀘스트 보상을 먼저 수령합니다. 시작 보상이나 일일 보상이 있을 수 있습니다.',
-                                '3단계: 바둑학원 또는 AI 대국으로 착수, 시간, 계가, 기권 위치를 익힙니다.',
+                                '3단계: 모험 또는 AI 대국으로 착수, 시간, 계가, 기권 위치를 익힙니다.',
                                 '4단계: 전략/놀이 대기실에서 친선 대국이나 관전으로 다른 유저의 진행 방식을 봅니다.',
-                                '5단계: 규칙과 시간 운영이 익숙해지면 랭크전, 페어, 모험, 도전의 탑, 챔피언십으로 목표를 넓힙니다.',
+                                '5단계: 규칙과 시간 운영이 익숙해지면 랭크전, 페어, 탐험, 도전의 탑, 챔피언십으로 목표를 넓힙니다.',
                             ],
                         },
                         {
                             type: 'imageRow',
                             compact: true,
                             images: [
-                                { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '바둑학원', caption: 'AI로 연습' },
+                                { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '모험', caption: 'AI로 연습' },
                                 { src: PVP_HELP_IMAGE, alt: 'PVP', caption: '친선·랭크' },
-                                { src: ADVENTURE_HELP_IMAGE, alt: '모험', caption: '성장 콘텐츠' },
+                                { src: ADVENTURE_HELP_IMAGE, alt: '탐험', caption: '성장 콘텐츠' },
                                 { src: '/images/quickmenu/quest.webp', alt: '퀘스트', caption: '보상 루틴' },
                             ],
                         },
@@ -472,22 +472,22 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                 article: {
                     id: 'home-entries',
                     title: '각종 입장카드',
-                    tagline: '바둑학원부터 PVP·챔피언십·모험까지.',
-                    hero: { src: ADVENTURE_HELP_IMAGE, alt: '모험' },
+                    tagline: '모험부터 PVP·챔피언십·탐험까지.',
+                    hero: { src: ADVENTURE_HELP_IMAGE, alt: '탐험' },
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '홈 중앙 입장 카드로 각 컨텐츠에 이동합니다. 바둑학원에서 기본기를 익힌 뒤 도전의 탑·PVP·챔피언십·모험을 순서대로 즐겨 보세요.',
+                            text: '홈 중앙 입장 카드로 각 컨텐츠에 이동합니다. 모험에서 기본기를 익힌 뒤 도전의 탑·PVP·챔피언십·탐험을 순서대로 즐겨 보세요.',
                         },
                         {
                             type: 'imageRow',
                             compact: true,
                             images: [
-                                { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '바둑학원', caption: '바둑학원' },
+                                { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '모험', caption: '모험' },
                                 { src: TOWER_ENTRY_IMAGE, alt: '도전의 탑', caption: '도전의 탑' },
                                 { src: PVP_HELP_IMAGE, alt: 'PVP', caption: 'PVP' },
                                 { src: '/images/championship/Champ1.webp', alt: '챔피언십', caption: '챔피언십' },
-                                { src: ADVENTURE_HOME_ENTRY_IMAGE, alt: '모험', caption: '모험' },
+                                { src: ADVENTURE_HOME_ENTRY_IMAGE, alt: '탐험', caption: '탐험' },
                             ],
                         },
                     ],
@@ -1033,36 +1033,36 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     },
     {
         id: 'pve-academy',
-        label: '바둑학원 · 수련',
+        label: '모험 · 수련',
         iconSrc: SINGLE_PLAYER_ACADEMY_IMAGE,
         accentClass: 'from-emerald-500/15 to-amber-600/10',
         subcategories: [
             {
                 id: 'pve-singleplayer',
-                label: '바둑학원',
+                label: '탐험',
                 article: {
                     id: 'pve-singleplayer',
-                    title: '바둑학원',
-                    tagline: '난이도별 스테이지와 수련과제로 AI와 수읽기를 연습합니다.',
-                    hero: { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '바둑학원' },
+                    title: '모험',
+                    tagline: '난이도별 관문과 수련과제로 AI와 수읽기를 연습합니다.',
+                    hero: { src: SINGLE_PLAYER_ACADEMY_IMAGE, alt: '모험' },
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '입문·초급·중급·고급 등 반(난이도 구간)을 고르고 스테이지를 순서대로 진행합니다. 각 스테이지는 AI 상대와의 대국으로 클리어 여부가 결정됩니다.',
+                            text: '홈 중앙 뷰어에서 영역 맵을 열고, 길을 따라 번호가 매겨진 관문을 순서대로 진행합니다. 각 관문은 AI 상대와의 대국으로 클리어 여부가 결정됩니다.',
                         },
                         {
                             type: 'bullets',
                             items: [
-                                '상단에서 반을 바꾸면 해당 구간의 스테이지 격자가 열립니다.',
-                                '수련과제는 시간이 지나 쌓이는 보상을 수령하는 성장 루틴입니다. 과제마다 해금 스테이지가 있습니다.',
-                                '모바일에서는 하단 탭으로 수련과제와 스테이지 화면을 전환할 수 있습니다.',
+                                '상단에서 맵(단계)을 바꾸면 해당 영역의 실사 맵과 경로가 열립니다.',
+                                '맵을 드래그·확대/축소하며 노드를 고르면 관문 정보와 도전 버튼이 나타납니다.',
+                                '클리어 수에 따른 단계 보상은 상단 보상 패널에서 수령할 수 있습니다. 수련과제는 홈의 생산소에서 이용합니다.',
                             ],
                         },
                         {
                             type: 'callout',
                             tone: 'tip',
                             title: '팁',
-                            text: '진행도는 계정에 저장되며, 프로필에서 입장한 뒤에도 퀵 메뉴로 퀘스트·가방 등을 그대로 이용할 수 있습니다.',
+                            text: '진행도는 계정에 저장되며, 다음 도전 관문으로 카메라가 맞춰집니다. 홈에서 입장한 뒤에도 퀵 메뉴로 퀘스트·가방 등을 그대로 이용할 수 있습니다.',
                         },
                     ],
                 },
@@ -1078,13 +1078,13 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '홈·바둑학원에서 수련과제를 열 수 있습니다. 과제를 완료하면 골드·다이아·재료 등을 받고, 바둑학원 진행과 함께 하면 성장이 빨라집니다.',
+                            text: '홈·모험에서 수련과제를 열 수 있습니다. 과제를 완료하면 골드·다이아·재료 등을 받고, 모험 진행과 함께 하면 성장이 빨라집니다.',
                         },
                         {
                             type: 'bullets',
                             items: [
                                 '완료한 과제는 반드시 보상을 수령하세요.',
-                                '일부 과제는 특정 스테이지 클리어 후 해금됩니다.',
+                                '일부 과제는 특정 관문 클리어 후 해금됩니다.',
                             ],
                         },
                     ],
@@ -1195,7 +1195,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
     },
     {
         id: 'adventure',
-        label: '모험',
+        label: '탐험',
         iconSrc: ADVENTURE_HELP_IMAGE,
         accentClass: 'from-amber-500/22 via-fuchsia-600/12 to-violet-900/15',
         subcategories: [
@@ -1206,11 +1206,11 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                     id: 'adventure-chapters',
                     title: '챕터 맵과 몬스터',
                     tagline: '입장부터 맵 탐색·대국까지 한눈에.',
-                    hero: { src: ADVENTURE_HELP_IMAGE, alt: '모험' },
+                    hero: { src: ADVENTURE_HELP_IMAGE, alt: '탐험' },
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '홈·프로필에서 모험에 들어가 챕터를 고릅니다. 맵에서 몬스터를 선택해 대국하면 행동력이 소모되고, 승리 시 보상·이해도가 쌓입니다.',
+                            text: '홈·프로필에서 탐험에 들어가 챕터를 고릅니다. 맵에서 몬스터를 선택해 대국하면 행동력이 소모되고, 승리 시 보상·이해도가 쌓입니다.',
                         },
                         { type: 'imageRow', compact: true, images: adventureChapterGallery },
                         {
@@ -1245,7 +1245,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                         {
                             type: 'bullets',
                             items: [
-                                '모험 골드·드롭 등 일부 보정은 XP 곡선으로 합산되며, 일지에 숫자로 표시됩니다.',
+                                '탐험 골드·드롭 등 일부 보정은 XP 곡선으로 합산되며, 일지에 숫자로 표시됩니다.',
                                 `「친숙함」 이상을 달성한 지역 수에 따라 코어 능력치에 소폭 보너스가 붙을 수 있으며, 상한은 ${ADVENTURE_UNDERSTANDING_STAT_EFFECT_CAP}%입니다.`,
                             ],
                         },
@@ -1279,7 +1279,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                             compact: true,
                             images: [
                                 { src: '/images/icon/Gold.webp', alt: '골드', caption: '변경 비용' },
-                                { src: ADVENTURE_HELP_IMAGE, alt: '모험', caption: '효과 획득·변경·강화' },
+                                { src: ADVENTURE_HELP_IMAGE, alt: '탐험', caption: '효과 획득·변경·강화' },
                             ],
                         },
                         {
@@ -1649,21 +1649,21 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
             },
             {
                 id: 'pve-training',
-                label: '연습 · AI 스테이지',
+                label: '연습 · AI 관문',
                 article: {
                     id: 'pve-training',
-                    title: '연습 모드와 AI 스테이지',
-                    tagline: '봇과의 대국·미션형 스테이지로 실력을 다듬습니다.',
+                    title: '연습 모드와 AI 관문',
+                    tagline: '봇과의 대국·미션형 관문으로 실력을 다듬습니다.',
                     hero: { src: STRATEGIC_LOBBY_IMAGE, alt: '연습 · AI 대국' },
                     blocks: [
                         {
                             type: 'paragraph',
-                            text: '대기실에서 AI 봇과 바로 대국을 신청해 규칙을 익히거나, 싱글/연습 콘텐츠에서 스테이지 조건을 클리어하며 보상을 받을 수 있습니다. 스테이지마다 목표(승리 조건·턴 제한 등)가 다를 수 있으니 입장 전 설명을 확인하세요.',
+                            text: '대기실에서 AI 봇과 바로 대국을 신청해 규칙을 익히거나, 싱글/연습 콘텐츠에서 관문 조건을 클리어하며 보상을 받을 수 있습니다. 관문마다 목표(승리 조건·턴 제한 등)가 다를 수 있으니 입장 전 설명을 확인하세요.',
                         },
                         {
                             type: 'bullets',
                             items: [
-                                '훈련·성장 퀘스트와 연동된 스테이지는 퀘스트 창에서 진행도와 보상을 함께 봅니다.',
+                                '훈련·성장 퀘스트와 연동된 관문은 퀘스트 창에서 진행도와 보상을 함께 봅니다.',
                                 '히든·미사일 등 특수 규칙이 있는 모드는 인게임 도움말과 아이템 안내를 참고하세요.',
                             ],
                         },
@@ -1937,7 +1937,7 @@ export const HELP_CENTER_CATEGORIES: HelpCategory[] = [
                         },
                         {
                             type: 'paragraph',
-                            text: '특수 옵션은 강화(+4·+7·+10)마다 수치가 늘어나는 모험·챔피언십·길드 보스전 등 전용 보너스입니다. 스페셜 옵션(구 신화 옵션)은 신화 등급 장비에 1종, 초월 등급에는 초월 전용 스페셜이 1종 붙습니다. 신화 전용 줄은 신화 장비에서만, 초월 전용 줄은 초월 장비에서만 효과가 있습니다. 신화 스페셜 1~7번과 초월 스페셜 1~7번은 같은 줄 번호가 짝이며, 1번(신화 「보스 보상등급」·초월 「보스 보상추가」)만 서로 동시에 적용될 수 있고 2~7번 줄은 신화와 초월이 겹치면 한쪽만(강한 쪽) 적용됩니다. 같은 스페셜 옵션을 여러 장비에 착용해도 2~7번 부류는 한 번만 적용됩니다. 초월 「길드 보스전 보상추가」는 초월 장비마다 한 번씩 보상 한 줄을 더 받을 수 있어 여러 벌이면 누적됩니다.',
+                            text: '특수 옵션은 강화(+4·+7·+10)마다 수치가 늘어나는 탐험·챔피언십·길드 보스전 등 전용 보너스입니다. 스페셜 옵션(구 신화 옵션)은 신화 등급 장비에 1종, 초월 등급에는 초월 전용 스페셜이 1종 붙습니다. 신화 전용 줄은 신화 장비에서만, 초월 전용 줄은 초월 장비에서만 효과가 있습니다. 신화 스페셜 1~7번과 초월 스페셜 1~7번은 같은 줄 번호가 짝이며, 1번(신화 「보스 보상등급」·초월 「보스 보상추가」)만 서로 동시에 적용될 수 있고 2~7번 줄은 신화와 초월이 겹치면 한쪽만(강한 쪽) 적용됩니다. 같은 스페셜 옵션을 여러 장비에 착용해도 2~7번 부류는 한 번만 적용됩니다. 초월 「길드 보스전 보상추가」는 초월 장비마다 한 번씩 보상 한 줄을 더 받을 수 있어 여러 벌이면 누적됩니다.',
                         },
                         {
                             type: 'callout',

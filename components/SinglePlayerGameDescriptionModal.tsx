@@ -6,7 +6,6 @@ import { LiveGameSession, ServerAction, SinglePlayerStageInfo, UserWithStatus } 
 import { getSinglePlayerStages, setSinglePlayerStagesFromServer } from '../constants/singlePlayerConstants.js';
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { CONSUMABLE_ITEMS, MATERIAL_ITEMS, EQUIPMENT_POOL } from '../constants/index.js';
-import { SinglePlayerLevel } from '../types/enums.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import Button from './Button.js';
@@ -37,6 +36,7 @@ import TowerItemShopModal, { towerShopItemIdFromSlotKey } from './TowerItemShopM
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import StageDefinitionEditorShell from './editor/StageDefinitionEditorShell.js';
 import SinglePlayerStageOrderEditor from './editor/SinglePlayerStageOrderEditor.js';
+import { formatSinglePlayerStageShortName } from '../utils/singlePlayerStageDisplayName.js';
 
 const SINGLE_PLAYER_CLEAR_GOLD_BOX = `${RESULT_MODAL_BOX_GOLD_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
 const SINGLE_PLAYER_CLEAR_ITEM_BOX = `${RESULT_MODAL_BOX_ITEM_CLASS} ${RESULT_MODAL_REWARD_ROW_BOX_COMPACT_CLASS} flex items-center justify-center`;
@@ -46,7 +46,7 @@ interface SinglePlayerGameDescriptionModalProps {
     session: LiveGameSession;
     onStart?: () => void;
     onClose?: () => void;
-    /** 경기 시작 전: 로비(바둑학원·탑)로 나가기 */
+    /** 경기 시작 전: 로비(모험·탑)로 나가기 */
     onExit?: () => void;
     /** 인게임 경기방법: 시작하기 대신 확인 버튼만 표시 */
     readOnly?: boolean;
@@ -56,39 +56,10 @@ interface SinglePlayerGameDescriptionModalProps {
     onTowerItemPurchase?: (itemId: string, quantity: number) => Promise<void>;
 }
 
-const SINGLE_PLAYER_LEVEL_KEY: Partial<Record<SinglePlayerLevel, string>> = {
-    [SinglePlayerLevel.입문]: 'intro',
-    [SinglePlayerLevel.초급]: 'beginner',
-    [SinglePlayerLevel.중급]: 'intermediate',
-    [SinglePlayerLevel.고급]: 'advanced',
-    [SinglePlayerLevel.유단자]: 'masterClass',
-};
-
-/** 싱글: 바둑학원 + 반 · 스테이지. 탑은 층명 */
+/** 싱글: 맵이름 + 번호. 탑은 층명 */
 function formatStageDisplayName(stage: SinglePlayerStageInfo, isTower: boolean): string {
     if (isTower) return stage.name;
-    const parts = resolveAcademyStageHeaderParts(stage);
-    const segments = [parts.academyName, parts.className].filter(Boolean);
-    if (parts.stageNum) segments.push(i18n.t('game:singlePlayerDesc.stage', { num: parts.stageNum }));
-    return segments.join(' · ');
-}
-
-type AcademyStageHeaderParts = {
-    academyName: string;
-    className: string;
-    stageNum: string | null;
-};
-
-function resolveAcademyStageHeaderParts(stage: SinglePlayerStageInfo): AcademyStageHeaderParts {
-    const levelKey = SINGLE_PLAYER_LEVEL_KEY[stage.level as SinglePlayerLevel];
-    const className = levelKey ? i18n.t(`game:singlePlayerDesc.${levelKey}`) : stage.name;
-    const tail = stage.id.split('-').pop() ?? '';
-    const stageNum = /^\d+$/.test(tail) ? tail : null;
-    return {
-        academyName: i18n.t('game:singlePlayerDesc.academy'),
-        className,
-        stageNum,
-    };
+    return formatSinglePlayerStageShortName(stage, i18n.t.bind(i18n));
 }
 
 function StageHeaderTitle({
@@ -126,21 +97,10 @@ function StageHeaderTitle({
         );
     }
 
-    const parts = resolveAcademyStageHeaderParts(stage);
     return (
         <div className={rowClass}>
-            <span className={metaClass}>{parts.academyName}</span>
-            <span className={titleClass}>{parts.className}</span>
-            {parts.stageNum && (
-                <>
-                    <span className={dotClass} aria-hidden>
-                        ·
-                    </span>
-                    <span className={`${metaClass} text-amber-100/92`}>
-                        {t('singlePlayerDesc.stage', { num: parts.stageNum })}
-                    </span>
-                </>
-            )}
+            <span className={metaClass}>{t('singlePlayerDesc.academy')}</span>
+            <span className={titleClass}>{formatSinglePlayerStageShortName(stage, t)}</span>
         </div>
     );
 }

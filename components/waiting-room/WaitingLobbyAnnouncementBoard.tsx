@@ -9,9 +9,11 @@ export const WAITING_LOBBY_PANEL_GLASS =
     'backdrop-blur-xl backdrop-saturate-150 will-change-[backdrop-filter] [transform:translateZ(0)]';
 
 const ROW_HEIGHT_REM = 2.5;
+/** 홈·뷰어 공간 상단 전광판 — 대기실보다 얇게 */
+const HOME_ROW_HEIGHT_REM = 1.85;
 const ANNOUNCEMENT_MARQUEE_SPEED_PX_PER_SEC = 90;
 
-export type WaitingLobbyAnnouncementBoardMode = GameMode | 'strategic' | 'playful' | 'pair';
+export type WaitingLobbyAnnouncementBoardMode = GameMode | 'strategic' | 'playful' | 'pair' | 'home';
 
 const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncementBoardMode }> = ({ mode }) => {
     const { t } = useTranslation('lobby');
@@ -100,12 +102,21 @@ const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncem
         }, waitMs);
     }, [announcementInterval]);
 
-    const isLobbyGlass = mode === 'strategic' || mode === 'playful' || mode === 'pair';
+    const isHomeViewer = mode === 'home';
+    const isLobbyGlass = mode === 'strategic' || mode === 'playful' || mode === 'pair' || isHomeViewer;
     const glassCls = isLobbyGlass ? WAITING_LOBBY_PANEL_GLASS : '';
+    const rowHeightRem = isHomeViewer ? HOME_ROW_HEIGHT_REM : ROW_HEIGHT_REM;
+    const shellHeightClass = isHomeViewer ? 'h-7' : 'h-10';
+    const textSizeClass = isHomeViewer
+        ? 'text-[0.6rem] sm:text-[0.7rem]'
+        : 'text-[0.65rem] sm:text-sm';
+    const roundedClass = isHomeViewer ? 'rounded-xl' : 'rounded-2xl';
+    const padXClass = isHomeViewer ? 'px-3' : 'px-4';
 
     const relevantOverride =
         globalOverrideAnnouncement &&
-        (globalOverrideAnnouncement.modes === 'all' ||
+        (isHomeViewer ||
+            globalOverrideAnnouncement.modes === 'all' ||
             (Array.isArray(globalOverrideAnnouncement.modes) &&
                 globalOverrideAnnouncement.modes.some((m) => {
                     if (mode === 'strategic') return strategicModes.includes(m);
@@ -117,14 +128,16 @@ const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncem
     if (relevantOverride) {
         return (
             <div
-                className={`relative flex h-10 flex-shrink-0 items-center justify-center rounded-2xl p-2 ${
+                className={`relative flex ${shellHeightClass} flex-shrink-0 items-center justify-center ${roundedClass} ${
+                    isHomeViewer ? 'px-2' : 'p-2'
+                } ${
                     isLobbyGlass
                         ? 'bg-gradient-to-r from-yellow-900/70 via-amber-800/65 to-yellow-900/70 backdrop-blur-xl backdrop-saturate-150'
                         : 'bg-yellow-800/50'
                 }`}
                 style={{ boxShadow: '0 8px 24px rgba(0,0,0,0.32), inset 0 1px 0 rgba(255,255,255,0.14)' }}
             >
-                <span className="text-center text-[0.65rem] font-bold text-yellow-300 animate-pulse sm:text-sm">
+                <span className={`text-center font-bold text-yellow-300 animate-pulse ${textSizeClass}`}>
                     {globalOverrideAnnouncement.message}
                 </span>
             </div>
@@ -134,13 +147,15 @@ const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncem
     if (!announcements || announcements.length === 0) {
         return (
             <div
-                className={`flex h-10 flex-shrink-0 items-center justify-center rounded-2xl p-2 text-on-panel ${glassCls}`}
+                className={`flex ${shellHeightClass} flex-shrink-0 items-center justify-center ${roundedClass} ${
+                    isHomeViewer ? 'px-2' : 'p-2'
+                } text-on-panel ${glassCls}`}
                 style={{
                     background: 'linear-gradient(110deg, rgba(24,24,27,0.9), rgba(63,63,70,0.75), rgba(24,24,27,0.9))',
                     boxShadow: '0 12px 30px rgba(0,0,0,0.42), inset 0 1px 0 rgba(255,255,255,0.09)',
                 }}
             >
-                <span className="text-center text-[0.65rem] font-bold text-tertiary sm:text-sm">{t('announcement.noneRegistered')}</span>
+                <span className={`text-center font-bold text-tertiary ${textSizeClass}`}>{t('announcement.noneRegistered')}</span>
             </div>
         );
     }
@@ -151,14 +166,14 @@ const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncem
     return (
         <div
             ref={viewportRef}
-            className={`relative flex-shrink-0 overflow-hidden rounded-2xl px-4 text-on-panel ${glassCls}`}
-            style={{ height: `${ROW_HEIGHT_REM}rem` }}
+            className={`relative flex-shrink-0 overflow-hidden ${roundedClass} ${padXClass} text-on-panel ${glassCls}`}
+            style={{ height: `${rowHeightRem}rem` }}
         >
             <div
-                className="pointer-events-none absolute inset-[1px] rounded-2xl"
+                className={`pointer-events-none absolute inset-[1px] ${roundedClass}`}
                 style={{ background: 'linear-gradient(100deg, rgba(8,14,24,0.9), rgba(26,34,49,0.78), rgba(13,18,30,0.88))' }}
             />
-            <div className="pointer-events-none absolute inset-0 rounded-2xl bg-[radial-gradient(circle_at_18%_50%,rgba(56,189,248,0.16),transparent_45%),radial-gradient(circle_at_82%_50%,rgba(245,158,11,0.14),transparent_45%)]" />
+            <div className={`pointer-events-none absolute inset-0 ${roundedClass} bg-[radial-gradient(circle_at_18%_50%,rgba(56,189,248,0.16),transparent_45%),radial-gradient(circle_at_82%_50%,rgba(245,158,11,0.14),transparent_45%)]`} />
             <div className="relative h-full w-full overflow-hidden" style={{ boxShadow: '0 14px 34px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.14)' }}>
                 {currentAnnouncement && shouldAnimate && (
                     <div className="absolute inset-y-0 flex items-center" style={{ left: shouldAnimate ? '100%' : '0%' }}>
@@ -166,7 +181,7 @@ const WaitingLobbyAnnouncementBoardInner: React.FC<{ mode: WaitingLobbyAnnouncem
                             ref={textRef}
                             key={`${currentAnnouncement.id}-${currentIndex}`}
                             onAnimationEnd={handleMarqueeEnd}
-                            className="inline-flex items-center whitespace-nowrap px-2 text-[0.65rem] font-bold will-change-transform sm:text-sm"
+                            className={`inline-flex items-center whitespace-nowrap px-2 font-bold will-change-transform ${textSizeClass}`}
                             style={
                                 {
                                     animation: `waitingLobbyAnnouncementMarquee ${travelDurationSec}s linear 1 forwards`,

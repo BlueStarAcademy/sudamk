@@ -1,6 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
-import { replaceAppHash, APP_HOME_ARENA_HASH } from '../utils/appUtils.js';
+import { replaceAppHash, APP_HOME_ARENA_HASH, APP_HOME_HASH } from '../utils/appUtils.js';
 import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 
 export type MobileRankingGuideVariant =
@@ -123,7 +123,7 @@ const MobileRankingGuidePanel: React.FC<{ variant: MobileRankingGuideVariant }> 
                 body: t('rankingGuide.badukStrategicWhere'),
             },
             cta: t('rankingGuide.strategicLobby'),
-            hash: '#/pvp/strategic',
+            hash: APP_HOME_HASH,
         },
         'baduk-pair': {
             how: {
@@ -135,7 +135,7 @@ const MobileRankingGuidePanel: React.FC<{ variant: MobileRankingGuideVariant }> 
                 body: t('rankingGuide.badukPairWhere'),
             },
             cta: t('rankingGuide.pairLobby'),
-            hash: '#/pvp/pair',
+            hash: APP_HOME_HASH,
         },
     };
 

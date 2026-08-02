@@ -35,6 +35,16 @@ import {
     reconcileSinglePlayerProgress,
 } from '../../shared/utils/singlePlayerProgress.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { singlePlayerMapNameKo } from '../../shared/utils/singlePlayerMapDisplayName.js';
+import {
+    claimedCyclesFromAmount,
+    isCurrencyRewardType,
+    isItemRewardType,
+    requiredEnhanceXpForLevel,
+    upgradeGoldCostForLevel,
+    type TrainingQuestRewardType,
+} from '../../shared/utils/trainingQuestEconomy.js';
+import { mergeLootResults, rollProductionLoot } from '../../shared/utils/trainingQuestLoot.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -59,8 +69,10 @@ type TrainingQuestBulkRewardRow = {
     missionId: string;
     missionName: string;
     missionLevel: number;
-    rewardType: 'gold' | 'diamonds';
+    rewardType: TrainingQuestRewardType;
     rewardAmount: number;
+    /** 아이템 시설: 대기 사이클 수 */
+    claimCycles: number;
     rawAvailableAmount: number;
     remainderMs: number;
     productionIntervalMs: number;
@@ -74,11 +86,13 @@ async function buildTrainingQuestBulkRewardPreview(
     rewards: TrainingQuestBulkRewardRow[];
     totalGold: number;
     totalDiamonds: number;
+    totalItemCycles: number;
 }> {
     if (!user.singlePlayerMissions) user.singlePlayerMissions = {};
     const rewards: TrainingQuestBulkRewardRow[] = [];
     let totalGold = 0;
     let totalDiamonds = 0;
+    let totalItemCycles = 0;
     const rewardConfig = await getRewardConfig();
 
     for (const missionInfo of SINGLE_PLAYER_MISSIONS) {
@@ -118,6 +132,25 @@ async function buildTrainingQuestBulkRewardPreview(
         if (availableAmount < 1) continue;
 
         const rewardType = missionInfo.rewardType;
+        const claimCycles = claimedCyclesFromAmount(availableAmount, levelInfo.rewardAmount);
+
+        if (isItemRewardType(rewardType)) {
+            totalItemCycles += claimCycles;
+            rewards.push({
+                missionId: missionInfo.id,
+                missionName: missionInfo.name,
+                missionLevel: currentLevel,
+                rewardType,
+                rewardAmount: claimCycles,
+                claimCycles,
+                rawAvailableAmount: availableAmount,
+                remainderMs,
+                productionIntervalMs,
+                maxCapacity: levelInfo.maxCapacity,
+            });
+            continue;
+        }
+
         const adjustedAmount =
             rewardType === 'gold'
                 ? addRewardBonus(availableAmount, rewardConfig.singleMissionGoldBonus)
@@ -131,6 +164,7 @@ async function buildTrainingQuestBulkRewardPreview(
             missionLevel: currentLevel,
             rewardType,
             rewardAmount: adjustedAmount,
+            claimCycles,
             rawAvailableAmount: availableAmount,
             remainderMs,
             productionIntervalMs,
@@ -138,7 +172,7 @@ async function buildTrainingQuestBulkRewardPreview(
         });
     }
 
-    return { rewards, totalGold, totalDiamonds };
+    return { rewards, totalGold, totalDiamonds, totalItemCycles };
 }
 
 const getSinglePlayerRuleFlags = (gameMode: GameMode, mixModes: GameMode[]) => ({
@@ -177,12 +211,18 @@ const getSinglePlayerBotDisplayLevelFromStage = (stage: SinglePlayerStageInfo): 
     return 1;
 };
 
-/** 싱글플레이 AI 봇 표시 닉네임: 입문봇 / 초급봇 / 중급봇 / 고급봇 / 유단자봇 */
+/** 싱글플레이 AI 봇 표시 닉네임: 새싹봇 / 언덕봇 / 계곡봇 / 성채봇 / 천상봇 */
 const getSinglePlayerBotNicknameFromStage = (stage: SinglePlayerStageInfo): string => {
-    const levelName = stage.level === SinglePlayerLevel.입문 ? '입문' :
-                      stage.level === SinglePlayerLevel.초급 ? '초급' :
-                      stage.level === SinglePlayerLevel.중급 ? '중급' :
-                      stage.level === SinglePlayerLevel.고급 ? '고급' : '유단자';
+    const levelName =
+        stage.level === SinglePlayerLevel.입문
+            ? '새싹'
+            : stage.level === SinglePlayerLevel.초급
+              ? '언덕'
+              : stage.level === SinglePlayerLevel.중급
+                ? '계곡'
+                : stage.level === SinglePlayerLevel.고급
+                  ? '성채'
+                  : '천상';
     return `${levelName}봇`;
 };
 
@@ -984,8 +1024,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             return { clientResponse: { gameId: game.id, game: gameCopy } };
         }
         case 'START_SINGLE_PLAYER_MISSION': {
-            const spMissionGate = await requireArenaEntranceOpen(user.isAdmin, 'singleplayer', user);
-            if (!spMissionGate.ok) return { error: spMissionGate.error };
+            // 생산소는 스테이지(singleplayer) 입장 게이트와 무관 — 유저 레벨만 검사
             const { missionId } = payload;
             const missionInfo = SINGLE_PLAYER_MISSIONS.find(m => m.id === missionId);
             if (!missionInfo) return { error: '미션을 찾을 수 없습니다.' };
@@ -993,10 +1032,17 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (!user.singlePlayerMissions) user.singlePlayerMissions = {};
             if (user.singlePlayerMissions[missionId]?.isStarted) return { error: '이미 시작된 미션입니다.' };
 
-            const stages = await getEffectiveSinglePlayerStages();
-            const unlockStageIndex = stages.findIndex(s => s.id === missionInfo.unlockStageId);
-            // unlockStageIndex is 0-based; user.singlePlayerProgress tracks highest cleared index (0-based).
-            if ((user.singlePlayerProgress ?? -1) < unlockStageIndex) return { error: '미션이 아직 잠겨있습니다.' };
+            const unlockLevel = missionInfo.unlockUserLevel ?? 1;
+            const userLevel = Math.max(1, Number(user.userLevel) || 1);
+            if (userLevel < unlockLevel) {
+                console.warn('[START_SINGLE_PLAYER_MISSION] unlock denied', {
+                    userId: user.id,
+                    missionId,
+                    userLevel,
+                    unlockLevel,
+                });
+                return { error: `유저 레벨 ${unlockLevel} 이상이어야 합니다. (현재 Lv.${userLevel})` };
+            }
 
             // 레벨 1로 시작
             const level1Info = missionInfo.levels[0];
@@ -1089,26 +1135,70 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 return { error: '수령할 보상이 없습니다.' };
             }
         
-            // 보상 지급 전 값 저장 (모달 표시용)
-            const rewardAmount = availableAmount;
             const rewardType = missionInfo.rewardType;
+            const claimCycles = claimedCyclesFromAmount(availableAmount, levelInfo.rewardAmount);
+            const currentAccumulatedCollection = typeof missionState.accumulatedCollection === 'number'
+                ? missionState.accumulatedCollection
+                : Number(missionState.accumulatedCollection) || 0;
+
+            if (isItemRewardType(rewardType)) {
+                const rolls = rollProductionLoot(rewardType, currentLevel, claimCycles);
+                const merged = mergeLootResults(rolls);
+                const itemsToCreate = createItemInstancesFromReward(
+                    merged.map((r) => ({ itemId: r.itemId, quantity: r.quantity })),
+                );
+                const { success, updatedInventory } = addItemsToInventory(
+                    [...user.inventory],
+                    user.inventorySlots,
+                    itemsToCreate,
+                );
+                if (!success) {
+                    return { error: '보상을 받기에 인벤토리 공간이 부족합니다.' };
+                }
+                user.inventory = updatedInventory;
+                missionState.accumulatedCollection = currentAccumulatedCollection + claimCycles;
+                missionState.accumulatedAmount = 0;
+                missionState.lastCollectionTime = productionIntervalMs > 0 ? now - remainderMs : now;
+                if (productionIntervalMs > 0 && availableAmount >= levelInfo.maxCapacity) {
+                    missionState.lastCollectionTime = now;
+                }
+                updateQuestProgress(user, 'training_quest_claim', undefined, 1);
+                db.updateUser(user).catch(err => {
+                    console.error(`[COLLECT_SINGLE_PLAYER_MISSION] Failed to save user ${user.id}:`, err);
+                });
+                const { broadcastUserUpdate } = await import('../socket.js');
+                broadcastUserUpdate(user, ['singlePlayerMissions', 'quests', 'inventory']);
+                const updatedUser = JSON.parse(JSON.stringify(user));
+                // 표시용은 수령 직전 생성분(itemsToCreate). finalItemsToAdd는 기존 스택에
+                // 합쳐진 경우 빈 배열일 수 있어 모달에 강화석·상자가 안 보인다.
+                const rewardSummary = {
+                    reward: {} as { gold?: number; diamonds?: number; actionPoints?: number },
+                    items: itemsToCreate,
+                    title: `${missionInfo.name} 보상 수령`,
+                };
+                return {
+                    clientResponse: {
+                        updatedUser,
+                        reward: {},
+                        rewardSummary,
+                    },
+                };
+            }
+
             const rewardConfig = await getRewardConfig();
             const adjustedRewardAmount =
                 rewardType === 'gold'
-                    ? addRewardBonus(rewardAmount, rewardConfig.singleMissionGoldBonus)
-                    : addRewardBonus(rewardAmount, rewardConfig.singleMissionDiamondBonus);
-        
+                    ? addRewardBonus(availableAmount, rewardConfig.singleMissionGoldBonus)
+                    : addRewardBonus(availableAmount, rewardConfig.singleMissionDiamondBonus);
+
             if (rewardType === 'gold') {
                 user.gold += adjustedRewardAmount;
             } else {
                 user.diamonds += adjustedRewardAmount;
             }
-        
-            // 누적 수령액 증가 (레벨업용)
-            const currentAccumulatedCollection = typeof missionState.accumulatedCollection === 'number'
-                ? missionState.accumulatedCollection
-                : Number(missionState.accumulatedCollection) || 0;
-            missionState.accumulatedCollection = currentAccumulatedCollection + adjustedRewardAmount;
+
+            // XP: 유효 수령 사이클
+            missionState.accumulatedCollection = currentAccumulatedCollection + claimCycles;
             missionState.accumulatedAmount = 0;
             missionState.lastCollectionTime = productionIntervalMs > 0 ? now - remainderMs : now;
             if (productionIntervalMs > 0 && availableAmount >= levelInfo.maxCapacity) {
@@ -1116,36 +1206,31 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
 
             updateQuestProgress(user, 'training_quest_claim', undefined, 1);
-        
-            // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
+
             db.updateUser(user).catch(err => {
                 console.error(`[COLLECT_SINGLE_PLAYER_MISSION] Failed to save user ${user.id}:`, err);
             });
 
-            // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['singlePlayerMissions', 'quests']);
-            
-            // 깊은 복사로 updatedUser 생성하여 React가 변경을 확실히 감지하도록 함
+            broadcastUserUpdate(user, ['singlePlayerMissions', 'quests', 'gold', 'diamonds']);
+
             const updatedUser = JSON.parse(JSON.stringify(user));
-            
-            // 보상 정보를 클라이언트에 반환 (RewardSummaryModal 형식)
             const rewardSummary = {
                 reward: {
-                        [rewardType]: adjustedRewardAmount
+                    [rewardType]: adjustedRewardAmount,
                 } as { gold?: number; diamonds?: number; actionPoints?: number },
                 items: [],
-                title: `${missionInfo.name} 보상 수령`
+                title: `${missionInfo.name} 보상 수령`,
             };
-            
-            return { 
-                clientResponse: { 
+
+            return {
+                clientResponse: {
                     updatedUser,
                     reward: {
-                        [rewardType]: adjustedRewardAmount
+                        [rewardType]: adjustedRewardAmount,
                     },
-                    rewardSummary
-                } 
+                    rewardSummary,
+                },
             };
         }
         case 'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD': {
@@ -1186,7 +1271,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
             const itemDef = milestone === 10 ? rewardRow.milestone10 : rewardRow.milestone20;
             const itemsToCreate = createItemInstancesFromReward([itemDef]);
-            const { success, finalItemsToAdd, updatedInventory } = addItemsToInventory(
+            const { success, updatedInventory } = addItemsToInventory(
                 [...user.inventory],
                 user.inventorySlots,
                 itemsToCreate
@@ -1208,14 +1293,14 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_SINGLE_PLAYER_CLASS_BAR_REWARD');
-            const levelTitle = level === SinglePlayerLevel.유단자 ? '유단자' : `${level}반`;
+            const levelTitle = singlePlayerMapNameKo(level);
             return {
                 clientResponse: {
                     updatedUser,
                     rewardSummary: {
                         reward: {},
-                        items: finalItemsToAdd ?? itemsToCreate,
-                        title: `${levelTitle} 스테이지 ${milestone}점 보상`,
+                        items: itemsToCreate,
+                        title: `${levelTitle} 관문 ${milestone}점 보상`,
                     },
                 },
             };
@@ -1223,13 +1308,14 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
         case 'CLAIM_ALL_TRAINING_QUEST_REWARDS': {
             const opts = (payload && typeof payload === 'object' ? payload : {}) as { previewOnly?: boolean; adDouble?: boolean };
             const preview = await buildTrainingQuestBulkRewardPreview(user, now);
-            const multiplier = opts.adDouble === true ? 2 : 1;
-            const rewards = preview.rewards.map(({ rawAvailableAmount: _rawAvailableAmount, remainderMs: _remainderMs, productionIntervalMs: _productionIntervalMs, maxCapacity: _maxCapacity, ...row }) => ({
+            const currencyMultiplier = opts.adDouble === true ? 2 : 1;
+            const rewards = preview.rewards.map(({ rawAvailableAmount: _r, remainderMs: _m, productionIntervalMs: _p, maxCapacity: _c, ...row }) => ({
                 ...row,
-                rewardAmount: row.rewardAmount * multiplier,
+                // 광고 배율은 골드·다이아만
+                rewardAmount: isCurrencyRewardType(row.rewardType) ? row.rewardAmount * currencyMultiplier : row.rewardAmount,
             }));
-            const totalGold = preview.totalGold * multiplier;
-            const totalDiamonds = preview.totalDiamonds * multiplier;
+            const totalGold = preview.totalGold * currencyMultiplier;
+            const totalDiamonds = preview.totalDiamonds * currencyMultiplier;
 
             if (preview.rewards.length < 1) {
                 return { error: '수령할 보상이 없습니다.' };
@@ -1242,6 +1328,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                             rewards,
                             totalGold,
                             totalDiamonds,
+                            totalItemCycles: preview.totalItemCycles,
                             previewOnly: true,
                             adDouble: opts.adDouble === true,
                         },
@@ -1250,18 +1337,50 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             }
 
             if (!user.singlePlayerMissions) user.singlePlayerMissions = {};
+            const allLootItems: { itemId: string; quantity: number }[] = [];
+            let goldGain = 0;
+            let diamondGain = 0;
+
+            for (const reward of preview.rewards) {
+                if (isItemRewardType(reward.rewardType)) {
+                    const rolls = rollProductionLoot(reward.rewardType, reward.missionLevel, reward.claimCycles);
+                    allLootItems.push(...mergeLootResults(rolls));
+                } else if (reward.rewardType === 'gold') {
+                    goldGain += reward.rewardAmount * currencyMultiplier;
+                } else {
+                    diamondGain += reward.rewardAmount * currencyMultiplier;
+                }
+            }
+
+            let grantedItems: ReturnType<typeof createItemInstancesFromReward> = [];
+            if (allLootItems.length > 0) {
+                const merged = mergeLootResults(allLootItems);
+                const itemsToCreate = createItemInstancesFromReward(
+                    merged.map((r) => ({ itemId: r.itemId, quantity: r.quantity })),
+                );
+                const { success, updatedInventory } = addItemsToInventory(
+                    [...user.inventory],
+                    user.inventorySlots,
+                    itemsToCreate,
+                );
+                if (!success) {
+                    return { error: '보상을 받기에 인벤토리 공간이 부족합니다.' };
+                }
+                user.inventory = updatedInventory;
+                // 모달 표시용: 스택 합쳐진 finalItemsToAdd가 아니라 실제 지급 목록
+                grantedItems = itemsToCreate;
+            }
+
+            user.gold += goldGain;
+            user.diamonds += diamondGain;
+
             for (const reward of preview.rewards) {
                 const missionState = user.singlePlayerMissions[reward.missionId];
                 if (!missionState) continue;
-                if (reward.rewardType === 'gold') {
-                    user.gold += reward.rewardAmount * multiplier;
-                } else {
-                    user.diamonds += reward.rewardAmount * multiplier;
-                }
                 const currentAccumulatedCollection = typeof missionState.accumulatedCollection === 'number'
                     ? missionState.accumulatedCollection
                     : Number(missionState.accumulatedCollection) || 0;
-                missionState.accumulatedCollection = currentAccumulatedCollection + reward.rewardAmount * multiplier;
+                missionState.accumulatedCollection = currentAccumulatedCollection + reward.claimCycles;
                 missionState.accumulatedAmount = 0;
                 missionState.lastCollectionTime = reward.productionIntervalMs > 0 ? now - reward.remainderMs : now;
                 if (reward.productionIntervalMs > 0 && reward.rawAvailableAmount >= reward.maxCapacity) {
@@ -1274,7 +1393,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 console.error(`[CLAIM_ALL_TRAINING_QUEST_REWARDS] Failed to save user ${user.id}:`, err);
             });
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['gold', 'diamonds', 'singlePlayerMissions', 'quests']);
+            broadcastUserUpdate(user, ['gold', 'diamonds', 'singlePlayerMissions', 'quests', 'inventory']);
 
             const { getSelectiveUserUpdate } = await import('../utils/userUpdateHelper.js');
             const updatedUser = getSelectiveUserUpdate(user, 'CLAIM_ALL_TRAINING_QUEST_REWARDS');
@@ -1286,10 +1405,12 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                         rewards,
                         totalGold,
                         totalDiamonds,
+                        totalItemCycles: preview.totalItemCycles,
+                        items: grantedItems,
                         previewOnly: false,
                         adDouble: opts.adDouble === true,
-                    }
-                }
+                    },
+                },
             };
         }
         case 'LEVEL_UP_TRAINING_QUEST': {
@@ -1352,63 +1473,45 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             // 레벨 0일 때는 현재 레벨 정보가 없으므로 다음 레벨 정보를 사용
             const currentLevelInfo = currentLevel > 0 ? missionInfo.levels[currentLevel - 1] : null;
             
-            // 다음 레벨 오픈조건 확인
-            if (nextLevelInfo.unlockStageId) {
-                // clearedSinglePlayerStages가 배열인지 확인
-                let clearedStages: string[] = [];
-                if (Array.isArray(user.clearedSinglePlayerStages)) {
-                    clearedStages = user.clearedSinglePlayerStages;
-                } else if (user.clearedSinglePlayerStages) {
-                    // 배열이 아니면 빈 배열로 초기화
-                    clearedStages = [];
-                }
-                
-                if (!clearedStages.includes(nextLevelInfo.unlockStageId)) {
-                    return { error: `${nextLevelInfo.unlockStageId} 스테이지를 클리어해야 합니다.` };
-                }
+            // 시설 오픈 유저 레벨만 게이트 (Lv10 별도 스테이지 조건 없음)
+            const unlockLevel = missionInfo.unlockUserLevel ?? 1;
+            const userLevel = Math.max(1, Number(user.userLevel) || 1);
+            if (userLevel < unlockLevel) {
+                console.warn('[LEVEL_UP_TRAINING_QUEST] unlock denied', {
+                    userId: user.id,
+                    missionId,
+                    userLevel,
+                    unlockLevel,
+                });
+                return { error: `유저 레벨 ${unlockLevel} 이상이어야 합니다. (현재 Lv.${userLevel})` };
             }
-            
-            // 누적 수령액 확인 (레벨 0에서 레벨 1로 올릴 때는 수집 요구사항 없음)
-            const requiredCollection = currentLevel === 0 ? 0 : (currentLevelInfo ? currentLevelInfo.maxCapacity * currentLevel * 10 : 0);
+
+            const costLevelInfo = currentLevelInfo ?? nextLevelInfo;
+            const requiredCollection =
+                currentLevel === 0 || !currentLevelInfo
+                    ? 0
+                    : requiredEnhanceXpForLevel(currentLevelInfo, currentLevel);
             const accumulatedCollection = missionState.accumulatedCollection || 0;
-            
+
             if (accumulatedCollection < requiredCollection) {
-                return { error: `누적 수령액이 부족합니다. (필요: ${requiredCollection}, 현재: ${accumulatedCollection})` };
+                return { error: `생산 경험치가 부족합니다. (필요: ${requiredCollection}, 현재: ${accumulatedCollection})` };
             }
-            
-            // 레벨업 비용 계산 및 차감 (레벨 0일 때는 다음 레벨의 maxCapacity 사용)
-            const costBaseCapacity = currentLevelInfo ? currentLevelInfo.maxCapacity : nextLevelInfo.maxCapacity;
-            let upgradeCost: number;
-            if (missionInfo.rewardType === 'gold') {
-                upgradeCost = costBaseCapacity * 5;
-            } else {
-                upgradeCost = costBaseCapacity * 1000;
+
+            const upgradeCost = upgradeGoldCostForLevel(costLevelInfo, missionInfo.rewardType);
+            if ((user.gold ?? 0) < upgradeCost && !user.isAdmin) {
+                return { error: `골드가 부족합니다. (필요: ${upgradeCost}, 보유: ${user.gold ?? 0})` };
             }
-            
-            if (missionInfo.rewardType === 'gold') {
-                if (user.gold < upgradeCost && !user.isAdmin) {
-                    return { error: `골드가 부족합니다. (필요: ${upgradeCost})` };
-                }
-                if (!user.isAdmin) {
-                    user.gold -= upgradeCost;
-                }
-            } else {
-                // 다이아는 골드로 결제
-                if (user.gold < upgradeCost && !user.isAdmin) {
-                    return { error: `골드가 부족합니다. (필요: ${upgradeCost})` };
-                }
-                if (!user.isAdmin) {
-                    user.gold -= upgradeCost;
-                }
+            if (!user.isAdmin) {
+                user.gold -= upgradeCost;
             }
-            
+
             // 레벨업 전 상태 저장 (피드백용)
             const previousLevel = currentLevel;
             const previousAccumulatedAmount = missionState.accumulatedAmount || 0;
-            
-            // 레벨업
+
+            // 레벨업 — XP 초과분 이월
             missionState.level = currentLevel + 1;
-            missionState.accumulatedCollection = 0; // 누적 수령액 초기화 (경험치용)
+            missionState.accumulatedCollection = Math.max(0, accumulatedCollection - requiredCollection);
             
             // 새 레벨 정보 가져오기
             const newLevelInfo = missionInfo.levels[missionState.level - 1];

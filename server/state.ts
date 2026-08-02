@@ -14,9 +14,10 @@ export const volatileState: VolatileState = {
     gameCache: new Map(),
     // 사용자 정보 캐시 (DB 조회 최소화)
     userCache: new Map(),
-    // 랭킹전 매칭 큐
+    // 랭킹전·일반전 매칭 큐
     rankedMatchingQueue: {
         strategic: {},
+        normal: {},
     },
     pairRooms: {},
     pairPartnerInvites: {},

@@ -225,6 +225,15 @@ const normalizeLegacyQuestTexts = (user: User): boolean => {
                 quest.title = '장비 분해';
                 changed = true;
             }
+            if (quest.title === '모험에서 승리하기' || quest.title === '여행에서 승리하기') {
+                quest.title = '탐험에서 승리하기';
+                if (typeof quest.description === 'string') {
+                    quest.description = quest.description
+                        .replaceAll('모험에서', '탐험에서')
+                        .replaceAll('여행에서', '탐험에서');
+                }
+                changed = true;
+            }
         }
     }
 

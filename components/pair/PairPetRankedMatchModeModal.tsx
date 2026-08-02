@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import Button from '../Button.js';
@@ -142,8 +142,9 @@ const ModePickCard: React.FC<{
     disabled: boolean;
     compact: boolean;
     scrollStripItem?: boolean;
+    hideQueueCount?: boolean;
     onSelect: () => void;
-}> = ({ def, queueCount, isSelected, disabled, compact, scrollStripItem, onSelect }) => {
+}> = ({ def, queueCount, isSelected, disabled, compact, scrollStripItem, hideQueueCount, onSelect }) => {
     const { t } = useTranslation('pair');
     const [imgError, setImgError] = useState(false);
     const imgH = compact ? 70 : 88;
@@ -187,12 +188,14 @@ const ModePickCard: React.FC<{
             >
                 {def.name}
             </h3>
-            <p className="w-full text-xs font-semibold tabular-nums text-cyan-100 sm:text-sm">
-                {t('rankedMatch.queueWaiting', {
-                    count: queueCount,
-                    unit: t('rankedMatch.queueUnitTeam'),
-                })}
-            </p>
+            {hideQueueCount ? null : (
+                <p className="w-full text-xs font-semibold tabular-nums text-cyan-100 sm:text-sm">
+                    {t('rankedMatch.queueWaiting', {
+                        count: queueCount,
+                        unit: t('rankedMatch.queueUnitTeam'),
+                    })}
+                </p>
+            )}
         </button>
     );
 };
@@ -208,6 +211,23 @@ export interface PairPetRankedMatchModeModalProps {
     variant?: 'pair_pet' | 'strategic_arena' | 'duo_arena';
     /** 방장이 이미 고른 모드만 보여 주고 우측 정보만 표시(파트너 동의용) */
     hideModePicker?: boolean;
+    /**
+     * `embedded`: 전용 화면 인라인(포털·백드롭 없이 body만). 취소 버튼 숨기고 큐 CTA만
+     * `dedicatedHome`: 상단 모드 선택 + 좌(시즌) / 우(설명·설정·매칭) 그리드
+     */
+    presentation?: 'modal' | 'embedded' | 'dedicatedHome';
+    /** dedicatedHome 좌열 상단 — 랭킹전/일반전 탭 등 (매칭 중에도 조작 가능) */
+    seasonColumnHeader?: ReactNode;
+    /** dedicatedHome 좌열 — 현재 시즌 카드 */
+    currentSeasonPanel?: ReactNode;
+    /** dedicatedHome 좌열 — 최고 시즌 카드 */
+    bestSeasonPanel?: ReactNode;
+    /** dedicatedHome: 매칭 중 — 버튼 취소로 전환, UI 잠금, 최고시즌 하단 스피너 */
+    isMatching?: boolean;
+    matchingElapsedSeconds?: number;
+    onCancelMatching?: () => void | Promise<void>;
+    /** 모드 카드·상세의 대기 팀 수 숨김 */
+    hideQueueCount?: boolean;
 }
 
 const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = ({
@@ -219,9 +239,18 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
     onQueue,
     variant = 'pair_pet',
     hideModePicker = false,
+    presentation = 'modal',
+    seasonColumnHeader = null,
+    currentSeasonPanel = null,
+    bestSeasonPanel = null,
+    isMatching = false,
+    matchingElapsedSeconds = 0,
+    hideQueueCount = false,
+    onCancelMatching,
 }) => {
     const { t } = useTranslation(['pair', 'common', 'game']);
     const { t: tCommon } = useTranslation('common');
+    const { t: tLobby } = useTranslation('lobby');
     const { isNativeMobile } = useNativeMobileShell();
     const isCompactViewport = useIsHandheldDevice(1024);
     const isHandheld = isNativeMobile || isCompactViewport;
@@ -264,8 +293,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
         return formatActionPointCostWithPetDiscount(base, eff);
     }, [variant, currentUser, selected]);
 
-    const queueCountUnitLabel =
-        variant === 'pair_pet' || variant === 'duo_arena' ? t('rankedMatch.queueUnitTeam') : t('rankedMatch.queueUnitPerson');
+    const queueCountUnitLabel = t('rankedMatch.queueUnitTeam');
 
     /** 모바일: 모드 피커와 정보 열을 세로 2단계로 분리(AI 대전 모달과 동일 흐름). 파트너 동의 등 `hideModePicker`일 때는 단일 열 유지 */
     const handheldModePickerStacked = isHandheld && !hideModePicker;
@@ -315,9 +343,9 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
 
     const tierScoreQueueGrid = (
         <div
-            className={`grid min-w-0 grid-cols-3 items-stretch divide-x divide-zinc-600/40 rounded-lg border border-zinc-600/40 bg-black/25 ${
-                isHandheld ? 'gap-0 py-2' : 'py-2.5'
-            }`}
+            className={`grid min-w-0 items-stretch divide-x divide-zinc-600/40 rounded-lg border border-zinc-600/40 bg-black/25 ${
+                hideQueueCount ? 'grid-cols-2' : 'grid-cols-3'
+            } ${isHandheld ? 'gap-0 py-2' : 'py-2.5'}`}
         >
             <div className="flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 sm:px-2">
                 <img
@@ -341,13 +369,15 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     {myRankedForMode.score}
                 </span>
             </div>
-            <div className="flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-center sm:px-2">
-                <span className="text-[9px] font-semibold tracking-wide text-cyan-200/80 sm:text-[10px]">{t('rankedMatch.matchQueue')}</span>
-                <span className={`font-bold tabular-nums text-cyan-50 ${isHandheld ? 'text-base' : 'text-lg sm:text-xl'}`}>
-                    {selectedQueue}
-                    {queueCountUnitLabel}
-                </span>
-            </div>
+            {hideQueueCount ? null : (
+                <div className="flex min-w-0 flex-col items-center justify-center gap-0.5 px-1 text-center sm:px-2">
+                    <span className="text-[9px] font-semibold tracking-wide text-cyan-200/80 sm:text-[10px]">{t('rankedMatch.matchQueue')}</span>
+                    <span className={`font-bold tabular-nums text-cyan-50 ${isHandheld ? 'text-base' : 'text-lg sm:text-xl'}`}>
+                        {selectedQueue}
+                        {queueCountUnitLabel}
+                    </span>
+                </div>
+            )}
         </div>
     );
 
@@ -411,6 +441,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 disabled={isBusy}
                                 compact={isHandheld}
                                 scrollStripItem={isHandheld}
+                                hideQueueCount={hideQueueCount}
                                 onSelect={() => setSelected(def.mode)}
                             />
                         </div>
@@ -427,6 +458,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 disabled={isBusy}
                                 compact={isHandheld}
                                 scrollStripItem={isHandheld}
+                                hideQueueCount={hideQueueCount}
                                 onSelect={() => setSelected(def.mode)}
                             />
                         </div>
@@ -469,21 +501,23 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
             </div>
 
             <div
-                className={`grid shrink-0 grid-cols-2 gap-2 border-t border-zinc-600/50 bg-zinc-950/50 sm:px-4 sm:py-3 ${
-                    isHandheld ? 'px-2.5 py-2' : 'px-4 py-3'
-                }`}
+                className={`grid shrink-0 gap-2 border-t border-zinc-600/50 bg-zinc-950/50 sm:px-4 sm:py-3 ${
+                    presentation === 'embedded' ? 'grid-cols-1' : 'grid-cols-2'
+                } ${isHandheld ? 'px-2.5 py-2' : 'px-4 py-3'}`}
             >
-                <Button
-                    type="button"
-                    bare
-                    disabled={isBusy}
-                    onClick={() => onClose()}
-                    className={`rounded-xl border border-zinc-500/60 bg-zinc-800/80 font-semibold text-zinc-100 sm:py-3 sm:text-base ${
-                        isHandheld ? 'py-2.5 text-sm' : 'py-3 text-base'
-                    }`}
-                >
-                    {tCommon('actions.cancel')}
-                </Button>
+                {presentation === 'modal' ? (
+                    <Button
+                        type="button"
+                        bare
+                        disabled={isBusy}
+                        onClick={() => onClose()}
+                        className={`rounded-xl border border-zinc-500/60 bg-zinc-800/80 font-semibold text-zinc-100 sm:py-3 sm:text-base ${
+                            isHandheld ? 'py-2.5 text-sm' : 'py-3 text-base'
+                        }`}
+                    >
+                        {tCommon('actions.cancel')}
+                    </Button>
+                ) : null}
                 <Button
                     type="button"
                     bare
@@ -499,8 +533,13 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
         </div>
     );
 
+    const bodyShellClass =
+        presentation === 'embedded'
+            ? 'flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden'
+            : EMBEDDED_PAIR_SHELL_CLASS;
+
     const body = handheldModePickerStacked ? (
-        <div className={EMBEDDED_PAIR_SHELL_CLASS}>
+        <div className={bodyShellClass}>
             <div className="relative flex min-h-0 flex-1 flex-col gap-2 overflow-hidden p-2 sm:gap-3 sm:p-3">
                 {selectedModeBriefSummaryPanel}
                 {mobileStep === 'pickMode' ? (
@@ -549,21 +588,25 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         <div
                             className={`shrink-0 -mx-2 -mb-2 mt-1 flex flex-row items-stretch justify-center gap-2 rounded-b-2xl px-3 pb-[max(0.65rem,env(safe-area-inset-bottom))] pt-2 sm:-mx-3 sm:-mb-3 sm:gap-2.5 sm:px-4 ${LOBBY_MOBILE_MODAL_FOOTER_CLASS}`}
                         >
-                            <Button
-                                type="button"
-                                bare
-                                disabled={isBusy}
-                                onClick={() => onClose()}
-                                className={`${LOBBY_MOBILE_BTN_SECONDARY_CLASS} !min-h-[2.58rem] min-w-0 !w-auto flex-[0.92] !rounded-xl !px-3 !text-[12.5px] !font-bold`}
-                            >
-                                {tCommon('actions.cancel')}
-                            </Button>
+                            {presentation === 'modal' ? (
+                                <Button
+                                    type="button"
+                                    bare
+                                    disabled={isBusy}
+                                    onClick={() => onClose()}
+                                    className={`${LOBBY_MOBILE_BTN_SECONDARY_CLASS} !min-h-[2.58rem] min-w-0 !w-auto flex-[0.92] !rounded-xl !px-3 !text-[12.5px] !font-bold`}
+                                >
+                                    {tCommon('actions.cancel')}
+                                </Button>
+                            ) : null}
                             <Button
                                 type="button"
                                 bare
                                 disabled={isBusy}
                                 onClick={() => void onQueue(selected)}
-                                className="inline-flex !min-h-[2.58rem] min-w-0 !w-auto flex-[1.22] items-center justify-center !rounded-xl border border-amber-400/48 bg-gradient-to-b from-amber-600/88 to-amber-950/95 px-3 text-[12.5px] font-extrabold tracking-wide text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.11)] ring-1 ring-amber-400/18 transition-all hover:brightness-[1.06] active:scale-[0.99] disabled:!cursor-not-allowed disabled:!opacity-45"
+                                className={`inline-flex !min-h-[2.58rem] min-w-0 items-center justify-center !rounded-xl border border-amber-400/48 bg-gradient-to-b from-amber-600/88 to-amber-950/95 px-3 text-[12.5px] font-extrabold tracking-wide text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.11)] ring-1 ring-amber-400/18 transition-all hover:brightness-[1.06] active:scale-[0.99] disabled:!cursor-not-allowed disabled:!opacity-45 ${
+                                    presentation === 'embedded' ? '!w-full flex-1' : '!w-auto flex-[1.22]'
+                                }`}
                             >
                                 {t('rankedMatch.queueWithAp', { cost: displayedQueueApCost })}
                             </Button>
@@ -573,8 +616,14 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
             </div>
         </div>
     ) : (
-        <div className={EMBEDDED_PAIR_SHELL_CLASS}>
-            <div className="flex min-h-0 min-w-0 w-full max-h-[min(78vh,740px)] flex-1 flex-col overflow-hidden lg:max-h-[min(82vh,760px)] lg:flex-row lg:items-stretch">
+        <div className={bodyShellClass}>
+            <div
+                className={`flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden lg:flex-row lg:items-stretch ${
+                    presentation === 'embedded'
+                        ? ''
+                        : 'max-h-[min(78vh,740px)] lg:max-h-[min(82vh,760px)]'
+                }`}
+            >
                 {!hideModePicker ? modePickerColumn : null}
                 {infoAndActionsColumn}
             </div>
@@ -595,6 +644,169 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
               : 'pair-pet-ranked-match-mode';
 
     const rankedModalTitleId = `${windowId}-title`;
+
+    if (presentation === 'dedicatedHome') {
+        const matchingLocked = isMatching || isBusy;
+        const formatMatchingElapsed = (seconds: number): string => {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+        };
+
+        return (
+            <div
+                className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col gap-2 overflow-hidden sm:gap-2.5"
+                data-ranked-match-mode-dedicated={windowId}
+                data-matching={isMatching ? '1' : '0'}
+            >
+                {/* 1행: 게임 모드 선택 */}
+                <section
+                    className={`relative z-[1] shrink-0 rounded-xl border border-amber-400/30 bg-black/30 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-2.5 ${
+                        isMatching ? 'pointer-events-none opacity-70' : ''
+                    }`}
+                    aria-disabled={isMatching || undefined}
+                >
+                    <h3 className="mb-1.5 text-xs font-extrabold tracking-wide text-amber-100/95 sm:text-sm">
+                        {t('rankedMatch.selectGameMode')}
+                    </h3>
+                    <LobbyHorizontalModePickerScroll inlineRow>
+                        {modes.map((def) => (
+                            <div key={def.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
+                                <ModePickCard
+                                    def={def}
+                                    queueCount={queueCountByMode[def.mode] ?? 0}
+                                    isSelected={selected === def.mode}
+                                    disabled={matchingLocked}
+                                    compact
+                                    scrollStripItem
+                                    hideQueueCount={hideQueueCount}
+                                    onSelect={() => setSelected(def.mode)}
+                                />
+                            </div>
+                        ))}
+                    </LobbyHorizontalModePickerScroll>
+                </section>
+
+                {/* 2·3행: 좌 시즌(좁게) / 우 설명·설정·매칭 */}
+                <div className="relative z-[1] grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 overflow-hidden sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)] sm:gap-2.5 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
+                    <div className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:gap-2.5">
+                        {seasonColumnHeader ? (
+                            <div className="relative z-[2] shrink-0">{seasonColumnHeader}</div>
+                        ) : null}
+                        <div
+                            className={`flex min-h-0 min-w-0 flex-col gap-2 sm:gap-2.5 ${
+                                isMatching ? 'pointer-events-none' : ''
+                            }`}
+                        >
+                        {currentSeasonPanel}
+                        {bestSeasonPanel}
+                        </div>
+                        {isMatching ? (
+                            <div className="relative shrink-0 overflow-hidden rounded-xl border-2 border-yellow-500/55 bg-gradient-to-br from-yellow-900/45 via-amber-900/35 to-yellow-900/45 p-2.5 shadow-[0_6px_20px_rgba(234,179,8,0.28)] sm:p-3">
+                                <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-yellow-500/15 via-transparent to-yellow-500/15" aria-hidden />
+                                <div className="relative z-[1] flex flex-col items-center gap-2">
+                                    <div className="relative h-11 w-11">
+                                        <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-yellow-400 border-t-transparent" />
+                                        <div
+                                            className="absolute inset-1.5 animate-spin rounded-full border-[3px] border-amber-400 border-t-transparent"
+                                            style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
+                                        />
+                                    </div>
+                                    <span className="text-sm font-extrabold text-yellow-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                                        {tLobby('ranked.matching')}
+                                    </span>
+                                    <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-yellow-400/30 bg-yellow-950/45 px-2 py-1.5">
+                                        <span className="text-[10px] font-semibold text-yellow-200/90 sm:text-xs">
+                                            {tLobby('ranked.waitTime')}
+                                        </span>
+                                        <span className="font-mono text-base font-black tabular-nums text-yellow-50 sm:text-lg">
+                                            {formatMatchingElapsed(matchingElapsedSeconds)}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
+                    </div>
+
+                    <div className="flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden rounded-xl border border-white/10 bg-black/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-2.5">
+                        <div
+                            className={`flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden ${
+                                isMatching ? 'pointer-events-none opacity-80' : ''
+                            }`}
+                        >
+                            <div className="shrink-0 rounded-lg border border-white/10 bg-zinc-950/50 p-2 sm:p-2.5">
+                                {selectedDef ? (
+                                    <div className="mb-1.5 flex min-w-0 items-center gap-2">
+                                        <div className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-white/12 bg-zinc-800/90 p-1 shadow-inner">
+                                            <img src={selectedDef.image} alt="" className="max-h-full max-w-full object-contain" />
+                                        </div>
+                                        <div className="min-w-0 flex-1">
+                                            <p className="truncate text-sm font-extrabold text-zinc-50">{selectedDef.name}</p>
+                                            {hideQueueCount ? null : (
+                                                <p className="mt-0.5 text-[10px] font-semibold text-cyan-200/80">
+                                                    {t('rankedMatch.matchQueue')} {selectedQueue}
+                                                    {queueCountUnitLabel}
+                                                </p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <p className="text-xs text-zinc-500">{t('rankedMatch.selectModePeriod')}</p>
+                                )}
+                                <p className="text-[11px] leading-snug text-zinc-300 sm:text-xs">
+                                    {lobbyGameModeBriefDescription(selectedDef?.description, modeBriefFallback)}
+                                </p>
+                            </div>
+
+                            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain rounded-lg border border-white/10 bg-zinc-950/40 px-2 py-1.5 sm:px-2.5 sm:py-2">
+                                {rankedRulesSection}
+                            </div>
+                        </div>
+
+                        <div className="relative z-[30] flex shrink-0 justify-center">
+                            {isMatching ? (
+                                <Button
+                                    type="button"
+                                    bare
+                                    disabled={isBusy}
+                                    onClick={() => void onCancelMatching?.()}
+                                    className="pointer-events-auto min-w-[min(100%,14rem)] rounded-xl border border-red-400/55 bg-gradient-to-b from-red-600/90 to-rose-950/95 px-4 py-2.5 text-sm font-extrabold text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:min-w-[16rem] sm:py-3 sm:text-base"
+                                >
+                                    {tCommon('actions.cancel')}
+                                </Button>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    bare
+                                    disabled={isBusy || !selectedDef}
+                                    onClick={() => void onQueue(selected)}
+                                    className="min-w-[min(100%,14rem)] rounded-xl border border-amber-400/60 bg-gradient-to-b from-amber-600/90 to-amber-950/95 px-4 py-2.5 text-sm font-extrabold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:min-w-[16rem] sm:py-3 sm:text-base"
+                                >
+                                    {t('rankedMatch.queueWithAp', { cost: displayedQueueApCost })}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        );
+    }
+
+    if (presentation === 'embedded') {
+        return (
+            <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden" data-ranked-match-mode-embedded={windowId}>
+                {handheldModePickerStacked ? (
+                    <div className="mb-1 flex shrink-0 items-center gap-2 px-0.5">
+                        {mobileHeaderBack ?? null}
+                        <h2 className="min-w-0 flex-1 truncate text-sm font-extrabold text-amber-100 sm:text-base">
+                            {windowTitle}
+                        </h2>
+                    </div>
+                ) : null}
+                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{body}</div>
+            </div>
+        );
+    }
 
     const roomCreateStyleSheetClass = `relative flex w-full min-h-0 min-w-0 flex-col overflow-hidden border border-amber-400/40 bg-gradient-to-b from-zinc-900 to-black shadow-2xl shadow-black/60 ring-1 ring-white/10 ${
         isHandheld

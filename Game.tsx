@@ -24,7 +24,9 @@ import { ArenaRightSidebarCollapseToggle } from './components/game/ArenaRightSid
 import { audioService } from './services/audioService.js';
 import { TerritoryAnalysisWindow, HintWindow } from './components/game/AnalysisWindows.js';
 import GameControls from './components/game/GameControls.js';
-import { AVATAR_POOL, BORDER_POOL, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, aiUserId } from './constants.js';
+import { AVATAR_POOL, BORDER_POOL, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, NO_CONTEST_MOVE_THRESHOLD, aiUserId } from './constants.js';
+import { countValidStoneMoves } from './shared/utils/shortRankedGamePenalty.js';
+import type { GameConfirmModalType } from './components/game/GameModals.js';
 import { useAppGameStoreSlice, useAppRealtimeSlice, useAppRouteSlice, useAppUiSlice, useAppUserSlice } from './hooks/useAppSlices.js';
 import DisconnectionModal from './components/DisconnectionModal.js';
 // FIX: Import TimeoutFoulModal component to resolve 'Cannot find name' error.
@@ -120,10 +122,6 @@ import {
     isPairAiOpponentSyntheticDisplayParticipant,
     resolvePairAiOpponentPetSyntheticDisplayLevel,
 } from './shared/utils/strategicAiDifficulty.js';
-import {
-    PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY,
-    POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY,
-} from './shared/constants/pairArena.js';
 import { sessionUsesPairArenaIngameChrome } from './shared/utils/pairArenaIngameChrome.js';
 import {
     isPairArenaAiMatchSession,
@@ -762,7 +760,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         return <div className="flex items-center justify-center min-h-screen">{tx('game:messages.loadingPlayers')}</div>;
     }
 
-    const [confirmModalType, setConfirmModalType] = useState<'resign' | null>(null);
+    const [confirmModalType, setConfirmModalType] = useState<GameConfirmModalType>(null);
     const [showResultModal, setShowResultModal] = useState(false);
     /** ended/no_contest: 결과 모달에서 확인한 뒤에만 하단 재도전·나가기 등 허용 */
     const [postGameSummaryAcknowledged, setPostGameSummaryAcknowledged] = useState(false);
@@ -4502,16 +4500,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 const stageId = session.adventureStageId;
                 sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
             } else if (session.settings?.pairGame) {
+                // 친선·AI·놀이터 등 홈 입장 모드는 전용 로비가 아닌 홈으로
                 sessionStorage.setItem('postGameRedirect', arenaLobbyHashFromSession(session));
-                const rid = session.settings.pairGame?.roomId;
-                if (rid) {
-                    try {
-                        sessionStorage.setItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY, rid);
-                        sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
-                    } catch {
-                        // ignore
-                    }
-                }
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 sessionStorage.setItem('postGameRedirect', arenaLobbyHashFromSession(session));
             } else if (isSinglePlayer) {
@@ -4531,12 +4521,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 window.alert(tx('game:alerts.cannotResignScoring'));
                 return;
             }
-            setConfirmModalType('resign');
+            const stoneMoves = countValidStoneMoves(session.moveHistory);
+            const shortRankedResign =
+                Boolean(session.isRankedGame) &&
+                !session.isAiGame &&
+                stoneMoves < NO_CONTEST_MOVE_THRESHOLD;
+            setConfirmModalType(shortRankedResign ? 'resignShortRanked' : 'resign');
         }
     }, [
         isSpectator,
         handlers.handleAction,
         session.isAiGame,
+        session.isRankedGame,
+        session.moveHistory,
         isSinglePlayer,
         sessionPolicy.kind,
         session.adventureStageId,

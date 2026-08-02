@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { QUICK_UTILITY_PANEL_TITLES, type QuickUtilityPanelKind } from '../../../shared/types/quickUtilityPanel.js';
+import {
+    QUICK_UTILITY_PANEL_TITLES,
+    resolveHomeViewerUtilityKind,
+    type QuickUtilityPanelKind,
+} from '../../../shared/types/quickUtilityPanel.js';
 import type { InventoryItem } from '../../../types.js';
 import {
     MOBILE_VIEWPORT_ENTRY_TITLES,
@@ -31,6 +35,16 @@ describe('quickUtilityPanel', () => {
             'inventory',
             'pet',
             'trainingQuest',
+            'matchArena',
+            'rankedMatch',
+            'normalMatch',
+            'friendlyLobby',
+            'aiArena',
+            'playgroundLobby',
+            'championship',
+            'singleplayer',
+            'tower',
+            'adventure',
             'detailedStats',
             'monsterCodex',
             'ranking',
@@ -42,6 +56,16 @@ describe('quickUtilityPanel', () => {
         for (const kind of kinds) {
             expect(QUICK_UTILITY_PANEL_TITLES[kind].length).toBeGreaterThan(0);
         }
+        expect(QUICK_UTILITY_PANEL_TITLES.matchArena).toBe('경기장');
+        expect(QUICK_UTILITY_PANEL_TITLES.singleplayer).toBe('모험');
+        expect(QUICK_UTILITY_PANEL_TITLES.tower).toBe('도전의 탑');
+        expect(QUICK_UTILITY_PANEL_TITLES.adventure).toBe('탐험');
+        expect(resolveHomeViewerUtilityKind('rankedMatch')).toBe('matchArena');
+        expect(resolveHomeViewerUtilityKind('normalMatch')).toBe('matchArena');
+        expect(resolveHomeViewerUtilityKind('aiArena')).toBe('friendlyLobby');
+        expect(resolveHomeViewerUtilityKind('singleplayer')).toBe('singleplayer');
+        expect(resolveHomeViewerUtilityKind('tower')).toBe('tower');
+        expect(resolveHomeViewerUtilityKind('adventure')).toBe('adventure');
     });
 });
 
@@ -50,7 +74,7 @@ describe('pcShellLayout', () => {
         expect(PC_HOME_LEFT_COLUMN_CLASS).toContain('max-w-[500px]');
         expect(PC_HOME_CENTER_INNER_MAX_CLASS).toContain('1040px');
         expect(PC_HOME_CENTER_SHELL_CLASS).toContain('border-amber-500/45');
-        expect(PC_HOME_CENTER_SHELL_CLASS).toContain('bg-transparent');
+        expect(PC_HOME_CENTER_SHELL_CLASS).toMatch(/bg-(transparent|gradient)/);
         expect(PC_QUICK_RAIL_COLUMN_CLASS).toContain('7.5rem');
         expect(PC_LOBBY_USERS_COLUMN_CLASS).toContain('30rem');
         expect(PC_QUICK_UTILITY_CENTER_SHELL_CLASS).toContain('rounded-2xl');

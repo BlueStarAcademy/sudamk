@@ -379,7 +379,14 @@ export function getPairTurnSeatByParticipantId(
 }
 
 export function isPairAiSeat(seat: PairGameTurnSeat | null | undefined): boolean {
-    return Boolean(seat && (seat.kind === 'ai' || seat.kind === 'pet' || seat.participantId.startsWith('pair-') || seat.participantId.startsWith('pet-ai-')));
+    return Boolean(
+        seat &&
+            (seat.kind === 'ai' ||
+                seat.kind === 'pet' ||
+                seat.participantId.startsWith('pair-') ||
+                seat.participantId.startsWith('pet-ai-') ||
+                seat.participantId.startsWith('lobby-ai-')),
+    );
 }
 
 export function advancePairTurn(settings: Pick<GameSettings, 'pairGame'> | undefined): PairGameTurnSeat | null {

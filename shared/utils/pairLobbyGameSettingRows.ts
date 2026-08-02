@@ -14,7 +14,7 @@ import { applyMixModeSettingsConstraints } from './mixModeSettings.js';
 
 export type PairLobbyChannel = 'pair' | 'strategic' | 'playful';
 
-export type PairLobbyRoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
+export type PairLobbyRoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'team_pair' | 'arena_ai';
 
 export type PairListRoomKindSource = {
     roomKind?: PairLobbyRoomKind | string;
@@ -27,10 +27,14 @@ export function normalizePairListRoomKind(room: PairListRoomKindSource): PairLob
     const raw = room.room_kind ?? room.roomKind;
     if (raw === 'friendly_4p' || raw === 'friendly4p') return 'friendly_4p';
     if (raw === 'friendly_2p' || raw === 'friendly2p') return 'friendly_2p';
+    if (raw === 'team_pair' || raw === 'teamPair') return 'team_pair';
     if (raw === 'duo_match' || raw === 'duoMatch') return 'duo_match';
     if (raw === 'ai_duel' || raw === 'aiDuel') return 'ai_duel';
     if (raw === 'arena_ai' || raw === 'arenaAi') return 'arena_ai';
-    if (typeof raw === 'string' && ['friendly_4p', 'friendly_2p', 'duo_match', 'ai_duel', 'arena_ai'].includes(raw)) {
+    if (
+        typeof raw === 'string' &&
+        ['friendly_4p', 'friendly_2p', 'team_pair', 'duo_match', 'ai_duel', 'arena_ai'].includes(raw)
+    ) {
         return raw as PairLobbyRoomKind;
     }
     if (

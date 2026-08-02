@@ -166,28 +166,24 @@ function boardGridHasStones(boardState: unknown): boolean {
     );
 }
 
-function isPveAiHiddenPresentationSession(
-    session: Pick<LiveGameSession, 'animation'> & { aiHiddenItemAnimationEndTime?: number },
-): boolean {
-    const anim = session.animation as { type?: string } | null | undefined;
-    return anim?.type === 'ai_thinking' || session.aiHiddenItemAnimationEndTime != null;
-}
-
 /**
  * 모험·길드전 등 liveGames: goAiBot AI 히든 연출 패킷이 boardState를 생략할 때
  * 기존 판·수순·연출 종료 시각을 유지한다.
  * 단, incoming 수순이 더 길면(AI가 이미 둔 경우) 짧은 기존 수순으로 덮지 않는다.
+ *
+ * 만료된 `aiHiddenItemAnimationEndTime` / `ai_thinking` leftover 는 연출 중으로 보지 않는다.
+ * (만료 leftover가 보드·턴 병합을 가로채 AI 돌이 안 보이던 회귀 방지)
  */
 export function preservePveAiHiddenPresentationOnMerge(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined,
+    nowMs: number = Date.now(),
 ): LiveGameSession {
     if (!existing) return incoming;
 
     const presentationActive =
-        isPveAiHiddenPresentationSession(incoming as LiveGameSession) ||
-        isPveAiHiddenPresentationSession(existing as LiveGameSession) ||
-        isItemPhasePresentationStillActive(existing as LiveGameSession);
+        isItemPhasePresentationStillActive(incoming as LiveGameSession, nowMs) ||
+        isItemPhasePresentationStillActive(existing as LiveGameSession, nowMs);
 
     if (!presentationActive) return incoming;
 
@@ -227,25 +223,42 @@ export function preservePveAiHiddenPresentationOnMerge(
         }
     }
 
-    const existingEnd = (existing as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime;
-    const incomingEnd = (incoming as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime;
-    const preservedEnd =
-        typeof existingEnd === 'number' && typeof incomingEnd === 'number'
-            ? Math.max(existingEnd, incomingEnd)
-            : existingEnd ?? incomingEnd;
-    if (typeof preservedEnd === 'number' && preservedEnd !== incomingEnd) {
-        merged = { ...merged, aiHiddenItemAnimationEndTime: preservedEnd } as LiveGameSession;
-    }
-
-    if (
-        isItemPhasePresentationStillActive(existing as LiveGameSession) &&
-        (incoming.animation === undefined || incoming.animation === null) &&
-        existing.animation
-    ) {
-        merged = { ...merged, animation: existing.animation };
+    // 아직 재생 중인 연출의 endTime만 보존 — 만료 leftover를 다시 붙이지 않음
+    if (isItemPhasePresentationStillActive(existing as LiveGameSession, nowMs)) {
+        const existingEnd = (existing as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime;
+        const incomingEnd = (incoming as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime;
+        if (
+            typeof existingEnd === 'number' &&
+            Number.isFinite(existingEnd) &&
+            existingEnd > nowMs &&
+            existingEnd !== incomingEnd
+        ) {
+            merged = { ...merged, aiHiddenItemAnimationEndTime: existingEnd } as LiveGameSession;
+        }
+        if (
+            (incoming.animation === undefined || incoming.animation === null) &&
+            existing.animation
+        ) {
+            merged = { ...merged, animation: existing.animation };
+        }
     }
 
     return merged;
+}
+
+/**
+ * Kata PVE(모험·길드전·탑 등): 서버 수순이 클라보다 길면 prefix 불일치여도 권위로 수용한다.
+ * (낙관적 착수와 AI 수 패킷이 어긋나 AI 돌·턴이 사라지던 BR-11 방지)
+ */
+export function shouldAcceptAuthoritativePveAiHistoryAdvance(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): boolean {
+    if (!existing) return false;
+    if (!resolveArenaSessionPolicy(incoming as any).usesServerKataAi) return false;
+    const incomingMoves = Array.isArray(incoming.moveHistory) ? incoming.moveHistory.length : 0;
+    const existingMoves = Array.isArray(existing.moveHistory) ? existing.moveHistory.length : 0;
+    return incomingMoves > existingMoves;
 }
 
 const STRATEGIC_ITEM_INVENTORY_KEYS = [

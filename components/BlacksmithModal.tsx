@@ -22,6 +22,7 @@ import { isFunctionVipActive } from '../shared/utils/rewardVip.js';
 import { isPairArenaExclusiveBagItem } from '../shared/constants/petLobby.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 import { BLACKSMITH_MOBILE_WORK_ROOT_CLASS } from '../shared/constants/blacksmithViewerTypography.js';
+import { getBlacksmithVisualImageSrc, getBlacksmithVisualNameKey } from '../shared/utils/blacksmithVisualTier.js';
 
 const GRADE_ORDER: ItemGrade[] = [
     ItemGrade.Normal,
@@ -244,6 +245,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
     const currentLevel = blacksmithLevel ?? 1;
     const isMaxLevel = currentLevel >= BLACKSMITH_MAX_LEVEL;
     const currentLevelIndex = currentLevel - 1;
+    const blacksmithVisualSrc = getBlacksmithVisualImageSrc(currentLevel);
+    const blacksmithVisualName = t(getBlacksmithVisualNameKey(currentLevel));
+    const blacksmithLevelLabel = t('level', { name: blacksmithVisualName, level: currentLevel });
 
     const maxCombinableGrade = BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL[currentLevelIndex];
     const maxCombinableGradeIndex = GRADE_ORDER.indexOf(maxCombinableGrade);
@@ -565,7 +569,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         const el = inventoryViewportRef.current;
         if (!el) return;
 
-        const cols = 10;
+        const cols = 12;
         const gap = 4;
         const gridPad = 8;
         const visibleRows = 3;
@@ -631,7 +635,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
 
     const blacksmithMain = (
                 <div
-                    className={`flex min-h-0 w-full ${embedded ? 'h-full flex-1 flex-row' : stackedMobileFillHeight ? 'flex-1' : useStackedBlacksmithLayout ? 'shrink-0' : 'flex-1'} ${embedded || !useStackedBlacksmithLayout ? 'h-full flex-row' : 'flex-col'}`}
+                    className={`flex min-h-0 w-full flex-col ${embedded ? 'h-full flex-1' : stackedMobileFillHeight ? 'flex-1' : useStackedBlacksmithLayout ? 'shrink-0' : 'h-full flex-1'} ${!useStackedBlacksmithLayout ? 'gap-3' : ''}`}
                 >
                     {useStackedBlacksmithLayout ? (
                         <div
@@ -643,8 +647,8 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                         <div className="relative flex h-full min-h-[11rem] flex-col overflow-hidden rounded-lg border border-cyan-300/30 bg-gradient-to-b from-stone-900/95 to-black/90 shadow-md sm:min-h-[12rem]">
                                             <div className="relative min-h-[6.75rem] min-w-0 flex-1">
                                                 <img
-                                                    src="/images/equipments/moru.webp"
-                                                    alt="Blacksmith"
+                                                    src={blacksmithVisualSrc}
+                                                    alt={blacksmithVisualName}
                                                     className="absolute inset-0 h-full w-full object-cover object-center"
                                                     decoding="async"
                                                 />
@@ -660,7 +664,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                                     className="absolute left-1.5 top-1.5 z-[2] max-w-[calc(100%-1rem)] rounded-md border border-amber-500/45 bg-black/55 px-2 py-1 text-left shadow-md backdrop-blur-sm transition hover:border-amber-400/70 hover:bg-black/70 active:scale-[0.98] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60 sm:left-2 sm:top-2 sm:px-2.5 sm:py-1"
                                                 >
                                                     <span className="block text-[13px] font-bold leading-tight text-white drop-shadow-[0_2px_8px_rgba(0,0,0,0.9)] sm:text-sm">
-                                                        {t('level', { level: blacksmithLevel ?? 1 })}
+                                                        {blacksmithLevelLabel}
                                                     </span>
                                                 </button>
                                                 <div className="absolute inset-x-0 bottom-0 z-[2] px-2 pb-2 pt-6 sm:px-3 sm:pb-2.5">
@@ -763,71 +767,98 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                         </div>
                     ) : (
                     <>
-                    {/* Left Panel */}
-                    <div className="flex w-[360px] flex-shrink-0 flex-col gap-2.5 overflow-hidden rounded-2xl border border-amber-400/20 bg-gradient-to-b from-[#1b1f2f]/85 via-[#131827]/90 to-[#0c101a]/95 p-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_48px_-28px_rgba(0,0,0,0.85)]">
-                        <div className="relative aspect-[3/2] w-full shrink-0 overflow-hidden rounded-xl border border-amber-400/25 shadow-[0_14px_30px_-20px_rgba(251,191,36,0.45)]">
-                            <img
-                                src="/images/equipments/moru.webp"
-                                alt="Blacksmith"
-                                className="absolute inset-0 h-full w-full object-cover"
-                            />
-                            <div
-                                className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/95 via-black/45 to-black/15"
-                                aria-hidden
-                            />
+                    <div className="flex min-h-0 min-w-0 flex-1 gap-3">
+                    {/* Left Panel: 상단 정체성(레벨+이미지) / 하단 효과(남은 높이 + 스크롤) */}
+                    <div className="flex w-[300px] flex-shrink-0 flex-col gap-2 overflow-hidden rounded-2xl border border-amber-400/20 bg-gradient-to-b from-[#1b1f2f]/85 via-[#131827]/90 to-[#0c101a]/95 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05),0_22px_48px_-28px_rgba(0,0,0,0.85)]">
+                        <div className="flex shrink-0 flex-col overflow-hidden rounded-xl border border-amber-400/30 shadow-[0_12px_28px_-20px_rgba(251,191,36,0.5)]">
                             <button
                                 type="button"
                                 onClick={() => handlers.openBlacksmithEffectsModal()}
                                 title={t('effects')}
                                 aria-label={t('effectsAria')}
-                                className="absolute left-0 top-0 z-[2] max-w-[calc(100%-0.5rem)] p-3 text-left transition hover:brightness-110 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-amber-400/60"
+                                className="group relative shrink-0 overflow-hidden bg-gradient-to-r from-amber-950/90 via-[#2a2110]/95 to-amber-950/90 px-2.5 py-1.5 text-left transition hover:brightness-110 active:scale-[0.99] focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-amber-400/60"
                             >
-                                <h2 className="text-2xl font-black tracking-tight text-amber-50 drop-shadow-[0_2px_12px_rgba(0,0,0,0.85)]">
-                                    {t('level', { level: blacksmithLevel ?? 1 })}
-                                </h2>
-                            </button>
-                            <div className="absolute inset-x-0 bottom-0 z-[2] px-3 pb-3 pt-8">
-                                <div className="mb-1 flex justify-between gap-2 text-xs text-slate-200">
-                                    <span className="shrink-0 font-semibold tracking-wide text-amber-200/90">{t('exp')}</span>
-                                    {isMaxLevel ? (
-                                        <span className="min-w-0 truncate text-right text-amber-200">
-                                            {(blacksmithXp ?? 0).toLocaleString()} (Max)
+                                <span
+                                    className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-amber-200/60 to-transparent"
+                                    aria-hidden
+                                />
+                                <div className="relative flex items-center gap-2">
+                                    <span className="flex h-8 min-w-8 shrink-0 flex-col items-center justify-center rounded-md border border-amber-300/40 bg-gradient-to-b from-amber-500/40 to-amber-900/55 px-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.22)]">
+                                        <span className="text-[8px] font-bold uppercase leading-none tracking-wider text-amber-100/75">Lv</span>
+                                        <span className="text-sm font-black leading-none text-amber-50">
+                                            {blacksmithLevel ?? 1}
                                         </span>
-                                    ) : (
-                                        <span className="min-w-0 truncate text-right text-slate-100">
-                                            {(blacksmithXp ?? 0).toLocaleString()} /{' '}
-                                            {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1).toLocaleString()}
-                                            <span className="text-amber-200/90">
-                                                {' '}
-                                                (
-                                                {Math.round(
-                                                    ((blacksmithXp ?? 0) /
-                                                        BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) *
-                                                        100
-                                                )}
-                                                %)
-                                            </span>
-                                        </span>
-                                    )}
+                                    </span>
+                                    <div className="min-w-0 flex-1">
+                                        <h2 className="truncate text-[15px] font-black tracking-tight text-amber-50">
+                                            {blacksmithVisualName}
+                                        </h2>
+                                        <p className="truncate text-[10px] font-medium text-amber-200/65 transition group-hover:text-amber-100/80">
+                                            {t('effectsAria')}
+                                        </p>
+                                    </div>
+                                    <span
+                                        className="shrink-0 text-base leading-none text-amber-200/55 transition group-hover:translate-x-0.5 group-hover:text-amber-100/80"
+                                        aria-hidden
+                                    >
+                                        ›
+                                    </span>
                                 </div>
-                                <div className="h-3 w-full overflow-hidden rounded-full border border-amber-500/30 bg-black/60 shadow-inner">
-                                    <div
-                                        className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 transition-all"
-                                        style={{
-                                            width: isMaxLevel
-                                                ? '100%'
-                                                : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%`,
-                                        }}
-                                    />
+                            </button>
+                            <div className="relative aspect-[3/2] w-full overflow-hidden border-t border-amber-400/20">
+                                <img
+                                    src={blacksmithVisualSrc}
+                                    alt={blacksmithVisualName}
+                                    className="absolute inset-0 h-full w-full object-cover object-center"
+                                />
+                                <div
+                                    className="pointer-events-none absolute inset-x-0 bottom-0 h-14 bg-gradient-to-t from-black/85 to-transparent"
+                                    aria-hidden
+                                />
+                                <div className="absolute inset-x-0 bottom-0 z-[2] px-2.5 pb-1.5 pt-1">
+                                    <div className="mb-0.5 flex justify-between gap-2 text-[11px] text-slate-200">
+                                        <span className="shrink-0 font-semibold tracking-wide text-amber-200/90">{t('exp')}</span>
+                                        {isMaxLevel ? (
+                                            <span className="min-w-0 truncate text-right text-amber-200">
+                                                {(blacksmithXp ?? 0).toLocaleString()} (Max)
+                                            </span>
+                                        ) : (
+                                            <span className="min-w-0 truncate text-right text-slate-100">
+                                                {(blacksmithXp ?? 0).toLocaleString()} /{' '}
+                                                {BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1).toLocaleString()}
+                                                <span className="text-amber-200/90">
+                                                    {' '}
+                                                    (
+                                                    {Math.round(
+                                                        ((blacksmithXp ?? 0) /
+                                                            BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) *
+                                                            100
+                                                    )}
+                                                    %)
+                                                </span>
+                                            </span>
+                                        )}
+                                    </div>
+                                    <div className="h-2 w-full overflow-hidden rounded-full border border-amber-500/30 bg-black/60 shadow-inner">
+                                        <div
+                                            className="h-full rounded-full bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-300 transition-all"
+                                            style={{
+                                                width: isMaxLevel
+                                                    ? '100%'
+                                                    : `${((blacksmithXp ?? 0) / BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP(blacksmithLevel ?? 1)) * 100}%`,
+                                            }}
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                        <div className="flex min-h-[15.5rem] min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/20 p-2">
+                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/25 p-1.5">
                             <BlacksmithLevelEffectsSummary
                                 blacksmithLevel={blacksmithLevel ?? 1}
                                 disassemblyJackpotBonusPercent={vipBonus}
                                 combinationGreatSuccessBonusPercent={vipBonus}
-                                className="min-h-0 flex-1 overflow-y-auto pr-0.5 [scrollbar-width:thin]"
+                                dense
+                                className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5 [scrollbar-width:thin]"
                             />
                         </div>
                     </div>
@@ -855,37 +886,41 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-gradient-to-b from-slate-900/70 via-black/35 to-black/50 p-3">
                             {renderContent()}
                         </div>
-                        <div className="mt-3 flex shrink-0 flex-col rounded-xl border border-white/10 bg-black/25 p-3">
-                            <div className="mb-2 flex items-center justify-between gap-2">
-                                <h3 className="min-w-0 shrink text-lg font-black tracking-tight text-amber-100">{bagHeaderText}</h3>
-                                <div className="flex shrink-0 items-center gap-2">
-                                    <select
-                                        value={sortOption}
-                                        onChange={(e) => setSortOption(e.target.value as SortOption)}
-                                        className="rounded-md border border-amber-400/30 bg-slate-900/85 px-2.5 py-1.5 text-xs font-semibold text-amber-100 outline-none transition focus:border-amber-300/60"
-                                    >
-                                        <option value="grade">{t('sort.grade')}</option>
-                                        <option value="stars">{t('sort.stars')}</option>
-                                        <option value="name">{t('sort.name')}</option>
-                                        <option value="date">{t('sort.date')}</option>
-                                    </select>
-                                </div>
+                    </div>
+                    </div>
+
+                    {/* Full-width inventory */}
+                    <div className="flex shrink-0 flex-col rounded-xl border border-white/10 bg-black/25 p-3">
+                        <div className="mb-2 flex items-center justify-between gap-2">
+                            <h3 className="min-w-0 shrink text-lg font-black tracking-tight text-amber-100">{bagHeaderText}</h3>
+                            <div className="flex shrink-0 items-center gap-2">
+                                <select
+                                    value={sortOption}
+                                    onChange={(e) => setSortOption(e.target.value as SortOption)}
+                                    className="rounded-md border border-amber-400/30 bg-slate-900/85 px-2.5 py-1.5 text-xs font-semibold text-amber-100 outline-none transition focus:border-amber-300/60"
+                                >
+                                    <option value="grade">{t('sort.grade')}</option>
+                                    <option value="stars">{t('sort.stars')}</option>
+                                    <option value="name">{t('sort.name')}</option>
+                                    <option value="date">{t('sort.date')}</option>
+                                </select>
                             </div>
-                            <div
-                                ref={inventoryViewportRef}
-                                className="shrink-0 overflow-y-auto pr-1"
-                                style={inventoryViewportHeightPx != null ? { height: inventoryViewportHeightPx } : undefined}
-                            >
-                                <InventoryGrid 
-                                    inventory={filteredInventory} 
-                                    inventorySlots={inventorySlotsToDisplay} 
-                                    onSelectItem={handleSelectItem} 
-                                    selectedItemId={selectedItem?.id || null} 
-                                    disabledItemIds={disabledItemIds}
-                                    selectedItemIdsForDisassembly={activeTab === 'disassemble' ? selectedForDisassembly : undefined}
-                                    onToggleDisassemblySelection={activeTab === 'disassemble' ? handleToggleDisassemblySelection : undefined}
-                                />
-                            </div>
+                        </div>
+                        <div
+                            ref={inventoryViewportRef}
+                            className="shrink-0 overflow-y-auto pr-1"
+                            style={inventoryViewportHeightPx != null ? { height: inventoryViewportHeightPx } : undefined}
+                        >
+                            <InventoryGrid
+                                inventory={filteredInventory}
+                                inventorySlots={inventorySlotsToDisplay}
+                                onSelectItem={handleSelectItem}
+                                selectedItemId={selectedItem?.id || null}
+                                disabledItemIds={disabledItemIds}
+                                selectedItemIdsForDisassembly={activeTab === 'disassemble' ? selectedForDisassembly : undefined}
+                                onToggleDisassemblySelection={activeTab === 'disassemble' ? handleToggleDisassemblySelection : undefined}
+                                columnCount={12}
+                            />
                         </div>
                     </div>
                     </>
@@ -937,7 +972,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                 </div>
             ) : (
             <DraggableWindow 
-                title={t('title')} 
+                title={blacksmithVisualName}
                 onClose={onClose} 
                 bodyScrollable
                 bodyNoScroll={false}

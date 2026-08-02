@@ -31,7 +31,7 @@ export const SCREEN_GUIDE_HELP_CONFIG: Record<ScreenGuideId, ScreenGuideHelpConf
         categoryId: 'pve-academy',
         subId: 'pve-singleplayer',
         categoryFilter: ['pve-academy'],
-        modalTitle: '바둑학원 안내',
+        modalTitle: '모험 안내',
     },
     trainingQuest: {
         categoryId: 'pve-academy',
@@ -61,7 +61,7 @@ export const SCREEN_GUIDE_HELP_CONFIG: Record<ScreenGuideId, ScreenGuideHelpConf
         categoryId: 'adventure',
         subId: 'adventure-chapters',
         categoryFilter: ['adventure'],
-        modalTitle: '모험 안내',
+        modalTitle: '탐험 안내',
     },
     petManagement: {
         categoryId: 'pet-management',

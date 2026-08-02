@@ -16,10 +16,14 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants';
 import AiChallengeModal from './AiChallengeModal.js';
 import type { ArenaLobbyNavKind } from './ArenaLobbyNavTitleBar.js';
 import AlertModal from '../AlertModal.js';
+import LobbyMatchKindPicker, { type LobbyMatchKindOption } from './LobbyMatchKindPicker.js';
 
 export type PairAiLobbyMatchMode = 'solo' | 'duo';
 
-/** `onEnsureDuoRoom` — `exists`면 서버·클라이언트에 2인 AI 방이 이미 있음 */
+/** 전략 AI 대전: 1:1 / 펫 페어 (팀페어는 친선전 상대 슬롯 AI로 대체) */
+export type StrategicAiMatchFormat = 'one_vs_one' | 'pair';
+
+/** @deprecated 팀페어 제거 — 타입 호환용으로만 유지 */
 export type PairAiDuoRoomEnsureResult = 'ok' | 'exists' | 'error';
 
 export type AiLobbyInlineWorkspaceProps = {
@@ -222,7 +226,8 @@ export const AiLobbyWorkspaceProvider: React.FC<AiLobbyInlineWorkspaceProps & { 
             : channel === 'pair'
               ? t('aiChallengeModal.pairAiTitle')
               : t('aiChallenge.strategic');
-    const showPairModePicker = channel === 'pair' && Boolean(pairDuoContext);
+    /** 홈 정렬 후 페어 AI 전용 솔로/2인 탭 진입 제거 — 전략 AI 팀페어로 흡수 */
+    const showPairModePicker = false;
 
     const value = useMemo(
         (): AiLobbyWorkspaceContextValue => ({
@@ -327,37 +332,126 @@ export const AiLobbyPairLeftChrome: React.FC<{ className?: string; roomInteriorS
 const aiChallengeModalShellClass =
     'flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/20 shadow-inner ring-1 ring-white/[0.06]';
 
+/** 전략 AI 대전 — 1:1 / 페어 (친선·놀이터와 동일 좌측 레일) */
+export const AiLobbyStrategicMatchFormatTabs: React.FC<{
+    value: StrategicAiMatchFormat;
+    onChange: (next: StrategicAiMatchFormat) => void;
+    className?: string;
+    layout?: 'rail' | 'row';
+    title?: string;
+}> = ({ value, onChange, className, layout = 'rail', title }) => {
+    const { t } = useTranslation('lobby');
+    const options: LobbyMatchKindOption<StrategicAiMatchFormat>[] = [
+        { value: 'one_vs_one', label: t('aiChallengeModal.oneVsOneTab'), tone: 'cyan' },
+        { value: 'pair', label: t('aiChallengeModal.pairTab'), tone: 'cyan' },
+    ];
+    return (
+        <LobbyMatchKindPicker
+            layout={layout}
+            className={className}
+            title={title}
+            ariaLabel={t('aiChallengeModal.matchFormatAria')}
+            options={options}
+            value={value}
+            onChange={onChange}
+            defaultTone="cyan"
+        />
+    );
+};
+
 /** 전략·놀이 AI — 중앙 인라인 게임모드+설정 */
 export const AiLobbyStandaloneCenterPanel: React.FC<{
     channel: 'strategic' | 'playful';
     onAction: (action: ServerAction) => void | Promise<unknown>;
+    /** 전략 AI 대전에서 「페어」선택 시 펫 페어 AI 시작 */
+    onPairAiAction?: (action: ServerAction) => void | Promise<unknown>;
+    transformPairAiSettings?: (mode: GameMode, settings: GameSettings) => GameSettings;
+    hasEquippedPairPet?: boolean;
     className?: string;
     /** PVP↔AI 전환 시 설정·버튼 상태 초기화 */
     remountKey?: string;
-}> = React.memo(({ channel, onAction, className, remountKey = 'pvp' }) => {
-    const { t } = useTranslation('lobby');
-    const lobbyType = channel === 'playful' ? 'playful' : 'strategic';
-    const preferredBucket = resolvePreferredBucket(channel);
-    const title = channel === 'playful' ? t('aiChallenge.playful') : t('aiChallenge.strategic');
-    return (
-        <div className={`flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden ${className ?? ''}`}>
-            <div className={aiChallengeModalShellClass}>
-                <AiChallengeModal
-                    key={`ai-standalone-${channel}-${remountKey}`}
-                    embeddedPanel
-                    embeddedPanelStackedLayout
-                    lobbyType={lobbyType}
-                    preferredGameSettingsBucket={preferredBucket}
-                    onClose={() => {}}
-                    onAction={onAction}
-                    startActionType="START_AI_GAME"
-                    title={title}
-                    submitLabel={t('aiChallengeModal.startAiDuel')}
-                />
+    /** 전략 AI 대전: 대국 설정 옆 1:1 / 페어 선택 (기본: strategic만) */
+    enableMatchFormatPicker?: boolean;
+}> = React.memo(
+    ({
+        channel,
+        onAction,
+        onPairAiAction,
+        transformPairAiSettings,
+        hasEquippedPairPet = true,
+        className,
+        remountKey = 'pvp',
+        enableMatchFormatPicker,
+    }) => {
+        const { t } = useTranslation('lobby');
+        const [matchFormat, setMatchFormat] = useState<StrategicAiMatchFormat>('one_vs_one');
+        const [alertMessage, setAlertMessage] = useState<string | null>(null);
+        const showFormatPicker = enableMatchFormatPicker ?? channel === 'strategic';
+        const isPairFormat = showFormatPicker && matchFormat === 'pair';
+        const lobbyType = channel === 'playful' ? 'playful' : 'strategic';
+        const preferredBucket = isPairFormat ? ('pair_ai_match_modal' as const) : resolvePreferredBucket(channel);
+        const title = isPairFormat
+            ? t('aiChallengeModal.pairAiTitle')
+            : channel === 'playful'
+              ? t('aiChallenge.playful')
+              : t('aiChallenge.strategic');
+        const submitLabel = isPairFormat
+            ? t('aiChallengeModal.startAiGame')
+            : t('aiChallengeModal.startAiDuel');
+
+        const handleStart = useCallback(
+            (action: ServerAction) => {
+                if (isPairFormat) {
+                    if (!hasEquippedPairPet) {
+                        setAlertMessage(t('aiChallengeModal.pairAiPetRequired'));
+                        return;
+                    }
+                    return (onPairAiAction ?? onAction)(action);
+                }
+                return onAction(action);
+            },
+            [isPairFormat, hasEquippedPairPet, onPairAiAction, onAction, t],
+        );
+
+        const formatRail = showFormatPicker ? (
+            <AiLobbyStrategicMatchFormatTabs
+                layout="rail"
+                title={t('aiChallengeModal.gameKindTitle', '게임 종류')}
+                value={matchFormat}
+                onChange={setMatchFormat}
+            />
+        ) : undefined;
+
+        return (
+            <div className={`flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden ${className ?? ''}`}>
+                <div className={`${aiChallengeModalShellClass} min-w-0 flex-1`}>
+                    <AiChallengeModal
+                        key={`ai-standalone-${channel}-${remountKey}`}
+                        embeddedPanel
+                        embeddedPanelStackedLayout
+                        lobbyType={lobbyType}
+                        preferredGameSettingsBucket={preferredBucket}
+                        onClose={() => {}}
+                        onAction={handleStart}
+                        startActionType={isPairFormat ? 'PAIR_START_AI_MATCH' : 'START_AI_GAME'}
+                        title={title}
+                        submitLabel={submitLabel}
+                        transformSettingsBeforeStart={isPairFormat ? transformPairAiSettings : undefined}
+                        hideScoringTurnLimit={isPairFormat}
+                        besideGameSettingsSlot={formatRail}
+                    />
+                </div>
+                {alertMessage ? (
+                    <AlertModal
+                        message={alertMessage}
+                        onClose={() => setAlertMessage(null)}
+                        windowId="strategic-ai-match-format-alert"
+                    />
+                ) : null}
             </div>
-        </div>
-    );
-});
+        );
+    },
+);
 
 /** 페어 AI 중앙: 인라인 게임모드+설정 (+ 2인 팀 방 내부) */
 export const AiLobbyCenterPanel: React.FC<{ className?: string }> = ({ className }) => {

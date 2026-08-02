@@ -96,7 +96,7 @@ const AppFooter: React.FC<AppFooterProps> = ({ variant = 'main' }) => {
                                     : 'text-secondary hover:text-on-panel'
                             }`}
                         >
-                            {t('badukAcademy', { defaultValue: '바둑학원' })}
+                            {t('badukAcademy', { defaultValue: '모험' })}
                         </a>
                         <Divider auth={isAuth} />
                         <FooterLinkButton

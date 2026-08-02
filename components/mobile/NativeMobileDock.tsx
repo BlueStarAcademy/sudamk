@@ -31,7 +31,8 @@ const TAB_ARENA_KEY: Record<Exclude<DockTab, 'home'>, ArenaEntranceKey | null> =
 
 const NativeMobileDock: React.FC = () => {
     const { t } = useTranslation('nav');
-    const { currentRoute, arenaEntranceAvailability, arenaEntranceFromServer, currentUser } = useAppContext();
+    const { currentRoute, arenaEntranceAvailability, arenaEntranceFromServer, currentUser, handlers, modals } =
+        useAppContext();
     const mergedArena = useMemo(
         () => mergeArenaEntranceAvailability(arenaEntranceAvailability),
         [arenaEntranceAvailability],
@@ -49,9 +50,9 @@ const NativeMobileDock: React.FC = () => {
     const activeTab = useMemo((): DockTab | null => {
         const v = currentRoute.view;
         if (v === 'tournament') return 'tournament';
-        if (v === 'singleplayer') return 'singleplayer';
-        if (v === 'tower') return 'tower';
-        if (v === 'adventure') return 'adventure';
+        if (v === 'singleplayer' || modals.activeQuickUtilityPanel === 'singleplayer') return 'singleplayer';
+        if (v === 'tower' || modals.activeQuickUtilityPanel === 'tower') return 'tower';
+        if (v === 'adventure' || modals.activeQuickUtilityPanel === 'adventure') return 'adventure';
         if (v === 'profile') {
             const tab = currentRoute.params?.tab;
             if (tab === 'arena') return 'arena';
@@ -59,7 +60,7 @@ const NativeMobileDock: React.FC = () => {
         }
         if (v === 'waiting' || v === 'lobby' || v === 'pvp' || v === 'ai' || v === 'arena') return 'arena';
         return null;
-    }, [currentRoute.view, currentRoute.params?.tab]);
+    }, [currentRoute.view, currentRoute.params?.tab, modals.activeQuickUtilityPanel]);
 
     const alertProgressionBlocked = (key: ArenaEntranceKey) => translateArenaProgressionBlocked(key);
 
@@ -91,16 +92,19 @@ const NativeMobileDock: React.FC = () => {
                 replaceAppHash(APP_HOME_ARENA_HASH);
                 break;
             case 'tournament':
-                replaceAppHash('#/tournament');
+                replaceAppHash(APP_HOME_HASH);
                 break;
             case 'singleplayer':
-                replaceAppHash('#/singleplayer');
+                handlers.openSinglePlayerLobby?.();
+                replaceAppHash(APP_HOME_HASH);
                 break;
             case 'tower':
-                replaceAppHash('#/tower');
+                handlers.openTowerLobby?.();
+                replaceAppHash(APP_HOME_HASH);
                 break;
             case 'adventure':
-                replaceAppHash('#/adventure');
+                handlers.openAdventureLobby?.();
+                replaceAppHash(APP_HOME_HASH);
                 break;
             default:
                 break;

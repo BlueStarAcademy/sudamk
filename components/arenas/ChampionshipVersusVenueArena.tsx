@@ -30,7 +30,7 @@ import { calculateTotalStats } from '../../services/statService.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { useChampionshipReplayPlaceStoneSound } from '../../hooks/useChampionshipReplayPlaceStoneSound.js';
 import { audioService } from '../../services/audioService.js';
-import { replaceAppHash } from '../../utils/appUtils.js';
+import { navigateToHomeChampionship } from '../../utils/appUtils.js';
 import { getCurrentSeason, getVersusSeasonRemainingDaysHours } from '../../shared/utils/timeUtils.js';
 import { ArenaRightSidebarCollapseToggle } from '../game/ArenaRightSidebarCollapseToggle.js';
 import Button from '../Button.js';
@@ -1494,7 +1494,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
         return (
             <div className="p-4 text-center text-white">
                 <p>{tCv('loadingUser')}</p>
-                <Button onClick={() => replaceAppHash('#/tournament')} className="mt-4">
+                <Button onClick={() => navigateToHomeChampionship(handlers.openChampionship)} className="mt-4">
                     {tCv('backToLobby')}
                 </Button>
             </div>
@@ -2334,7 +2334,7 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                         : null}
                     <button
                         type="button"
-                        onClick={() => replaceAppHash('#/tournament')}
+                        onClick={() => navigateToHomeChampionship(handlers.openChampionship)}
                         className={
                             versusMatchControlButtonsOneRow
                                 ? `${championshipVersusExitButtonFooterClass} ${versusSidebarToolbarBtn}`

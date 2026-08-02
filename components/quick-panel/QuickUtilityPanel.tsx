@@ -7,6 +7,7 @@ import {
     QUICK_UTILITY_PANEL_TITLES,
     type QuickUtilityPanelKind,
 } from '../../shared/types/quickUtilityPanel.js';
+import { getBlacksmithVisualNameKey } from '../../shared/utils/blacksmithVisualTier.js';
 import { countTradeListingTickets } from '../../shared/utils/tradeListingTicket.js';
 import ExchangeTradeTicketBadge from '../exchange/ExchangeTradeTicketBadge.js';
 
@@ -17,6 +18,12 @@ const ShopModal = lazy(() => import('../ShopModal.js'));
 const InventoryModal = lazy(() => import('../InventoryModal.js'));
 const PetManagementModal = lazy(() => import('../PetManagementModal.js'));
 const TrainingQuestModal = lazy(() => import('../singleplayer/TrainingQuestModal.js'));
+const StrategicRankedMatchArena = lazy(() => import('../arenas/waiting/StrategicRankedMatchArena.js'));
+const HomeWaitingLobbyEmbed = lazy(() => import('../home/HomeWaitingLobbyEmbed.js'));
+const TournamentLobby = lazy(() => import('../TournamentLobby.js'));
+const SinglePlayerLobby = lazy(() => import('../SinglePlayerLobby.js'));
+const TowerLobby = lazy(() => import('../TowerLobby.js'));
+const AdventureLobby = lazy(() => import('../adventure/AdventureLobby.js'));
 const DetailedStatsModal = lazy(() => import('../DetailedStatsModal.js'));
 const AdventureMonsterCodexModal = lazy(() => import('../adventure/AdventureMonsterCodexModal.js'));
 const RankingQuickModal = lazy(() => import('../RankingQuickModal.js'));
@@ -41,6 +48,7 @@ type QuickUtilityPanelProps = {
 
 const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, shellVariant = 'pc' }) => {
     const { t } = useTranslation('nav');
+    const { t: tBlacksmith } = useTranslation('blacksmith');
     const {
         currentUserWithStatus,
         handlers,
@@ -53,7 +61,10 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
 
     if (!currentUserWithStatus) return null;
 
-    const title = QUICK_UTILITY_PANEL_TITLES[kind];
+    const title =
+        kind === 'blacksmith'
+            ? tBlacksmith(getBlacksmithVisualNameKey(currentUserWithStatus.blacksmithLevel ?? 1))
+            : QUICK_UTILITY_PANEL_TITLES[kind];
     const chrome = QUICK_UTILITY_PANEL_CHROME[kind];
 
     const renderBody = () => {
@@ -124,6 +135,34 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
                         onClose={onBack}
                     />
                 );
+            case 'matchArena':
+            case 'rankedMatch':
+            case 'normalMatch':
+                return (
+                    <StrategicRankedMatchArena
+                        embedded
+                        showQueueKindTabs
+                        queueKind={kind === 'normalMatch' ? 'normal' : 'ranked'}
+                        onClose={onBack}
+                    />
+                );
+            case 'friendlyLobby':
+            case 'aiArena':
+                return (
+                    <HomeWaitingLobbyEmbed lobbyChannel="friendly" lobbyIntent="pvp" matchQueueKind="ranked" />
+                );
+            case 'playgroundLobby':
+                return (
+                    <HomeWaitingLobbyEmbed lobbyChannel="playful" lobbyIntent="pvp" matchQueueKind="ranked" />
+                );
+            case 'championship':
+                return <TournamentLobby presentation="homeViewer" />;
+            case 'singleplayer':
+                return <SinglePlayerLobby presentation="homeViewer" />;
+            case 'tower':
+                return <TowerLobby presentation="homeViewer" />;
+            case 'adventure':
+                return <AdventureLobby presentation="homeViewer" />;
             case 'detailedStats':
                 return detailedStatsType ? (
                     <DetailedStatsModal
@@ -177,6 +216,17 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
     };
 
     const isMobileShell = shellVariant === 'mobile';
+    const isHomeArenaViewer =
+        kind === 'matchArena' ||
+        kind === 'rankedMatch' ||
+        kind === 'normalMatch' ||
+        kind === 'friendlyLobby' ||
+        kind === 'aiArena' ||
+        kind === 'playgroundLobby' ||
+        kind === 'championship' ||
+        kind === 'singleplayer' ||
+        kind === 'tower' ||
+        kind === 'adventure';
 
     return (
         <div
@@ -205,7 +255,9 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
                 className={
                     isMobileShell
                         ? `relative flex min-h-0 flex-1 flex-col overflow-hidden ${MOBILE_QUICK_UTILITY_BODY_SCROLL_CLASS}`
-                        : `relative mt-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 backdrop-blur-[2px] ${chrome.bodyRingClass} sm:mt-1.5`
+                        : kind === 'singleplayer' || kind === 'tower' || kind === 'adventure'
+                          ? `relative mt-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-transparent shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ${chrome.bodyRingClass} sm:mt-1.5`
+                          : `relative mt-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 backdrop-blur-[2px] ${chrome.bodyRingClass} sm:mt-1.5`
                 }
             >
                 {!isMobileShell && (
@@ -216,7 +268,7 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
                 )}
                 <div
                     className={
-                        isMobileShell
+                        isMobileShell || isHomeArenaViewer
                             ? 'flex min-h-0 flex-1 flex-col overflow-hidden'
                             : 'flex min-h-0 flex-1 flex-col overflow-y-auto overflow-x-hidden p-0.5 sm:p-1'
                     }

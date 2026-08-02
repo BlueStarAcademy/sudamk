@@ -12,11 +12,11 @@ import { SinglePlayerLevel } from '../../types/enums.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 
 const LEVEL_SHORT: Partial<Record<SinglePlayerLevel, string>> = {
-    [SinglePlayerLevel.입문]: '입문',
-    [SinglePlayerLevel.초급]: '초급',
-    [SinglePlayerLevel.중급]: '중급',
-    [SinglePlayerLevel.고급]: '고급',
-    [SinglePlayerLevel.유단자]: '유단',
+    [SinglePlayerLevel.입문]: '새싹',
+    [SinglePlayerLevel.초급]: '언덕',
+    [SinglePlayerLevel.중급]: '계곡',
+    [SinglePlayerLevel.고급]: '성채',
+    [SinglePlayerLevel.유단자]: '천상',
 };
 
 function reorderList<T>(list: T[], fromIndex: number, toIndex: number): T[] {
@@ -190,7 +190,7 @@ const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> 
 
     return createPortal(
         <DraggableWindow
-            title="바둑학원 스테이지 순서"
+            title="모험 관문 순서"
             onClose={onClose}
             initialWidth={1020}
             initialHeight={720}
@@ -200,7 +200,7 @@ const SinglePlayerStageOrderEditor: React.FC<SinglePlayerStageOrderEditorProps> 
         >
             <div className="flex min-h-0 flex-col gap-2 p-3 text-stone-100">
                 <p className="text-sm leading-snug text-amber-100/85">
-                    그리드에서 카드를 드래그해 플레이 순서를 바꿉니다. 저장 시 각 칸은 입문-1, 입문-2 …처럼{' '}
+                    그리드에서 카드를 드래그해 플레이 순서를 바꿉니다. 저장 시 id는 입문-1, 입문-2 …처럼{' '}
                     <span className="font-semibold text-amber-50">고정 ID·이름</span>을 쓰고, 그 칸에 넣은 미션 내용만 바뀝니다. 기존 유저의 클리어 기록·진행도는
                     서버에서 자동으로 새 ID에 맞게 옮겨집니다. 카드를 짧게 누르면 액션포인트·첫/반복 클리어 골드·경험치를 이 창에서 바꿀 수 있습니다.
                 </p>

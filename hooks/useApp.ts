@@ -84,12 +84,6 @@ import {
 import { translateArenaEntranceClosed, tx } from '../shared/i18n/runtimeText.js';
 import { shouldSuppressKoPlaceStoneClientError, isGameAlreadyStartedError, isBaseStoneColorChoiceBenignError, isInsufficientActionPointsServerError, isGameNotFoundServerError, isGameAlreadyEndedServerError, isInventoryFullServerError } from '../shared/utils/serverErrorMatch.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
-import {
-    pairArenaLobbyHash,
-    readPairArenaRestoreFromGameStateStorage,
-    stashPairArenaRoomRestoreForLobbyNavigation,
-} from '../shared/utils/pairArenaSessionRestore.js';
-import { arenaLobbyHash, arenaLobbyHashFromSession } from '../shared/utils/arenaLobbyDestination.js';
 import { isSyntheticOnlineUserId } from '../shared/utils/syntheticOnlineUserIds.js';
 import {
     hasPairPetClaimReadyForQuickMenu,
@@ -207,6 +201,7 @@ import {
     preserveTerminalAnalysisResultOnMerge,
     preserveTerminalGameSessionOnMerge,
     preservePveAiHiddenPresentationOnMerge,
+    shouldAcceptAuthoritativePveAiHistoryAdvance,
     shouldClearMissileFlightAnimationOnPlayingMerge,
     shouldIgnoreStaleLiveTerminalGameUpdate,
     shouldIgnoreStalePendingPveStartRegression,
@@ -1470,6 +1465,10 @@ function shouldDropStaleStrategicGameUpdate(
     }
 
     if (incomingMoves > 0 && existingMoves > 0 && !moveHistorySharesPrefixForStaleCheck(incoming, existing)) {
+        // 모험·길드전 등 Kata PVE: 서버가 더 긴 수순이면 낙관적 기보 prefix 불일치로 버리지 않음
+        if (shouldAcceptAuthoritativePveAiHistoryAdvance(incoming, existing)) {
+            return false;
+        }
         return true;
     }
 
@@ -2986,6 +2985,8 @@ export const useApp = () => {
     const activeQuickUtilityPanelRef = useRef<QuickUtilityPanelKind | null>(null);
     const mobileViewportStackRef = useRef<MobileViewportEntry[]>([]);
     const closingMobileViewportFromUiRef = useRef(false);
+    /** handleAction 정의 전 유틸 클로즈 사이드이펙트용 (이후 handleActionRef와 동기화) */
+    const earlyHandleActionRef = useRef<(action: any) => Promise<any>>(async () => ({}));
 
     useEffect(() => {
         activeQuickUtilityPanelRef.current = activeQuickUtilityPanel;
@@ -3000,6 +3001,17 @@ export const useApp = () => {
             if (!kind) return;
             if (kind === 'detailedStats') setDetailedStatsType(null);
             if (kind === 'trainingQuest') setIsTrainingQuestModalOpen(false);
+            if (
+                kind === 'rankedMatch' ||
+                kind === 'normalMatch' ||
+                kind === 'friendlyLobby' ||
+                kind === 'aiArena' ||
+                kind === 'playgroundLobby'
+            ) {
+                void earlyHandleActionRef.current({ type: 'CANCEL_RANKED_MATCHING' }).catch(() => undefined);
+                void earlyHandleActionRef.current({ type: 'PAIR_LEAVE_ROOM' }).catch(() => undefined);
+                void earlyHandleActionRef.current({ type: 'LEAVE_WAITING_ROOM' }).catch(() => undefined);
+            }
             if (kind === 'monsterCodex') setIsAdventureMonsterCodexModalOpen(false);
             if (kind === 'announcements') markAllHomeBoardPostsReadFromRef();
             if (kind === 'help') setIsInfoModalOpen(false);
@@ -3148,6 +3160,24 @@ export const useApp = () => {
         },
         [openQuickUtilityViewport],
     );
+
+    const openSinglePlayerLobby = useCallback(() => {
+        if (!openQuickUtilityViewport('singleplayer')) {
+            setActiveQuickUtilityPanel('singleplayer');
+        }
+    }, [openQuickUtilityViewport]);
+
+    const openTowerLobby = useCallback(() => {
+        if (!openQuickUtilityViewport('tower')) {
+            setActiveQuickUtilityPanel('tower');
+        }
+    }, [openQuickUtilityViewport]);
+
+    const openAdventureLobby = useCallback(() => {
+        if (!openQuickUtilityViewport('adventure')) {
+            setActiveQuickUtilityPanel('adventure');
+        }
+    }, [openQuickUtilityViewport]);
 
     const closeQuickUtilityPanel = useCallback(
         (opts?: { fromPopState?: boolean }) => {
@@ -9255,6 +9285,7 @@ export const useApp = () => {
 
     const handleActionRef = useRef(handleAction);
     handleActionRef.current = handleAction;
+    earlyHandleActionRef.current = handleAction;
 
     const handleLogout = useCallback(async () => {
         if (!currentUser || isLoggingOut.current) return;
@@ -10789,32 +10820,11 @@ export const useApp = () => {
                                                         const gameIdFromHash = currentHash.replace('#/game/', '');
                                                         const currentGame = liveGames[gameIdFromHash] || singlePlayerGames[gameIdFromHash] || towerGames[gameIdFromHash];
                                                         if (currentGame && getSessionArenaKind(currentGame) !== 'singleplayer' && currentGame.mode) {
-                                                            if ((currentGame.settings as { pairGame?: unknown } | undefined)?.pairGame) {
-                                                                console.log('[WebSocket] Pair game session → pair arena');
-                                                                setTimeout(() => {
-                                                                    replaceAppHash(
-                                                                        arenaLobbyHashFromSession(currentGame as any),
-                                                                    );
-                                                                }, 100);
-                                                            } else {
-                                                                let waitingRoomMode: 'strategic' | 'playful' | null = null;
-                                                                if (SPECIAL_GAME_MODES.some(m => m.mode === currentGame.mode)) {
-                                                                    waitingRoomMode = 'strategic';
-                                                                } else if (PLAYFUL_GAME_MODES.some(m => m.mode === currentGame.mode)) {
-                                                                    waitingRoomMode = 'playful';
-                                                                }
-                                                                if (waitingRoomMode) {
-                                                                    console.log('[WebSocket] Routing to waiting room based on game mode:', waitingRoomMode);
-                                                                    setTimeout(() => {
-                                                                        replaceAppHash(
-                                                                            arenaLobbyHash({
-                                                                                intent: currentGame.isAiGame ? 'ai' : 'pvp',
-                                                                                channel: waitingRoomMode,
-                                                                            }),
-                                                                        );
-                                                                    }, 100);
-                                                                }
-                                                            }
+                                                            // 홈 정렬 모드(랭킹·일반·친선·AI·놀이터 등) — 전용 로비 대신 홈
+                                                            console.log('[WebSocket] Routing to home after game');
+                                                            setTimeout(() => {
+                                                                replaceAppHash(APP_HOME_HASH);
+                                                            }, 100);
                                                         }
                                                     } else if (mode) {
                                                         console.warn('[WebSocket] Individual game mode detected, redirecting to profile:', mode);
@@ -12579,6 +12589,9 @@ export const useApp = () => {
                                             (game.mode === GameMode.Thief && game.gameStatus === 'thief_placing');
                                         // 주사위/도둑: 착수 기록의 player는 항상 흑(따내는 돌)이라 moveHistory만으로 "다음 턴 색"을 추론하면 항상 백이 됨.
                                         // AI가 백일 때 오버샷 후 서버가 currentPlayer를 흑(유저)으로내도 stale로 오판해 AI 턴으로 되돌리는 버그가 난다.
+                                        // Kata PVE: 보드 없는 동일 수순 패킷의 보드 오버레이만 건너뛰고, stale 턴(currentPlayer) 보정은 반드시 유지한다.
+                                        // (!usesServerKataAi로 블록 전체를 끄면 낙관적 착수 직후 유저 턴만 반복되는 회귀가 난다.)
+                                        const liveKataPve = resolveArenaSessionPolicy(game as any).usesServerKataAi;
                                         if (
                                             (isSessionStrategicAiLike(game) || getSessionArenaKind(game) === 'guildwar') &&
                                             !isPairClassicGame(game.settings, game.mode) &&
@@ -12603,7 +12616,9 @@ export const useApp = () => {
                                             const aiPlayerEnum = game.whitePlayerId === aiUserId ? Player.White : Player.Black;
                                             const nextAfterLast = lastExisting && (lastExisting as any).player === Player.Black ? Player.White : Player.Black;
                                             const serverTurnStale = nextAfterLast === aiPlayerEnum && game.currentPlayer !== aiPlayerEnum;
-                                            if (sameLastMove && (serverTurnStale || !hasServerBoard)) {
+                                            if (sameLastMove && serverTurnStale && liveKataPve && !hasServerBoard) {
+                                                mergedGame = { ...mergedGame, currentPlayer: existingGame.currentPlayer };
+                                            } else if (sameLastMove && (serverTurnStale || !hasServerBoard) && !(liveKataPve && !hasServerBoard)) {
                                                 mergedGame = overlayChessPlayingFieldsFromExisting(
                                                     {
                                                         ...game,
@@ -13460,48 +13475,10 @@ export const useApp = () => {
                 if (recoverPveGameFromSessionStorage(urlGameId)) {
                     return;
                 }
-                const pairArenaRestore = readPairArenaRestoreFromGameStateStorage(urlGameId);
-                if (pairArenaRestore) {
-                    stashPairArenaRoomRestoreForLobbyNavigation(
-                        pairArenaRestore.roomId,
-                        pairArenaRestore.lobbyChannel,
-                    );
-                    setGameRejoinFailure((prev) => (prev?.gameId === urlGameId ? null : prev));
-                    const h = pairArenaLobbyHash(
-                        pairArenaRestore.lobbyChannel,
-                        pairArenaRestore.lobbyIntent ?? 'pvp',
-                    );
-                    if (currentHash !== h) replaceAppHash(h);
-                    return;
-                }
-                let targetHash = APP_HOME_HASH;
-                if (currentUserWithStatus?.status === 'waiting') {
-                    const intent = currentUserWithStatus.lobbyIntent === 'ai' ? 'ai' : 'pvp';
-                    if (currentUserWithStatus.arenaChannel === 'pair') {
-                        targetHash = arenaLobbyHash({ intent, channel: 'pair' });
-                    } else if (
-                        currentUserWithStatus.waitingLobby === 'strategic' ||
-                        currentUserWithStatus.arenaChannel === 'strategic'
-                    ) {
-                        targetHash = arenaLobbyHash({ intent, channel: 'strategic' });
-                    } else if (
-                        currentUserWithStatus.waitingLobby === 'playful' ||
-                        currentUserWithStatus.arenaChannel === 'playful'
-                    ) {
-                        targetHash = arenaLobbyHash({ intent, channel: 'playful' });
-                    } else if (currentUserWithStatus.mode) {
-                        const waitingRoomMode = SPECIAL_GAME_MODES.some((m) => m.mode === currentUserWithStatus.mode)
-                            ? 'strategic'
-                            : PLAYFUL_GAME_MODES.some((m) => m.mode === currentUserWithStatus.mode)
-                              ? 'playful'
-                              : null;
-                        if (waitingRoomMode) {
-                            targetHash = arenaLobbyHash({ intent, channel: waitingRoomMode });
-                        }
-                    }
-                }
-                if (currentHash !== targetHash) {
-                    replaceAppHash(targetHash);
+                // 홈 정렬 모드 — 전용 로비/페어 복원 대신 홈
+                setGameRejoinFailure((prev) => (prev?.gameId === urlGameId ? null : prev));
+                if (currentHash !== APP_HOME_HASH) {
+                    replaceAppHash(APP_HOME_HASH);
                 }
                 return;
             }
@@ -13894,12 +13871,8 @@ export const useApp = () => {
                 return;
             }
         }
-        if (!waitingRoomMode) {
-            window.location.hash = APP_HOME_HASH;
-            return;
-        }
-        handleAction({ type: 'ENTER_WAITING_ROOM', payload: { mode: waitingRoomMode, lobbyIntent: 'pvp' } });
-        window.location.hash = arenaLobbyHash({ intent: 'pvp', channel: waitingRoomMode });
+        // 전략·놀이터 PVP 전용 로비 폐지 — 홈으로
+        window.location.hash = APP_HOME_HASH;
     };
     
     const handleViewUser = useCallback(async (userId: string) => {
@@ -14455,6 +14428,47 @@ export const useApp = () => {
                 setIsTrainingQuestModalOpen(false);
                 setActiveQuickUtilityPanel((prev) => (prev === 'trainingQuest' ? null : prev));
             },
+            openMatchArena: () => {
+                if (!openQuickUtilityViewport('matchArena')) {
+                    setActiveQuickUtilityPanel('matchArena');
+                }
+            },
+            openRankedMatch: () => {
+                if (!openQuickUtilityViewport('matchArena')) {
+                    setActiveQuickUtilityPanel('matchArena');
+                }
+            },
+            closeRankedMatch: () => {
+                closeQuickUtilityPanel();
+            },
+            openNormalMatch: () => {
+                if (!openQuickUtilityViewport('matchArena')) {
+                    setActiveQuickUtilityPanel('matchArena');
+                }
+            },
+            openFriendlyLobby: () => {
+                if (!openQuickUtilityViewport('friendlyLobby')) {
+                    setActiveQuickUtilityPanel('friendlyLobby');
+                }
+            },
+            openAiArena: () => {
+                if (!openQuickUtilityViewport('friendlyLobby')) {
+                    setActiveQuickUtilityPanel('friendlyLobby');
+                }
+            },
+            openPlaygroundLobby: () => {
+                if (!openQuickUtilityViewport('playgroundLobby')) {
+                    setActiveQuickUtilityPanel('playgroundLobby');
+                }
+            },
+            openChampionship: () => {
+                if (!openQuickUtilityViewport('championship')) {
+                    setActiveQuickUtilityPanel('championship');
+                }
+            },
+            openSinglePlayerLobby,
+            openTowerLobby,
+            openAdventureLobby,
             openDetailedStats: (
                 statsType: 'strategic' | 'playful' | 'both',
                 opts?: { modal?: boolean },

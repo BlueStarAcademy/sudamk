@@ -10,7 +10,6 @@ import {
     AVATAR_POOL,
     LEAGUE_DATA,
     BORDER_POOL,
-    getHighestDungeonStageWhereUserAvgExceedsBot,
 } from '../constants';
 import {
     CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX,
@@ -406,9 +405,9 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
         ticketImage: CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE.pvp,
         ring: 'ring-white/10',
         border: 'border-slate-500/45',
-        panelFrom: 'from-zinc-900/90',
-        chip: 'border-slate-400/35 bg-gradient-to-r from-slate-900/70 via-zinc-900/65 to-slate-900/70',
-        chipText: 'text-slate-100',
+        panelFrom: 'from-zinc-900/92',
+        chip: 'border-slate-300/40 bg-gradient-to-b from-slate-700/65 via-zinc-950/85 to-slate-950/95',
+        chipText: 'text-slate-50',
     },
     pet: {
         title: championshipVersusDuelVenueModeLabelKo('pet'),
@@ -416,8 +415,8 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
         ticketImage: CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE.pet,
         ring: 'ring-fuchsia-200/10',
         border: 'border-fuchsia-500/45',
-        panelFrom: 'from-violet-950/90',
-        chip: 'border-fuchsia-400/40 bg-gradient-to-r from-violet-900/75 via-purple-900/70 to-violet-900/75',
+        panelFrom: 'from-violet-950/92',
+        chip: 'border-fuchsia-300/45 bg-gradient-to-b from-fuchsia-800/65 via-violet-950/85 to-purple-950/95',
         chipText: 'text-fuchsia-50',
     },
     petpair: {
@@ -426,13 +425,187 @@ const CHAMPIONSHIP_VERSUS_LOBBY_META: Record<
         ticketImage: CHAMPIONSHIP_VERSUS_ENTRY_TICKET_IMAGE.petpair,
         ring: 'ring-sky-200/10',
         border: 'border-sky-500/45',
-        panelFrom: 'from-cyan-950/90',
-        chip: 'border-sky-400/40 bg-gradient-to-r from-cyan-900/75 via-sky-900/70 to-cyan-900/75',
+        panelFrom: 'from-cyan-950/92',
+        chip: 'border-sky-300/45 bg-gradient-to-b from-cyan-800/65 via-sky-950/85 to-cyan-950/95',
         chipText: 'text-sky-50',
     },
 };
 
 type VersusLobbyMeta = (typeof CHAMPIONSHIP_VERSUS_LOBBY_META)['pvp'];
+
+const CHAMPIONSHIP_DUNGEON_LOBBY_META: Record<
+    TournamentType,
+    {
+        ring: string;
+        border: string;
+        panelFrom: string;
+        chip: string;
+        chipText: string;
+    }
+> = {
+    neighborhood: {
+        ring: 'ring-emerald-200/10',
+        border: 'border-emerald-500/45',
+        panelFrom: 'from-emerald-950/90',
+        chip: 'border-emerald-300/45 bg-gradient-to-b from-emerald-800/70 via-teal-950/80 to-emerald-950/90',
+        chipText: 'text-emerald-50',
+    },
+    national: {
+        ring: 'ring-sky-200/10',
+        border: 'border-sky-500/45',
+        panelFrom: 'from-sky-950/90',
+        chip: 'border-sky-300/45 bg-gradient-to-b from-sky-800/70 via-cyan-950/80 to-sky-950/90',
+        chipText: 'text-sky-50',
+    },
+    world: {
+        ring: 'ring-violet-200/10',
+        border: 'border-violet-500/45',
+        panelFrom: 'from-violet-950/90',
+        chip: 'border-violet-300/45 bg-gradient-to-b from-violet-800/70 via-purple-950/80 to-violet-950/90',
+        chipText: 'text-violet-50',
+    },
+};
+
+/** 입장 카드 우측 공통 — 타이틀·입장(도전권)은 항상 보이고, 중간 스탯만 압축 */
+const CHAMP_CARD_RIGHT_PANEL =
+    'relative flex min-h-0 min-w-0 flex-col items-stretch justify-between gap-1 overflow-hidden border-l border-white/12 bg-gradient-to-b to-black/92 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.1),inset_-10px_0_28px_-18px_rgba(0,0,0,0.55)] before:pointer-events-none before:absolute before:inset-x-3 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-amber-100/35 before:to-transparent after:pointer-events-none after:absolute after:inset-y-3 after:left-0 after:w-px after:bg-gradient-to-b after:from-transparent after:via-white/18 after:to-transparent';
+
+function ChampionshipLobbyTitleChip({
+    compact,
+    className,
+    textClassName,
+    children,
+}: {
+    compact: boolean;
+    className: string;
+    textClassName: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <div
+            className={`relative w-full shrink-0 overflow-hidden rounded-xl border shadow-[inset_0_1px_0_rgba(255,255,255,0.18),0_10px_24px_-14px_rgba(0,0,0,0.75)] ${className} ${
+                compact ? 'px-1.5 py-1' : 'max-w-[16rem] px-3 py-1.5'
+            }`}
+        >
+            <div className="pointer-events-none absolute inset-x-2 top-0 h-px bg-gradient-to-r from-transparent via-white/45 to-transparent" aria-hidden />
+            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(120%_80%_at_50%_-20%,rgba(255,255,255,0.14),transparent_55%)]" aria-hidden />
+            <div
+                className={`relative inline-flex w-full items-center justify-center font-black tracking-[0.04em] ${textClassName} ${
+                    compact ? 'text-[12px] leading-tight sm:text-[13px]' : 'text-[17px] leading-tight'
+                }`}
+            >
+                {children}
+            </div>
+        </div>
+    );
+}
+
+function ChampionshipLobbyHeroStatCard({
+    compact,
+    children,
+}: {
+    compact: boolean;
+    children: React.ReactNode;
+}) {
+    return (
+        <div
+            className={`relative w-full min-w-0 min-h-0 overflow-hidden border border-amber-200/20 bg-gradient-to-b from-zinc-900/95 via-black/70 to-black/85 shadow-[inset_0_1px_0_rgba(255,248,220,0.14),inset_0_-1px_0_rgba(0,0,0,0.45),0_14px_28px_-18px_rgba(0,0,0,0.8)] ring-1 ring-inset ring-amber-300/10 ${
+                compact ? 'rounded-xl px-2 py-1.5' : 'max-w-[16rem] rounded-2xl px-3 py-2.5'
+            }`}
+        >
+            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-[inherit]" aria-hidden>
+                <div className="absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-amber-100/50 to-transparent" />
+                <div className="absolute -left-6 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full bg-amber-300/10 blur-2xl" />
+                <div className="absolute -right-6 top-1/2 h-16 w-16 -translate-y-1/2 rounded-full bg-amber-200/8 blur-2xl" />
+            </div>
+            <div className="relative flex min-h-0 min-w-0 flex-col items-center justify-center">{children}</div>
+        </div>
+    );
+}
+
+function ChampionshipLobbyMetaLabel({ compact, children }: { compact: boolean; children: React.ReactNode }) {
+    return (
+        <p
+            className={`max-w-full truncate text-center font-semibold uppercase tracking-[0.16em] text-amber-100/70 ${
+                compact ? 'text-[8px] sm:text-[9px]' : 'text-[10px] sm:text-[11px]'
+            }`}
+        >
+            {children}
+        </p>
+    );
+}
+
+function ChampionshipLobbyHeroValue({ compact, children }: { compact: boolean; children: React.ReactNode }) {
+    return (
+        <p
+            className={`mt-0.5 w-full min-w-0 px-0.5 text-center font-black tabular-nums leading-none tracking-tight text-amber-50 [text-shadow:0_1px_0_rgba(255,255,255,0.22),0_2px_10px_rgba(0,0,0,0.55)] ${
+                compact
+                    ? 'text-[clamp(0.95rem,3.6vw,1.15rem)] sm:text-lg'
+                    : 'text-[clamp(1.25rem,1.45vw,1.65rem)]'
+            }`}
+        >
+            <span className="inline-block max-w-full whitespace-nowrap">{children}</span>
+        </p>
+    );
+}
+
+function ChampionshipLobbyEntryPill({
+    compact,
+    children,
+}: {
+    compact: boolean;
+    children: React.ReactNode;
+}) {
+    return (
+        <div
+            className={`relative z-[1] flex w-full min-w-0 shrink-0 flex-nowrap items-center justify-center gap-x-1 overflow-hidden border border-amber-300/40 bg-gradient-to-r from-amber-950/70 via-amber-900/45 to-black/60 shadow-[inset_0_1px_0_rgba(255,236,179,0.2),0_8px_18px_-14px_rgba(251,191,36,0.55)] ring-1 ring-inset ring-amber-200/20 ${
+                compact ? 'rounded-full px-1.5 py-1' : 'max-w-[16rem] rounded-full px-2.5 py-1.5'
+            }`}
+        >
+            <div className="pointer-events-none absolute inset-x-3 top-0 h-px bg-gradient-to-r from-transparent via-amber-100/40 to-transparent" aria-hidden />
+            {children}
+        </div>
+    );
+}
+
+/** 챔피언십 던전(동네/전국/월드) 입장 카드 우측: 최고 단계·입장횟수 */
+function ChampionshipDungeonLobbyCardRightStats(props: {
+    compact: boolean;
+    highestStage: number;
+    remainingEntries: number;
+    maxEntries: number;
+}) {
+    const { t } = useTranslation('tournament');
+    const { compact, highestStage, remainingEntries, maxEntries } = props;
+    const stageText = highestStage > 0 ? t('lobby.stageUnit', { stage: highestStage }) : '-';
+
+    return (
+        <>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center overflow-hidden">
+                <ChampionshipLobbyHeroStatCard compact={compact}>
+                    <ChampionshipLobbyMetaLabel compact={compact}>{t('lobby.highestStage')}</ChampionshipLobbyMetaLabel>
+                    <ChampionshipLobbyHeroValue compact={compact}>{stageText}</ChampionshipLobbyHeroValue>
+                </ChampionshipLobbyHeroStatCard>
+            </div>
+            <ChampionshipLobbyEntryPill compact={compact}>
+                <span
+                    className={`shrink-0 font-semibold tracking-[0.08em] text-amber-100/90 ${
+                        compact ? 'text-[9px] sm:text-[10px]' : 'text-xs'
+                    }`}
+                >
+                    {t('lobby.entryCount')}
+                </span>
+                <span
+                    className={`shrink-0 font-black tabular-nums tracking-wide text-amber-50 ${
+                        compact ? 'text-[11px] sm:text-xs' : 'text-sm'
+                    }`}
+                >
+                    {remainingEntries}/{maxEntries}
+                </span>
+            </ChampionshipLobbyEntryPill>
+        </>
+    );
+}
 
 /** 챔피언십 대전장 입장 카드 우측: 티어·ELO·전적(승률)·입장권 — 유저/펫/페어 공통 */
 function ChampionshipVersusLobbyCardRightStats(props: {
@@ -451,95 +624,64 @@ function ChampionshipVersusLobbyCardRightStats(props: {
     const seasonGames = wins + losses;
     const winPct = seasonGames > 0 ? Math.round((100 * wins) / seasonGames) : 0;
 
-    if (compact) {
-        return (
-            <>
-                <div className="mt-1.5 flex w-full flex-col items-center rounded-lg border border-white/[0.09] bg-gradient-to-br from-white/[0.06] via-black/35 to-black/55 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 ring-inset ring-white/[0.05]">
-                    <div className="flex flex-col items-center">
-                        <img
-                            src={resolvePublicUrl(tierIconUrl)}
-                            alt=""
-                            className="h-8 w-8 object-contain drop-shadow-[0_2px_10px_rgba(0,0,0,0.55)] sm:h-9 sm:w-9"
-                        />
-                        <p className="mt-1 max-w-full truncate text-center text-[8px] font-semibold leading-tight tracking-wide text-slate-400/95 sm:text-[9px]">
-                            {tierName}
-                        </p>
-                        <p className="mt-0.5 whitespace-nowrap text-center text-base font-black tabular-nums leading-none text-white drop-shadow-sm sm:text-lg">
-                            {versusRating}
-                        </p>
-                    </div>
-                </div>
-                <p className="mt-1.5 text-center text-[10px] font-bold leading-snug text-slate-200/95 sm:text-[11px]">
-                    {t('lobby.seasonRecord')}{' '}
-                    <span className="font-black tabular-nums text-white">
-                        {t('recordWinsLosses', { wins, losses })}
-                    </span>
-                    <span className="font-black tabular-nums text-amber-200/90"> ({winPct}%)</span>
-                </p>
-                <div className="mt-1.5 flex w-full min-w-0 flex-wrap items-center justify-center gap-x-1 gap-y-0 rounded-full border border-amber-400/25 bg-gradient-to-r from-amber-500/14 via-amber-950/25 to-black/40 px-2 py-1 shadow-inner ring-1 ring-inset ring-amber-300/10">
-                    <img
-                        src={meta.ticketImage}
-                        alt=""
-                        className="h-3.5 w-auto max-w-[1.35rem] shrink-0 object-contain opacity-95 sm:h-4"
-                        loading="lazy"
-                        decoding="async"
-                    />
-                    <span className="shrink-0 text-[10px] font-black tabular-nums tracking-wide text-amber-50 sm:text-[11px]">
-                        {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
-                    </span>
-                    <ChampionshipVersusDuelTicketCountdown
-                        current={duelTickets}
-                        max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
-                        nextAt={duelTicketNextAt}
-                        className="shrink-0 text-[9px] font-mono font-bold tabular-nums text-amber-200/90 sm:text-[10px]"
-                    />
-                </div>
-            </>
-        );
-    }
-
     return (
         <>
-            <div className="mb-2 flex w-full max-w-[16rem] flex-col items-center rounded-xl border border-white/[0.1] bg-gradient-to-br from-white/[0.07] via-slate-950/55 to-black/60 px-3 py-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.08),0_12px_28px_-18px_rgba(0,0,0,0.75)] ring-1 ring-inset ring-amber-400/12">
-                <div className="flex flex-col items-center">
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col items-center justify-center gap-1 overflow-hidden">
+                <ChampionshipLobbyHeroStatCard compact={compact}>
                     <img
                         src={resolvePublicUrl(tierIconUrl)}
                         alt=""
-                        className="h-12 w-12 object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.5)] sm:h-[3.25rem] sm:w-[3.25rem]"
+                        className={`object-contain drop-shadow-[0_4px_14px_rgba(0,0,0,0.55)] ${
+                            compact ? 'h-7 w-7 sm:h-8 sm:w-8' : 'h-10 w-10 sm:h-11 sm:w-11'
+                        }`}
                     />
-                    <p className="mt-1.5 max-w-full truncate px-1 text-center text-[10px] font-semibold leading-tight tracking-wide text-slate-400 sm:text-[11px]">
+                    <p
+                        className={`mt-0.5 max-w-full truncate text-center font-semibold tracking-[0.08em] text-slate-300/90 ${
+                            compact ? 'text-[8px] sm:text-[9px]' : 'text-[10px] sm:text-[11px]'
+                        }`}
+                    >
                         {tierName}
                     </p>
-                    <p className="mt-1 whitespace-nowrap text-center text-2xl font-black tabular-nums leading-none text-white drop-shadow-sm sm:text-3xl">
-                        {versusRating}
-                    </p>
-                </div>
+                    <ChampionshipLobbyHeroValue compact={compact}>{versusRating}</ChampionshipLobbyHeroValue>
+                </ChampionshipLobbyHeroStatCard>
+                <p
+                    className={`shrink-0 text-center font-bold leading-snug text-slate-200/95 ${
+                        compact ? 'text-[10px] sm:text-[11px]' : 'text-sm'
+                    }`}
+                >
+                    <span className="tracking-[0.06em] text-slate-400">{t('lobby.seasonRecord')}</span>{' '}
+                    <span className="font-black tabular-nums text-white">
+                        {t('recordWinsLosses', { wins, losses })}
+                    </span>
+                    <span className="font-black tabular-nums text-amber-200/95"> ({winPct}%)</span>
+                </p>
             </div>
-            <p className="text-center text-sm font-bold leading-snug text-slate-200">
-                {t('lobby.seasonRecord')}{' '}
-                <span className="font-black tabular-nums text-white">
-                    {t('recordWinsLosses', { wins, losses })}
-                </span>
-                <span className="font-black tabular-nums text-amber-200/95"> ({winPct}%)</span>
-            </p>
-            <div className="mt-2 flex w-full max-w-[16rem] min-w-0 flex-wrap items-center justify-center gap-x-2 gap-y-0 rounded-full border border-amber-400/30 bg-gradient-to-r from-amber-500/18 via-amber-950/35 to-black/45 px-3 py-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-300/12">
+            <ChampionshipLobbyEntryPill compact={compact}>
                 <img
                     src={meta.ticketImage}
                     alt=""
-                    className="h-4 w-auto max-w-[1.5rem] shrink-0 object-contain opacity-95 sm:h-[1.125rem]"
+                    className={`shrink-0 object-contain opacity-95 ${
+                        compact ? 'h-3.5 w-auto max-w-[1.35rem] sm:h-4' : 'h-4 w-auto max-w-[1.5rem] sm:h-[1.125rem]'
+                    }`}
                     loading="lazy"
                     decoding="async"
                 />
-                <span className="shrink-0 text-sm font-black tabular-nums tracking-wide text-amber-50">
+                <span
+                    className={`shrink-0 font-black tabular-nums tracking-wide text-amber-50 ${
+                        compact ? 'text-[10px] sm:text-[11px]' : 'text-sm'
+                    }`}
+                >
                     {duelTickets}/{CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
                 </span>
                 <ChampionshipVersusDuelTicketCountdown
                     current={duelTickets}
                     max={CHAMPIONSHIP_VERSUS_DUEL_TICKETS_MAX}
                     nextAt={duelTicketNextAt}
-                    className="shrink-0 text-[11px] font-mono font-bold tabular-nums text-amber-200/90 sm:text-xs"
+                    className={`min-w-0 truncate font-mono font-bold tabular-nums text-amber-200/90 ${
+                        compact ? 'text-[9px] sm:text-[10px]' : 'text-[11px] sm:text-xs'
+                    }`}
                 />
-            </div>
+            </ChampionshipLobbyEntryPill>
         </>
     );
 }
@@ -612,14 +754,10 @@ const ChampionshipVersusLobbyCard: React.FC<{
                     <img src={meta.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-88" />
                     <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/20 to-black/78" />
                 </div>
-                <div
-                    className={`relative flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch justify-center overflow-hidden border-l border-white/10 ${meta.panelFrom} to-black/88 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)] before:pointer-events-none before:absolute before:inset-x-0 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/20 before:to-transparent sm:p-2.5`}
-                >
-                    <div
-                        className={`relative inline-flex w-full shrink-0 items-center justify-center rounded-lg border px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_6px_16px_-10px_rgba(0,0,0,0.65)] sm:text-[13px] ${meta.chip} ${meta.chipText}`}
-                    >
+                <div className={`${CHAMP_CARD_RIGHT_PANEL} ${meta.panelFrom} min-h-0 min-w-0 max-w-[42%] flex-1 p-1.5 sm:p-2`}>
+                    <ChampionshipLobbyTitleChip compact className={meta.chip} textClassName={meta.chipText}>
                         {meta.title}
-                    </div>
+                    </ChampionshipLobbyTitleChip>
                     <ChampionshipVersusLobbyCardRightStats
                         compact
                         meta={meta}
@@ -641,14 +779,10 @@ const ChampionshipVersusLobbyCard: React.FC<{
                 <img src={meta.image} alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-90" />
                 <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/50 via-black/15 to-black/72" />
             </div>
-            <div
-                className={`relative flex min-h-0 min-w-[200px] flex-[1.08] flex-col items-center justify-center overflow-hidden border-l border-white/10 ${meta.panelFrom} to-black/88 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.09)] before:pointer-events-none before:absolute before:inset-x-4 before:top-0 before:h-px before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent`}
-            >
-                <div
-                    className={`relative mb-2 inline-flex w-full max-w-[16rem] items-center justify-center rounded-xl border px-3 py-2 text-[17px] font-black tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_10px_28px_-14px_rgba(0,0,0,0.7)] ${meta.chip} ${meta.chipText}`}
-                >
+            <div className={`${CHAMP_CARD_RIGHT_PANEL} ${meta.panelFrom} min-h-0 min-w-[200px] flex-[1.08] items-center p-3`}>
+                <ChampionshipLobbyTitleChip compact={false} className={meta.chip} textClassName={meta.chipText}>
                     {meta.title}
-                </div>
+                </ChampionshipLobbyTitleChip>
                 <ChampionshipVersusLobbyCardRightStats
                     compact={false}
                     meta={meta}
@@ -682,8 +816,6 @@ const TournamentCard: React.FC<{
     mergedInfoPanelStretch?: boolean;
     /** 2×3 데스크톱·탭·네이티브 균등 행: 카드가 aspect 대신 셀 높이를 채움 */
     fillLobbyGridCell?: boolean;
-    /** 6코어 최종 능력치 산술평균(장비 반영). 모바일 입장카드 추천 단계 표시용 */
-    userDungeonCoreStatAverage?: number;
 }> = ({
     type,
     onClick,
@@ -696,7 +828,6 @@ const TournamentCard: React.FC<{
     mergedInfoPanelCompact = false,
     mergedInfoPanelStretch = false,
     fillLobbyGridCell = false,
-    userDungeonCoreStatAverage,
 }) => {
     const { t } = useTranslation('tournament');
     const definition = TOURNAMENT_DEFINITIONS[type];
@@ -741,11 +872,6 @@ const TournamentCard: React.FC<{
     });
 
     const isPausedInProgress = inProgress && inProgress.status === 'round_in_progress';
-
-    const recommendedDungeonStage = useMemo(() => {
-        if (userDungeonCoreStatAverage == null || !Number.isFinite(userDungeonCoreStatAverage)) return null;
-        return getHighestDungeonStageWhereUserAvgExceedsBot(userDungeonCoreStatAverage);
-    }, [userDungeonCoreStatAverage]);
 
     /** 모바일 입장 카드: 남은 일일 입장 (1/1 → 0/1) */
     const hasRemainingDailyEntry =
@@ -798,13 +924,16 @@ const TournamentCard: React.FC<{
               : 'h-full transform rounded-lg bg-gray-800 p-2 shadow-lg hover:-translate-y-1 hover:shadow-purple-500/30 sm:p-3'
     }`;
 
+    const dungeonMeta = CHAMPIONSHIP_DUNGEON_LOBBY_META[type];
+    const dungeonShellClass = `flex w-full overflow-hidden rounded-2xl border ${dungeonMeta.border} bg-gradient-to-br from-slate-950 via-slate-950 to-black shadow-[0_22px_48px_-20px_rgba(0,0,0,0.92),0_0_0_1px_rgba(255,255,255,0.04)] ring-1 ${dungeonMeta.ring}`;
+
     return (
         <>
             {mergedInfoPanel ? (
                 mergedInfoPanelCompact ? (
                     <>
                         <div
-                            className={`flex w-full overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
+                            className={`${dungeonShellClass} ${
                                 mergedInfoPanelStretch
                                     ? fillLobbyGridCell
                                         ? 'h-full min-h-0 w-full min-w-0 shrink-0'
@@ -815,11 +944,11 @@ const TournamentCard: React.FC<{
                             <button
                                 type="button"
                                 onClick={() => setEntryModalOpen(true)}
-                                className="group relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl text-left focus:outline-none"
+                                className="group relative min-h-0 min-w-0 flex-[1.58] overflow-hidden rounded-l-2xl bg-slate-950/90 text-left focus:outline-none"
                                 aria-label={t('lobby.enterAndRewardAria', { name: definition.name })}
                             >
-                                <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                                <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                                <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-88 transition-transform duration-300 group-hover:scale-105" />
+                                <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/20 to-black/78" />
                                 <div
                                     className={`pointer-events-none absolute right-1.5 top-1.5 z-20 max-w-[calc(100%-0.5rem)] rounded-md border px-1.5 py-0.5 text-[10px] font-extrabold leading-tight tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] sm:right-2 sm:top-2 sm:px-2 sm:py-1 sm:text-[11px] ${participationBadgeTone}`}
                                     aria-label={t('lobby.participationStatusAria', { status: participationBadge })}
@@ -827,44 +956,33 @@ const TournamentCard: React.FC<{
                                     {participationBadge}
                                 </div>
                             </button>
-                            <div className="flex min-h-0 min-w-0 max-w-[42%] flex-1 flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] sm:p-2.5">
-                                <div className="inline-flex w-full shrink-0 items-center justify-center gap-1 rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-1.5 py-1 text-[12px] font-black leading-tight tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)] sm:text-[13px]">
+                            <div className={`${CHAMP_CARD_RIGHT_PANEL} ${dungeonMeta.panelFrom} min-h-0 min-w-0 max-w-[42%] flex-1 p-1.5 sm:p-2`}>
+                                <ChampionshipLobbyTitleChip compact className={dungeonMeta.chip} textClassName={dungeonMeta.chipText}>
                                     <span className="min-w-0 truncate">{definition.name}</span>
-                                    <span className="shrink-0 tabular-nums text-amber-200/95">
-                                        ({remainingEntries}/{dailyEntryState.max})
-                                    </span>
-                                </div>
-                                <div className="flex min-h-0 flex-1 flex-col justify-center gap-2 py-0.5">
-                                    <div className="grid w-full min-w-0 grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] items-center gap-x-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-1 text-[11px] leading-snug sm:gap-x-2 sm:px-2 sm:py-1.5 sm:text-xs">
-                                        <span className="min-w-0 text-center font-semibold text-slate-300/95">{t('lobby.highestStage')}</span>
-                                        <span className="min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
-                                            {dungeonProgress.currentStage > 0 ? t('lobby.stageUnit', { stage: dungeonProgress.currentStage }) : '-'}
-                                        </span>
-                                    </div>
-                                    <div className="grid w-full min-w-0 grid-cols-[minmax(3.25rem,auto)_minmax(0,1fr)] items-center gap-x-1 rounded-md border border-white/10 bg-white/[0.05] px-1.5 py-1 text-[11px] leading-snug sm:gap-x-2 sm:px-2 sm:py-1.5 sm:text-xs">
-                                        <span className="min-w-0 text-center font-semibold text-slate-300/95">{t('lobby.recommendedStage')}</span>
-                                        <span className="min-w-0 w-full text-center font-semibold text-emerald-200/95 whitespace-normal break-keep">
-                                            {recommendedDungeonStage != null ? t('lobby.stageUnit', { stage: recommendedDungeonStage }) : '-'}
-                                        </span>
-                                    </div>
-                                </div>
+                                </ChampionshipLobbyTitleChip>
+                                <ChampionshipDungeonLobbyCardRightStats
+                                    compact
+                                    highestStage={dungeonProgress.currentStage}
+                                    remainingEntries={remainingEntries}
+                                    maxEntries={dailyEntryState.max}
+                                />
                             </div>
                         </div>
                     </>
                 ) : (
                 <div
-                    className={`flex w-full overflow-hidden rounded-2xl border border-amber-500/40 bg-gradient-to-br from-zinc-900 via-zinc-900 to-black shadow-[0_18px_40px_-22px_rgba(0,0,0,0.9)] ring-1 ring-white/10 ${
+                    className={`${dungeonShellClass} ${
                         fillLobbyGridCell ? 'h-full min-h-0' : 'aspect-[2.08/1] max-h-full min-h-0'
                     }`}
                 >
                     <button
                         type="button"
                         onClick={() => setEntryModalOpen(true)}
-                        className="group relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl text-left focus:outline-none"
+                        className="group relative min-h-0 min-w-0 flex-[1.52] overflow-hidden rounded-l-2xl bg-slate-950/90 text-left focus:outline-none"
                         aria-label={t('lobby.enterAndRewardAria', { name: definition.name })}
                     >
-                        <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-105" />
-                        <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/55 via-black/15 to-black/75" />
+                        <img src={lobbyVenueBg} alt="" className="absolute inset-0 h-full w-full object-cover object-center opacity-90 transition-transform duration-300 group-hover:scale-105" />
+                        <div className="pointer-events-none absolute inset-0 rounded-l-2xl bg-gradient-to-b from-black/50 via-black/15 to-black/72" />
                         <div
                             className={`pointer-events-none absolute right-2 top-2 z-20 rounded-md border px-2 py-1 text-[11px] font-extrabold tracking-tight shadow-[0_4px_14px_rgba(0,0,0,0.35)] ${participationBadgeTone}`}
                             aria-label={t('lobby.participationStatusAria', { status: participationBadge })}
@@ -872,27 +990,16 @@ const TournamentCard: React.FC<{
                             {participationBadge}
                         </div>
                     </button>
-                    <div className="flex min-h-0 min-w-[248px] flex-[1.08] flex-col items-stretch border-l border-amber-200/15 bg-gradient-to-b from-zinc-900/90 to-black/84 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                        <div className="mb-1 inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg border border-amber-300/35 bg-gradient-to-r from-amber-950/55 via-zinc-900/65 to-amber-950/55 px-2.5 py-1.5 text-[17px] font-black tracking-tight text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_-8px_rgba(251,191,36,0.4)]">
+                    <div className={`${CHAMP_CARD_RIGHT_PANEL} ${dungeonMeta.panelFrom} min-h-0 min-w-[200px] flex-[1.08] items-center p-3`}>
+                        <ChampionshipLobbyTitleChip compact={false} className={dungeonMeta.chip} textClassName={dungeonMeta.chipText}>
                             <span className="min-w-0 truncate">{definition.name}</span>
-                            <span className="shrink-0 tabular-nums text-amber-200/95">
-                                ({remainingEntries}/{dailyEntryState.max})
-                            </span>
-                        </div>
-                        <div className="flex min-h-0 flex-1 flex-col justify-center gap-2.5 py-1">
-                            <div className="grid w-full min-w-0 grid-cols-[minmax(5.2rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
-                                <span className="min-w-0 text-center font-semibold text-slate-300/95">{t('lobby.highestStage')}</span>
-                                <span className="min-w-0 w-full text-center font-semibold text-slate-100/95 whitespace-normal break-keep">
-                                    {dungeonProgress.currentStage > 0 ? t('lobby.stageUnit', { stage: dungeonProgress.currentStage }) : '-'}
-                                </span>
-                            </div>
-                            <div className="grid w-full min-w-0 grid-cols-[minmax(5.2rem,auto)_minmax(0,1fr)] items-center gap-x-2 rounded-md border border-white/10 bg-white/[0.05] px-2.5 py-2 text-[14px] leading-snug">
-                                <span className="min-w-0 text-center font-semibold text-slate-300/95">{t('lobby.recommendedStage')}</span>
-                                <span className="min-w-0 w-full text-center font-semibold text-emerald-200/95 whitespace-normal break-keep">
-                                    {recommendedDungeonStage != null ? t('lobby.stageUnit', { stage: recommendedDungeonStage }) : '-'}
-                                </span>
-                            </div>
-                        </div>
+                        </ChampionshipLobbyTitleChip>
+                        <ChampionshipDungeonLobbyCardRightStats
+                            compact={false}
+                            highestStage={dungeonProgress.currentStage}
+                            remainingEntries={remainingEntries}
+                            maxEntries={dailyEntryState.max}
+                        />
                     </div>
                 </div>
                 )
@@ -1008,7 +1115,12 @@ const filterInProgress = (state: TournamentState | null | undefined): Tournament
     return state;
 };
 
-const TournamentLobby: React.FC = () => {
+export type TournamentLobbyProps = {
+    /** homeViewer: 홈 중앙 퀵유틸 — 입장 카드 그리드만 (좌측/퀵레일 생략) */
+    presentation?: 'full' | 'homeViewer';
+};
+
+const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full' }) => {
     const { t } = useTranslation('tournament');
 
     const { currentUserWithStatus, handlers, presets } = useAppContext();
@@ -1030,8 +1142,10 @@ const TournamentLobby: React.FC = () => {
     const [selectedPreset, setSelectedPreset] = useState(0);
     /** 네이티브·좁은 뷰포트 챔피언십 로비: 능력치 / 경기장 / 상점 */
     const [nativeChampionshipTab, setNativeChampionshipTab] = useState<'stats' | 'arena' | 'shop'>('arena');
-    /** PC 챔피언십 로비 좌측: 유저 장비·능력치 / 대표 펫 능력치 */
-    const [pcChampionshipLeftAbilityTab, setPcChampionshipLeftAbilityTab] = useState<'user' | 'pet'>('user');
+    /** 홈 중앙(homeViewer): 경기장 / 챔피언십 상점 */
+    const [homeViewerChampionshipTab, setHomeViewerChampionshipTab] = useState<'arena' | 'shop'>('arena');
+    /** PC 챔피언십 로비 좌측: 유저 / 펫 / 챔피언십 상점 */
+    const [pcChampionshipLeftAbilityTab, setPcChampionshipLeftAbilityTab] = useState<'user' | 'pet' | 'shop'>('user');
     const [championshipDuelHistoryOpen, setChampionshipDuelHistoryOpen] = useState(false);
     const championshipScreenGuide = useScreenGuide('championship');
 
@@ -1107,7 +1221,7 @@ const TournamentLobby: React.FC = () => {
         } catch {
             // ignore
         }
-        window.location.hash = '#/pvp/pair';
+        window.location.hash = '#/pvp/friendly';
     }, []);
 
     const equippedItems = useMemo(() => {
@@ -1164,7 +1278,6 @@ const TournamentLobby: React.FC = () => {
         }),
         [finalByStat],
     );
-    const userDungeonCoreStatAverage = useMemo(() => badukAbilityTotal / 6, [badukAbilityTotal]);
     const totalPoints = (Math.max(0, currentUserWithStatus.userLevel - 1) * 2) + (currentUserWithStatus.bonusStatPoints || 0);
     const spentPoints = Object.values(currentUserWithStatus.spentStatPoints || {}).reduce((sum, points) => sum + points, 0);
     const availablePoints = totalPoints - spentPoints;
@@ -1176,6 +1289,172 @@ const TournamentLobby: React.FC = () => {
         () => (isHandheldChampionshipLobby ? resolveChampionshipMobilePetEmbedLayout() : resolvePetInfoViewerEmbedLayout()),
         [isHandheldChampionshipLobby],
     );
+
+    const championshipEntryCardsEl = (
+        <div className={`${CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH} px-0.5`}>
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                <TournamentCard
+                    type="neighborhood"
+                    onClick={(stage) => handleEnterArena('neighborhood', stage)}
+                    onContinue={() => handleContinueTournament('neighborhood')}
+                    inProgress={neighborhoodState || null}
+                    currentUser={currentUserWithStatus}
+                    mergedInfoPanel
+                    mergedInfoPanelCompact={false}
+                    mergedInfoPanelStretch={false}
+                    fillLobbyGridCell
+                />
+            </div>
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                <ChampionshipVersusLobbyCard kind="pvp" compactMerged={false} fillLobbyGridCell />
+            </div>
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                <TournamentCard
+                    type="national"
+                    onClick={(stage) => handleEnterArena('national', stage)}
+                    onContinue={() => handleContinueTournament('national')}
+                    inProgress={nationalState || null}
+                    currentUser={currentUserWithStatus}
+                    mergedInfoPanel
+                    mergedInfoPanelCompact={false}
+                    mergedInfoPanelStretch={false}
+                    fillLobbyGridCell
+                />
+            </div>
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                <ChampionshipVersusLobbyCard kind="pet" compactMerged={false} fillLobbyGridCell />
+            </div>
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                <TournamentCard
+                    type="world"
+                    onClick={(stage) => handleEnterArena('world', stage)}
+                    onContinue={() => handleContinueTournament('world')}
+                    inProgress={worldState || null}
+                    currentUser={currentUserWithStatus}
+                    mergedInfoPanel
+                    mergedInfoPanelCompact={false}
+                    mergedInfoPanelStretch={false}
+                    fillLobbyGridCell
+                />
+            </div>
+            <div className="flex h-full min-h-0 min-w-0 flex-col">
+                <ChampionshipVersusLobbyCard kind="petpair" compactMerged={false} fillLobbyGridCell />
+            </div>
+        </div>
+    );
+
+    const championshipShopSection = (opts?: { layoutVariant?: 'default' | 'asideIntrinsic'; className?: string }) => (
+        <section
+            className={
+                opts?.className ??
+                'relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden'
+            }
+            aria-label={t('lobby.shopAria')}
+        >
+            <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
+            <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/8" aria-hidden />
+            <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1.5">
+                <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-sm font-bold tracking-tight text-transparent sm:text-base">
+                    {t('lobby.shopTab')}
+                </h2>
+                <div
+                    className="flex shrink-0 items-center gap-1 rounded-full border border-amber-400/35 bg-black/35 py-0.5 pl-1 pr-1.5 shadow-inner"
+                    title={t('lobby.champCoin')}
+                >
+                    <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
+                        <img
+                            src={specialResourceIcons.champCoins}
+                            alt={t('lobby.champCoin')}
+                            className="h-4 w-4 object-contain"
+                            loading="lazy"
+                            decoding="async"
+                        />
+                    </div>
+                    <span className="text-xs font-bold tabular-nums text-amber-100 sm:text-sm">
+                        {(currentUserWithStatus.champCoins ?? 0).toLocaleString()}
+                    </span>
+                </div>
+            </div>
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 pb-1.5 pt-1">
+                <ChampionshipShopPanel
+                    currentUser={currentUserWithStatus}
+                    onAction={handlers.handleAction}
+                    layoutVariant={opts?.layoutVariant}
+                />
+            </div>
+        </section>
+    );
+
+    if (presentation === 'homeViewer') {
+        return (
+            <div
+                className="relative flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden bg-lobby-shell-championship text-primary"
+                style={venueLobbyPanelStyle}
+            >
+                <div
+                    role="tablist"
+                    aria-label={t('lobby.championshipZoneAria')}
+                    className="mx-1 mt-1 flex w-[calc(100%-0.5rem)] shrink-0 gap-0.5 rounded-lg border border-amber-500/40 bg-black/45 p-0.5 shadow-inner sm:mx-1.5 sm:mt-1.5 sm:w-[calc(100%-0.75rem)]"
+                >
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={homeViewerChampionshipTab === 'arena'}
+                        onClick={() => setHomeViewerChampionshipTab('arena')}
+                        className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-1 py-1 text-[11px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:text-xs ${
+                            homeViewerChampionshipTab === 'arena'
+                                ? 'bg-amber-500/90 text-slate-950 shadow'
+                                : 'text-amber-100/80 hover:bg-white/10'
+                        }`}
+                    >
+                        {t('lobby.arenaTab')}
+                    </button>
+                    <button
+                        type="button"
+                        role="tab"
+                        aria-selected={homeViewerChampionshipTab === 'shop'}
+                        onClick={() => setHomeViewerChampionshipTab('shop')}
+                        className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-1 py-1 text-[11px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:text-xs ${
+                            homeViewerChampionshipTab === 'shop'
+                                ? 'bg-amber-500/90 text-slate-950 shadow'
+                                : 'text-amber-100/80 hover:bg-white/10'
+                        }`}
+                        title={t('lobby.shopTab')}
+                    >
+                        {t('lobby.shopTab')}
+                    </button>
+                </div>
+                <div
+                    className="min-h-0 flex-1 overflow-hidden"
+                    role="tabpanel"
+                    aria-label={homeViewerChampionshipTab === 'arena' ? t('lobby.arenaTab') : t('lobby.shopTab')}
+                >
+                    {homeViewerChampionshipTab === 'arena' ? (
+                        <div className="h-full min-h-0 overflow-y-auto overscroll-contain p-1 sm:p-1.5">
+                            {championshipEntryCardsEl}
+                        </div>
+                    ) : (
+                        <div className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-stone-600/40 bg-stone-950/45 m-1 sm:m-1.5">
+                            {championshipShopSection()}
+                        </div>
+                    )}
+                </div>
+                <ChampionshipVersusDuelHistoryModal
+                    open={championshipDuelHistoryOpen}
+                    onClose={() => setChampionshipDuelHistoryOpen(false)}
+                    entries={currentUserWithStatus.championshipVersusDuelWeekLog}
+                />
+                {championshipScreenGuide.isOpen && (
+                    <ScreenGuideModal
+                        guideId="championship"
+                        onClose={championshipScreenGuide.close}
+                        onDismissForever={championshipScreenGuide.dismissForever}
+                    />
+                )}
+            </div>
+        );
+    }
+
     return (
         <div
             className={`relative flex w-full flex-col bg-lobby-shell-championship text-primary ${
@@ -1327,7 +1606,6 @@ const TournamentLobby: React.FC = () => {
                                             mergedInfoPanel
                                             mergedInfoPanelCompact
                                             mergedInfoPanelStretch
-                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                                         />
                                     </div>
                                     <div className="flex w-full min-w-0 shrink-0 flex-col">
@@ -1340,7 +1618,6 @@ const TournamentLobby: React.FC = () => {
                                             mergedInfoPanel
                                             mergedInfoPanelCompact
                                             mergedInfoPanelStretch
-                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                                         />
                                     </div>
                                     <div className="flex w-full min-w-0 shrink-0 flex-col">
@@ -1353,7 +1630,6 @@ const TournamentLobby: React.FC = () => {
                                             mergedInfoPanel
                                             mergedInfoPanelCompact
                                             mergedInfoPanelStretch
-                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
                                         />
                                     </div>
                                     <div className="flex w-full min-w-0 shrink-0 flex-col">
@@ -1431,42 +1707,59 @@ const TournamentLobby: React.FC = () => {
                                 </button>
                             </div>
                         </div>
-                        <div className="flex min-h-0 flex-1 flex-col gap-0 overflow-hidden overscroll-y-contain">
-                            {/* 유저·펫: 남는 높이 전부 사용. 상점은 본문 높이만(shrink-0) — 장비 6칸 스크롤 없이 맞춤 */}
-                            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden">
-                                <div
-                                    role="tablist"
-                                    aria-label={t('lobby.statsPanelAria')}
-                                    className="flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/40 p-0.5 shadow-inner"
+                        <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-hidden overscroll-y-contain">
+                            <div
+                                role="tablist"
+                                aria-label={t('lobby.statsPanelAria')}
+                                className="flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/40 p-0.5 shadow-inner"
+                            >
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={pcChampionshipLeftAbilityTab === 'user'}
+                                    onClick={() => setPcChampionshipLeftAbilityTab('user')}
+                                    className={`min-h-[2.25rem] flex-1 rounded-md px-1.5 text-xs font-black transition-colors sm:px-2 sm:text-sm ${
+                                        pcChampionshipLeftAbilityTab === 'user'
+                                            ? 'bg-amber-500/90 text-slate-950 shadow'
+                                            : 'text-amber-100/85 hover:bg-white/10'
+                                    }`}
                                 >
-                                    <button
-                                        type="button"
-                                        role="tab"
-                                        aria-selected={pcChampionshipLeftAbilityTab === 'user'}
-                                        onClick={() => setPcChampionshipLeftAbilityTab('user')}
-                                        className={`min-h-[2.25rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:text-sm ${
-                                            pcChampionshipLeftAbilityTab === 'user'
-                                                ? 'bg-amber-500/90 text-slate-950 shadow'
-                                                : 'text-amber-100/85 hover:bg-white/10'
-                                        }`}
-                                    >
-                                        {t('lobby.userTab')}
-                                    </button>
-                                    <button
-                                        type="button"
-                                        role="tab"
-                                        aria-selected={pcChampionshipLeftAbilityTab === 'pet'}
-                                        onClick={() => setPcChampionshipLeftAbilityTab('pet')}
-                                        className={`min-h-[2.25rem] flex-1 rounded-md px-2 text-xs font-black transition-colors sm:text-sm ${
-                                            pcChampionshipLeftAbilityTab === 'pet'
-                                                ? 'bg-amber-500/90 text-slate-950 shadow'
-                                                : 'text-amber-100/85 hover:bg-white/10'
-                                        }`}
-                                    >
-                                        {t('lobby.petTab')}
-                                    </button>
+                                    {t('lobby.userTab')}
+                                </button>
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={pcChampionshipLeftAbilityTab === 'pet'}
+                                    onClick={() => setPcChampionshipLeftAbilityTab('pet')}
+                                    className={`min-h-[2.25rem] flex-1 rounded-md px-1.5 text-xs font-black transition-colors sm:px-2 sm:text-sm ${
+                                        pcChampionshipLeftAbilityTab === 'pet'
+                                            ? 'bg-amber-500/90 text-slate-950 shadow'
+                                            : 'text-amber-100/85 hover:bg-white/10'
+                                    }`}
+                                >
+                                    {t('lobby.petTab')}
+                                </button>
+                                <button
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={pcChampionshipLeftAbilityTab === 'shop'}
+                                    onClick={() => setPcChampionshipLeftAbilityTab('shop')}
+                                    className={`min-h-[2.25rem] flex-1 rounded-md px-1 text-[10px] font-black leading-tight transition-colors sm:px-2 sm:text-xs ${
+                                        pcChampionshipLeftAbilityTab === 'shop'
+                                            ? 'bg-amber-500/90 text-slate-950 shadow'
+                                            : 'text-amber-100/85 hover:bg-white/10'
+                                    }`}
+                                    title={t('lobby.shopTab')}
+                                >
+                                    {t('lobby.shopTab')}
+                                </button>
+                            </div>
+                            {pcChampionshipLeftAbilityTab === 'shop' ? (
+                                <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10">
+                                    {championshipShopSection({ layoutVariant: 'asideIntrinsic' })}
                                 </div>
-                                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-b-none bg-black/20 ring-1 ring-inset ring-white/5">
+                            ) : (
+                                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl bg-black/20 ring-1 ring-inset ring-white/5">
                                     <PairPetDetailFitScale
                                         itemId={
                                             pcChampionshipLeftAbilityTab === 'user'
@@ -1497,12 +1790,11 @@ const TournamentLobby: React.FC = () => {
                                                 badukAbilityTotal={badukAbilityTotal}
                                                 availablePoints={availablePoints}
                                                 framed
-                                                joinShopBelow
                                                 compactLayout={false}
                                                 championshipPhaseAbilityScores={championshipPhaseAbilityScores}
                                             />
                                         ) : equippedPairPetRowNative ? (
-                                            <div className="flex w-full shrink-0 flex-col rounded-t-xl rounded-b-none border border-fuchsia-500/40 border-b-0 bg-gradient-to-b from-zinc-900/92 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/18 sm:p-2">
+                                            <div className="flex w-full shrink-0 flex-col rounded-xl border border-fuchsia-500/40 bg-gradient-to-b from-zinc-900/92 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/18 sm:p-2">
                                                 <PairPetDetailEmbedPanel
                                                     currentUser={currentUserWithStatus}
                                                     item={equippedPairPetRowNative}
@@ -1513,7 +1805,7 @@ const TournamentLobby: React.FC = () => {
                                                 />
                                             </div>
                                         ) : (
-                                            <div className="flex w-full shrink-0 flex-col rounded-t-xl rounded-b-none border border-fuchsia-500/40 border-b-0 bg-gradient-to-b from-zinc-900/92 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/18 sm:p-2">
+                                            <div className="flex w-full shrink-0 flex-col rounded-xl border border-fuchsia-500/40 bg-gradient-to-b from-zinc-900/92 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/18 sm:p-2">
                                                 <PairPetHomeEmptyDetailFrame
                                                     variant={championshipPetEmbed.detailVariant}
                                                     petManagementModal={championshipPetEmbed.petManagementModal}
@@ -1523,100 +1815,10 @@ const TournamentLobby: React.FC = () => {
                                         )}
                                     </PairPetDetailFitScale>
                                 </div>
-                            </div>
-                            <section
-                                className="relative flex w-full min-w-0 shrink-0 flex-col overflow-hidden rounded-b-xl rounded-t-none border-2 border-amber-500/40 bg-gradient-to-b from-zinc-800 via-zinc-900 to-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_14px_40px_-20px_rgba(0,0,0,0.7)] ring-1 ring-amber-100/10"
-                                aria-label={t('lobby.shopAria')}
-                            >
-                                <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/30 to-transparent" aria-hidden />
-                                <div className="pointer-events-none absolute inset-0 rounded-b-xl rounded-t-none ring-1 ring-inset ring-white/8" aria-hidden />
-                                <div className="relative flex shrink-0 items-center justify-between gap-2 border-b border-amber-500/25 px-2 py-1">
-                                    <h2 className="min-w-0 flex-1 bg-gradient-to-br from-amber-50 via-amber-100 to-amber-200/90 bg-clip-text text-sm font-bold tracking-tight text-transparent sm:text-base">
-                                        {t('lobby.shopTab')}
-                                    </h2>
-                                    <div
-                                        className="flex shrink-0 items-center gap-1 rounded-full border border-amber-400/35 bg-black/35 py-0.5 pl-1 pr-1.5 shadow-inner"
-                                        title={t('lobby.champCoin')}
-                                    >
-                                        <div className="flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-primary/90">
-                                            <img
-                                                src={specialResourceIcons.champCoins}
-                                                alt={t('lobby.champCoin')}
-                                                className="h-4 w-4 object-contain"
-                                                loading="lazy"
-                                                decoding="async"
-                                            />
-                                        </div>
-                                        <span className="text-sm font-bold tabular-nums text-amber-100">
-                                            {(currentUserWithStatus.champCoins ?? 0).toLocaleString()}
-                                        </span>
-                                    </div>
-                                </div>
-                                <div className="flex flex-col overflow-hidden px-1.5 pb-1 pt-0">
-                                    <ChampionshipShopPanel
-                                        currentUser={currentUserWithStatus}
-                                        onAction={handlers.handleAction}
-                                        layoutVariant="asideIntrinsic"
-                                    />
-                                </div>
-                            </section>
+                            )}
                         </div>
                     </aside>
-                    <PcLobbyCenterColumn>
-                            <div className={`${CHAMPIONSHIP_ENTRY_GRID_DESKTOP_HOME_MATCH} px-0.5`}>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <TournamentCard
-                                            type="neighborhood"
-                                            onClick={(stage) => handleEnterArena('neighborhood', stage)}
-                                            onContinue={() => handleContinueTournament('neighborhood')}
-                                            inProgress={neighborhoodState || null}
-                                            currentUser={currentUserWithStatus}
-                                            mergedInfoPanel
-                                            mergedInfoPanelCompact={false}
-                                            mergedInfoPanelStretch={false}
-                                            fillLobbyGridCell
-                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                        />
-                                    </div>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <ChampionshipVersusLobbyCard kind="pvp" compactMerged={false} fillLobbyGridCell />
-                                    </div>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <TournamentCard
-                                            type="national"
-                                            onClick={(stage) => handleEnterArena('national', stage)}
-                                            onContinue={() => handleContinueTournament('national')}
-                                            inProgress={nationalState || null}
-                                            currentUser={currentUserWithStatus}
-                                            mergedInfoPanel
-                                            mergedInfoPanelCompact={false}
-                                            mergedInfoPanelStretch={false}
-                                            fillLobbyGridCell
-                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                        />
-                                    </div>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <ChampionshipVersusLobbyCard kind="pet" compactMerged={false} fillLobbyGridCell />
-                                    </div>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <TournamentCard
-                                            type="world"
-                                            onClick={(stage) => handleEnterArena('world', stage)}
-                                            onContinue={() => handleContinueTournament('world')}
-                                            inProgress={worldState || null}
-                                            currentUser={currentUserWithStatus}
-                                            mergedInfoPanel
-                                            mergedInfoPanelCompact={false}
-                                            mergedInfoPanelStretch={false}
-                                            fillLobbyGridCell
-                                            userDungeonCoreStatAverage={userDungeonCoreStatAverage}
-                                        />
-                                    </div>
-                                    <div className="flex h-full min-h-0 min-w-0 flex-col">
-                                        <ChampionshipVersusLobbyCard kind="petpair" compactMerged={false} fillLobbyGridCell />
-                                    </div>
-                                </div>
-                    </PcLobbyCenterColumn>
+                    <PcLobbyCenterColumn>{championshipEntryCardsEl}</PcLobbyCenterColumn>
                     </div>
                 </div>
                     <aside className={`flex h-full min-h-0 ${PC_QUICK_RAIL_COLUMN_CLASS} flex-col overflow-hidden self-stretch`} aria-label={t('lobby.quickMenuAria')}>

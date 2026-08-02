@@ -39,7 +39,7 @@ export function getSelectiveUserUpdate(
         'EXPAND_INVENTORY': ['inventorySlots', 'diamonds'],
         
         // 상점 관련
-        'BUY_SHOP_ITEM': ['inventory', 'gold', 'diamonds', 'quests'],
+        'BUY_SHOP_ITEM': ['inventory', 'gold', 'diamonds', 'dailyShopPurchases', 'quests'],
         'BUY_CHAMPIONSHIP_SHOP_ITEM': ['inventory', 'champCoins', 'championshipShopWeekPurchases', 'quests'],
         'BUY_MATERIAL_BOX': ['inventory', 'gold', 'diamonds', 'dailyShopPurchases', 'quests'],
         'BUY_CONDITION_POTION': ['inventory', 'gold', 'dailyShopPurchases'],

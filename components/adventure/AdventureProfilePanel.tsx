@@ -1,4 +1,4 @@
-import React, { useId, useMemo } from 'react';
+import React, { useId, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodexCompletion.js';
 import type { AdventureProfile } from '../../types/entities.js';
@@ -20,18 +20,32 @@ import {
     getAdventureBattleRecordSummary,
 } from '../../utils/adventureBattleRecord.js';
 
+type JournalTab = 'info' | 'understanding';
+
 const AdventureProfilePanel: React.FC<{
     profile: AdventureProfile | null | undefined;
     userGold?: number;
     compact?: boolean;
     /** 네이티브 모바일 모험 일지: 스크롤 없이 한 화면에 맞춤 */
     mobileOneScreen?: boolean;
+    /**
+     * 챕터와 한 스크롤로 합칠 때 — 고정 높이/내부 스크롤을 끄고 자연 높이로 붙인다.
+     * 부모 셸이 섹션 제목을 쓰므로 일지 헤더는 숨긴다.
+     */
+    embedded?: boolean;
     onOpenMonsterCodex?: () => void;
-}> = ({ profile, compact = false, mobileOneScreen = false, onOpenMonsterCodex }) => {
+}> = ({
+    profile,
+    compact = false,
+    mobileOneScreen = false,
+    embedded = false,
+    onOpenMonsterCodex,
+}) => {
     const { t } = useTranslation(['lobby', 'profile']);
     const donutGradId = useId().replace(/:/g, '');
     const { currentUserWithStatus } = useAppContext();
     const userId = currentUserWithStatus?.id;
+    const [journalTab, setJournalTab] = useState<JournalTab>('info');
     const p = useMemo(() => normalizeAdventureProfile(profile), [profile]);
     const monsterCodexBuff = useMemo(() => getMonsterCodexComprehensionBuffTotals(p), [p]);
     const codexBreakdown = useMemo(() => getAdventureCodexCompletionBreakdown(profile), [profile]);
@@ -46,8 +60,8 @@ const AdventureProfilePanel: React.FC<{
     }, [adventureRankings, userId]);
 
     /** 로비 사이드·모바일 일지 — 여백만 조밀하게, 글자는 최소 text-xs 이상 유지 */
-    const tightLayout = mobileOneScreen || !compact;
-    const donutR = mobileOneScreen ? 30 : compact ? 32 : tightLayout ? 34 : 42;
+    const tightLayout = embedded || mobileOneScreen || !compact;
+    const donutR = mobileOneScreen ? 30 : embedded || compact ? 32 : tightLayout ? 34 : 42;
     const donutC = 2 * Math.PI * donutR;
     const donutDash = (Math.min(100, Math.max(0, codexBreakdown.overallPercent)) / 100) * donutC;
 
@@ -59,16 +73,29 @@ const AdventureProfilePanel: React.FC<{
     const modeLabelCls = 'text-[11px] font-semibold leading-snug text-zinc-400 sm:text-xs';
     const modeValueCls = 'text-xs font-bold tabular-nums leading-snug text-cyan-100/95 sm:text-sm';
 
-    const panelPad =
-        mobileOneScreen ? 'px-2.5 py-2' : compact || tightLayout ? 'px-3 py-2.5' : 'px-3.5 py-3 sm:px-4 sm:py-3.5';
+    const panelPad = mobileOneScreen
+        ? 'px-2.5 py-2'
+        : embedded
+          ? 'px-2.5 py-2'
+          : compact || tightLayout
+            ? 'px-3 py-2.5'
+            : 'px-3.5 py-3 sm:px-4 sm:py-3.5';
     const sectionPad = mobileOneScreen
         ? 'p-2.5'
-        : compact
-          ? 'p-3 sm:p-3.5'
-          : tightLayout
-            ? 'p-2.5 sm:p-3'
-            : 'p-3.5 sm:p-4 lg:p-5';
-    const blockGap = mobileOneScreen ? 'gap-2' : compact || tightLayout ? 'gap-2.5' : 'gap-3 sm:gap-3.5';
+        : embedded
+          ? 'p-0'
+          : compact
+            ? 'p-3 sm:p-3.5'
+            : tightLayout
+              ? 'p-2.5 sm:p-3'
+              : 'p-3.5 sm:p-4 lg:p-5';
+    const blockGap = mobileOneScreen
+        ? 'gap-2'
+        : embedded
+          ? 'gap-2'
+          : compact || tightLayout
+            ? 'gap-2.5'
+            : 'gap-3 sm:gap-3.5';
 
     const codexOpenBtnClass = `w-full rounded-lg border border-violet-400/40 bg-violet-950/60 font-bold text-violet-100 shadow-sm transition-colors hover:border-amber-400/45 hover:bg-violet-900/55 active:scale-[0.99] ${
         mobileOneScreen
@@ -78,7 +105,6 @@ const AdventureProfilePanel: React.FC<{
               : 'px-2.5 py-1.5 text-xs sm:text-sm'
     }`;
 
-    const understandingLabelCls = 'text-sm font-bold uppercase tracking-wider text-zinc-500 sm:text-base';
     const understandingStatRowCls =
         'flex items-center justify-between gap-2 rounded-md border border-white/8 bg-black/25 px-2 py-1.5 text-xs sm:text-sm';
 
@@ -232,101 +258,127 @@ const AdventureProfilePanel: React.FC<{
         <AdventureTopHuntedMonsterPanel monster={topCodexMonster} compact={compact && !mobileOneScreen} />
     );
 
-    const understandingBody = (
+    const understandingStatsPanel = (
         <div className="relative min-w-0">
-            <p className={understandingLabelCls}>{t('adventure.monsterUnderstanding')}</p>
-            <div className={`mt-2 flex items-start ${mobileOneScreen ? 'gap-2' : 'gap-3'}`}>
-                <div className="min-w-0 flex-1">
-                    <div
-                        className={`grid gap-2 ${
-                            mobileOneScreen || compact || tightLayout
-                                ? 'grid-cols-2'
-                                : 'grid-cols-1 sm:grid-cols-2'
-                        }`}
-                    >
-                        <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">{t('adventure.adventureGold')}</span>
-                            <span className="shrink-0 font-semibold tabular-nums text-amber-200/95">
-                                +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.goldBonusPercent)}%
+            <p className="sr-only">{t('adventure.monsterUnderstanding')}</p>
+            <div
+                className={`grid gap-2 ${
+                    mobileOneScreen || compact || tightLayout
+                        ? 'grid-cols-2'
+                        : 'grid-cols-1 sm:grid-cols-2'
+                }`}
+            >
+                <div className={understandingStatRowCls}>
+                    <span className="truncate text-zinc-300">{t('adventure.adventureGold')}</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-amber-200/95">
+                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.goldBonusPercent)}%
+                    </span>
+                </div>
+                <div className={understandingStatRowCls}>
+                    <span className="truncate text-zinc-300">{t('adventure.equipmentDrop')}</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-cyan-200/95">
+                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.equipmentDropPercent)}%
+                    </span>
+                </div>
+                <div className={understandingStatRowCls}>
+                    <span className="truncate text-zinc-300">{t('adventure.highGradeEquipment')}</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-sky-200/95">
+                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeEquipmentPercent)}%
+                    </span>
+                </div>
+                <div className={understandingStatRowCls}>
+                    <span className="truncate text-zinc-300">{t('adventure.materialDrop')}</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-emerald-200/95">
+                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.materialDropPercent)}%
+                    </span>
+                </div>
+                <div className={understandingStatRowCls}>
+                    <span className="truncate text-zinc-300">{t('adventure.highGradeMaterial')}</span>
+                    <span className="shrink-0 font-semibold tabular-nums text-teal-200/95">
+                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeMaterialPercent)}%
+                    </span>
+                </div>
+                {ADVENTURE_UNDERSTANDING_CORE_STAT_ORDER.map((stat) => (
+                    <div key={stat} className={understandingStatRowCls}>
+                        <span className="truncate text-zinc-300">{CORE_STATS_DATA[stat]?.name ?? stat}</span>
+                        <span className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums">
+                            <span className="text-amber-200/95">+{monsterCodexBuff.coreByStat[stat]?.flat ?? 0}</span>
+                            <span className="mx-1 text-zinc-600" aria-hidden>
+                                ·
                             </span>
-                        </div>
-                        <div className="rounded-md border border-transparent bg-transparent px-2 py-1" aria-hidden />
-                        <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">{t('adventure.equipmentDrop')}</span>
-                            <span className="shrink-0 font-semibold tabular-nums text-cyan-200/95">
-                                +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.equipmentDropPercent)}%
+                            <span className="text-fuchsia-200/95">
+                                +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.coreByStat[stat]?.percent ?? 0)}%
                             </span>
-                        </div>
-                        <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">{t('adventure.highGradeEquipment')}</span>
-                            <span className="shrink-0 font-semibold tabular-nums text-sky-200/95">
-                                +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeEquipmentPercent)}%
-                            </span>
-                        </div>
-                        <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">{t('adventure.materialDrop')}</span>
-                            <span className="shrink-0 font-semibold tabular-nums text-emerald-200/95">
-                                +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.materialDropPercent)}%
-                            </span>
-                        </div>
-                        <div className={understandingStatRowCls}>
-                            <span className="truncate text-zinc-300">{t('adventure.highGradeMaterial')}</span>
-                            <span className="shrink-0 font-semibold tabular-nums text-teal-200/95">
-                                +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.highGradeMaterialPercent)}%
-                            </span>
-                        </div>
-                        {ADVENTURE_UNDERSTANDING_CORE_STAT_ORDER.map((stat) => (
-                            <div
-                                key={stat}
-                                className={understandingStatRowCls}
-                            >
-                                <span className="truncate text-zinc-300">{CORE_STATS_DATA[stat]?.name ?? stat}</span>
-                                <span className="shrink-0 whitespace-nowrap font-mono font-bold tabular-nums">
-                                    <span className="text-amber-200/95">+{monsterCodexBuff.coreByStat[stat]?.flat ?? 0}</span>
-                                    <span className="mx-1 text-zinc-600" aria-hidden>
-                                        ·
-                                    </span>
-                                    <span className="text-fuchsia-200/95">
-                                        +{formatAdventureUnderstandingBonusPercent(monsterCodexBuff.coreByStat[stat]?.percent ?? 0)}%
-                                    </span>
-                                </span>
-                            </div>
-                        ))}
+                        </span>
                     </div>
-                </div>
-                <div className={`flex shrink-0 flex-col items-stretch self-center ${mobileOneScreen ? 'gap-1' : 'gap-1.5'}`}>
-                    {onOpenMonsterCodex ? (
-                        <button type="button" onClick={onOpenMonsterCodex} className={codexOpenBtnClass} aria-label={t('profile:monsterCodex')}>
-                            {t('profile:monsterCodex')}
-                        </button>
-                    ) : null}
-                    {codexDonutPanel}
-                </div>
+                ))}
             </div>
         </div>
     );
 
-    const understandingWithTopMonster = mobileOneScreen ? (
-        <div className="flex min-w-0 flex-col gap-2">
-            {understandingBody}
-        </div>
-    ) : (
+    const codexAccessPanel = (
         <div
-            className={`flex min-w-0 flex-col ${
-                compact || tightLayout ? 'gap-2' : 'gap-2.5 sm:gap-3'
-            }`}
+            className={`flex w-full min-w-0 items-center gap-3 rounded-xl border border-violet-400/30 bg-gradient-to-br from-violet-950/40 via-zinc-950/80 to-zinc-950/95 ${panelPad}`}
         >
-            {understandingBody}
-            {topHuntedMonsterPanel}
+            {onOpenMonsterCodex ? (
+                <div className="flex min-w-0 flex-1 flex-col justify-center">
+                    <button
+                        type="button"
+                        onClick={onOpenMonsterCodex}
+                        className={codexOpenBtnClass}
+                        aria-label={t('profile:monsterCodex')}
+                    >
+                        {t('profile:monsterCodex')}
+                    </button>
+                </div>
+            ) : (
+                <div className="min-w-0 flex-1" aria-hidden />
+            )}
+            {codexDonutPanel}
+        </div>
+    );
+
+    const journalTabBtnBase =
+        'min-h-0 min-w-0 flex-1 rounded-lg px-1.5 py-1.5 text-[11px] font-bold transition-all sm:px-2 sm:text-xs';
+    const journalTabBtnOn =
+        'border border-amber-400/55 bg-gradient-to-b from-amber-800/40 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]';
+    const journalTabBtnOff = 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200';
+
+    const infoTabContent = (
+        <div className={`flex min-h-0 w-full min-w-0 flex-col ${blockGap}`}>
+            {adventureHuntingStatsPanel}
+            {adventureBattleRecordPanel}
+            <div className="relative z-[1] w-full min-w-0 shrink-0">{topHuntedMonsterPanel}</div>
+        </div>
+    );
+
+    const understandingTabContent = (
+        <div className={`flex min-h-0 w-full min-w-0 flex-col ${blockGap}`}>
+            <div
+                className={`w-full min-w-0 rounded-xl border border-white/8 bg-black/25 ${
+                    embedded || mobileOneScreen
+                        ? 'px-2.5 py-2'
+                        : compact || tightLayout
+                          ? 'px-3 py-2.5'
+                          : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
+                }`}
+            >
+                {understandingStatsPanel}
+            </div>
+            {codexAccessPanel}
         </div>
     );
 
     return (
         <section
-            className={`relative flex h-full w-full min-w-0 flex-col border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${mobileOneScreen ? 'rounded-xl' : 'rounded-2xl'} ${sectionPad}`}
+            className={
+                embedded
+                    ? `relative flex h-auto w-full min-w-0 shrink-0 flex-col ${sectionPad}`
+                    : `relative flex h-full w-full min-w-0 flex-col border border-white/10 bg-gradient-to-br from-zinc-900/90 via-violet-950/25 to-zinc-950/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ${mobileOneScreen ? 'rounded-xl' : 'rounded-2xl'} ${sectionPad}`
+            }
             aria-label={t('adventure.journalAria')}
         >
-            {mobileOneScreen ? (
+            {embedded || mobileOneScreen ? (
                 <h2 className="sr-only">{t('adventure.journal')}</h2>
             ) : (
                 <div className="flex shrink-0 flex-wrap items-center border-b border-white/10 pb-2 sm:pb-2.5">
@@ -341,27 +393,41 @@ const AdventureProfilePanel: React.FC<{
             )}
 
             <div
-                className={`flex min-h-0 w-full min-w-0 flex-1 flex-col pr-0.5 ${
-                    mobileOneScreen ? 'mt-0 gap-2 overflow-y-auto overscroll-contain' : `mt-2 ${blockGap} overflow-hidden`
+                className={`mb-1.5 flex shrink-0 gap-1 ${embedded || mobileOneScreen ? 'mt-0' : 'mt-2'}`}
+                role="tablist"
+                aria-label={t('adventure.journalTabsAria')}
+            >
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={journalTab === 'info'}
+                    onClick={() => setJournalTab('info')}
+                    className={`${journalTabBtnBase} ${journalTab === 'info' ? journalTabBtnOn : journalTabBtnOff}`}
+                >
+                    {t('adventure.journalInfo')}
+                </button>
+                <button
+                    type="button"
+                    role="tab"
+                    aria-selected={journalTab === 'understanding'}
+                    onClick={() => setJournalTab('understanding')}
+                    className={`${journalTabBtnBase} ${journalTab === 'understanding' ? journalTabBtnOn : journalTabBtnOff}`}
+                >
+                    {t('adventure.monsterUnderstanding')}
+                </button>
+            </div>
+
+            <div
+                role="tabpanel"
+                className={`flex w-full min-w-0 flex-col pr-0.5 ${
+                    embedded
+                        ? ''
+                        : mobileOneScreen
+                          ? 'min-h-0 flex-1 overflow-y-auto overscroll-contain'
+                          : 'min-h-0 flex-1 overflow-y-auto overscroll-contain'
                 }`}
             >
-                {adventureHuntingStatsPanel}
-                {adventureBattleRecordPanel}
-
-                <div
-                    className={`min-h-0 w-full min-w-0 flex-1 rounded-xl border border-white/8 bg-black/25 ${
-                        mobileOneScreen
-                            ? 'px-2.5 py-2'
-                            : compact || tightLayout
-                              ? 'px-3 py-2.5'
-                              : 'px-3.5 py-3 sm:px-4 sm:py-3.5'
-                    }`}
-                >
-                    {understandingWithTopMonster}
-                </div>
-                {mobileOneScreen ? (
-                    <div className="relative z-[1] w-full min-w-0 shrink-0">{topHuntedMonsterPanel}</div>
-                ) : null}
+                {journalTab === 'info' ? infoTabContent : understandingTabContent}
             </div>
         </section>
     );

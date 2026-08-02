@@ -68,7 +68,7 @@ export const E2E_TEXT = {
     playfulPvpArena: /놀이바둑 PVP 경기장|Casual Go PVP Arena/i,
     strategicAiLobby: /전략바둑 (?:대기실|AI 대전)|Strategy Go (?:Waiting Room|AI Match)/i,
     playfulAiLobby: /놀이바둑 (?:대기실|AI 대전)|Casual Go (?:Waiting Room|AI Match)/i,
-    singlePlayer: /싱글플레이|Go School|Single-player/i,
+    singlePlayer: /모험|싱글플레이|Adventure|Go School|Single-player/i,
     challengeTower: /도전의 탑|Challenge Tower/i,
     configureAndStart: /설정 및 시작|Configure & start/i,
     startAiMatch: /Start AI match|AI 대결/i,

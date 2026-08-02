@@ -34,7 +34,7 @@ import {
   waitingLobbyPairAlignedMobileScreenTitleClass,
   waitingLobbyPairAlignedMobileTabButtonClass,
 } from './waitingLobbyHomePanelStyles.js';
-import { WaitingLobbyAnnouncementBoard, WAITING_LOBBY_PANEL_GLASS } from './WaitingLobbyAnnouncementBoard.js';
+import { WAITING_LOBBY_PANEL_GLASS } from './WaitingLobbyAnnouncementBoard.js';
 import { userInUnifiedArenaLobbyUserList, normalizeStaleArenaLobbyUserStatus } from './aggregateWaitingLobbyUserFilter.js';
 import { sumLobbyAiMatchRecordFromStats } from '../../shared/utils/lobbyAiMatchRecord.js';
 import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
@@ -448,13 +448,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
       className={`${waitingShellBgClass} text-primary flex flex-col h-full max-w-full`}
       style={waitingLobbyPanelOpaqueStyle}
     >
-      {isNativeMobile && isStrategicPlayfulLobby && (
-        <div className="shrink-0 px-2 pt-2">
-          <div className="overflow-hidden rounded-lg">
-            <WaitingLobbyAnnouncementBoard mode={mode} />
-          </div>
-        </div>
-      )}
       {(isNativeMobile && isStrategicPlayfulLobby) || !isStrategicPlayfulLobby ? (
       <header
         className={`relative flex flex-shrink-0 items-center ${
@@ -729,12 +722,9 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                   </>
                 )}
               </div>
-              {/* 중앙: 공지 전광판 + 진행 중 대국 */}
+              {/* 중앙: 진행 중 대국 */}
               <div className={waitingLobbyPcCenterShellClass}>
                 <div className={waitingLobbyPcHairlineClass} aria-hidden />
-                <div className="relative z-[2] shrink-0 px-0.5 pt-0.5 sm:px-1">
-                  <WaitingLobbyAnnouncementBoard mode={mode} />
-                </div>
                 <div className="relative z-[2] flex min-h-0 flex-1 flex-col overflow-hidden">
                   <GameList
                     games={ongoingGames}
@@ -777,9 +767,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
           ) : (
             <div ref={desktopContainerRef} className="grid h-full grid-cols-5 gap-4 overflow-hidden">
               <div className="col-span-3 flex min-h-0 flex-col gap-4 overflow-hidden">
-                <div className="flex-shrink-0">
-                  <WaitingLobbyAnnouncementBoard mode={mode} />
-                </div>
                 <div className="flex min-h-0 flex-[1.25] flex-col overflow-hidden">
                   <GameList
                     games={ongoingGames}

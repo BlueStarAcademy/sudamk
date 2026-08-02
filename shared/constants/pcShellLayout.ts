@@ -14,6 +14,10 @@ export const PC_LOBBY_THREE_COLUMN_ROW_GAP_CLASS = 'gap-1.5';
 export const PC_LOBBY_USERS_COLUMN_CLASS =
     'flex h-full min-h-0 w-[30rem] min-w-[30rem] max-w-[30rem] shrink-0 flex-col overflow-hidden';
 
+/** 홈 PC — 입장카드/뷰어 우측 접속자 열 (경기장 30rem보다 좁게) */
+export const PC_HOME_USERS_COLUMN_CLASS =
+    'flex h-full min-h-0 w-[18rem] min-w-[16.5rem] max-w-[18rem] shrink-0 flex-col overflow-hidden';
+
 /** PC 로비·경기장 본문 패딩 — Profile 홈과 동일 */
 export const PC_LOBBY_DESKTOP_SHELL_PADDING_CLASS = 'p-2 sm:p-4 lg:p-2';
 

@@ -12,7 +12,10 @@ import type { KataServerRuntimeOverrides } from './kataServerRuntime.js';
 import type { ChampionshipAbilityKataLadderRow } from '../constants/championshipRealMatch.js';
 import type { DetailedStatResetScope } from './detailedStatReset.js';
 
-export type ArenaChannel = 'strategic' | 'pair' | 'playful';
+export type ArenaChannel = 'strategic' | 'pair' | 'playful' | 'friendly';
+
+/** 전략 매칭 로비 큐 종류 (랭크전 / 일반전) */
+export type StrategicMatchQueueKind = 'ranked' | 'normal';
 
 export type ArenaLobbyIntent = 'pvp' | 'ai';
 
@@ -137,9 +140,10 @@ export interface VolatileState {
     gameCache?: Map<string, { game: LiveGameSession; lastUpdated: number }>;
     // 사용자 정보 캐시 (DB 조회 최소화)
     userCache?: Map<string, { user: User; lastUpdated: number }>;
-    // 랭킹전 매칭 큐
+    // 랭킹전·일반전 매칭 큐 (교차 매칭 없음)
     rankedMatchingQueue?: {
         strategic?: Record<string, RankedMatchingEntry>;
+        normal?: Record<string, RankedMatchingEntry>;
     };
     pairRooms?: Record<string, PairRoomState>;
     pairPartnerInvites?: Record<string, PairPartnerInvite>;
@@ -153,7 +157,7 @@ export interface VolatileState {
         {
             user1Id: string;
             user2Id: string;
-            lobbyType: 'strategic';
+            lobbyType: 'strategic' | 'normal';
             selectedMode: GameMode;
             acceptUser1: boolean;
             acceptUser2: boolean;
@@ -208,7 +212,7 @@ export type PairLobbySettingChangeProposalPayload = {
     title?: string;
     visibility?: 'public' | 'private';
     password?: string;
-    roomKind?: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
+    roomKind?: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'team_pair' | 'arena_ai';
     selectedGameMode?: GameMode;
     settings?: GameSettings;
 };
@@ -226,7 +230,7 @@ export interface PairRoomState {
     code: string;
     mode: 'pvp' | 'ai';
     pairMode: 'pvp' | 'ai';
-    roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
+    roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'team_pair' | 'arena_ai';
     visibility: 'public' | 'private';
     passwordProtected: boolean;
     phase: 'waiting' | 'ready' | 'matching' | 'match_pending' | 'in_game';
@@ -275,8 +279,13 @@ export interface PairRoomState {
     pairPetRankedQueueShell?: boolean;
     /** AI 2인 팀 대전: 초대 전용 껍데기 — 방 번호·타인 목록·번호 입장 불가 */
     pairAiDuoInviteShell?: boolean;
+    /**
+     * 친선전·4인: 방장이 상대(teamB) 빈 슬롯에 넣은 로비 AI 자리.
+     * 인덱스 0|1 — 해당 칸에 인간이 있으면 무시된다.
+     */
+    pairLobbyAiSeatSlots?: { teamB: Array<0 | 1> };
     /** 방이 속한 경기장(미지정=페어) */
-    lobbyChannel?: 'pair' | 'strategic' | 'playful';
+    lobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly';
     ownerLobbyPet?: PairLobbyPetSnapshot;
     opponentLobbyPet?: PairLobbyPetSnapshot;
     /** 전략 바둑 방: 입장자가 방장에게 보낸 로비 변경 제안 */
@@ -368,7 +377,7 @@ export type ServerAction =
     | { type: 'RESUME_AI_GAME', payload: { gameId: string } }
     | { type: 'REQUEST_REMATCH', payload: { opponentId: string, originalGameId: string } }
     // Ranked Matching
-    | { type: 'START_RANKED_MATCHING', payload: { lobbyType: 'strategic'; selectedModes: GameMode[] } }
+    | { type: 'START_RANKED_MATCHING', payload: { lobbyType: 'strategic'; selectedModes: GameMode[]; queueKind?: 'ranked' | 'normal' } }
     | { type: 'CANCEL_RANKED_MATCHING', payload?: never }
     | { type: 'RESPOND_RANKED_MATCH', payload: { proposalId: string; accept: boolean } }
     | {
@@ -376,12 +385,12 @@ export type ServerAction =
           payload: {
               mode?: 'pvp' | 'ai';
               title?: string;
-              roomKind?: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai';
+              roomKind?: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'team_pair' | 'arena_ai';
               visibility?: 'public' | 'private';
               password?: string;
               selectedGameMode?: GameMode;
               settings?: GameSettings;
-              lobbyChannel?: 'pair' | 'strategic' | 'playful';
+              lobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly';
               lobbyIntent?: ArenaLobbyIntent;
               pairPetRankedQueueShell?: boolean;
           };
@@ -400,9 +409,13 @@ export type ServerAction =
     | { type: 'PAIR_KICK_ROOM_MEMBER', payload: { roomId: string; targetUserId: string } }
     | { type: 'PAIR_DELEGATE_ROOM_OWNERSHIP', payload: { roomId: string; targetUserId: string } }
     | { type: 'PAIR_SET_READY', payload: { ready: boolean } }
-    | { type: 'PAIR_SET_ROOM_KIND', payload: { roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'arena_ai' } }
+    | { type: 'PAIR_SET_ROOM_KIND', payload: { roomKind: 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'team_pair' | 'arena_ai' } }
     | { type: 'PAIR_SEND_ROOM_CHAT', payload: { roomId: string; text: string; scope: 'room' | 'team' } }
     | { type: 'PAIR_SET_SEAT_ASSIGNMENTS', payload: { roomId: string; teamA: string[]; teamB: string[] } }
+    | {
+          type: 'PAIR_SET_LOBBY_AI_SEAT';
+          payload: { roomId: string; team: 'teamB'; index: 0 | 1; enabled: boolean };
+      }
     | { type: 'PAIR_START_MATCH', payload?: { mode?: GameMode; settings?: GameSettings } }
     | { type: 'PAIR_QUEUE_PET_RANKED'; payload: { mode: GameMode } }
     | { type: 'PAIR_CANCEL_PAIR_PET_MATCHING', payload?: never }

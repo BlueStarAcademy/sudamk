@@ -6,6 +6,8 @@ export const ARENA_ENTRANCE_KEYS = [
     'singleplayer',
     'tower',
     'strategicLobby',
+    'normalLobby',
+    'friendlyLobby',
     'playfulLobby',
     'pairLobby',
     'championship',
@@ -15,29 +17,35 @@ export const ARENA_ENTRANCE_KEYS = [
 export type ArenaEntranceKey = (typeof ARENA_ENTRANCE_KEYS)[number];
 
 export const ARENA_ENTRANCE_LABELS: Record<ArenaEntranceKey, string> = {
-    singleplayer: '싱글플레이',
+    singleplayer: '모험',
     tower: '도전의 탑',
-    strategicLobby: '전략바둑 대기실',
-    playfulLobby: '놀이바둑 대기실',
-    pairLobby: '페어 경기장',
+    strategicLobby: '랭킹전',
+    normalLobby: '일반전',
+    friendlyLobby: '친선전',
+    playfulLobby: '놀이터',
+    pairLobby: '페어',
     championship: '챔피언십',
-    adventure: '모험',
+    adventure: '탐험',
 };
 
 export const ARENA_ENTRANCE_CLOSED_MESSAGE: Record<ArenaEntranceKey, string> = {
-    singleplayer: '싱글플레이 입장이 일시적으로 닫혀 있습니다.',
+    singleplayer: '모험 입장이 일시적으로 닫혀 있습니다.',
     tower: '도전의 탑 입장이 일시적으로 닫혀 있습니다.',
-    strategicLobby: '전략바둑 대기실이 일시적으로 닫혀 있습니다.',
-    playfulLobby: '놀이바둑 대기실이 일시적으로 닫혀 있습니다.',
-    pairLobby: '페어 경기장 입장이 일시적으로 닫혀 있습니다.',
+    strategicLobby: '랭킹전 입장이 일시적으로 닫혀 있습니다.',
+    normalLobby: '일반전 입장이 일시적으로 닫혀 있습니다.',
+    friendlyLobby: '친선전 입장이 일시적으로 닫혀 있습니다.',
+    playfulLobby: '놀이터 입장이 일시적으로 닫혀 있습니다.',
+    pairLobby: '페어 입장이 일시적으로 닫혀 있습니다.',
     championship: '챔피언십이 일시적으로 닫혀 있습니다.',
-    adventure: '모험이 일시적으로 닫혀 있습니다.',
+    adventure: '탐험이 일시적으로 닫혀 있습니다.',
 };
 
 const DEFAULT_OPEN: Record<ArenaEntranceKey, boolean> = {
     singleplayer: true,
     tower: true,
     strategicLobby: true,
+    normalLobby: true,
+    friendlyLobby: true,
     playfulLobby: true,
     pairLobby: true,
     championship: true,

@@ -8,6 +8,7 @@ import {
     STRATEGIC_RANKED_STAT_KEY,
     PAIR_RANKED_STAT_KEY,
     STRATEGIC_RANKED_MATCH_RECORD_KEY,
+    STRATEGIC_NORMAL_MATCH_RECORD_KEY,
     PAIR_RANKED_MATCH_RECORD_KEY,
     PAIR_ARENA_AI_MATCH_RECORD_KEY,
 } from '../shared/constants/userRankedStats.js';
@@ -132,6 +133,7 @@ export const defaultStats: User['stats'] = (() => {
         rankingScore: DEFAULT_RANKING_SCORE_SEASON_START,
     };
     acc[STRATEGIC_RANKED_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
+    acc[STRATEGIC_NORMAL_MATCH_RECORD_KEY] = { wins: 0, losses: 0 };
     acc[PAIR_RANKED_STAT_KEY] = {
         wins: 0,
         losses: 0,
@@ -300,6 +302,8 @@ export const createDefaultGuild = (id: string, name: string, description: string
             guildId: id,
             userId: creator.id,
             nickname: creator.nickname,
+            avatarId: creator.avatarId,
+            borderId: creator.borderId,
             role: 'leader',
             joinDate: now,
             createdAt: now,

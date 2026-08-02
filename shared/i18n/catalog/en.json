@@ -340,18 +340,24 @@
     "scoreLine": "{{label}} {{score}} pts",
     "scoreDetailsLine": "{{blackLine}} · {{whiteLine}}",
     "successLabel": "Success:",
-    "secondsShort": "sec"
+    "secondsShort": "sec",
+    "helpCenterEyebrow": "Help",
+    "helpCenterIntro": "Guides to help you play.",
+    "helpCenterTitle": "Help Center",
+    "ranked": {
+      "seasonSuffix": "{{year}}-{{season}} season"
+    }
   },
   "nav": {
     "dock": {
       "ariaLabel": "Main menu",
       "entranceClosedTitle": "Entrance closed",
       "home": "Home",
-      "singleplayer": "Go School",
+      "singleplayer": "Adventure",
       "tower": "Challenge Tower",
       "arena": "Arena",
       "tournament": "Championship",
-      "adventure": "Adventure"
+      "adventure": "Exploration"
     },
     "header": {
       "mailbox": "Mailbox",
@@ -375,14 +381,17 @@
         "playfulLobby": "Casual lobby is temporarily closed.",
         "pairLobby": "Pair arena is temporarily closed.",
         "championship": "Championship is temporarily closed.",
-        "adventure": "Adventure is temporarily closed."
+        "adventure": "Exploration is temporarily closed."
       },
       "progressionBlocked": {
-        "tower": "Clear Go School Intro Stage 10 to enter Challenge Tower.",
+        "tower": "Clear Adventure Sproutwood Gate 10 to enter Challenge Tower.",
         "strategicLobby": "Strategy lobby unlocks at user Lv.{{level}}.",
         "playfulLobby": "Casual lobby unlocks at user Lv.{{level}}.",
         "championship": "Championship unlocks at {{ability}}+ total Go ability.",
-        "adventure": "Clear Go School Intro Stage 20 to enter Adventure."
+        "adventure": "Clear Adventure Sproutwood Gate 20 to enter Exploration."
+      },
+      "contentClosed": {
+        "adventure": "Exploration is temporarily closed."
       }
     },
     "quickMenu": {
@@ -404,13 +413,13 @@
       "menu2": "Menu 2"
     },
     "arenaEntrance": {
-      "singleplayer": "Single-player",
+      "singleplayer": "Adventure",
       "tower": "Challenge Tower",
       "strategicLobby": "Strategy Go",
       "playfulLobby": "Casual Go",
       "pairLobby": "Pair Go",
       "championship": "Championship",
-      "adventure": "Adventure"
+      "adventure": "Exploration"
     },
     "arenaTypePicker": {
       "pvpHeading": "PVP Arena",
@@ -553,7 +562,10 @@
     "representative": "CEO",
     "businessNumber": "Business registration",
     "mailOrderNumber": "Mail-order sales",
-    "supportPhone": "Support"
+    "supportPhone": "Support",
+    "badukAcademy": "Adventure",
+    "gameGuide": "Game Guide",
+    "gameModes": "Game Modes"
   },
   "gameModes": {
     "standard": "Classic Go",
@@ -1067,7 +1079,7 @@
       "title": "Game ranking",
       "badukTitle": "Go ranking",
       "tabAbility": "Ability",
-      "tabAdventure": "Adventure",
+      "tabAdventure": "Exploration",
       "tabManner": "Manner",
       "tabStrategic": "Strategic Go",
       "tabPair": "Pair",
@@ -1205,7 +1217,7 @@
       "whiteSecond": "White (second)",
       "random": "Random",
       "guildWar": "Guild war",
-      "adventure": "Adventure",
+      "adventure": "Exploration",
       "aiMatch": "AI match",
       "onlineMatch": "Online match",
       "matchSettings": "Match settings",
@@ -1632,7 +1644,7 @@
     "singlePlayerInfo": {
       "close": "Close",
       "proverbsTitle": "Go proverbs",
-      "quotes": []
+      "quotes": "Quotes"
     },
     "analysis": {
       "title": "Analysis",
@@ -1729,7 +1741,7 @@
     },
     "adventureResult": {
       "bossLine": "Boss: {{label}} +{{pct}}%",
-      "adventureLine": "Adventure: {{label}} +{{pct}}%"
+      "adventureLine": "Exploration: {{label}} +{{pct}}%"
     },
     "strategicTimeControl": {
       "timeMode": "Time mode",
@@ -2003,21 +2015,21 @@
       "confirmTitle": "Black & white confirm"
     },
     "stageSelection": {
-      "title": "{{name}} stage select",
+      "title": "{{name}} gate select",
       "targetScore": "Target: B{{black}}/W{{white}}",
       "firstClear": "First clear reward"
     },
     "singlePlayerDesc": {
-      "intro": "Intro class",
-      "beginner": "Beginner",
-      "intermediate": "Intermediate",
-      "advanced": "Advanced",
-      "master": "Master class",
+      "intro": "Sproutwood",
+      "beginner": "Windy Hills",
+      "intermediate": "Starlit Vale",
+      "advanced": "Ember Keep",
+      "master": "Celestial Spire",
       "tower": "Tower",
-      "academy": "Go academy",
-      "stage": "Stage {{num}}",
+      "academy": "Adventure",
+      "stage": "Gate {{num}}",
       "returnLobby": "Back to lobby",
-      "currentStage": "Current stage",
+      "currentStage": "Current gate",
       "gameDesc": "Game description",
       "title": "{{name}} — description",
       "survivalGo": "Survival Go",
@@ -2027,13 +2039,13 @@
       "confirm": "OK",
       "prev": "Previous",
       "next": "Next",
-      "editStage": "Edit stages",
+      "editStage": "Edit gate",
       "editOrder": "Edit order",
       "cancel": "Cancel",
       "exit": "Leave",
       "start": "Start",
-      "singleStage": "Single-player stage",
-      "masterClass": "Master class",
+      "singleStage": "Solo gate",
+      "masterClass": "Celestial Spire",
       "goalSection": "Goal",
       "goalTurnCaption": "Turn limit",
       "goalTurnUnit": "turns",
@@ -2192,6 +2204,94 @@
       "subtitle": "Roles are decided by roulette.",
       "subtitleRich": "Thief (black) and police (white) assigned at random. Rolling starts soon.",
       "autoProceed": "Continues automatically after the animation."
+    },
+    "noScoreInfo": "No score information.",
+    "territory": "Territory",
+    "captures": "Captures",
+    "deadStones": "Dead stones",
+    "komi": "Komi",
+    "totalScore": "Total",
+    "escaped": "Escaped",
+    "capturedStones": "Captured",
+    "finalScore": "Final score",
+    "captureScore": "Capture score:",
+    "lastPileBonus": "Last pile bonus:",
+    "finalScoreLabel": "Final score",
+    "houseScoreGain": "Territory gained",
+    "houseUnit": "points",
+    "playerWins": "{{name}} wins!",
+    "cumulativeScore": "Running total",
+    "roundScores": "Scores by round",
+    "roundScoreBlackWhite": "Round score (B:W)",
+    "previousKnockout": "(prev: {{count}})",
+    "roundResults": "Results by round",
+    "scored": "Scored",
+    "conceded": "Conceded",
+    "winShort": "W",
+    "loseShort": "L",
+    "gameEnded": "Game over",
+    "calculatingScore": "Calculating score…",
+    "rankingScore": "Rating",
+    "noChange": "No change",
+    "pointsDelta": "pts",
+    "overallRecord": "Overall record",
+    "mannerRank": "Manner rank",
+    "vipSlotReward": "VIP slot reward",
+    "guildWarRewards": "Guild war rewards",
+    "rewardsEarned": "Rewards earned",
+    "starConditions": "Star conditions",
+    "captureTier2": "Capture {{min}}+ in one move",
+    "captureTier3": "Capture {{min}}+ in one move",
+    "scoreDiffTier": "Lead by {{diff}}+ points",
+    "goldBundleSpaced": "Gold bundle",
+    "goldBundleCompact": "Goldbundle",
+    "noRewardInfo": "No reward info.",
+    "noRewardsEmpty": "No rewards.",
+    "diceOvershotWithMax": "Overshot! Dice must be {{maxDice}} or lower to capture the last pile.",
+    "diceOvershotNoLiberties": "Overshot! White has no valid points to capture the last pile. Wait for the next roll.",
+    "lastCaptureBonus": " (last pile bonus +{{bonus}})",
+    "lastShowdown": "Final showdown! {{count}} valid points",
+    "lastCaptureBonusInline": " (+{{bonus}} for last pile capture)",
+    "pairScoringAllPassed": "All four players passed. Scoring now.",
+    "scoring": "Scoring in progress.",
+    "pairPassCount": "Pass {{count}}/4",
+    "bothPassedScoring": "Both sides passed. Starting scoring.",
+    "playerPassed": "{{name}} passed.",
+    "playerTurn": "{{name}}'s turn.",
+    "gameInProgress": "Game in progress",
+    "nigiriInProgress": "Nigiri in progress…",
+    "adventureNigiriConfirm": "Confirm Black/White, then press Start Game.",
+    "uniformRoulette": "Uniform Go — color roulette in progress…",
+    "basePlacement": "Place base stones · {{count}} each",
+    "baseStoneColorChoice": "Choose your preferred color (Black/White).",
+    "baseSameColorBid": "Same color chosen — set komi for your opponent.",
+    "baseGameStartConfirm": "Press Start Game to begin play.",
+    "captureBidTie": "Bids tied. Another tie will be decided randomly.",
+    "captureBidBase": "Review the revealed board and set Black's opening bid below.",
+    "noContest": "No contest",
+    "rematchPending": "Waiting for rematch…",
+    "itemInUse": "Using item…",
+    "hiddenFinalReveal": "Revealing all hidden stones and starting scoring.",
+    "autoScoringAdventure": "Auto-scoring in progress.",
+    "autoScoringReached": "Auto-scoring move limit reached. Scoring now.",
+    "alkkagiRePlace": "Re-place your stones. (Round {{round}} / {{total}})",
+    "alkkagiPlace": "Place your stones. (Round {{round}} / {{total}})",
+    "alkkagiPlayerTurn": "{{name}}'s turn. (Round {{round}} / {{total}})",
+    "alkkagiRoundEnd": "Round over — check the ticker below to continue.",
+    "diceRollTurn": "{{name}} rolls the dice.",
+    "diceRollTurnGeneric": "Roll the dice",
+    "tiebreakerDeciding": "Deciding tiebreaker order…",
+    "tiebreakerPlaying": "Tiebreaker in progress… ({{name}}'s turn)",
+    "diceModeRound": "Dice Go (Round {{round}} / {{total}})",
+    "thiefModeRound": "Thief & Police (Round {{round}})",
+    "preparing": "Preparing game…",
+    "status": {
+      "timeoutFoulTitle": "Timeout",
+      "timeoutFoulDefault": "You lost on time.",
+      "timeoutFoulAlkkagiPlacement": "Alkkagi placement timed out",
+      "timeoutFoulAutoTurn": "Turn skipped due to timeout.",
+      "timeoutFoulLoseStone": "Lost a stone due to timeout.",
+      "timeoutFoulPassTurn": "Passed due to timeout."
     }
   },
   "settings": {
@@ -2424,8 +2524,12 @@
         "pairPvp": "Pair PVP Arena",
         "pairAi": "Pair AI Match",
         "playfulPvp": "Casual Go PVP Arena",
-        "playfulAi": "Casual Go AI Match"
-      }
+        "playfulAi": "Casual Go AI Match",
+        "matchArena": "Arena"
+      },
+      "queueRanked": "Ranked",
+      "queueNormal": "Normal",
+      "matchTypeTitle": "Match type"
     },
     "gameList": {
       "invalidRoomNumber": "Invalid room number.",
@@ -2454,6 +2558,11 @@
     "ranked": {
       "start": "Start ranked match",
       "startShort": "Start",
+      "startNormal": "Start Normal",
+      "startNormalShort": "Start",
+      "normalPanelTitle": "Normal",
+      "dedicatedSubtitle": "Official matchmaking with season tiers",
+      "normalDedicatedSubtitle": "Anonymous matchmaking without tier impact",
       "selectModesMin": "Select at least one game mode.",
       "selectTitle": "Choose ranked modes",
       "priorityUp": "Raise priority",
@@ -2507,7 +2616,8 @@
         "peerAcceptedPleaseAccept": "Opponent accepted. Please accept.",
         "reject": "Decline",
         "cancelHint": "Declining or not accepting in time cancels the match.",
-        "priorityHint": "If you already accepted, queue priority is kept when the opponent declines or times out."
+        "priorityHint": "If you already accepted, queue priority is kept when the opponent declines or times out.",
+        "hiddenUntilAccept": "Opponent info is hidden until you accept."
       },
       "panelTitle": "Ranked",
       "matching": "Matching…",
@@ -2551,7 +2661,13 @@
       "targetScore": "Target score",
       "timeLimit": "Time limit",
       "byoyomi": "Byoyomi",
-      "gaugeSpeed": "Power speed"
+      "gaugeSpeed": "Power speed",
+      "normalMatched": "Normal match found",
+      "normalMatchFound": {
+        "anonymousOpponent": "Anonymous opponent",
+        "ready": "Accept when ready"
+      },
+      "normalMatchTitle": "Normal Match"
     },
     "aiChallengeModal": {
       "titleDefault": "Challenge AI",
@@ -2601,7 +2717,11 @@
       "duoTab": "2-player team",
       "mobilePickModeHint": "Tap an item to select it, then go to game settings with Next.",
       "roomInfoAndSettings": "Room info & game settings",
-      "gameModeHostLocked": "Game mode (host settings, cannot change)"
+      "gameModeHostLocked": "Game mode (host settings, cannot change)",
+      "matchFormatAria": "Match format",
+      "oneVsOneTab": "1v1",
+      "pairTab": "Pair",
+      "gameKindTitle": "Match type"
     },
     "challenge": {
       "title": "Game request",
@@ -2622,7 +2742,7 @@
       "howToRaise": "How to raise your score",
       "whereScoresRise": "Where scores increase",
       "goToArena": "Go to arena",
-      "goToAdventure": "Go to adventure",
+      "goToAdventure": "Go to Exploration",
       "strategicLobby": "Strategy lobby",
       "pairLobby": "Pair lobby",
       "gameCombatItems": [
@@ -2637,7 +2757,7 @@
         "Arena → Strategy or casual PVP arena"
       ],
       "gameAdventureHow": "Each monster defeated on the adventure map adds hunt points equal to its level. Ties go to whoever reached the score first.",
-      "gameAdventureWhere": "Adventure → Win matches against monsters on regional maps.",
+      "gameAdventureWhere": "Exploration → Win matches against monsters on regional maps.",
       "badukStrategicHow": "Strategy ranked (PVP) wins and losses change your cumulative score from a 1200 baseline. Rankings require 10+ games in the same mode; beating stronger opponents raises it more.",
       "badukStrategicWhere": "Arena → Strategy Go → use ranked matchmaking in the waiting room.",
       "badukPairHow": "Pair ranked (PVP) wins and losses change your cumulative score from a 1200 baseline. Rankings require minimum games; beating stronger opponents raises it more.",
@@ -2666,15 +2786,15 @@
       "trainingQuestModalTitle": "Training",
       "trainingQuestListAria": "Training quest list",
       "classSelect": "Select class",
-      "stageSelect": "Select stage",
+      "stageSelect": "Select gate",
       "previousClass": "Previous class",
       "nextClass": "Next class",
       "stageListTitle": "{{classLabel}} stages",
       "rewardsTable": "Rewards",
-      "rewardsTableTitle": "Stage clear rewards",
+      "rewardsTableTitle": "Gate clear rewards",
       "rewardsTableAria": "Rewards by class",
-      "openRewardsTableAria": "Open stage clear rewards table",
-      "classStageClear": "{{classLabel}} stage clears",
+      "openRewardsTableAria": "Open gate clear rewards table",
+      "classStageClear": "{{classLabel}} gate clears",
       "classBarRewardClaimed": "Claimed",
       "classBarRewardClaim": "Claim reward",
       "classBarRewardNeedClear": "Clear {{milestone}} stages",
@@ -2711,12 +2831,12 @@
       "nextLevelEffects": "Next level (Lv.{{level}}) effects",
       "nextLevelEffectsCompact": "Lv.{{level}} effects",
       "enhanceAfterClear": "Upgrade after clearing {{stageId}}",
-      "enhanceAfterClearFull": "You must clear stage {{stageId}}.",
+      "enhanceAfterClearFull": "You must clear gate {{stageId}}.",
       "enhanceTitle": "{{missionName}} · Upgrade",
       "enhanceTitlePc": "Upgrade {{missionName}}",
       "startMissionTitle": "Start {{missionName}}",
       "claimAllModalTitle": "Claim all training rewards",
-      "claimAllPreviewTitle": "Training rewards ready to claim",
+      "claimAllPreviewTitle": "Rewards earned",
       "claimAllSuccess": "All training quest rewards claimed!",
       "claimAllNormal": "Claim",
       "claimAllAdDouble": "Watch Ad 200%",
@@ -2751,35 +2871,50 @@
       "rewardsTableSection": {
         "classBarBonus": "{{classLabel}} · Bonus clears (claim from lobby bar)",
         "milestoneCount": "{{count}} stages",
-        "stageIdColumn": "Stage ID",
+        "stageIdColumn": "Gate ID",
         "firstClearColumn": "First clear (gold, EXP, gear, etc.)",
         "bonusStat": "Bonus ability",
         "bonus": "Bonus"
       },
-      "lobbyBottomTabsAria": "Go academy bottom tabs",
+      "lobbyBottomTabsAria": "Adventure bottom tabs",
       "trainingQuestTab": "Training quests",
-      "stageTab": "Stages",
-      "trainingQuestRewardAria": "Training quests — rewards available to claim"
+      "stageTab": "Gates",
+      "trainingQuestRewardAria": "Training quests — rewards available to claim",
+      "claimAllItemCycles": "{{name}} ×{{cycles}}",
+      "claimAllAdDoubleAria": "Watch ad for 2x reward",
+      "claimAllObtainedItems": "Rewards earned",
+      "claimAllRandomItems": "Random {{name}} ×{{cycles}}",
+      "claimAllItemQty": "×{{quantity}}",
+      "classBarClearRewardLabel": "Clear reward",
+      "enhanceStone": "Enhance stone",
+      "equipmentBox": "Equipment box",
+      "highGradeLabel": "High grade",
+      "mapSelectLabel": "Select map",
+      "mapZoomIn": "Zoom in",
+      "mapZoomOut": "Zoom out",
+      "unlockRequiredLevel": "Unlocks at Lv.{{level}}"
     },
     "adventure": {
-      "title": "Adventure",
+      "title": "Exploration",
       "chapter": "Chapter",
       "chapterEnterAria": "Enter chapter",
       "chapterMapEnterAria": "Enter {{title}} map",
       "chapterLockedAria": "{{title}} locked: {{blockers}}",
-      "lobbyTabsAria": "Adventure lobby",
-      "journal": "Adventure journal",
-      "journalAria": "Adventure journal",
-      "battleRecord": "Adventure record",
+      "lobbyTabsAria": "Exploration lobby",
+      "journal": "Exploration journal",
+      "journalAria": "Exploration journal",
+      "journalTabsAria": "Exploration journal tabs",
+      "journalInfo": "Exploration info",
+      "battleRecord": "Exploration record",
       "caughtMonsters": "Monsters caught",
       "missedMonsters": "Monsters missed",
-      "ranking": "Adventure ranking",
-      "score": "Adventure score",
+      "ranking": "Exploration ranking",
+      "score": "Exploration score",
       "myRank": "My rank",
       "codexCompletion": "Codex completion",
       "codexCompletionTitle": "Monster codex completion",
       "monsterUnderstanding": "Monster comprehension",
-      "adventureGold": "Adventure gold",
+      "adventureGold": "Exploration gold",
       "equipmentDrop": "Equipment drops",
       "highGradeEquipment": "High-grade equipment",
       "materialDrop": "Material drops",
@@ -2794,7 +2929,7 @@
       "appearWaitTime": "Spawn · wait time",
       "comprehensionChapterTabsAria": "Comprehension chapters",
       "comprehensionEffects": "Monster comprehension effects",
-      "comprehensionGoldBonus": "Adventure gold +{{percent}}%",
+      "comprehensionGoldBonus": "Exploration gold +{{percent}}%",
       "comprehensionEquipBonus": "Equipment drops +{{percent}}%",
       "comprehensionHighEquipBonus": "High-grade equipment +{{percent}}%",
       "comprehensionMaterialBonus": "Material drops +{{percent}}%",
@@ -2810,15 +2945,15 @@
       "chapterBossBonus": "Chapter boss: {{label}} — +{{perLevel}}% per comprehension level (max {{max}}%)",
       "currentBossBonusSum": "Current boss bonus total: +{{percent}}% ({{label}})",
       "comprehensionStatsCurrent": "Comprehension stats (current total)",
-      "adventureExclusive": "Adventure only: {{label}} +{{percent}}%",
+      "adventureExclusive": "Exploration only: {{label}} +{{percent}}%",
       "adventureGoldOnly": " (adventure win gold only)",
       "comprehensionXp": "Comprehension XP",
       "comprehensionXpMax": "Max · {{wins}} wins",
       "firstLevelWins": "First Lv {{wins}}/1 win",
       "nextLevelProgress": "Next {{wins}}/{{nextAt}} wins",
       "thresholdRange": " ({{from}}~)",
-      "adventureMonsters": "Adventure monsters",
-      "adventureMonsterCodex": "Adventure monster codex",
+      "adventureMonsters": "Exploration monsters",
+      "adventureMonsterCodex": "Exploration monster codex",
       "regionalExploration": "Regional exploration",
       "effectInfo": "Effect info",
       "effectInfoOpenAria": "Open regional exploration effect info",
@@ -2888,7 +3023,7 @@
       "processing": "Processing…",
       "equipmentBoxRoman": "Equipment box {{roman}}",
       "materialBoxRoman": "Material box {{roman}}",
-      "adventureKeyAria": "Adventure key",
+      "adventureKeyAria": "Exploration key",
       "regionalKey": "Regional key",
       "key": "Key",
       "keysCount": "{{held}}/{{max}}",
@@ -2904,7 +3039,7 @@
       "skipped": "Skipped",
       "unknown": "Unknown",
       "backToStageListAria": "Back to stage list",
-      "adventureMap": "Adventure map",
+      "adventureMap": "Exploration map",
       "viewRegionalEffectAria": "View regional effects",
       "regionalEffectShort": "Regional effects",
       "chapterRewardAria": "Chapter reward info",
@@ -2952,11 +3087,11 @@
       },
       "codex": {
         "bossBonus": {
-          "adventureGold": "Adventure win gold",
-          "itemDrop": "Adventure equipment box drops",
-          "materialDrop": "Adventure material box drops",
-          "highGradeEquipment": "Adventure high-grade equipment boxes",
-          "highGradeMaterial": "Adventure high-grade material boxes"
+          "adventureGold": "Exploration win gold",
+          "itemDrop": "Exploration equipment box drops",
+          "materialDrop": "Exploration material box drops",
+          "highGradeEquipment": "Exploration high-grade equipment boxes",
+          "highGradeMaterial": "Exploration high-grade material boxes"
         }
       },
       "regionalBuff": {
@@ -2986,6 +3121,10 @@
           "missile": "[Missile] Missile+1"
         }
       }
+    },
+    "alerts": {
+      "proposalData": "Change proposal",
+      "proposalCooldown": "You can propose again in {{seconds}} seconds after a rejection."
     }
   },
   "profile": {
@@ -3010,7 +3149,7 @@
     "playfulRecord": "Casual record",
     "strategic": "Strategy",
     "pair": "Pair",
-    "adventure": "Adventure",
+    "adventure": "Exploration",
     "arenaEnterAria": "Enter {{title}} arena",
     "enterAria": "Enter {{title}}",
     "strategicLobbyEnter": "Enter strategy lobby",
@@ -3022,11 +3161,30 @@
     "maintenance": "Maintenance",
     "combinedLevelRequired": "Combined Lv.{{current}}/{{required}}",
     "abilityRequired": "Ability total {{total}}+",
-    "intro10Required": "Clear Intro Stage 10",
-    "intro20Required": "Clear Intro Stage 20",
-    "goSchool": "Go School",
+    "intro10Required": "Clear Sproutwood Gate 10",
+    "intro20Required": "Clear Sproutwood Gate 20",
+    "goSchool": "Adventure",
     "challengeTower": "Challenge Tower",
     "pvpArena": "PVP Arena",
+    "matchArena": "Arena",
+    "normalMatch": "Normal",
+    "friendlyMatch": "Friendly",
+    "playground": "Playground",
+    "productionFactory": "Factory",
+    "guildHomeTile": "Guild",
+    "rankTierLabel": "Rank",
+    "champTierLabel": "Champ",
+    "tierPeak": "Peak {{tier}}",
+    "tierUnranked": "Unranked",
+    "lobbyMetaStage": "Adventure campaign",
+    "lobbyMetaNormal": "Unranked matchmaking",
+    "lobbyMetaFriendlyCustom": "Custom rules",
+    "lobbyMetaFriendlyPair": "Pair Go",
+    "lobbyMetaAiDuel": "AI duel",
+    "lobbyMetaAiPair": "AI pair duel",
+    "lobbyMetaPlayground": "Play with Go stones",
+    "lobbyGuildJoin": "Join guild",
+    "lobbyGuildCreate": "Create guild",
     "aiArena": "AI Match",
     "detailedStats": {
       "diamondsAria": "Diamonds {{amount}}",
@@ -3091,11 +3249,11 @@
     "guildLevelHint": "Guild home unlocks at combined Lv.{{level}}+.",
     "guildLevelNotice": "Guild features unlock at user Lv.{{level}}+. (Current Lv.{{current}})",
     "stageLabels": {
-      "intro": "Intro",
-      "beginner": "Beginner",
-      "intermediate": "Intermediate",
-      "advanced": "Advanced",
-      "master": "Master"
+      "intro": "Sproutwood",
+      "beginner": "Windy Hills",
+      "intermediate": "Starlit Vale",
+      "advanced": "Ember Keep",
+      "master": "Celestial Spire"
     },
     "chartLegend": {
       "user": "User",
@@ -3144,7 +3302,7 @@
       "arena": "Arena"
     },
     "coreStatsTotal": "Sum of 6 core stats",
-    "adventureUnlockModal": "Adventure unlock modal",
+    "adventureUnlockModal": "Exploration unlock modal",
     "gameResultDemo": "Match result demo",
     "quickMenuAria": "Quick menu",
     "playGoSuffix": " Go",
@@ -3726,11 +3884,11 @@
     },
     "contentUnlock": {
       "towerTitle": "Tower unlocked",
-      "towerSubtitle": "Cleared Go Academy Intro Class 10.\nTower is now unlocked.",
+      "towerSubtitle": "Clear Adventure Sproutwood Gate 10 to\nunlock Challenge Tower.",
       "towerHint": "Enter Tower from the home screen.",
-      "adventureTitle": "Adventure unlocked",
-      "adventureSubtitle": "Cleared Go Academy Intro Class 20.\nAdventure content is now unlocked.",
-      "adventureHint": "Enter Adventure from the home screen."
+      "adventureTitle": "Exploration unlocked",
+      "adventureSubtitle": "Clear Adventure Sproutwood Gate 20 to\nunlock Exploration.",
+      "adventureHint": "Enter Exploration from the home screen."
     },
     "levelUp": {
       "gained": "Gained {{gain}} levels at once.",
@@ -3880,7 +4038,9 @@
       "conditionPotionPurchased": "Condition potion purchased! Use it from the recovery modal.",
       "purchaseComplete": "Purchase complete! Check your bag.",
       "actionPointPurchased": "Action points purchased!",
-      "paymentCancelled": "Payment cancelled."
+      "paymentCancelled": "Payment cancelled.",
+      "paymentFailed": "Payment failed.",
+      "subscriptionNotReady": "Subscriptions are not ready yet."
     },
     "consent": {
       "cashPriceLabel": "KRW payment (Payletter)",
@@ -4060,7 +4220,8 @@
         "name": "AP recovery (+30)",
         "description": "Time to play a match!"
       }
-    }
+    },
+    "directDiamondName": "Diamonds"
   },
   "mail": {
     "title": "Mailbox",
@@ -5018,21 +5179,21 @@
           "description": "Reduces time to recover 1 AP by 30 seconds."
         },
         "AdventureScanPlus1": {
-          "name": "Adventure scan +1",
+          "name": "Exploration scan +1",
           "abbrev": "Adv. scan +1",
-          "short": "Adventure scan +1",
+          "short": "Exploration scan +1",
           "description": "Grants 1 extra scan item at adventure start."
         },
         "AdventureMissilePlus1": {
-          "name": "Adventure missile +1",
+          "name": "Exploration missile +1",
           "abbrev": "Adv. missile +1",
-          "short": "Adventure missile +1",
+          "short": "Exploration missile +1",
           "description": "Grants 1 extra missile item at adventure start."
         },
         "AdventureGoldBonus15": {
-          "name": "Adventure gold reward +15%",
+          "name": "Exploration gold reward +15%",
           "abbrev": "Adv. gold 15%",
-          "short": "Adventure gold +15%",
+          "short": "Exploration gold +15%",
           "description": "Increases adventure victory gold by 15%."
         },
         "GuildBossExtraRewardDuplicate": {
@@ -5060,21 +5221,21 @@
           "description": "Reduces time to recover 1 AP by 60 seconds."
         },
         "AdventureScanTranscendent": {
-          "name": "Adventure scan +1",
+          "name": "Exploration scan +1",
           "abbrev": "Adv. scan +1",
-          "short": "Adventure scan +2 (transcendent)",
+          "short": "Exploration scan +2 (transcendent)",
           "description": "Grants 2 extra scan items in adventure."
         },
         "AdventureMissilePlus2": {
-          "name": "Adventure missile +2",
+          "name": "Exploration missile +2",
           "abbrev": "Adv. missile +2",
-          "short": "Adventure missile +2",
+          "short": "Exploration missile +2",
           "description": "Grants 2 extra missile items at adventure start."
         },
         "AdventureGoldBonus20": {
-          "name": "Adventure gold reward +20%",
+          "name": "Exploration gold reward +20%",
           "abbrev": "Adv. gold 20%",
-          "short": "Adventure gold +20%",
+          "short": "Exploration gold +20%",
           "description": "Increases adventure victory gold by 20%."
         }
       }
@@ -5546,7 +5707,8 @@
       "userTab": "User",
       "petTab": "Pet",
       "quickMenuAria": "Quick menu",
-      "presetName": "Equipment Set {{index}}"
+      "presetName": "Equipment Set {{index}}",
+      "entryCount": "Entries"
     },
     "definitions": {
       "neighborhood": {
@@ -5772,7 +5934,7 @@
       "scrollGuideAria": "View scroll guide",
       "ability": "Go ability",
       "manner": "Manner",
-      "adventure": "Adventure",
+      "adventure": "Exploration",
       "strategic": "Strategic Go",
       "pair": "Pair Go",
       "championship": "Championship",
@@ -5858,11 +6020,26 @@
     "openRightPanel": "Open right panel",
     "tournamentNotFound": "Tournament not found.",
     "playbackSpeed": {
+      "0": {
+        "5": "0.5x"
+      },
       "1": "One move every 1.5s",
       "2": "One move per second",
       "3": "One move every 0.5s",
       "0.5": "One move every 3s"
-    }
+    },
+    "rankPlace": "Rank {{rank}}",
+    "changeTicketMax": "Max {{max}}",
+    "changeTicketShort": "Reroll ticket",
+    "defaultRewardFallback": "Reward",
+    "gradeRange": "Grade {{min}}–{{max}}",
+    "lossGold": "Loss gold",
+    "oneGamePerMatch": "1 game per match",
+    "rankRange": "Rank {{min}}–{{max}}",
+    "rankWorld4_8": "World 4–8",
+    "rankWorld9_16": "World 9–16",
+    "rewardRandom": "Random reward",
+    "winGold": "Win gold"
   },
   "tower": {
     "title": "Challenge Tower",
@@ -5972,7 +6149,10 @@
       "duoAi": "2-player vs AI",
       "friendly": "Friendly",
       "arenaAi": "Vs AI",
-      "petPair": "Pet pair"
+      "petPair": "Pet pair",
+      "aiDuel": "AI Match",
+      "friendlyTeamPair": "Friendly Team Pair",
+      "userDuel": "User Match"
     },
     "filters": {
       "allRoomKinds": "All room types",
@@ -6281,7 +6461,11 @@
       "messagePlaceholder": "Type a message…",
       "teamMessagePlaceholder": "Message team only…",
       "roomMessagePlaceholder": "Message everyone…",
-      "send": "Send"
+      "send": "Send",
+      "addAi": "Add AI",
+      "tapInviteOrAi": "Invite or AI",
+      "inviteShort": "Invite",
+      "removeAi": "Remove AI"
     },
     "rps": {
       "scissors": "Scissors",
@@ -6445,7 +6629,11 @@
       "userListPairAi": "Users · Pair AI match",
       "aiSettingsTitle": "AI match settings",
       "rankedMatchTitle": "Ranked matching",
-      "pairMatchSettings": "Pair match settings"
+      "pairMatchSettings": "Pair match settings",
+      "friendlyArena": "Friendly Arena",
+      "gameKindTitle": "Match type",
+      "startAiGame": "Start AI Match",
+      "normalMatchTitle": "Normal Match"
     },
     "modals": {
       "delegateConfirm": "Delegate host to {{name}}?",
@@ -6568,7 +6756,7 @@
       "refine": "Refine gear",
       "convert": "Convert materials"
     },
-    "level": "Blacksmith Lv.{{level}}",
+    "level": "{{name}} Lv.{{level}}",
     "exp": "EXP",
     "effects": "Blacksmith effects",
     "effectsAria": "View blacksmith effects",
@@ -6774,16 +6962,31 @@
     "levelEffects": {
       "effects": "Effects",
       "maxCombineGrade": "Max combine grade",
-      "disassembleJackpot": "Equipment disassembly jackpot rate",
-      "materialJackpot": "Material disassemble/combine jackpot rate",
-      "combineGreatSuccess": "Equipment combine great success rate:",
+      "disassembleJackpot": "Equipment jackpot",
+      "materialJackpot": "Material jackpot",
+      "combineGreatSuccess": "Combine great success:",
       "normal": "Normal",
       "uncommon": "Uncommon",
       "rare": "Rare",
       "epic": "Epic",
       "legendary": "Legendary",
       "mythic": "Mythic",
-      "transcendent": "Transcendent"
+      "transcendent": "Transcendent",
+      "nextLevel": "Next level",
+      "prevLevel": "Previous level",
+      "current": "Current",
+      "viewLevel": "Lv.{{level}}"
+    },
+    "enhancementModal": {
+      "title": "Enhance",
+      "placeholder": "Select equipment to enhance"
+    },
+    "visualNames": {
+      "tier1": "Blacksmith",
+      "tier2": "Tempered Forge",
+      "tier3": "Masterwork Forge",
+      "tier4": "Runic Forge",
+      "tier5": "Legendary Forge"
     }
   },
   "negotiation": {
@@ -7051,7 +7254,8 @@
       "leaderMustTransfer": "The guild master must transfer leadership before leaving.",
       "lastMemberLeave": "You are the last member. Leaving will disband the guild. Are you sure?",
       "leaveConfirm": "Are you sure you want to leave the guild?",
-      "leaveError": "An error occurred while leaving the guild."
+      "leaveError": "An error occurred while leaving the guild.",
+      "kick": "Kick"
     },
     "management": {
       "guildInfo": "Guild Info",

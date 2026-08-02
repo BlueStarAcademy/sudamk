@@ -1639,7 +1639,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     try {
                         const { tryMatchPlayers, expireStaleRankedMatchProposals } = await import('./actions/socialActions.js');
                         expireStaleRankedMatchProposals(volatileState, now);
-                        for (const lobbyType of ['strategic'] as const) {
+                        for (const lobbyType of ['strategic', 'normal'] as const) {
                             if (volatileState.rankedMatchingQueue?.[lobbyType] && Object.keys(volatileState.rankedMatchingQueue[lobbyType]).length >= 2) {
                                 try {
                                     await tryMatchPlayers(volatileState, lobbyType);

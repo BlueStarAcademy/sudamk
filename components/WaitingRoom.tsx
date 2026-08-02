@@ -1,6 +1,6 @@
 import React, { useMemo, useRef, useEffect, useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { GameMode, ServerAction, Announcement, OverrideAnnouncement, UserWithStatus, LiveGameSession } from './../types.js';
+import { GameMode, LiveGameSession } from './../types.js';
 import HelpModal from './HelpModal.js';
 import { useAppContext } from './../hooks/useAppContext.js';
 
@@ -39,62 +39,6 @@ function usePrevious<T>(value: T): T | undefined {
   }, [value]);
   return ref.current;
 }
-
-const AnnouncementBoard: React.FC<{ mode: GameMode; }> = ({ mode }) => {
-    const { t } = useTranslation('lobby');
-    const { announcements, globalOverrideAnnouncement, announcementInterval } = useAppContext();
-    const [currentIndex, setCurrentIndex] = useState(0);
-    const announcementIds = useMemo(() => announcements.map(a => a.id).join(','), [announcements]);
-    const boardClass = 'border-amber-500/35 bg-gradient-to-r from-zinc-950/75 via-stone-900/70 to-amber-950/35 shadow-[0_14px_32px_rgba(217,119,6,0.2)]';
-
-    useEffect(() => {
-        if (!announcements || announcements.length <= 1) {
-            setCurrentIndex(0);
-            return;
-        }
-        const timer = setInterval(() => {
-            setCurrentIndex(prevIndex => (prevIndex + 1) % announcements.length);
-        }, announcementInterval * 1000);
-        return () => clearInterval(timer);
-    }, [announcementIds, announcements.length, announcementInterval]);
-
-    const relevantOverride = globalOverrideAnnouncement && (globalOverrideAnnouncement.modes === 'all' || globalOverrideAnnouncement.modes.includes(mode));
-
-    if (relevantOverride) {
-        return (
-            <div className="bg-yellow-800/50 border border-yellow-600 rounded-xl shadow-lg p-2 flex items-center justify-center flex-shrink-0 h-10">
-                <span className="font-bold text-yellow-300 animate-pulse text-center">{globalOverrideAnnouncement.message}</span>
-            </div>
-        );
-    }
-    
-    if (!announcements || announcements.length === 0) {
-        return (
-            <div className={`rounded-xl border p-2 flex items-center justify-center flex-shrink-0 h-10 text-on-panel ${boardClass}`}>
-                <span className="font-bold text-tertiary text-center">{t('announcement.noneRegistered')}</span>
-            </div>
-        );
-    }
-
-    return (
-        <div className={`rounded-xl border px-4 relative overflow-hidden flex-shrink-0 h-10 ${boardClass}`}>
-            <div
-                className="w-full absolute top-0 left-0 transition-transform duration-1000 ease-in-out"
-                style={{ transform: `translateY(-${currentIndex * 2.5}rem)` }}
-            >
-                {announcements.map((announcement) => (
-                    <div key={announcement.id} className="w-full h-10 flex items-center justify-center">
-                        <span className="font-bold">
-                            <span className="text-red-500 mr-2">{t('announcement.badge')}</span>
-                            <span className="text-highlight">{announcement.message}</span>
-                        </span>
-                    </div>
-                ))}
-            </div>
-        </div>
-    );
-};
-
 
 const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   const { t } = useTranslation('lobby');
@@ -237,7 +181,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
         {isMobile ? (
           <>
             <div className="flex flex-col h-full gap-4">
-                <div className="flex-shrink-0"><AnnouncementBoard mode={mode} /></div>
                 <div className={`${aiChallengeFeatureShellClass} relative flex-shrink-0 overflow-hidden p-2`}>
                     <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />
                     <div className={aiChallengePanelInnerGradientClass}>
@@ -337,9 +280,6 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                     </div>
                 ) : (
                     <div className="flex h-full min-h-0 flex-col gap-4">
-                        <div className="flex-shrink-0">
-                            <AnnouncementBoard mode={mode} />
-                        </div>
                         <div className="flex-shrink-0">
                             <div className={`${aiChallengeFeatureShellClass} relative shrink-0 overflow-hidden p-2`}>
                                 <div className={aiChallengeFeatureTopHairlineClass} aria-hidden />

@@ -4,6 +4,7 @@ import {
     STRATEGIC_RANKED_STAT_KEY,
     PAIR_RANKED_STAT_KEY,
     STRATEGIC_RANKED_MATCH_RECORD_KEY,
+    STRATEGIC_NORMAL_MATCH_RECORD_KEY,
     PAIR_RANKED_MATCH_RECORD_KEY,
     PAIR_ARENA_AI_MATCH_RECORD_KEY,
     type RankedStatBlock,
@@ -49,6 +50,19 @@ export function readStrategicRankedMatchRecord(stats: StatsMapInput): RankedPvpM
     const wins = typeof legacy?.wins === 'number' && Number.isFinite(legacy.wins) ? legacy.wins : 0;
     const losses = typeof legacy?.losses === 'number' && Number.isFinite(legacy.losses) ? legacy.losses : 0;
     return { wins: Math.max(0, wins), losses: Math.max(0, losses) };
+}
+
+/** 일반전 전적 — `strategicNormalMatchRecord`만 사용 */
+export function readStrategicNormalMatchRecord(stats: StatsMapInput): RankedPvpMatchRecord {
+    const sm = toStatsMap(stats);
+    if (statsObjectHasOwnKey(sm, STRATEGIC_NORMAL_MATCH_RECORD_KEY)) {
+        const rec = sm![STRATEGIC_NORMAL_MATCH_RECORD_KEY]!;
+        return {
+            wins: typeof rec.wins === 'number' && Number.isFinite(rec.wins) ? Math.max(0, rec.wins) : 0,
+            losses: typeof rec.losses === 'number' && Number.isFinite(rec.losses) ? Math.max(0, rec.losses) : 0,
+        };
+    }
+    return { wins: 0, losses: 0 };
 }
 
 /** `pairRankedMatchRecord`가 있으면 그 행만 사용 — `pair`에 남은 레거시 wins는 무시 */

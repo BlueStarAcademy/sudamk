@@ -172,8 +172,8 @@ const getGameStatusText = (session: LiveGameSession): string => {
                 return t('captureBidTie');
             }
             return modeIncludesBaseCaptureMix(mode, settings)
-                ? t('captureBidBase')
-                : t('captureBid');
+                ? t('turn.captureBidBase')
+                : t('turn.captureBid');
         case 'ended':
             return t('gameEnded');
         case 'no_contest':

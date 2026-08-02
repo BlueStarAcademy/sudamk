@@ -224,6 +224,21 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                     return { error: '유효하지 않은 장비 상자입니다.' };
                 }
 
+                const now = Date.now();
+                if (!user.dailyShopPurchases) user.dailyShopPurchases = {};
+                const purchaseRecord = user.dailyShopPurchases[itemId];
+                let purchasesToday = 0;
+                if (shopItem.dailyLimit) {
+                    if (purchaseRecord && isSameDayKST(purchaseRecord.date, now)) {
+                        purchasesToday = purchaseRecord.quantity;
+                    }
+                    if (!user.isAdmin && purchasesToday + quantity > shopItem.dailyLimit) {
+                        return {
+                            error: `오늘 구매 한도를 초과했습니다. (남은 구매 가능: ${Math.max(0, shopItem.dailyLimit - purchasesToday)}개)`,
+                        };
+                    }
+                }
+
                 const cost = shopItem.cost;
                 const totalGoldCost = (cost.gold || 0) * quantity;
                 const totalDiamondCost = (cost.diamonds || 0) * quantity;
@@ -252,7 +267,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                     user.inventorySlots = { equipment: 30, consumable: 30, material: 30 };
                 }
 
-                const { success, finalItemsToAdd, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, obtainedItems);
+                const { success, updatedInventory } = addItemsToInventory(user.inventory, user.inventorySlots, obtainedItems);
                 if (!success || !updatedInventory) {
                     return { error: '인벤토리 공간이 부족합니다.' };
                 }
@@ -265,6 +280,14 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                     if (totalDiamondCost > 0 && user.guildId) {
                         const guilds = await db.getKV<Record<string, any>>('guilds') || {};
                         await guildService.updateGuildMissionProgress(user.guildId, 'diamondsSpent', totalDiamondCost, guilds);
+                    }
+
+                    if (shopItem.dailyLimit) {
+                        if (!user.dailyShopPurchases[itemId] || !isSameDayKST(purchaseRecord?.date || 0, now)) {
+                            user.dailyShopPurchases[itemId] = { quantity: 0, date: now };
+                        }
+                        user.dailyShopPurchases[itemId].quantity = purchasesToday + quantity;
+                        user.dailyShopPurchases[itemId].date = now;
                     }
                 }
 
@@ -285,7 +308,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
 
                 // WebSocket으로 사용자 업데이트 브로드캐스트 (최적화된 함수 사용)
                 const { broadcastUserUpdate } = await import('../socket.js');
-                broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'quests']);
+                broadcastUserUpdate(user, ['inventory', 'gold', 'diamonds', 'dailyShopPurchases', 'quests']);
 
                 return { clientResponse: { obtainedItemsBulk: obtainedItems, updatedUser } };
             } catch (error: any) {

@@ -1,12 +1,10 @@
 import React, { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useGameRecordSaveLock } from '../../hooks/useGameRecordSaveLock.js';
 import { GameMode, LiveGameSession, ServerAction, GameProps, Player, User, Point, GameStatus, AppSettings } from '../../types.js';
-import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST } from '../../constants';
-import {
-    PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY,
-    POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY,
-} from '../../shared/constants/pairArena.js';
+import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, NO_CONTEST_MOVE_THRESHOLD } from '../../constants';
 import { arenaLobbyHashFromSession } from '../../shared/utils/arenaLobbyDestination.js';
+import { countValidStoneMoves } from '../../shared/utils/shortRankedGamePenalty.js';
+import type { GameConfirmModalType } from './GameModals.js';
 import { aiUserId } from '../../constants/auth.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../../utils/strategicPvpGameRecord.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
@@ -260,7 +258,7 @@ interface GameControlsProps {
     isSpectator: boolean;
     onAction: (action: ServerAction) => void | Promise<unknown>;
     setShowResultModal: (show: boolean) => void;
-    setConfirmModalType: (type: 'resign' | null) => void;
+    setConfirmModalType: (type: GameConfirmModalType) => void;
     onOpenRematchSettings?: () => void;
     currentUser: GameProps['currentUser'];
     onlineUsers: GameProps['onlineUsers'];
@@ -1519,8 +1517,13 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             console.log('[GameControls] handleResign: Game is not in a resignable state', gameStatus);
             return;
         }
-        console.log('[GameControls] handleResign: Opening confirm modal');
-        setConfirmModalType('resign'); 
+        const stoneMoves = countValidStoneMoves(session.moveHistory);
+        const shortRankedResign =
+            Boolean(session.isRankedGame) &&
+            !session.isAiGame &&
+            stoneMoves < NO_CONTEST_MOVE_THRESHOLD;
+        console.log('[GameControls] handleResign: Opening confirm modal', { shortRankedResign, stoneMoves });
+        setConfirmModalType(shortRankedResign ? 'resignShortRanked' : 'resign');
     };
     const handleUseItem = (item: 'hidden' | 'scan' | 'missile') => { 
         console.log('[GameControls] handleUseItem called', { item, gameStatus, gameId });
@@ -2013,16 +2016,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             } else if (session.gameCategory === 'tower') {
                 redirectHash = '#/tower';
             } else if (session.settings?.pairGame) {
+                // 친선·AI·놀이터 등 홈 입장 모드는 전용 로비가 아닌 홈으로
                 redirectHash = arenaLobbyHashFromSession(session);
-                const rid = session.settings.pairGame?.roomId;
-                if (rid) {
-                    try {
-                        sessionStorage.setItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY, rid);
-                        sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
-                    } catch {
-                        /* ignore */
-                    }
-                }
             } else if (session.isAiGame && (SPECIAL_GAME_MODES.some(m => m.mode === session.mode) || PLAYFUL_GAME_MODES.some(m => m.mode === session.mode))) {
                 redirectHash = arenaLobbyHashFromSession(session);
             } else if (session.gameCategory === 'singleplayer' || session.isSinglePlayer) {

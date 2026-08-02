@@ -94,6 +94,7 @@ const arenaBadgeClass: Record<string, string> = {
     strategic: 'border-sky-400/40 bg-sky-500/15 text-sky-100',
     pair: 'border-fuchsia-400/40 bg-fuchsia-500/15 text-fuchsia-100',
     playful: 'border-amber-400/40 bg-amber-500/15 text-amber-100',
+    friendly: 'border-emerald-400/40 bg-emerald-500/15 text-emerald-100',
 };
 
 export type PairInviteListTab = 'users' | 'friends' | 'guild';
@@ -128,6 +129,10 @@ interface PlayerListProps {
     listScopeTabs?: ReactNode;
     /** 전략·놀이·페어 집계 로비: 본인 행에 파트너 초대 수신 거부(초대금지) 체크 */
     showArenaPartnerInviteBlockToggle?: boolean;
+    /** 「유저 목록」 제목·인원 수 숨김 (홈 사이드바 등) */
+    hideHeading?: boolean;
+    /** 점수·전적 숨김 — 상세 프로필에서만 확인 */
+    hideScoreAndRecord?: boolean;
 }
 
 const PlayerList: React.FC<PlayerListProps> = ({
@@ -146,6 +151,8 @@ const PlayerList: React.FC<PlayerListProps> = ({
     disableStatusSelect = false,
     listScopeTabs,
     showArenaPartnerInviteBlockToggle = false,
+    hideHeading = false,
+    hideScoreAndRecord = false,
 }) => {
     const { t } = useTranslation('lobby');
     const me =
@@ -163,7 +170,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
         const arenaBadge = userArenaChannelBadge(user);
         const isDiceGo = mode === GameMode.Dice;
 
-        const listStats = computeUserListStats(user, mode);
+        const listStats = hideScoreAndRecord ? null : computeUserListStats(user, mode);
 
         const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
         const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
@@ -192,7 +199,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     ? `${user.nickname}${
                                           listStats.score != null ? ` ${t('playerList.scorePoints', { score: listStats.score.toLocaleString() })} ·` : ' ·'
                                       } ${t('playerList.recordSummary', { wins: listStats.wins, losses: listStats.losses, winRate: listStats.winRate })}`
-                                    : undefined
+                                    : user.nickname
                             }
                         >
                             <UserNicknameText
@@ -225,7 +232,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                 >
                                     ● {statusText}
                                 </span>
-                                {arenaBadge && (
+                                {!hideScoreAndRecord && arenaBadge && (
                                     <span
                                         className={`shrink-0 rounded-full border px-1.5 py-0.5 font-bold leading-none ${
                                             arenaBadgeClass[arenaBadge.channel] ?? arenaBadgeClass.strategic
@@ -236,23 +243,25 @@ const PlayerList: React.FC<PlayerListProps> = ({
                                     </span>
                                 )}
                             </div>
-                            {listStats ? (
-                                <span
-                                    className={`shrink-0 text-right font-semibold tabular-nums text-secondary ${
-                                        pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[11px] lg:text-xs' : 'text-[10px] lg:text-[11px]'
-                                    }`}
-                                >
-                                    {t('playerList.recordSummary', { wins: listStats.wins, losses: listStats.losses, winRate: listStats.winRate })}
-                                </span>
-                            ) : (
-                                <span
-                                    className={`shrink-0 text-right text-tertiary ${
-                                        pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[11px] lg:text-xs' : 'text-[10px] lg:text-[11px]'
-                                    }`}
-                                >
-                                    {t('playerList.noStats')}
-                                </span>
-                            )}
+                            {!hideScoreAndRecord ? (
+                                listStats ? (
+                                    <span
+                                        className={`shrink-0 text-right font-semibold tabular-nums text-secondary ${
+                                            pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[11px] lg:text-xs' : 'text-[10px] lg:text-[11px]'
+                                        }`}
+                                    >
+                                        {t('playerList.recordSummary', { wins: listStats.wins, losses: listStats.losses, winRate: listStats.winRate })}
+                                    </span>
+                                ) : (
+                                    <span
+                                        className={`shrink-0 text-right text-tertiary ${
+                                            pairAlignedNativeCompact ? 'text-[0.62rem] sm:text-[11px] lg:text-xs' : 'text-[10px] lg:text-[11px]'
+                                        }`}
+                                    >
+                                        {t('playerList.noStats')}
+                                    </span>
+                                )
+                            ) : null}
                         </div>
                     </div>
                 </div>
@@ -351,7 +360,7 @@ const PlayerList: React.FC<PlayerListProps> = ({
         );
     };
 
-    const hideListHeading = Boolean(pairInvite?.modalLayout);
+    const hideListHeading = hideHeading || Boolean(pairInvite?.modalLayout);
 
     const arenaInviteBlockControl =
         showArenaPartnerInviteBlockToggle ? (

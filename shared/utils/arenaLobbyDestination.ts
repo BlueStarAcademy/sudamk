@@ -1,5 +1,5 @@
 import type { ArenaChannel, ArenaLobbyIntent } from '../types/api.js';
-import { arenaChannelForGameMode, arenaChannelForSettings } from './arenaChannel.js';
+import { APP_HOME_HASH } from '../types/navigation.js';
 import type { GameMode } from '../types/enums.js';
 import type { GameSettings } from '../types/entities.js';
 
@@ -15,6 +15,7 @@ export type RoomKind =
     | 'duo_match'
     | 'friendly_4p'
     | 'friendly_2p'
+    | 'team_pair'
     | 'arena_ai';
 
 export const ARENA_LOBBY_INTENT_LABEL: Record<ArenaLobbyIntent, string> = {
@@ -23,9 +24,10 @@ export const ARENA_LOBBY_INTENT_LABEL: Record<ArenaLobbyIntent, string> = {
 };
 
 export const ARENA_LOBBY_DESTINATION_TITLE: Record<ArenaChannel, Record<ArenaLobbyIntent, string>> = {
-    strategic: { pvp: '전략바둑 PVP 경기장', ai: '전략바둑 AI 대전' },
-    pair: { pvp: '페어 PVP 경기장', ai: '페어 AI 대전' },
-    playful: { pvp: '놀이바둑 PVP 경기장', ai: '놀이바둑 AI 대전' },
+    strategic: { pvp: '랭크·일반 매칭', ai: 'AI 대전' },
+    pair: { pvp: '페어 매칭', ai: '페어 AI 대전' },
+    playful: { pvp: '놀이터', ai: '놀이터 AI' },
+    friendly: { pvp: '친선전', ai: '친선전 (봇)' },
 };
 
 export function normalizeArenaLobbyIntent(value: unknown): ArenaLobbyIntent | null {
@@ -38,13 +40,49 @@ export function normalizeArenaLobbyDestination(
 ): ArenaLobbyDestination | null {
     const normalizedIntent = normalizeArenaLobbyIntent(intent);
     const normalizedChannel =
-        channel === 'strategic' || channel === 'pair' || channel === 'playful' ? channel : null;
+        channel === 'strategic' || channel === 'pair' || channel === 'playful' || channel === 'friendly'
+            ? channel
+            : null;
     if (!normalizedIntent || !normalizedChannel) return null;
     return { intent: normalizedIntent, channel: normalizedChannel };
 }
 
-export function arenaLobbyHash(dest: ArenaLobbyDestination): string {
-    return `#/${dest.intent}/${dest.channel}`;
+/**
+ * 홈 입장카드에 없는 로비 목적지를 홈 정렬 목적지로 접는다.
+ * - `#/ai/pair`·`#/ai/playful`·`#/ai/friendly` → `#/ai/strategic`
+ * - `#/pvp/pair` → `#/pvp/friendly`
+ */
+export function canonicalizeHomeAlignedLobbyDestination(
+    dest: ArenaLobbyDestination,
+): ArenaLobbyDestination {
+    /** AI 대전 카드 제거 — 모든 AI intent는 친선전 PVP로 */
+    if (dest.intent === 'ai') {
+        return { intent: 'pvp', channel: 'friendly' };
+    }
+    if (dest.intent === 'pvp' && dest.channel === 'pair') {
+        return { intent: 'pvp', channel: 'friendly' };
+    }
+    return dest;
+}
+
+export function arenaLobbyHash(
+    dest: ArenaLobbyDestination & { queue?: 'ranked' | 'normal' },
+): string {
+    const canonical = canonicalizeHomeAlignedLobbyDestination(dest);
+    const base = `#/${canonical.intent}/${canonical.channel}`;
+    if (canonical.channel === 'strategic' && canonical.intent === 'pvp' && dest.queue) {
+        return `${base}?queue=${dest.queue}`;
+    }
+    return base;
+}
+
+/** `#/pvp/strategic?queue=normal` 등에서 큐 종류 파싱 */
+export function parseStrategicMatchQueueFromHash(hash: string): 'ranked' | 'normal' | null {
+    const q = hash.includes('?') ? hash.split('?')[1] : '';
+    if (!q) return null;
+    const params = new URLSearchParams(q);
+    const queue = params.get('queue');
+    return queue === 'ranked' || queue === 'normal' ? queue : null;
 }
 
 /** @deprecated Picker removed — defaults to strategic lobby */
@@ -62,10 +100,14 @@ export function parseArenaLobbyHash(hash: string): ArenaLobbyDestination | null 
 export function pvpRoomKindsForChannel(channel: ArenaChannel): RoomKind[] {
     switch (channel) {
         case 'strategic':
-        case 'playful':
             return ['duo_match'];
+        case 'playful':
+            /** 놀이터 방만들기: 유저대결 + AI대결 */
+            return ['duo_match', 'arena_ai'];
+        case 'friendly':
+            return ['duo_match', 'friendly_2p', 'team_pair', 'friendly_4p'];
         case 'pair':
-            return ['friendly_4p', 'friendly_2p'];
+            return ['friendly_4p', 'friendly_2p', 'team_pair'];
     }
 }
 
@@ -73,8 +115,13 @@ export function pvpRoomKindsForChannel(channel: ArenaChannel): RoomKind[] {
 export function aiRoomKindsForChannel(channel: ArenaChannel): RoomKind[] {
     switch (channel) {
         case 'strategic':
+            /** 1:1(arena_ai) — 팀페어는 친선 상대 슬롯 AI로 대체, duo_match는 레거시 가시성 */
+            return ['arena_ai', 'duo_match'];
         case 'playful':
-            return ['arena_ai'];
+            /** 홈 기준 놀이터 AI 제거 — 레거시 방 가시성만 유지 */
+            return ['duo_match', 'arena_ai'];
+        case 'friendly':
+            return ['arena_ai', 'duo_match', 'ai_duel'];
         case 'pair':
             return ['duo_match', 'ai_duel'];
     }
@@ -113,14 +160,43 @@ export function arenaLobbyIntentFromPairRoom(
     return 'pvp';
 }
 
-/** 페어 AI 2인 팀 초대 전용 방(구형 duo_match + pairMode ai 포함) */
+/** AI 팀페어(사람+사람 vs AI+AI) 초대 전용 방 — 페어·전략 채널(레거시) */
 export function isPairAiDuoInviteOnlyRoom(room: PairRoomLobbyVisibility): boolean {
     const pairMode = room.pairMode ?? room.mode;
     const channel = room.lobbyChannel ?? 'pair';
     return Boolean(
         room.pairAiDuoInviteShell ||
-            (room.roomKind === 'duo_match' && pairMode === 'ai' && channel === 'pair'),
+            (room.roomKind === 'duo_match' &&
+                pairMode === 'ai' &&
+                (channel === 'pair' || channel === 'strategic')),
     );
+}
+
+/** 친선 1:1·팀페어: 상대 슬롯에 로비 AI를 넣을 수 있는지 (4인 친선은 인간만) */
+export function pairRoomAllowsFriendlyOpponentAiSeats(room: {
+    roomKind: string;
+    lobbyChannel?: string | null;
+    pairMode?: string | null;
+    mode?: string | null;
+    pairAiDuoInviteShell?: boolean;
+}): boolean {
+    const pairMode = room.pairMode ?? room.mode;
+    if (pairMode === 'ai') return false;
+    if (room.pairAiDuoInviteShell) return false;
+    const channel = room.lobbyChannel ?? 'pair';
+    if (room.roomKind === 'duo_match' && channel === 'friendly') return true;
+    if (room.roomKind === 'team_pair' && (channel === 'friendly' || channel === 'pair')) return true;
+    return false;
+}
+
+export const LOBBY_AI_SEAT_ID_PREFIX = 'lobby-ai-b-';
+
+export function lobbyAiSeatParticipantId(index: 0 | 1): string {
+    return `${LOBBY_AI_SEAT_ID_PREFIX}${index}`;
+}
+
+export function isLobbyAiSeatParticipantId(id: string | null | undefined): boolean {
+    return Boolean(id && String(id).startsWith(LOBBY_AI_SEAT_ID_PREFIX));
 }
 
 /**
@@ -143,8 +219,16 @@ export function isPairRoomVisibleInLobbyIntent(
 ): boolean {
     if (!roomKindsForLobbyDestination(dest).includes(room.roomKind)) return false;
     const pairMode = room.pairMode ?? room.mode ?? 'pvp';
-    if (dest.intent === 'pvp' && pairMode === 'ai') return false;
-    if (dest.intent === 'ai' && pairMode === 'pvp') return false;
+    const isOwnRoom = Boolean(viewerUserId && room.ownerId && room.ownerId === viewerUserId);
+    /**
+     * 놀이터는 유저대결·AI대결을 한 목록에서 운영한다.
+     * 내가 만든/참가 중인 방은 intent 불일치여도 방목록에 남겨 둔다.
+     */
+    const skipIntentPairModeFilter = dest.channel === 'playful' || isOwnRoom;
+    if (!skipIntentPairModeFilter) {
+        if (dest.intent === 'pvp' && pairMode === 'ai') return false;
+        if (dest.intent === 'ai' && pairMode === 'pvp') return false;
+    }
     if (viewerUserId) {
         if (room.pairPetRankedQueueShell && room.ownerId !== viewerUserId) return false;
         if (isPairAiDuoInviteOnlyRoom(room) && room.ownerId !== viewerUserId) return false;
@@ -152,19 +236,15 @@ export function isPairRoomVisibleInLobbyIntent(
     return true;
 }
 
-/** 게임 세션 종료·복귀 hash — AI/PVP intent와 채널을 세션에서 유도 */
-export function arenaLobbyHashFromSession(session: {
+/**
+ * 게임 세션 종료·복귀 hash.
+ * 랭킹/일반/친선/AI/놀이터는 홈 퀵패널로 이전되어 전용 로비 해시 대신 홈으로 복귀한다.
+ * (guildwar·tower·adventure·singleplayer 등은 호출부에서 별도 처리)
+ */
+export function arenaLobbyHashFromSession(_session: {
     isAiGame?: boolean;
     mode?: GameMode | null;
     settings?: Pick<GameSettings, 'pairGame'> | null;
 }): string {
-    const settings = session.settings as Pick<GameSettings, 'pairGame'> | null | undefined;
-    const channel =
-        arenaChannelForSettings(settings ?? undefined) ??
-        arenaChannelForGameMode(session.mode ?? undefined) ??
-        'strategic';
-    const pairMode = settings?.pairGame?.pairMode;
-    let intent: ArenaLobbyIntent =
-        pairMode === 'ai' ? 'ai' : pairMode === 'pvp' ? 'pvp' : session.isAiGame ? 'ai' : 'pvp';
-    return arenaLobbyHash({ intent, channel });
+    return APP_HOME_HASH;
 }

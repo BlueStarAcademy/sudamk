@@ -159,7 +159,7 @@ const ItemDisplay: React.FC<{
                 </div>
             </div>
             {/* Bottom section: Clickable options */}
-            <div className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden rounded-lg bg-black/30 p-1.5 text-left ${typo.body} [scrollbar-gutter:stable]`}>
+            <div className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden rounded-lg bg-black/30 p-1.5 text-left ${typo.caption} [scrollbar-gutter:stable]`}>
                 {/* Main Option */}
                 <button
                     onClick={() => onOptionClick('main', 0)}

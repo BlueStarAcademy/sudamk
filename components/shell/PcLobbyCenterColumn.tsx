@@ -1,6 +1,7 @@
 import React, { type ReactNode } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import QuickUtilityPanel from '../quick-panel/QuickUtilityPanel.js';
+import { WaitingLobbyAnnouncementBoard } from '../waiting-room/WaitingLobbyAnnouncementBoard.js';
 import {
     PC_GUILD_CENTER_INNER_CLASS,
     PC_GUILD_CENTER_SHELL_CLASS,
@@ -17,8 +18,16 @@ type PcLobbyCenterColumnProps = {
     fullWidth?: boolean;
 };
 
+/** 홈 뷰어 상단 전광판 — 스테이지/탑/모험/길드(transparentShell)에서는 표시하지 않음 */
+const HomeViewerAnnouncementStrip: React.FC = () => (
+    <div className="relative z-[3] w-full shrink-0 self-stretch px-1.5 pb-1 pt-1.5 sm:px-2 sm:pb-1.5 sm:pt-2">
+        <WaitingLobbyAnnouncementBoard mode="home" />
+    </div>
+);
+
 /**
  * PC 로비 중앙 열: 기본은 입장카드 셸, 퀵 유틸 열림 시 뷰포트 꽉 찬 인라인 패널로 전환.
+ * 홈 뷰어에서는 전광판을 셸에 고정해 입장카드↔퀵유틸 전환 시에도 유지한다.
  */
 const PcLobbyCenterColumn: React.FC<PcLobbyCenterColumnProps> = ({
     children,
@@ -28,6 +37,8 @@ const PcLobbyCenterColumn: React.FC<PcLobbyCenterColumnProps> = ({
     const { modals, handlers } = useAppContext();
     const utilityKind = modals.activeQuickUtilityPanel;
 
+    // 퀵유틸을 transparentShell보다 먼저 처리해야 길드/탑/모험 등에서도 패널이 마운트된다.
+    // (transparentShell을 먼저 return하면 activeQuickUtilityPanel만 켜지고 호스트가 없어 버튼이 죽은 것처럼 보인다)
     if (utilityKind) {
         return (
             <div className={PC_QUICK_UTILITY_CENTER_SHELL_CLASS}>
@@ -36,7 +47,10 @@ const PcLobbyCenterColumn: React.FC<PcLobbyCenterColumnProps> = ({
                     aria-hidden
                 />
                 <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-white/10" aria-hidden />
-                <QuickUtilityPanel kind={utilityKind} onBack={handlers.closeQuickUtilityPanel} />
+                {!transparentShell ? <HomeViewerAnnouncementStrip /> : null}
+                <div className="relative z-[2] flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                    <QuickUtilityPanel kind={utilityKind} onBack={handlers.closeQuickUtilityPanel} />
+                </div>
             </div>
         );
     }
@@ -59,7 +73,12 @@ const PcLobbyCenterColumn: React.FC<PcLobbyCenterColumnProps> = ({
                 aria-hidden
             />
             <div className="pointer-events-none absolute inset-0 rounded-xl ring-1 ring-inset ring-white/10" aria-hidden />
-            <div className={`relative z-[2] ${PC_HOME_CENTER_INNER_LOBBY_CLASS}`}>{children}</div>
+            <HomeViewerAnnouncementStrip />
+            <div
+                className={`relative z-[2] w-full min-h-0 flex-1 self-stretch overflow-hidden ${PC_HOME_CENTER_INNER_LOBBY_CLASS}`}
+            >
+                {children}
+            </div>
         </div>
     );
 };

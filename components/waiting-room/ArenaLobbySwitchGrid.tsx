@@ -21,8 +21,9 @@ const CHANNEL_CARDS: {
     entranceKey: ArenaEntranceKey;
 }[] = [
     { channel: 'strategic', navKind: 'strategic', image: STRATEGIC_GO_LOBBY_IMG, entranceKey: 'strategicLobby' },
-    { channel: 'pair', navKind: 'pair', image: PAIR_GO_LOBBY_IMG, entranceKey: 'pairLobby' },
+    { channel: 'friendly', navKind: 'friendly', image: PVP_ARENA_ENTRY_IMG, entranceKey: 'friendlyLobby' },
     { channel: 'playful', navKind: 'playful', image: PLAYFUL_GO_LOBBY_IMG, entranceKey: 'playfulLobby' },
+    { channel: 'pair', navKind: 'pair', image: PAIR_GO_LOBBY_IMG, entranceKey: 'pairLobby' },
 ];
 
 export type ArenaLobbySwitchGridProps = {

@@ -27,6 +27,8 @@ import {
     SINGLE_PLAYER_LOBBY_IMG,
     TOWER_CHALLENGE_LOBBY_IMG,
     PAIR_GO_LOBBY_IMG,
+    FACTORY_GO_LOBBY_IMG,
+    GUILD_GO_LOBBY_IMG,
 } from '../assets.js';
 import { ItemGrade } from '../types.js';
 
@@ -123,6 +125,8 @@ const ENTRY_ARENA_LOBBY_URLS = dedupePaths([
     TOURNAMENT_LOBBY_IMG,
     SINGLE_PLAYER_LOBBY_IMG,
     TOWER_CHALLENGE_LOBBY_IMG,
+    FACTORY_GO_LOBBY_IMG,
+    GUILD_GO_LOBBY_IMG,
 ]);
 
 /** 전략/교류 로비, 대기실, 싱글/탑/페어 로비 타일 */
@@ -146,6 +150,7 @@ export const ENTRY_ADVENTURE_ROUTE_IMAGE_URLS = dedupePaths([...ENTRY_BOOT_IMAGE
 
 /** 길드 홈·보스·전쟁 첫 화면에서 자주 쓰는 정적 에셋 */
 export const ENTRY_GUILD_SURFACE_IMAGE_URLS = dedupePaths([
+    '/images/bg/guildbg1.webp',
     '/images/guild/guildbg.webp',
     '/images/guild/tokken.webp',
     '/images/guild/button/guildmission.webp',

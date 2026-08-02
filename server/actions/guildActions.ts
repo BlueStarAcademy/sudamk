@@ -919,6 +919,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         guildId: guild.id,
                         userId: effectiveUserId,
                         nickname: user.nickname || '',
+                        avatarId: user.avatarId,
+                        borderId: user.borderId,
                         role: GuildMemberRole.Member,
                         joinDate: Date.now(),
                         contributionTotal: 0,
@@ -1201,7 +1203,9 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 id: `member-${applicant.id}-${guild.id}`,
                 guildId: guild.id,
                 userId: applicant.id, 
-                nickname: applicant.nickname, 
+                nickname: applicant.nickname,
+                avatarId: applicant.avatarId,
+                borderId: applicant.borderId,
                 role: GuildMemberRole.Member, 
                 joinDate: Date.now(), 
                 contributionTotal: 0, 
@@ -3356,6 +3360,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                             guildId: m.guildId,
                             userId: canonicalUserId,
                             nickname: row?.nickname || '',
+                            avatarId: row?.avatarId ?? undefined,
+                            borderId: row?.borderId ?? undefined,
                             role: m.role as 'leader' | 'officer' | 'member',
                             joinDate: m.joinDate,
                             contributionTotal: m.contributionTotal,
@@ -3376,6 +3382,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                             guildId: dbGuild.id,
                             userId: effectiveUserId,
                             nickname: curRow?.nickname || curRow?.username || '알 수 없음',
+                            avatarId: curRow?.avatarId ?? user.avatarId ?? undefined,
+                            borderId: curRow?.borderId ?? user.borderId ?? undefined,
                             role: dbMemberForUser?.role as 'leader' | 'officer' | 'member' || (dbGuild.leaderId === user.id ? 'leader' : 'member'),
                             joinDate: dbMemberForUser?.joinDate ?? Date.now(),
                             contributionTotal: dbMemberForUser ? Number(dbMemberForUser.contributionTotal) : 0,
@@ -3479,6 +3487,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                                 guildId: dbMember.guildId,
                                 userId: canonicalUserId,
                                 nickname: row?.nickname || '',
+                                avatarId: row?.avatarId ?? undefined,
+                                borderId: row?.borderId ?? undefined,
                                 role: dbMember.role as 'leader' | 'officer' | 'member',
                                 joinDate: dbMember.joinDate,
                                 contributionTotal: dbMember.contributionTotal,
@@ -3522,6 +3532,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         guildId: guild.id,
                         userId: effectiveUserId,
                         nickname: memberUser?.nickname || memberUser?.username || '알 수 없음',
+                        avatarId: memberUser?.avatarId ?? user.avatarId ?? undefined,
+                        borderId: memberUser?.borderId ?? user.borderId ?? undefined,
                         role,
                         joinDate,
                         contributionTotal,
@@ -3533,7 +3545,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                     console.log(`[GET_GUILD_INFO] Added current user ${effectiveUserId} to members (was missing)`);
                 }
                 
-                // 모든 멤버의 nickname, 기여도, 최근 접속 시각 업데이트
+                // 모든 멤버의 nickname, 아바타, 기여도, 최근 접속 시각 업데이트
                 for (const member of guild.members) {
                     let dbMember = dbMembers.find(m => m.userId === member.userId);
                     if (!dbMember && member.userId === ADMIN_USER_ID) {
@@ -3546,6 +3558,8 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                         const row = userMap.get(dbMember.userId);
                         if (row) {
                             if (!member.nickname || member.nickname.trim() === '') member.nickname = row.nickname || '';
+                            if (row.avatarId != null) member.avatarId = row.avatarId;
+                            if (row.borderId != null) member.borderId = row.borderId;
                             member.lastLoginAt = row.lastLoginAt;
                         }
                     }

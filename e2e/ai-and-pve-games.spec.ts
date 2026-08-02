@@ -66,11 +66,14 @@ test.describe('AI and PvE games E2E', () => {
         await goToAppHashFromStableProfile(page, '#/tower');
         await page.waitForTimeout(2500);
 
-        const onTower = new URL(page.url()).hash.startsWith('#/tower');
-        if (!onTower) {
+        // 풀페이지 `#/tower` 폐지 — 홈 퀵유틸 뷰어로 리다이렉트
+        const hash = new URL(page.url()).hash;
+        const onTowerViewer =
+            hash.startsWith('#/tower') || hash.startsWith('#/home') || hash === '#' || hash === '';
+        if (!onTowerViewer) {
             await expect(
                 page
-                    .getByText(/Clear Go School Intro Stage 10|입문반.*10/i)
+                    .getByText(/Clear Adventure Sproutwood Gate 10|새싹의 숲.*10|입문반.*10|Go School Intro Stage 10/i)
                     .or(page.getByText(E2E_TEXT.challengeTower))
                     .or(page.getByAltText(E2E_TEXT.challengeTower))
                     .first(),
@@ -78,7 +81,9 @@ test.describe('AI and PvE games E2E', () => {
             return;
         }
 
-        await expect(page.getByRole('heading', { name: E2E_TEXT.challengeTower })).toBeVisible({ timeout: 20000 });
+        await expect(
+            page.getByRole('heading', { name: E2E_TEXT.challengeTower }).or(page.getByText(E2E_TEXT.challengeTower)).first(),
+        ).toBeVisible({ timeout: 20000 });
 
         const challengeBtn = page.getByRole('button', { name: E2E_TEXT.challenge }).first();
         const hasChallenge = await challengeBtn.isVisible().catch(() => false);

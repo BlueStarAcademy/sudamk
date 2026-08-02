@@ -206,8 +206,23 @@ export const RANKED_STRATEGIC_MODES: GameMode[] = [
 /** 랭킹전에서 선택 가능한 모드 — 전략바둑만 (믹스룰 제외) */
 export const RANKED_AVAILABLE_MODES: GameMode[] = [...RANKED_STRATEGIC_MODES];
 
-// 랭킹전 설정 가져오기
+/** 일반전 매칭 큐 종목 — 랭크와 동일 프리셋 (믹스 제외) */
+export const NORMAL_QUEUE_STRATEGIC_MODES: GameMode[] = [...RANKED_STRATEGIC_MODES];
+
+/** 일반전 전용 고정 종목 (1차 없음 — 추후 프리셋 추가 시 확장) */
+export const NORMAL_ONLY_STRATEGIC_MODES: GameMode[] = [];
+
+/** 일반전에서 선택 가능한 전체 종목 */
+export const NORMAL_AVAILABLE_MODES: GameMode[] = [
+    ...NORMAL_QUEUE_STRATEGIC_MODES,
+    ...NORMAL_ONLY_STRATEGIC_MODES,
+];
+
+// 랭킹전·일반전 공통 고정 설정
 export const getRankedGameSettings = (mode: GameMode): GameSettings => {
     return RANKED_GAME_SETTINGS[mode] || RANKED_GAME_SETTINGS[GameMode.Standard];
 };
+
+/** 일반전 규칙 = 랭크 프리셋과 동일 */
+export const getNormalQueueGameSettings = getRankedGameSettings;
 

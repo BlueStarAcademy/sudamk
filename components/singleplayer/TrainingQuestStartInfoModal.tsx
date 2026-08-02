@@ -23,9 +23,20 @@ const TrainingQuestStartInfoModal: React.FC<TrainingQuestStartInfoModalProps> = 
         t(`singleplayer.startMessages.${mission.id}`, {
             defaultValue: t('singleplayer.startMessageDefault'),
         });
-    const rewardIcon = mission.rewardType === 'gold' ? '/images/icon/Gold.webp' : '/images/icon/Zem.webp';
+    const rewardIcon =
+        mission.rewardType === 'gold'
+            ? '/images/icon/Gold.webp'
+            : mission.rewardType === 'diamonds'
+              ? '/images/icon/Zem.webp'
+              : mission.rewardType === 'enhance_stone'
+                ? '/images/materials/materials1.webp'
+                : '/images/Box/EquipmentBox1.webp';
     const rewardAlt =
-        mission.rewardType === 'gold' ? t('common:resources.gold') : t('common:resources.diamonds');
+        mission.rewardType === 'gold'
+            ? t('common:resources.gold')
+            : mission.rewardType === 'diamonds'
+              ? t('common:resources.diamonds')
+              : mission.name;
 
     return (
         <DraggableWindow

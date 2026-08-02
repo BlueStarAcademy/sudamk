@@ -213,12 +213,14 @@ export async function getUsersBrief(ids: string[]): Promise<
   }
 }
 
-/** 길드 멤버 동기화용: findMany 1회로 id·닉네임·관리자 여부·lastLoginAt(status 내) 조회 (GET_GUILD_INFO N+1 제거) */
+/** 길드 멤버 동기화용: findMany 1회로 id·닉네임·아바타·관리자 여부·lastLoginAt(status 내) 조회 (GET_GUILD_INFO N+1 제거) */
 export type GuildMemberUserSnapshot = {
   id: string;
   nickname: string;
   username: string | null;
   isAdmin: boolean;
+  avatarId?: string | null;
+  borderId?: string | null;
   lastLoginAt?: number;
 };
 
@@ -245,6 +247,8 @@ export async function getUsersGuildSyncFields(ids: string[]): Promise<Map<string
         nickname: r.nickname,
         username: r.username,
         isAdmin: r.isAdmin,
+        avatarId: (status?.avatarId as string | null) ?? null,
+        borderId: (status?.borderId as string | null) ?? null,
         lastLoginAt:
           lastLoginAt != null && Number.isFinite(Number(lastLoginAt)) ? Number(lastLoginAt) : undefined,
       });

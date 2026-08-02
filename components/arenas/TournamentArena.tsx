@@ -8,7 +8,7 @@ import { useAppContext } from '../../hooks/useAppContext';
 import { TournamentBracket } from '../TournamentBracket';
 import Button from '../Button';
 import { TOURNAMENT_DEFINITIONS } from '../../constants';
-import { replaceAppHash } from '../../utils/appUtils.js';
+import { navigateToHomeChampionship } from '../../utils/appUtils.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import {
@@ -181,7 +181,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
         return (
             <div className="p-4 text-center">
                 <p>{t('loadingUser')}</p>
-                <Button onClick={() => { replaceAppHash('#/tournament'); }} className="mt-4">{t('backToLobbyFull')}</Button>
+                <Button onClick={() => { navigateToHomeChampionship(handlers.openChampionship); }} className="mt-4">{t('backToLobbyFull')}</Button>
             </div>
         );
     }
@@ -191,7 +191,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
     if (noStateAndChampionship) {
         return (
             <div className="p-8 w-full flex flex-col h-full items-center justify-center gap-4">
-                <Button onClick={() => { replaceAppHash('#/tournament'); }} className="!py-2 !px-4">
+                <Button onClick={() => { navigateToHomeChampionship(handlers.openChampionship); }} className="!py-2 !px-4">
                     {t('backToLobbyFull')}
                 </Button>
             </div>
@@ -217,7 +217,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
                     currentUser={currentUserWithStatus}
                     onBack={async () => {
                         if (tournamentState.status === 'round_in_progress') {
-                            replaceAppHash('#/tournament');
+                            navigateToHomeChampionship(handlers.openChampionship);
                             return;
                         }
                         try {
@@ -227,7 +227,7 @@ const TournamentArena: React.FC<TournamentArenaProps> = ({ type }) => {
                         } catch (error) {
                             console.error('[TournamentArena] Failed to save tournament progress on exit:', error);
                         } finally {
-                            replaceAppHash('#/tournament');
+                            navigateToHomeChampionship(handlers.openChampionship);
                         }
                     }}
                     allUsersForRanking={allUsers}

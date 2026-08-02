@@ -5,7 +5,7 @@ import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 
 /** 경기 요약 등에서 퀘스트 중복·제외 조건을 넘길 때 사용 */
 export type QuestProgressContext = {
-    /** `adventure`이면 「전략바둑 승리하기」는 카운트하지 않음(「모험에서 승리하기」 전용) */
+    /** `adventure`이면 「전략바둑 승리하기」는 카운트하지 않음(「탐험에서 승리하기」 전용) */
     gameCategory?: string;
     /** 페어 세션: `pvp`일 때 일반 전략/놀이 승리 퀘스트와 분리(페어 PVP 전용 퀘스트만 진행) */
     pairMode?: 'ai' | 'pvp';
@@ -91,7 +91,11 @@ export const updateQuestProgress = (
             case '페어바둑 승리하기':
                 if (type === 'pair_pvp_win') shouldUpdate = true;
                 break;
-            case '모험에서 승리하기': if (type === 'adventure_win') shouldUpdate = true; break;
+            case '탐험에서 승리하기':
+            case '여행에서 승리하기': // legacy title
+            case '모험에서 승리하기': // legacy title
+                if (type === 'adventure_win') shouldUpdate = true;
+                break;
             case '액션버튼 사용하기':
             case '매너액션 버튼 사용하기':
                 if (type === 'action_button') shouldUpdate = true;

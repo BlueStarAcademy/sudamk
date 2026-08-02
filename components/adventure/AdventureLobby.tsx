@@ -22,9 +22,9 @@ import {
     type AdventureChapterUnlockContext,
 } from '../../utils/adventureChapterUnlock.js';
 
-/** 프로필 홈 경기장(`Profile.tsx` lobbyGridShell)과 동일 — 2열·3행 */
+/** 우측 챕터 뷰어를 꽉 채우는 2열·3행 그리드 */
 const ADVENTURE_CHAPTER_GRID_DESKTOP =
-    'grid h-full min-h-0 w-full content-center grid-cols-2 grid-rows-[repeat(3,minmax(0,15rem))] gap-2.5 overflow-hidden lg:grid-rows-[repeat(3,minmax(0,17.5rem))] lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0';
+    'grid h-full min-h-0 w-full grid-cols-2 grid-rows-3 gap-2.5 overflow-hidden lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0';
 
 /** 모바일: 챕터 카드 가로 1열 · 세로 스크롤 */
 const ADVENTURE_CHAPTER_LIST_MOBILE =
@@ -59,18 +59,31 @@ const ChapterLockGlyph: React.FC<{ className?: string }> = ({ className }) => (
     </svg>
 );
 
-const AdventureLobby: React.FC = () => {
+export type AdventureLobbyProps = {
+    /** homeViewer: 홈 중앙 퀵유틸 — 챕터/일지 탭 모바일 셸 */
+    presentation?: 'full' | 'homeViewer';
+};
+
+const AdventureLobby: React.FC<AdventureLobbyProps> = ({ presentation = 'full' }) => {
     const { t } = useTranslation('lobby');
     const { currentUserWithStatus, handlers } = useAppContext();
     const { isNativeMobile, isNarrowViewport, pcLikeMobileLayout } = useNativeMobileShell();
+    const isHomeViewer = presentation === 'homeViewer';
 
-    /** 네이티브 앱 또는 모바일 웹(좁은 화면·PC동일 레이아웃 Off) — 챕터·일지 탭 */
-    const mobileAdventureShell = isNativeMobile || (isNarrowViewport && !pcLikeMobileLayout);
+    /** 좁은 화면·네이티브만 챕터/일지 탭. PC(홈뷰어 포함)는 좌측 일지·우측 챕터 */
+    const mobileAdventureShell =
+        isNativeMobile || (isNarrowViewport && !pcLikeMobileLayout);
     const [regionalBuffStageId, setRegionalBuffStageId] = useState<string | null>(null);
-    /** 네이티브 모바일: 챕터(기본) · 모험 일지 */
+    /** 모바일: 챕터(기본) · 탐험 일지 */
     const [mobileLobbyTab, setMobileLobbyTab] = useState<'chapter' | 'journal'>('chapter');
     const adventureScreenGuide = useScreenGuide('adventure');
-    const onBack = () => replaceAppHash(APP_HOME_HASH);
+    const onBack = () => {
+        if (isHomeViewer) {
+            handlers.closeQuickUtilityPanel?.();
+            return;
+        }
+        replaceAppHash(APP_HOME_HASH);
+    };
 
     const stageUnderstandingRows = useMemo(
         () => buildAdventureStageUnderstandingRows(currentUserWithStatus?.adventureProfile),
@@ -140,7 +153,7 @@ const AdventureLobby: React.FC = () => {
                             <li
                                 key={stage.id}
                                 className={`min-h-0 min-w-0 overflow-hidden ${
-                                    mobileScrollableList ? 'flex flex-col' : 'flex flex-1 flex-col'
+                                    mobileScrollableList ? 'flex flex-col' : 'flex h-full min-h-0 flex-col'
                                 }`}
                             >
                                 <div
@@ -169,16 +182,18 @@ const AdventureLobby: React.FC = () => {
                                               })
                                     }
                                     className={`m-0 flex w-full min-w-0 flex-col overflow-hidden border-0 bg-transparent p-0 text-left transition-[filter] duration-200 ${
+                                        mobileScrollableList ? '' : 'min-h-0 flex-1'
+                                    } ${
                                         unlocked
                                             ? 'cursor-pointer group-hover:brightness-[1.02]'
                                             : 'cursor-not-allowed'
                                     }`}
                                 >
                                     <div
-                                        className={`relative min-h-[3.5rem] shrink-0 overflow-hidden sm:min-h-[4rem] ${
+                                        className={`relative overflow-hidden ${
                                             mobileScrollableList
                                                 ? 'h-[5.25rem] min-h-[5rem] shrink-0'
-                                                : 'flex-[1.8] min-h-[4.5rem] lg:min-h-[5rem]'
+                                                : 'min-h-0 flex-1'
                                         }`}
                                     >
                                         <img
@@ -291,6 +306,16 @@ const AdventureLobby: React.FC = () => {
         'border border-amber-400/55 bg-gradient-to-b from-amber-800/40 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]';
     const mobileTabBtnOff = 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200';
 
+    const journalPanel = (compact: boolean) => (
+        <AdventureProfilePanel
+            profile={currentUserWithStatus?.adventureProfile}
+            userGold={currentUserWithStatus?.gold ?? 0}
+            compact={compact}
+            onOpenMonsterCodex={() => handlers.openAdventureMonsterCodexModal()}
+        />
+    );
+
+    /** PC 풀 라우트: 좌측 탐험 일지 · 우측 챕터 (+ 퀵레일) */
     const desktopLeftColumn = (
         <div className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col overflow-hidden`}>
             <div className="flex shrink-0 items-center gap-2 pb-2">
@@ -304,36 +329,48 @@ const AdventureLobby: React.FC = () => {
                 </button>
                 <div className="min-w-0 flex-1">{titleBlock}</div>
             </div>
-            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
-                <AdventureProfilePanel
-                    profile={currentUserWithStatus?.adventureProfile}
-                    userGold={currentUserWithStatus?.gold ?? 0}
-                    compact={false}
-                    onOpenMonsterCodex={() => handlers.openAdventureMonsterCodexModal()}
-                />
+            <div className="flex min-h-0 flex-1 flex-col overflow-hidden">{journalPanel(false)}</div>
+        </div>
+    );
+
+    /** PC 홈뷰어: 퀵레일 없이 좌측 일지 · 우측 챕터만 */
+    const pcHomeViewerSplit = (
+        <div
+            className="flex min-h-0 min-w-0 flex-1 flex-row gap-2 overflow-hidden"
+            aria-label={t('adventure.lobbyTabsAria')}
+        >
+            <div className={`flex h-full min-h-0 ${PC_HOME_LEFT_COLUMN_CLASS} flex-col overflow-hidden`}>
+                {journalPanel(true)}
+            </div>
+            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                {chapterColumn(true)}
             </div>
         </div>
     );
 
     return (
         <div
-            className={`relative mx-auto flex w-full bg-gradient-to-b from-zinc-900 via-zinc-950 to-black text-zinc-100 ${
-                mobileAdventureShell
-                    ? isNativeMobile
-                        ? 'sudamr-native-route-root min-h-0 flex-1 flex-col overflow-hidden px-0.5'
-                        : 'h-full min-h-0 max-h-[100dvh] flex-1 flex-col overflow-hidden px-0.5'
-                    : 'h-full min-h-0 flex-1 flex-col overflow-hidden p-2 sm:p-4 lg:p-2'
+            className={`relative mx-auto flex w-full text-zinc-100 ${
+                isHomeViewer
+                    ? 'h-full min-h-0 flex-1 flex-col overflow-hidden bg-transparent px-0.5'
+                    : mobileAdventureShell
+                      ? isNativeMobile
+                          ? 'sudamr-native-route-root min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-zinc-900 via-zinc-950 to-black px-0.5'
+                          : 'h-full min-h-0 max-h-[100dvh] flex-1 flex-col overflow-hidden bg-gradient-to-b from-zinc-900 via-zinc-950 to-black px-0.5'
+                      : 'h-full min-h-0 flex-1 flex-col overflow-hidden bg-gradient-to-b from-zinc-900 via-zinc-950 to-black p-2 sm:p-4 lg:p-2'
             }`}
         >
             {mobileAdventureShell ? (
                 <>
-                    <header className="flex shrink-0 items-center gap-2 px-1 py-0.5">
-                        <div className="flex min-w-0 flex-1 items-start justify-center gap-2">
-                            <div className="w-9 shrink-0" aria-hidden />
-                            <div className="min-w-0 flex-1 text-center">{titleBlock}</div>
-                            <div className="w-9 shrink-0" aria-hidden />
-                        </div>
-                    </header>
+                    {!isHomeViewer && (
+                        <header className="flex shrink-0 items-center gap-2 px-1 py-0.5">
+                            <div className="flex min-w-0 flex-1 items-start justify-center gap-2">
+                                <div className="w-9 shrink-0" aria-hidden />
+                                <div className="min-w-0 flex-1 text-center">{titleBlock}</div>
+                                <div className="w-9 shrink-0" aria-hidden />
+                            </div>
+                        </header>
+                    )}
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden overscroll-contain px-0.5 pb-0.5">
                         <div className="mb-0.5 flex shrink-0 gap-1 px-0.5 sm:gap-1.5" role="tablist" aria-label={t('adventure.lobbyTabsAria')}>
                             <button
@@ -357,14 +394,14 @@ const AdventureLobby: React.FC = () => {
                         </div>
                         <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden" role="tabpanel">
                             {mobileLobbyTab === 'chapter' ? (
-                                chapterColumn(false, { mobileScrollableList: mobileAdventureShell })
+                                chapterColumn(false, { mobileScrollableList: true })
                             ) : (
                                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                                     <AdventureProfilePanel
                                         profile={currentUserWithStatus?.adventureProfile}
                                         userGold={currentUserWithStatus?.gold ?? 0}
                                         compact
-                                        mobileOneScreen={mobileAdventureShell}
+                                        mobileOneScreen
                                         onOpenMonsterCodex={() => handlers.openAdventureMonsterCodexModal()}
                                     />
                                 </div>
@@ -372,6 +409,8 @@ const AdventureLobby: React.FC = () => {
                         </div>
                     </div>
                 </>
+            ) : isHomeViewer ? (
+                pcHomeViewerSplit
             ) : (
                 <PcLobbyThreeColumnShell
                     left={desktopLeftColumn}

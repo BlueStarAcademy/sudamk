@@ -308,18 +308,51 @@
     "scoreLine": "{{label}} {{score}}점",
     "scoreDetailsLine": "{{blackLine}} · {{whiteLine}}",
     "successLabel": "성공:",
-    "secondsShort": "초"
+    "secondsShort": "초",
+    "adminModeration": {
+      "title": "제재",
+      "lift": "해제",
+      "chatBanned": "채팅 금지",
+      "chatSanction": "채팅 제재",
+      "connectionBanned": "접속 금지",
+      "connectionSanction": "접속 제재",
+      "sanctionReason": "제재 사유",
+      "duration5m": "5분",
+      "duration10m": "10분",
+      "duration30m": "30분",
+      "duration1h": "1시간",
+      "duration6h": "6시간",
+      "duration1d": "1일",
+      "duration3d": "3일",
+      "duration1m": "1개월",
+      "durationPermanent": "영구"
+    },
+    "guidePanel": {
+      "defaultTitle": "안내",
+      "list": "목록",
+      "mobileHint": "항목을 선택하세요",
+      "navAria": "안내 목록",
+      "noItems": "항목이 없습니다",
+      "selectItem": "항목 선택",
+      "toc": "목차"
+    },
+    "helpCenterEyebrow": "도움말",
+    "helpCenterIntro": "게임 이용에 도움이 되는 안내입니다.",
+    "helpCenterTitle": "도움말 센터",
+    "ranked": {
+      "seasonSuffix": "{{year}}-{{season}}시즌"
+    }
   },
   "nav": {
     "dock": {
       "ariaLabel": "주요 메뉴",
       "entranceClosedTitle": "입장이 닫혀 있습니다",
       "home": "홈",
-      "singleplayer": "바둑학원",
+      "singleplayer": "모험",
       "tower": "도전의탑",
       "arena": "경기장",
       "tournament": "챔피언십",
-      "adventure": "모험"
+      "adventure": "탐험"
     },
     "header": {
       "mailbox": "우편함",
@@ -343,14 +376,17 @@
         "playfulLobby": "놀이바둑 대기실이 일시적으로 닫혀 있습니다.",
         "pairLobby": "페어 경기장 입장이 일시적으로 닫혀 있습니다.",
         "championship": "챔피언십이 일시적으로 닫혀 있습니다.",
-        "adventure": "모험이 일시적으로 닫혀 있습니다."
+        "adventure": "탐험이 일시적으로 닫혀 있습니다."
       },
       "progressionBlocked": {
-        "tower": "도전의 탑은 바둑학원 입문반 10스테이지를 클리어하면 입장할 수 있습니다.",
+        "tower": "도전의 탑은 모험 새싹의 숲 10관문을 클리어하면 입장할 수 있습니다.",
         "strategicLobby": "전략 바둑 대기실은 유저 Lv.{{level}}부터 입장할 수 있습니다.",
         "playfulLobby": "놀이 바둑 대기실은 유저 Lv.{{level}}부터 입장할 수 있습니다.",
         "championship": "챔피언십은 바둑 능력치 합 {{ability}} 이상에서 입장할 수 있습니다.",
-        "adventure": "모험은 바둑학원 입문반 20스테이지를 클리어하면 입장할 수 있습니다."
+        "adventure": "탐험은 모험 새싹의 숲 20관문을 클리어하면 입장할 수 있습니다."
+      },
+      "contentClosed": {
+        "adventure": "탐험이 일시적으로 닫혀 있습니다."
       }
     },
     "quickMenu": {
@@ -372,13 +408,13 @@
       "menu2": "메뉴2"
     },
     "arenaEntrance": {
-      "singleplayer": "싱글플레이",
+      "singleplayer": "모험",
       "tower": "도전의 탑",
       "strategicLobby": "전략바둑",
       "playfulLobby": "놀이바둑",
       "pairLobby": "페어바둑",
       "championship": "챔피언십",
-      "adventure": "모험"
+      "adventure": "탐험"
     },
     "arenaTypePicker": {
       "pvpHeading": "PVP 경기장",
@@ -521,7 +557,10 @@
     "representative": "대표",
     "businessNumber": "사업자등록번호",
     "mailOrderNumber": "통신판매업신고",
-    "supportPhone": "고객센터"
+    "supportPhone": "고객센터",
+    "badukAcademy": "모험",
+    "gameGuide": "게임 가이드",
+    "gameModes": "게임 모드"
   },
   "gameModes": {
     "standard": "클래식 바둑",
@@ -926,7 +965,7 @@
       "playfulShort": "놀이",
       "settings": {
         "gameMode": "게임 모드",
-        "stage": "스테이지",
+        "stage": "관문",
         "boardSize": "판 크기",
         "komi": "덤",
         "komiValue": "{{komi}}집",
@@ -1032,7 +1071,7 @@
       "title": "게임 랭킹",
       "badukTitle": "바둑 랭킹",
       "tabAbility": "바둑능력",
-      "tabAdventure": "모험",
+      "tabAdventure": "탐험",
       "tabManner": "매너",
       "tabStrategic": "전략바둑",
       "tabPair": "페어",
@@ -1170,7 +1209,7 @@
       "whiteSecond": "백(후공)",
       "random": "랜덤",
       "guildWar": "길드 전쟁",
-      "adventure": "모험",
+      "adventure": "탐험",
       "aiMatch": "AI 대전",
       "onlineMatch": "온라인 대국",
       "matchSettings": "이번 대국 설정",
@@ -1322,7 +1361,7 @@
     },
     "placementRefresh": {
       "title": "배치변경",
-      "notAllowedStage": "이 스테이지에서는 배치변경을 사용할 수 없습니다.",
+      "notAllowedStage": "이 관문에서는 배치변경을 사용할 수 없습니다.",
       "missileFirstTurn": "첫 턴에 미사일을 사용하면 배치변경을 사용할 수 없습니다.",
       "noRefreshesLeft": "재배치 횟수를 모두 사용했습니다.",
       "waitForStart": "게임이 시작되면 재배치할 수 있습니다.",
@@ -1360,7 +1399,7 @@
     "alerts": {
       "noContestConfirm": "상대방의 장고로 인해 페널티 없이 무효 처리하고 나가시겠습니까?",
       "cannotResignScoring": "계가 집계 중에는 기권할 수 없습니다.",
-      "sessionExpired": "게임 세션이 만료되었습니다. 대기실에서 스테이지를 다시 선택해 주세요.",
+      "sessionExpired": "게임 세션이 만료되었습니다. 대기실에서 관문를 다시 선택해 주세요.",
       "startFailed": "게임 시작에 실패했습니다. 다시 시도해주세요."
     },
     "preGame": {
@@ -1377,7 +1416,7 @@
       "items": "아이템",
       "noItems": "아이템 없음",
       "howToPlay": "하는 법",
-      "stageKeyPoints": "이번 스테이지 핵심",
+      "stageKeyPoints": "이번 관문 핵심",
       "cautionPoints": "주의할 점",
       "patternStone2pts": "문양돌은 2점",
       "goalAchievement": "목표 달성",
@@ -1439,7 +1478,7 @@
         "factorAlkkagi": "판 밖으로 나간 상대 돌 수",
         "factorCurling": "하우스(목표)에 가까운 스톤 점수",
         "factorFallback": "모드 안내 참고",
-        "factorStageDefault": "스테이지·모드에 따름",
+        "factorStageDefault": "관문·모드에 따름",
         "factorStageCapture": "따내기 점수",
         "factorStageCapturePattern": "따내기 점수\n문양돌 2점",
         "factorStageSpeed": "영토 · 따낸 돌 · 사석 · 덤\n시간 보너스",
@@ -1558,7 +1597,7 @@
         "curlingHighlightRules": "스톤 미끄러뜨리기 · 라운드제",
         "fallbackWin": "대국 진행에 따라 승패 결정",
         "fallbackLose": "대국 진행에 따라 패배가 결정되면 패배",
-        "spDefaultWin": "스테이지 조건 충족 시 승리",
+        "spDefaultWin": "관문 조건 충족 시 승리",
         "spDefaultLose": "조건 미달 시 패배",
         "spSurvivalWin": "{{n}}턴 내 백 {{tgt}}점 미달성",
         "spSurvivalLose": "{{n}}턴 내 백 {{tgt}}점 달성",
@@ -1598,56 +1637,7 @@
     "singlePlayerInfo": {
       "close": "닫기",
       "proverbsTitle": "바둑 격언",
-      "quotes": [
-        {
-          "term": "부득탐승(不得貪勝)",
-          "meaning": "너무 이기려고 탐하지 말라."
-        },
-        {
-          "term": "입계의완(入界宜緩)",
-          "meaning": "상대의 세력권에 들어갈 때는 천천히, 그리고 부드럽게 들어가라."
-        },
-        {
-          "term": "공피고아(攻彼顧我)",
-          "meaning": "상대를 공격하기 전에 나를 먼저 돌아보고 약점이 없는지 살펴라."
-        },
-        {
-          "term": "기자쟁선(棄子爭先)",
-          "meaning": "작은 돌을 버리더라도 선수를 잡아 더욱 중요한 곳으로 향하라."
-        },
-        {
-          "term": "사소취대(捨小就大)",
-          "meaning": "작은 이익을 버리고 큰 이익을 취하라."
-        },
-        {
-          "term": "봉위수기(逢危須棄)",
-          "meaning": "위험에 처하면 돌을 버릴 줄 알아야 한다."
-        },
-        {
-          "term": "신물경속(愼勿輕速)",
-          "meaning": "신중하되, 경솔하고 빠르게 두지 말라."
-        },
-        {
-          "term": "동수상응(動須相應)",
-          "meaning": "돌의 행마는 서로 호응하며 리듬을 타야 한다."
-        },
-        {
-          "term": "피강자보(彼强自保)",
-          "meaning": "상대가 강한 곳에서는 나 자신을 먼저 지켜라."
-        },
-        {
-          "term": "세고취화(勢孤取和)",
-          "meaning": "세력이 약하고 외로울 때는 싸우지 말고 평화를 취하라."
-        },
-        {
-          "term": "아생연후살타(我生然後殺他)",
-          "meaning": "나의 돌을 먼저 살린 후에 상대의 돌을 잡으러 가라."
-        },
-        {
-          "term": "적의 급소는 나의 급소",
-          "meaning": "상대가 두고 싶어하는 좋은 자리는 나에게도 좋은 자리이다."
-        }
-      ]
+      "quotes": "명언"
     },
     "analysis": {
       "title": "분석",
@@ -1744,7 +1734,7 @@
     },
     "adventureResult": {
       "bossLine": "보스: {{label}} +{{pct}}%",
-      "adventureLine": "모험: {{label}} +{{pct}}%"
+      "adventureLine": "탐험: {{label}} +{{pct}}%"
     },
     "strategicTimeControl": {
       "timeMode": "시간 방식",
@@ -2054,21 +2044,21 @@
       "confirmTitle": "흑·백 확인"
     },
     "stageSelection": {
-      "title": "{{name}} 스테이지 선택",
+      "title": "{{name}} 관문 선택",
       "targetScore": "목표 점수: 흑{{black}}/백{{white}}집",
       "firstClear": "최초 보상"
     },
     "singlePlayerDesc": {
-      "intro": "입문반",
-      "beginner": "초급반",
-      "intermediate": "중급반",
-      "advanced": "고급반",
-      "master": "고단반",
+      "intro": "새싹의 숲",
+      "beginner": "바람의 언덕",
+      "intermediate": "별빛 계곡",
+      "advanced": "용암의 성채",
+      "master": "천상의 탑",
       "tower": "도전의 탑",
-      "academy": "바둑학원",
-      "stage": "스테이지 {{num}}",
+      "academy": "모험",
+      "stage": "관문 {{num}}",
       "returnLobby": "돌아가기 바둑",
-      "currentStage": "현재 스테이지",
+      "currentStage": "현재 관문",
       "gameDesc": "게임 설명",
       "title": "{{name}} - 게임 설명",
       "survivalGo": "살리기 바둑",
@@ -2078,13 +2068,13 @@
       "confirm": "확인",
       "prev": "이전",
       "next": "다음",
-      "editStage": "스테이지 편집",
+      "editStage": "관문 편집",
       "editOrder": "순서 편집",
       "cancel": "취소",
       "exit": "나가기",
       "start": "시작하기",
-      "singleStage": "싱글 스테이지",
-      "masterClass": "유단자",
+      "singleStage": "싱글 관문",
+      "masterClass": "천상의 탑",
       "goalSection": "목표",
       "goalTurnCaption": "제한턴",
       "goalTurnUnit": "턴",
@@ -2243,6 +2233,94 @@
       "subtitle": "룰렛으로 역할을 결정합니다.",
       "subtitleRich": "무작위로 도둑(흑)과 경찰(백)이 배정됩니다. 곧바로 굴림이 시작됩니다.",
       "autoProceed": "연출 종료 후 자동으로 진행됩니다."
+    },
+    "noScoreInfo": "점수 정보가 없습니다.",
+    "territory": "영토",
+    "captures": "따낸 돌",
+    "deadStones": "사석",
+    "komi": "덤",
+    "totalScore": "합계",
+    "escaped": "도망",
+    "capturedStones": "잡은 돌",
+    "finalScore": "최종 점수",
+    "captureScore": "포획 점수:",
+    "lastPileBonus": "마지막 더미 보너스:",
+    "finalScoreLabel": "최종 스코어",
+    "houseScoreGain": "획득 집점수",
+    "houseUnit": "집",
+    "playerWins": "{{name}} 승리!",
+    "cumulativeScore": "누적 점수",
+    "roundScores": "라운드별 점수",
+    "roundScoreBlackWhite": "라운드 점수 (흑:백)",
+    "previousKnockout": "(이전: {{count}})",
+    "roundResults": "라운드별 결과",
+    "scored": "득점",
+    "conceded": "실점",
+    "winShort": "승",
+    "loseShort": "패",
+    "gameEnded": "게임 종료",
+    "calculatingScore": "점수 계산 중...",
+    "rankingScore": "랭킹 점수",
+    "noChange": "변동 없음",
+    "pointsDelta": "점",
+    "overallRecord": "통산 전적",
+    "mannerRank": "매너 등급",
+    "vipSlotReward": "VIP 슬롯 보상",
+    "guildWarRewards": "길드 전쟁 보상",
+    "rewardsEarned": "획득 보상",
+    "starConditions": "별 달성 조건",
+    "captureTier2": "한 번에 {{min}}점 획득",
+    "captureTier3": "한 번에 {{min}}점 획득",
+    "scoreDiffTier": "집차이 {{diff}}집 이상",
+    "goldBundleSpaced": "골드 꾸러미",
+    "goldBundleCompact": "골드꾸러미",
+    "noRewardInfo": "보상 정보가 없습니다.",
+    "noRewardsEmpty": "보상이 없습니다.",
+    "diceOvershotWithMax": "오버샷! 주사위가 {{maxDice}} 이하여야 마지막 더미를 따낼 수 있습니다.",
+    "diceOvershotNoLiberties": "오버샷! 지금은 백의 유효 자리가 없어 마지막 더미를 따낼 수 없습니다. 다음 굴림을 기다려 주세요.",
+    "lastCaptureBonus": " (마지막 더미 보너스 +{{bonus}}점)",
+    "lastShowdown": "마지막 승부! 유효자리 {{count}}개",
+    "lastCaptureBonusInline": " (마지막 더미 포획 시 +{{bonus}}점)",
+    "pairScoringAllPassed": "4명 모두 통과하여 계가를 진행합니다.",
+    "scoring": "계가를 진행합니다.",
+    "pairPassCount": "통과 {{count}}/4",
+    "bothPassedScoring": "양측 모두 통과하여 계가를 시작합니다.",
+    "playerPassed": "{{name}}님이 통과했습니다.",
+    "playerTurn": "{{name}}님의 차례입니다.",
+    "gameInProgress": "대국 진행 중",
+    "nigiriInProgress": "돌 가리기 진행 중...",
+    "adventureNigiriConfirm": "흑·백 배정을 확인한 뒤 경기 시작을 눌러 주세요.",
+    "uniformRoulette": "일색 바둑 — 돌 색상 룰렛 진행 중...",
+    "basePlacement": "베이스돌 배치 · 각 {{count}}개",
+    "baseStoneColorChoice": "선호하는 돌(흑/백)을 선택하세요.",
+    "baseSameColorBid": "같은 돌 선택 — 상대에게 줄 점수를 정하세요.",
+    "baseGameStartConfirm": "대국 시작 버튼을 누르면 착수가 시작됩니다.",
+    "captureBidTie": "제시한 동점이 같습니다. 이번에도 같다면 랜덤으로 결정됩니다.",
+    "captureBidBase": "공개된 판을 보며 흑(선)을 위한 제시 점수를 하단에서 확정하세요.",
+    "noContest": "무효 대국",
+    "rematchPending": "재대결 대기 중...",
+    "itemInUse": "아이템 사용 중...",
+    "hiddenFinalReveal": "모든 히든돌을 공개하고 계가를 시작합니다.",
+    "autoScoringAdventure": "자동 계가를 진행합니다.",
+    "autoScoringReached": "자동계가 수순에 도달하여 계가를 진행합니다.",
+    "alkkagiRePlace": "돌을 다시 배치하세요. ({{round}} / {{total}} 라운드)",
+    "alkkagiPlace": "돌을 배치하세요. ({{round}} / {{total}} 라운드)",
+    "alkkagiPlayerTurn": "{{name}}님 차례입니다. ({{round}} / {{total}} 라운드)",
+    "alkkagiRoundEnd": "라운드 종료 — 아래 전광판에서 확인·진행하세요.",
+    "diceRollTurn": "{{name}}님이 주사위를 굴릴 차례입니다.",
+    "diceRollTurnGeneric": "주사위 굴릴 차례",
+    "tiebreakerDeciding": "승부치기 순서 결정 중...",
+    "tiebreakerPlaying": "승부치기 진행 중... ({{name}}님 차례)",
+    "diceModeRound": "주사위 바둑 ({{round}} / {{total}} 라운드)",
+    "thiefModeRound": "도둑과 경찰 ({{round}} 라운드)",
+    "preparing": "게임 준비 중...",
+    "status": {
+      "timeoutFoulTitle": "시간 패",
+      "timeoutFoulDefault": "시간이 초과되어 패배했습니다.",
+      "timeoutFoulAlkkagiPlacement": "알까기 배치 시간 초과",
+      "timeoutFoulAutoTurn": "시간 초과로 차례가 넘어갑니다.",
+      "timeoutFoulLoseStone": "시간 초과로 돌을 잃었습니다.",
+      "timeoutFoulPassTurn": "시간 초과로 패스됩니다."
     }
   },
   "settings": {
@@ -2475,8 +2553,12 @@
         "pairPvp": "페어 PVP 경기장",
         "pairAi": "페어 AI 대전",
         "playfulPvp": "놀이바둑 PVP 경기장",
-        "playfulAi": "놀이바둑 AI 대전"
-      }
+        "playfulAi": "놀이바둑 AI 대전",
+        "matchArena": "경기장"
+      },
+      "queueRanked": "랭킹전",
+      "queueNormal": "일반전",
+      "matchTypeTitle": "경기 종류"
     },
     "gameList": {
       "invalidRoomNumber": "유효하지 않은 방 번호입니다.",
@@ -2505,6 +2587,11 @@
     "ranked": {
       "start": "랭킹전 시작",
       "startShort": "시작",
+      "startNormal": "일반전 시작",
+      "startNormalShort": "시작",
+      "normalPanelTitle": "일반전",
+      "dedicatedSubtitle": "시즌 티어가 반영되는 공식 매칭",
+      "normalDedicatedSubtitle": "티어 반영 없는 익명 매칭",
       "selectModesMin": "최소 1개 이상의 게임 모드를 선택해주세요.",
       "selectTitle": "랭킹전 게임 선택",
       "priorityUp": "우선순위 올리기",
@@ -2558,7 +2645,8 @@
         "peerAcceptedPleaseAccept": "상대가 수락했습니다. 수락해 주세요.",
         "reject": "거절",
         "cancelHint": "거절하거나 시간 내 수락하지 않으면 매칭이 취소됩니다.",
-        "priorityHint": "이미 수락한 경우, 상대가 거절·시간 초과 시 매칭 대기 상태와 우선순위가 유지됩니다."
+        "priorityHint": "이미 수락한 경우, 상대가 거절·시간 초과 시 매칭 대기 상태와 우선순위가 유지됩니다.",
+        "hiddenUntilAccept": "수락 전까지 상대 정보가 숨겨집니다."
       },
       "panelTitle": "랭킹전",
       "matching": "매칭 중...",
@@ -2602,7 +2690,13 @@
       "targetScore": "목표점수",
       "timeLimit": "제한시간",
       "byoyomi": "초읽기",
-      "gaugeSpeed": "힘 속도"
+      "gaugeSpeed": "힘 속도",
+      "normalMatched": "일반전 매칭이 되었습니다",
+      "normalMatchFound": {
+        "anonymousOpponent": "익명 상대",
+        "ready": "준비되면 수락하세요"
+      },
+      "normalMatchTitle": "일반전 매칭"
     },
     "aiChallengeModal": {
       "titleDefault": "AI와 대결하기",
@@ -2652,7 +2746,11 @@
       "duoTab": "2인 팀",
       "mobilePickModeHint": "항목을 눌러 선택한 뒤 「다음」에서 대국 설정으로 이동합니다.",
       "roomInfoAndSettings": "방 정보·대국 설정",
-      "gameModeHostLocked": "게임 모드 (방장 설정·변경 불가)"
+      "gameModeHostLocked": "게임 모드 (방장 설정·변경 불가)",
+      "matchFormatAria": "대국 형식",
+      "oneVsOneTab": "1:1",
+      "pairTab": "페어",
+      "gameKindTitle": "경기 종류"
     },
     "challenge": {
       "title": "대국 신청",
@@ -2673,7 +2771,7 @@
       "howToRaise": "점수 올리는 방법",
       "whereScoresRise": "점수가 오르는 곳",
       "goToArena": "경기장으로",
-      "goToAdventure": "모험으로",
+      "goToAdventure": "탐험으로",
       "strategicLobby": "전략 대기실",
       "pairLobby": "페어 로비",
       "gameCombatItems": [
@@ -2687,8 +2785,8 @@
       "gameMannerWhereItems": [
         "경기장 → 전략바둑 또는 놀이바둑 PVP 경기장"
       ],
-      "gameAdventureHow": "모험 맵에서 몬스터를 처치할 때마다 해당 몬스터 레벨만큼 사냥 점수가 누적됩니다. 점수가 같으면 먼저 달성한 유저가 상위에 표시됩니다.",
-      "gameAdventureWhere": "모험 → 지역 맵에서 몬스터와 대국해 승리하세요.",
+      "gameAdventureHow": "탐험 맵에서 몬스터를 처치할 때마다 해당 몬스터 레벨만큼 사냥 점수가 누적됩니다. 점수가 같으면 먼저 달성한 유저가 상위에 표시됩니다.",
+      "gameAdventureWhere": "탐험 → 지역 맵에서 몬스터와 대국해 승리하세요.",
       "badukStrategicHow": "전략바둑 랭킹전(PVP) 승패로 1200 기준 누적 점수가 변합니다. 같은 모드 10판 이상이면 순위에 반영되며, 강한 상대를 이기면 더 많이 오릅니다.",
       "badukStrategicWhere": "경기장 → 전략바둑 → 대기실에서 랭킹전 매칭을 이용하세요.",
       "badukPairHow": "페어 랭킹전(PVP) 승패로 1200 기준 누적 점수가 변합니다. 최소 대국 수를 채우면 순위에 반영되며, 강한 상대를 이기면 더 많이 오릅니다.",
@@ -2713,24 +2811,26 @@
       "loading": "랭킹을 불러오는 중..."
     },
     "adventure": {
-      "title": "모험",
+      "title": "탐험",
       "chapter": "챕터",
       "chapterEnterAria": "챕터 입장",
       "chapterMapEnterAria": "{{title}} 맵으로 입장",
       "chapterLockedAria": "{{title}} 잠김: {{blockers}}",
-      "lobbyTabsAria": "모험 로비",
-      "journal": "모험 일지",
-      "journalAria": "모험 일지",
-      "battleRecord": "모험 전적",
+      "lobbyTabsAria": "탐험 로비",
+      "journal": "탐험 일지",
+      "journalAria": "탐험 일지",
+      "journalTabsAria": "탐험 일지 구분",
+      "journalInfo": "탐험정보",
+      "battleRecord": "탐험 전적",
       "caughtMonsters": "잡은 몬스터",
       "missedMonsters": "놓친 몬스터",
-      "ranking": "모험 랭킹",
-      "score": "모험 점수",
+      "ranking": "탐험 랭킹",
+      "score": "탐험 점수",
       "myRank": "내 순위",
       "codexCompletion": "도감 완성도",
       "codexCompletionTitle": "몬스터 도감 완성도",
       "monsterUnderstanding": "몬스터 이해도",
-      "adventureGold": "모험 골드",
+      "adventureGold": "탐험 골드",
       "equipmentDrop": "장비 획득",
       "highGradeEquipment": "고급 장비",
       "materialDrop": "재료 획득",
@@ -2745,7 +2845,7 @@
       "appearWaitTime": "출현 · 대기 시간",
       "comprehensionChapterTabsAria": "이해도 챕터",
       "comprehensionEffects": "몬스터 이해도 효과",
-      "comprehensionGoldBonus": "모험 골드 +{{percent}}%",
+      "comprehensionGoldBonus": "탐험 골드 +{{percent}}%",
       "comprehensionEquipBonus": "장비 획득 +{{percent}}%",
       "comprehensionHighEquipBonus": "고급 장비 +{{percent}}%",
       "comprehensionMaterialBonus": "재료 획득 +{{percent}}%",
@@ -2761,15 +2861,15 @@
       "chapterBossBonus": "챕터 보스: {{label}} — 이해도 레벨당 +{{perLevel}}% (최대 {{max}}%)",
       "currentBossBonusSum": "현재 보스 보너스 합: +{{percent}}% ({{label}})",
       "comprehensionStatsCurrent": "이해도 능력치 (현재 합)",
-      "adventureExclusive": "모험 전용: {{label}} +{{percent}}%",
-      "adventureGoldOnly": " (모험 승리 골드만)",
+      "adventureExclusive": "탐험 전용: {{label}} +{{percent}}%",
+      "adventureGoldOnly": " (탐험 승리 골드만)",
       "comprehensionXp": "이해도 경험치",
       "comprehensionXpMax": "최대 · {{wins}}승",
       "firstLevelWins": "첫 Lv {{wins}}/1승",
       "nextLevelProgress": "다음 {{wins}}/{{nextAt}}승",
       "thresholdRange": " ({{from}}~)",
-      "adventureMonsters": "모험 몬스터",
-      "adventureMonsterCodex": "모험 몬스터 도감",
+      "adventureMonsters": "탐험 몬스터",
+      "adventureMonsterCodex": "탐험 몬스터 도감",
       "regionalExploration": "지역 탐험도",
       "effectInfo": "효과정보",
       "effectInfoOpenAria": "지역 탐험도 효과 정보 열기",
@@ -2839,7 +2939,7 @@
       "processing": "처리 중…",
       "equipmentBoxRoman": "장비 상자 {{roman}}",
       "materialBoxRoman": "재료 상자 {{roman}}",
-      "adventureKeyAria": "모험 열쇠",
+      "adventureKeyAria": "탐험 열쇠",
       "regionalKey": "지역 열쇠",
       "key": "열쇠",
       "keysCount": "{{held}}/{{max}}개",
@@ -2855,7 +2955,7 @@
       "skipped": "건너뜀",
       "unknown": "알수없음",
       "backToStageListAria": "스테이지 목록으로",
-      "adventureMap": "모험 맵",
+      "adventureMap": "탐험 맵",
       "viewRegionalEffectAria": "지역효과 보기",
       "regionalEffectShort": "지역효과",
       "chapterRewardAria": "챕터 보상 안내",
@@ -2902,11 +3002,11 @@
       },
       "codex": {
         "bossBonus": {
-          "adventureGold": "모험 승리 골드",
-          "itemDrop": "모험 장비상자 획득",
-          "materialDrop": "모험 재료상자 획득",
-          "highGradeEquipment": "모험 고급 장비상자",
-          "highGradeMaterial": "모험 고급 재료상자"
+          "adventureGold": "탐험 승리 골드",
+          "itemDrop": "탐험 장비상자 획득",
+          "materialDrop": "탐험 재료상자 획득",
+          "highGradeEquipment": "탐험 고급 장비상자",
+          "highGradeMaterial": "탐험 고급 재료상자"
         }
       },
       "regionalBuff": {
@@ -2935,25 +3035,26 @@
           "classicStartScore": "[클래식바둑] 시작+{{value}}점{{suffix}}",
           "missile": "[미사일바둑] 미사일+1"
         }
-      }
+      },
+      "spawnLevelRange": "출현 Lv.{{min}}~{{max}}"
     },
     "singleplayer": {
       "trainingQuest": "수련 과제",
       "trainingQuestModalTitle": "수련과제",
       "trainingQuestListAria": "수련 과제 목록",
       "classSelect": "단계 선택",
-      "stageSelect": "스테이지 선택",
+      "stageSelect": "관문 선택",
       "previousClass": "이전 단계",
       "nextClass": "다음 단계",
-      "stageListTitle": "{{classLabel}} 스테이지",
+      "stageListTitle": "{{classLabel}} 관문",
       "rewardsTable": "보상표",
-      "rewardsTableTitle": "스테이지 클리어 보상표",
+      "rewardsTableTitle": "관문 클리어 보상표",
       "rewardsTableAria": "단계별 보상",
-      "openRewardsTableAria": "스테이지 클리어 보상표 열기",
-      "classStageClear": "{{classLabel}} 스테이지 클리어",
+      "openRewardsTableAria": "관문 클리어 보상표 열기",
+      "classStageClear": "{{classLabel}} 관문 클리어",
       "classBarRewardClaimed": "수령 완료",
       "classBarRewardClaim": "보상 수령",
-      "classBarRewardNeedClear": "{{milestone}} 스테이지 클리어 필요",
+      "classBarRewardNeedClear": "{{milestone}} 관문 클리어 필요",
       "classBarRewardAria": "{{milestone}}점 보상",
       "cleared": "클리어 완료",
       "enterStage": "도전 ⚡{{cost}}",
@@ -2987,12 +3088,12 @@
       "nextLevelEffects": "다음 레벨 (Lv.{{level}}) 효과",
       "nextLevelEffectsCompact": "Lv.{{level}} 효과",
       "enhanceAfterClear": "{{stageId}} 클리어 후 강화",
-      "enhanceAfterClearFull": "{{stageId}} 스테이지를 클리어해야 합니다.",
+      "enhanceAfterClearFull": "{{stageId}} 관문를 클리어해야 합니다.",
       "enhanceTitle": "{{missionName}} · 강화",
       "enhanceTitlePc": "{{missionName}} 강화",
       "startMissionTitle": "{{missionName}} 시작",
       "claimAllModalTitle": "수련 과제 일괄 수령",
-      "claimAllPreviewTitle": "수령할 수련 과제 보상",
+      "claimAllPreviewTitle": "획득 보상",
       "claimAllSuccess": "모든 수련 과제 보상을 수령했습니다!",
       "claimAllNormal": "수령하기",
       "claimAllAdDouble": "광고보기 200%",
@@ -3016,7 +3117,7 @@
         "enhanceAfterClear": "{{stageId}} 클리어 후 강화할 수 있습니다."
       },
       "startMessages": {
-        "mission_attendance": "즐거운 바둑학원에 가서 바둑을 배우기 시작했어요.",
+        "mission_attendance": "즐거운 모험에 가서 바둑을 배우기 시작했어요.",
         "mission_complete_game": "드디어 바둑을 한판 완성할 수 있는 실력이 되었어요. 하루 한판의 바둑은 영리함을 쌓는 좋은 방법이랍니다.",
         "mission_rival_match": "라이벌이 있다면, 더욱더 열심히 노력할 수 있는 계기가 된답니다. 선의의 경쟁을 하세요.",
         "mission_study_joseki": "큰 깨달음이 있었네요. 이제 나도 바둑의 깊이있는 내용을 알기 시작했어요.",
@@ -3027,15 +3128,32 @@
       "rewardsTableSection": {
         "classBarBonus": "{{classLabel}} · 클리어 수 추가 보상 (대기실 막대에서 수령)",
         "milestoneCount": "{{count}}개",
-        "stageIdColumn": "스테이지 ID",
+        "stageIdColumn": "관문 ID",
         "firstClearColumn": "최초 클리어 (골드·EXP·장비 등)",
         "bonusStat": "보너스 능력치",
         "bonus": "보너스"
       },
-      "lobbyBottomTabsAria": "바둑학원 하단",
+      "lobbyBottomTabsAria": "모험 하단",
       "trainingQuestTab": "수련과제",
-      "stageTab": "스테이지",
-      "trainingQuestRewardAria": "수련과제, 수령 가능한 보상이 있습니다"
+      "stageTab": "관문",
+      "trainingQuestRewardAria": "수련과제, 수령 가능한 보상이 있습니다",
+      "claimAllItemCycles": "{{name}} ×{{cycles}}",
+      "claimAllAdDoubleAria": "광고 보고 보상 2배",
+      "claimAllObtainedItems": "획득 보상",
+      "claimAllRandomItems": "랜덤 {{name}} ×{{cycles}}",
+      "claimAllItemQty": "×{{quantity}}",
+      "classBarClearRewardLabel": "클리어 보상",
+      "enhanceStone": "강화석",
+      "equipmentBox": "장비상자",
+      "highGradeLabel": "고급",
+      "mapSelectLabel": "맵 선택",
+      "mapZoomIn": "확대",
+      "mapZoomOut": "축소",
+      "unlockRequiredLevel": "해금 레벨 {{level}}"
+    },
+    "alerts": {
+      "proposalData": "변경 제안",
+      "proposalCooldown": "거절 후 {{seconds}}초 뒤에 다시 제안할 수 있습니다."
     }
   },
   "profile": {
@@ -3060,7 +3178,7 @@
     "playfulRecord": "놀이 전적",
     "strategic": "전략",
     "pair": "페어",
-    "adventure": "모험",
+    "adventure": "탐험",
     "arenaEnterAria": "{{title}} 경기장 입장",
     "enterAria": "{{title}} 입장",
     "strategicLobbyEnter": "전략 바둑 대기실 입장",
@@ -3072,11 +3190,30 @@
     "maintenance": "점검중",
     "combinedLevelRequired": "통합 Lv.{{current}}/{{required}}",
     "abilityRequired": "능력치 합 {{total}}+",
-    "intro10Required": "입문반 10 클리어 필요",
-    "intro20Required": "입문반 20 클리어 필요",
-    "goSchool": "바둑학원",
+    "intro10Required": "새싹의 숲 10관문 클리어 필요",
+    "intro20Required": "새싹의 숲 20관문 클리어 필요",
+    "goSchool": "모험",
     "challengeTower": "도전의 탑",
     "pvpArena": "PVP 경기장",
+    "matchArena": "경기장",
+    "normalMatch": "일반전",
+    "friendlyMatch": "친선전",
+    "playground": "놀이터",
+    "productionFactory": "생산소",
+    "guildHomeTile": "길드",
+    "rankTierLabel": "랭크",
+    "champTierLabel": "챔스",
+    "tierPeak": "최고 {{tier}}",
+    "tierUnranked": "미참여",
+    "lobbyMetaStage": "모험 캠페인",
+    "lobbyMetaNormal": "티어 미반영 매칭",
+    "lobbyMetaFriendlyCustom": "규칙 커스텀",
+    "lobbyMetaFriendlyPair": "페어바둑",
+    "lobbyMetaAiDuel": "AI와 대결",
+    "lobbyMetaAiPair": "AI페어 대결",
+    "lobbyMetaPlayground": "바둑돌로 즐기는 놀이",
+    "lobbyGuildJoin": "길드 가입",
+    "lobbyGuildCreate": "길드 생성",
     "aiArena": "AI 대전",
     "detailedStats": {
       "diamondsAria": "다이아 {{amount}}",
@@ -3141,11 +3278,11 @@
     "guildLevelHint": "레벨 합 {{level}} 이상에서 길드 홈을 이용할 수 있습니다.",
     "guildLevelNotice": "길드는 유저 레벨 {{level}} 이상에서 이용할 수 있습니다. (현재 Lv.{{current}})",
     "stageLabels": {
-      "intro": "입문반",
-      "beginner": "초급반",
-      "intermediate": "중급반",
-      "advanced": "고급반",
-      "master": "유단자"
+      "intro": "새싹의 숲",
+      "beginner": "바람의 언덕",
+      "intermediate": "별빛 계곡",
+      "advanced": "용암의 성채",
+      "master": "천상의 탑"
     },
     "chartLegend": {
       "user": "유저",
@@ -3194,7 +3331,7 @@
       "arena": "경기장"
     },
     "coreStatsTotal": "6개 핵심 능력치 합계",
-    "adventureUnlockModal": "모험 해금 모달",
+    "adventureUnlockModal": "탐험 해금 모달",
     "gameResultDemo": "경기결과 데모",
     "quickMenuAria": "퀵 메뉴",
     "playGoSuffix": "바둑",
@@ -3776,11 +3913,11 @@
     },
     "contentUnlock": {
       "towerTitle": "도전의 탑 오픈",
-      "towerSubtitle": "바둑학원 입문반 10 클리어로\n도전의 탑이 해금되었습니다.",
+      "towerSubtitle": "모험 새싹의 숲 10관문 클리어로\n도전의 탑이 해금되었습니다.",
       "towerHint": "홈 화면에서 도전의 탑으로 바로 입장할 수 있습니다.",
-      "adventureTitle": "모험 오픈",
-      "adventureSubtitle": "바둑학원 입문반 20 클리어로\n모험 콘텐츠가 해금되었습니다.",
-      "adventureHint": "홈 화면에서 모험으로 바로 입장할 수 있습니다."
+      "adventureTitle": "탐험 오픈",
+      "adventureSubtitle": "모험 새싹의 숲 20관문 클리어로\n탐험 콘텐츠가 해금되었습니다.",
+      "adventureHint": "홈 화면에서 탐험으로 바로 입장할 수 있습니다."
     },
     "levelUp": {
       "gained": "한 번에 {{gain}}레벨 상승했습니다.",
@@ -3930,7 +4067,9 @@
       "conditionPotionPurchased": "컨디션 회복제 구매 완료! 회복 모달에서 사용할 수 있습니다.",
       "purchaseComplete": "구매 완료! 가방을 확인하세요.",
       "actionPointPurchased": "행동력 구매 완료!",
-      "paymentCancelled": "결제가 취소되었습니다."
+      "paymentCancelled": "결제가 취소되었습니다.",
+      "paymentFailed": "결제에 실패했습니다.",
+      "subscriptionNotReady": "구독 기능을 준비 중입니다."
     },
     "consent": {
       "cashPriceLabel": "원화 결제 (페이레터)",
@@ -4110,7 +4249,8 @@
         "name": "행동력 회복제(+30)",
         "description": "바로 경기를 하러 가자."
       }
-    }
+    },
+    "directDiamondName": "다이아"
   },
   "mail": {
     "title": "우편함",
@@ -5068,22 +5208,22 @@
           "description": "행동력이 1 회복되기까지 걸리는 시간이 30초 줄어듭니다. (초월 스페셜 옵션과 중복불가)"
         },
         "AdventureScanPlus1": {
-          "name": "모험 스캔 +1",
-          "abbrev": "모험 스캔+1",
-          "short": "모험 스캔 +1",
-          "description": "모험(몬스터 대전) 시작 시 스캔 아이템이 1개 추가로 지급됩니다. (초월 스페셜 옵션과 중복불가)"
+          "name": "탐험 스캔 +1",
+          "abbrev": "탐험 스캔+1",
+          "short": "탐험 스캔 +1",
+          "description": "탐험(몬스터 대전) 시작 시 스캔 아이템이 1개 추가로 지급됩니다. (초월 스페셜 옵션과 중복불가)"
         },
         "AdventureMissilePlus1": {
-          "name": "모험 미사일 +1",
-          "abbrev": "모험 미사일+1",
-          "short": "모험 미사일 +1",
-          "description": "모험 시작 시 미사일 아이템이 1개 추가로 지급됩니다. (초월 스페셜 옵션과 중복불가)"
+          "name": "탐험 미사일 +1",
+          "abbrev": "탐험 미사일+1",
+          "short": "탐험 미사일 +1",
+          "description": "탐험 시작 시 미사일 아이템이 1개 추가로 지급됩니다. (초월 스페셜 옵션과 중복불가)"
         },
         "AdventureGoldBonus15": {
-          "name": "모험 골드 보상 +15%",
-          "abbrev": "모험 골드15%",
-          "short": "모험 골드 +15%",
-          "description": "모험 승리 시 획득 골드가 15% 증가합니다. (도감·이해도 보너스와 별도 합산) (초월 스페셜 옵션과 중복불가)"
+          "name": "탐험 골드 보상 +15%",
+          "abbrev": "탐험 골드15%",
+          "short": "탐험 골드 +15%",
+          "description": "탐험 승리 시 획득 골드가 15% 증가합니다. (도감·이해도 보너스와 별도 합산) (초월 스페셜 옵션과 중복불가)"
         },
         "GuildBossExtraRewardDuplicate": {
           "name": "길드 보스전 보상추가",
@@ -5110,22 +5250,22 @@
           "description": "행동력이 1 회복되기까지 걸리는 시간이 60초 줄어듭니다. (신화 스페셜 옵션과 중복불가)"
         },
         "AdventureScanTranscendent": {
-          "name": "모험 스캔 +1",
-          "abbrev": "모험 스캔+1",
-          "short": "모험 스캔 +2(초월)",
-          "description": "모험(몬스터 대전)에서 스캔 아이템이 2개 추가로 지급됩니다. (신화 스페셜 옵션과 중복불가)"
+          "name": "탐험 스캔 +1",
+          "abbrev": "탐험 스캔+1",
+          "short": "탐험 스캔 +2(초월)",
+          "description": "탐험(몬스터 대전)에서 스캔 아이템이 2개 추가로 지급됩니다. (신화 스페셜 옵션과 중복불가)"
         },
         "AdventureMissilePlus2": {
-          "name": "모험 미사일 +2",
-          "abbrev": "모험 미사일+2",
-          "short": "모험 미사일 +2",
-          "description": "모험 시작 시 미사일 아이템이 2개 추가로 지급됩니다. (신화 스페셜 옵션과 중복불가)"
+          "name": "탐험 미사일 +2",
+          "abbrev": "탐험 미사일+2",
+          "short": "탐험 미사일 +2",
+          "description": "탐험 시작 시 미사일 아이템이 2개 추가로 지급됩니다. (신화 스페셜 옵션과 중복불가)"
         },
         "AdventureGoldBonus20": {
-          "name": "모험 골드 보상 +20%",
-          "abbrev": "모험 골드20%",
-          "short": "모험 골드 +20%",
-          "description": "모험 승리 시 획득 골드가 20% 증가합니다. (신화 스페셜 옵션과 중복불가)"
+          "name": "탐험 골드 보상 +20%",
+          "abbrev": "탐험 골드20%",
+          "short": "탐험 골드 +20%",
+          "description": "탐험 승리 시 획득 골드가 20% 증가합니다. (신화 스페셜 옵션과 중복불가)"
         }
       }
     },
@@ -5231,7 +5371,7 @@
         },
         "equipment": {
           "line1": "[장비 상자] 가방에서 상자 사용 시 획득",
-          "line2": "[모험] 스테이지·보스전 클리어 보상",
+          "line2": "[탐험] 스테이지·보스전 클리어 보상",
           "line3": "[거래소] 다른 유저의 등록 물품 구매",
           "line4": "[합성·제작] 대장간 합성·초월 장비 제작 등"
         },
@@ -5596,7 +5736,8 @@
       "userTab": "유저",
       "petTab": "펫",
       "quickMenuAria": "퀵 메뉴",
-      "presetName": "장비세트 {{index}}"
+      "presetName": "장비세트 {{index}}",
+      "entryCount": "참가 횟수"
     },
     "definitions": {
       "neighborhood": {
@@ -5822,7 +5963,7 @@
       "scrollGuideAria": "스크롤 가이드 보기",
       "ability": "바둑능력",
       "manner": "매너",
-      "adventure": "모험",
+      "adventure": "탐험",
       "strategic": "전략바둑",
       "pair": "페어바둑",
       "championship": "챔피언십",
@@ -5908,11 +6049,26 @@
     "openRightPanel": "우측 패널 열기",
     "tournamentNotFound": "토너먼트 정보를 찾을 수 없습니다.",
     "playbackSpeed": {
+      "0": {
+        "5": "0.5x"
+      },
       "1": "1.5초에 한 수",
       "2": "1초에 한 수",
       "3": "0.5초에 한 수",
       "0.5": "3초에 한 수"
-    }
+    },
+    "rankPlace": "{{rank}}위",
+    "changeTicketMax": "최대 {{max}}장",
+    "changeTicketShort": "변경권",
+    "defaultRewardFallback": "보상",
+    "gradeRange": "{{min}}~{{max}}등급",
+    "lossGold": "패배 골드",
+    "oneGamePerMatch": "경기당 1판",
+    "rankRange": "{{min}}~{{max}}위",
+    "rankWorld4_8": "세계 4~8위",
+    "rankWorld9_16": "세계 9~16위",
+    "rewardRandom": "랜덤 보상",
+    "winGold": "승리 골드"
   },
   "tower": {
     "title": "도전의 탑",
@@ -6022,7 +6178,10 @@
       "duoAi": "2인 AI대전",
       "friendly": "친선전",
       "arenaAi": "AI와 대결",
-      "petPair": "펫 페어"
+      "petPair": "펫 페어",
+      "aiDuel": "AI 대전",
+      "friendlyTeamPair": "친선 팀페어",
+      "userDuel": "유저 대전"
     },
     "filters": {
       "allRoomKinds": "전체(방 종류)",
@@ -6170,7 +6329,8 @@
       "mysteriousEgg": "신비로운알 ×1",
       "upgradeTier1": "강화 I",
       "upgradeTier2": "강화 II",
-      "upgradeTier3": "강화 III"
+      "upgradeTier3": "강화 III",
+      "tabTitleClaimReady": "수련 보상 수령 가능"
     },
     "lobby": {
       "infoTab": "정보",
@@ -6330,7 +6490,11 @@
       "messagePlaceholder": "메시지 입력…",
       "teamMessagePlaceholder": "팀원에게만 보낼 메시지…",
       "roomMessagePlaceholder": "전체 메시지 입력…",
-      "send": "전송"
+      "send": "전송",
+      "addAi": "AI 추가",
+      "tapInviteOrAi": "초대 또는 AI",
+      "inviteShort": "초대",
+      "removeAi": "AI 제거"
     },
     "rps": {
       "scissors": "가위",
@@ -6494,7 +6658,11 @@
       "userListPairAi": "유저 목록 · 페어 AI 대전",
       "aiSettingsTitle": "AI 대전 설정",
       "rankedMatchTitle": "랭킹전 매칭",
-      "pairMatchSettings": "페어바둑 대국 설정"
+      "pairMatchSettings": "페어바둑 대국 설정",
+      "friendlyArena": "친선 경기장",
+      "gameKindTitle": "경기 종류",
+      "startAiGame": "AI대전 시작",
+      "normalMatchTitle": "일반전 매칭"
     },
     "modals": {
       "delegateConfirm": "{{name}}님에게 방장을 위임하시겠습니까?",
@@ -6617,7 +6785,7 @@
       "refine": "장비 제련",
       "convert": "재료 변환"
     },
-    "level": "대장간 Lv.{{level}}",
+    "level": "{{name}} Lv.{{level}}",
     "exp": "경험치",
     "effects": "대장간 효과",
     "effectsAria": "대장간 효과 보기",
@@ -6822,17 +6990,32 @@
     },
     "levelEffects": {
       "effects": "효과",
-      "maxCombineGrade": "합성 가능 최대등급",
-      "disassembleJackpot": "장비 분해 대박 확률",
-      "materialJackpot": "재료 분해/합성 대박 확률",
-      "combineGreatSuccess": "장비합성 대성공 확률:",
+      "maxCombineGrade": "최대 합성 등급",
+      "disassembleJackpot": "장비 대박 확률",
+      "materialJackpot": "재료 대박 확률",
+      "combineGreatSuccess": "합성 대성공:",
       "normal": "일반",
       "uncommon": "고급",
       "rare": "희귀",
       "epic": "에픽",
       "legendary": "전설",
       "mythic": "신화",
-      "transcendent": "초월"
+      "transcendent": "초월",
+      "nextLevel": "다음 레벨",
+      "prevLevel": "이전 레벨",
+      "current": "현재",
+      "viewLevel": "Lv.{{level}}"
+    },
+    "enhancementModal": {
+      "title": "강화",
+      "placeholder": "강화할 장비를 선택하세요"
+    },
+    "visualNames": {
+      "tier1": "대장간",
+      "tier2": "단련의 대장간",
+      "tier3": "명공의 대장간",
+      "tier4": "룬불의 대장간",
+      "tier5": "전설의 대장간"
     }
   },
   "negotiation": {
@@ -7100,7 +7283,8 @@
       "leaderMustTransfer": "길드장이 길드를 떠나려면 먼저 다른 길드원에게 길드장을 위임해야 합니다.",
       "lastMemberLeave": "길드의 마지막 멤버입니다. 길드를 떠나면 길드가 해체됩니다. 정말로 떠나시겠습니까?",
       "leaveConfirm": "정말로 길드를 떠나시겠습니까?",
-      "leaveError": "길드 탈퇴 중 오류가 발생했습니다."
+      "leaveError": "길드 탈퇴 중 오류가 발생했습니다.",
+      "kick": "추방"
     },
     "management": {
       "guildInfo": "길드 정보",

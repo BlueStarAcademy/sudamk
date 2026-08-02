@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppGameStoreSlice, useAppRouteSlice, useAppUiSlice, useAppUserSlice } from '../hooks/useAppSlices.js';
 import { mergeArenaEntranceAvailability } from '../constants/arenaEntrance.js';
@@ -12,19 +12,23 @@ import SetNickname from './SetNickname.js';
 import Profile from './Profile.js';
 import Game from '../Game.js';
 import Admin from './Admin.js';
-import TournamentLobby from './TournamentLobby.js';
 import TournamentArena from './arenas/TournamentArena.js';
 import IntentWaitingArena from './arenas/waiting/IntentWaitingArena.js';
-import { arenaLobbyHash } from '../shared/utils/arenaLobbyDestination.js';
-import SinglePlayerLobby from './SinglePlayerLobby.js';
-import TowerLobby from './TowerLobby.js';
+import {
+    arenaLobbyHash,
+    canonicalizeHomeAlignedLobbyDestination,
+} from '../shared/utils/arenaLobbyDestination.js';
 import HelpPage from './HelpPage.js';
 import GuildHome from './guild/GuildHome.js';
 import GuildBoss from './guild/GuildBoss.js';
 import GuildWar from './guild/GuildWar.js';
-import AdventureLobby from './adventure/AdventureLobby.js';
 import AdventureStageMap from './adventure/AdventureStageMap.js';
-import { replaceAppHash } from '../utils/appUtils.js';
+import {
+    navigateToHomeAdventure,
+    navigateToHomeSinglePlayer,
+    navigateToHomeTower,
+    replaceAppHash,
+} from '../utils/appUtils.js';
 import { APP_HOME_HASH, APP_HOME_ARENA_HASH, isAppHomeHash } from '../shared/types/navigation.js';
 import InlineLoadingSpinner from './ui/InlineLoadingSpinner.js';
 import {
@@ -37,6 +41,39 @@ import { preloadCriticalRouteImages, scheduleRouteImagePrefetch } from '../servi
 import type { ArenaChannel, ArenaLobbyIntent } from '../shared/types/api.js';
 
 const routeShellClass = 'flex h-full min-h-0 w-full min-w-0 flex-1 flex-col overflow-hidden';
+
+/** `#/singleplayer` 딥링크 → 홈 중앙 모험 뷰어 (마운트 1회만) */
+const SinglePlayerRouteRedirect: React.FC = () => {
+    const { handlers } = useAppUiSlice();
+    const openRef = useRef(handlers.openSinglePlayerLobby);
+    openRef.current = handlers.openSinglePlayerLobby;
+    useEffect(() => {
+        navigateToHomeSinglePlayer(() => openRef.current?.());
+    }, []);
+    return null;
+};
+
+/** `#/tower` 딥링크 → 홈 중앙 도전의 탑 뷰어 (마운트 1회만) */
+const TowerRouteRedirect: React.FC = () => {
+    const { handlers } = useAppUiSlice();
+    const openRef = useRef(handlers.openTowerLobby);
+    openRef.current = handlers.openTowerLobby;
+    useEffect(() => {
+        navigateToHomeTower(() => openRef.current?.());
+    }, []);
+    return null;
+};
+
+/** `#/adventure` 로비 딥링크 → 홈 중앙 탐험 뷰어 (마운트 1회만; 스테이지 맵은 별도) */
+const AdventureRouteRedirect: React.FC = () => {
+    const { handlers } = useAppUiSlice();
+    const openRef = useRef(handlers.openAdventureLobby);
+    openRef.current = handlers.openAdventureLobby;
+    useEffect(() => {
+        navigateToHomeAdventure(() => openRef.current?.());
+    }, []);
+    return null;
+};
 
 // 게임 라우트 로더 컴포넌트 (게임이 로드될 때까지 대기, 새로고침 시 재입장 대기)
 const GameRouteLoader: React.FC<{ gameId: string }> = ({ gameId }) => {
@@ -212,15 +249,22 @@ const Router: React.FC = () => {
     // (새 게임을 시작한 직후 activeGame이 아직 업데이트되지 않았을 수 있음)
     // scoring 상태의 게임도 포함 (계가 진행 중)
     // 길드전 대기 화면은 #/guildwar — 진행 중인 길드전 판(#/game/...)과 별도이므로 모험처럼 예외
+    // ended/no_contest/rematch_pending 은 useApp이 대국으로 강제 복귀하지 않음 — 여기서 로딩을 띄우면 홈이 영원히 "재접속 중"에 멈춤
     const isGuildShellView =
         currentRoute.view === 'guild' ||
         currentRoute.view === 'guildboss' ||
         currentRoute.view === 'guildwar';
+    const activeGameBlocksLobby =
+        Boolean(activeGame) &&
+        activeGame.gameStatus !== 'ended' &&
+        activeGame.gameStatus !== 'no_contest' &&
+        activeGame.gameStatus !== 'rematch_pending';
     if (
-        activeGame &&
+        activeGameBlocksLobby &&
         currentRoute.view !== 'game' &&
         !currentRoute.params?.id &&
         currentRoute.view !== 'adventure' &&
+        currentRoute.view !== 'singleplayer' &&
         !isGuildShellView
     ) {
         // The logic in useApp hook will handle the redirect, we can show a loading state here
@@ -260,8 +304,14 @@ const Router: React.FC = () => {
             );
         case 'arena': {
             const intent = currentRoute.params?.intent as ArenaLobbyIntent | undefined;
-            if (intent === 'pvp' || intent === 'ai') {
-                replaceAppHash(arenaLobbyHash({ intent, channel: 'strategic' }));
+            if (intent === 'pvp') {
+                // 전략 PVP 전용 로비 폐지 — 홈(랭킹/일반 퀵패널)으로
+                replaceAppHash(APP_HOME_HASH);
+                return null;
+            }
+            if (intent === 'ai') {
+                // AI 대전은 친선전(1:1 AI·팀페어)으로 통합
+                replaceAppHash(arenaLobbyHash({ intent: 'pvp', channel: 'friendly' }));
                 return null;
             }
             replaceAppHash(APP_HOME_ARENA_HASH);
@@ -271,10 +321,25 @@ const Router: React.FC = () => {
         case 'ai': {
             const channel = currentRoute.params?.channel as ArenaChannel | undefined;
             const intent: ArenaLobbyIntent = currentRoute.view === 'ai' ? 'ai' : 'pvp';
-            if (channel === 'strategic' || channel === 'pair' || channel === 'playful') {
+            // 랭킹전·일반전·AI 전용 풀페이지 로비는 홈/친선전으로 대체됨
+            if (intent === 'pvp' && channel === 'strategic') {
+                replaceAppHash(APP_HOME_HASH);
+                return null;
+            }
+            if (intent === 'ai') {
+                replaceAppHash(arenaLobbyHash({ intent: 'pvp', channel: 'friendly' }));
+                return null;
+            }
+            if (channel === 'strategic' || channel === 'pair' || channel === 'playful' || channel === 'friendly') {
+                const dest = { intent, channel };
+                const canonical = canonicalizeHomeAlignedLobbyDestination(dest);
+                if (canonical.intent !== dest.intent || canonical.channel !== dest.channel) {
+                    replaceAppHash(arenaLobbyHash(canonical));
+                    return null;
+                }
                 return (
                     <div className={routeShellClass}>
-                        <IntentWaitingArena lobbyChannel={channel} lobbyIntent={intent} />
+                        <IntentWaitingArena lobbyChannel={canonical.channel} lobbyIntent={canonical.intent} />
                     </div>
                 );
             }
@@ -307,17 +372,20 @@ const Router: React.FC = () => {
             if (currentRoute.params.type) {
                 return <TournamentArena type={currentRoute.params.type as any} />;
             }
-            return <TournamentLobby />;
+            // 챔피언십 풀페이지 로비 폐지 — 홈 퀵패널로
+            replaceAppHash(APP_HOME_HASH);
+            return null;
         case 'singleplayer':
-            return <SinglePlayerLobby />;
+            // 모험 풀페이지 폐지 — 홈 퀵유틸 뷰어로
+            return <SinglePlayerRouteRedirect />;
         case 'tower':
-            return <TowerLobby />;
+            return <TowerRouteRedirect />;
         case 'adventure': {
             const sid = currentRoute.params?.stageId;
             if (sid) {
                 return <AdventureStageMap stageId={String(sid)} />;
             }
-            return <AdventureLobby />;
+            return <AdventureRouteRedirect />;
         }
         case 'guild':
             return <GuildHome />;

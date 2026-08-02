@@ -24,6 +24,8 @@ export type RankedMatchProposalClient = {
 interface MatchFoundModalProps {
     proposal: RankedMatchProposalClient;
     currentUserId: string;
+    /** 일반전이면 Elo 변동·티어 카피 숨김 */
+    queueKind?: 'ranked' | 'normal';
     isBusy?: boolean;
     onAccept: () => void | Promise<void>;
     onReject: () => void | Promise<void>;
@@ -35,18 +37,27 @@ const ACCEPT_WINDOW_SECONDS = 30;
 const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
     proposal,
     currentUserId,
+    queueKind = 'ranked',
     isBusy = false,
     onAccept,
     onReject,
     onDeadlineElapsed,
 }) => {
     const { t } = useTranslation('lobby');
-    const { t: tCommon } = useTranslation('common');
+    const isNormal = queueKind === 'normal';
     const isPlayer1 = currentUserId === proposal.player1.id;
     const myInfo = isPlayer1 ? proposal.player1 : proposal.player2;
-    const opponentInfo = isPlayer1 ? proposal.player2 : proposal.player1;
+    const rawOpponent = isPlayer1 ? proposal.player2 : proposal.player1;
+    /** 수락 전 상대 닉·레이팅 비공개 */
+    const opponentInfo: RankedMatchProposalPlayer = {
+        ...rawOpponent,
+        nickname: '???',
+        rating: 0,
+        winChange: 0,
+        lossChange: 0,
+    };
     const myAccepted = myInfo.accepted;
-    const peerAccepted = opponentInfo.accepted;
+    const peerAccepted = rawOpponent.accepted;
 
     const deadlineMs = useMemo(
         () => proposal.acceptDeadlineAt || Date.now() + ACCEPT_WINDOW_SECONDS * 1000,
@@ -83,7 +94,7 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
 
     return (
         <DraggableWindow
-            title={t('ranked.matchTitle')}
+            title={isNormal ? t('ranked.normalMatchTitle', '일반전 매칭') : t('ranked.matchTitle')}
             windowId="match-found"
             onClose={() => {
                 if (!isBusy) void onReject();
@@ -98,7 +109,9 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
         >
             <div className="flex flex-col gap-5 p-4 sm:p-6">
                 <div className="text-center">
-                    <p className="text-lg font-black text-amber-50 sm:text-xl">{t('ranked.matched')}</p>
+                    <p className="text-lg font-black text-amber-50 sm:text-xl">
+                        {isNormal ? t('ranked.normalMatched', '일반전 매칭이 되었습니다') : t('ranked.matched')}
+                    </p>
                     <p className="mt-1 text-sm font-semibold text-amber-100/85">{t('ranked.acceptPrompt')}</p>
                 </div>
 
@@ -128,13 +141,25 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                         <Avatar userId={myInfo.id} userName={myInfo.nickname} size={72} />
                         <div className="text-center">
                             <p className="text-base font-bold text-white">{myInfo.nickname}</p>
-                            <p className="text-sm text-gray-300">{t('ranked.matchFound.rankingLabel', { rating: myInfo.rating })}</p>
+                            {!isNormal ? (
+                                <p className="text-sm text-gray-300">
+                                    {t('ranked.matchFound.rankingLabel', { rating: myInfo.rating })}
+                                </p>
+                            ) : (
+                                <p className="text-sm text-gray-400">{t('ranked.normalMatchFound.ready', '준비됨')}</p>
+                            )}
                         </div>
-                        <div className="w-full rounded-lg border border-blue-700/50 bg-blue-900/30 p-3">
-                            <p className="mb-1 text-xs text-blue-300">{t('ranked.matchFound.expectedDelta')}</p>
-                            <p className="text-sm font-semibold text-green-400">{t('ranked.matchFound.winDelta', { points: myInfo.winChange })}</p>
-                            <p className="text-sm font-semibold text-red-400">{t('ranked.matchFound.lossDelta', { points: myInfo.lossChange })}</p>
-                        </div>
+                        {!isNormal ? (
+                            <div className="w-full rounded-lg border border-blue-700/50 bg-blue-900/30 p-3">
+                                <p className="mb-1 text-xs text-blue-300">{t('ranked.matchFound.expectedDelta')}</p>
+                                <p className="text-sm font-semibold text-green-400">
+                                    {t('ranked.matchFound.winDelta', { points: myInfo.winChange })}
+                                </p>
+                                <p className="text-sm font-semibold text-red-400">
+                                    {t('ranked.matchFound.lossDelta', { points: myInfo.lossChange })}
+                                </p>
+                            </div>
+                        ) : null}
                         <p className={`text-xs font-bold ${myAccepted ? 'text-emerald-300' : 'text-slate-400'}`}>
                             {myAccepted ? t('ranked.accepted') : t('ranked.waitingAccept')}
                         </p>
@@ -143,15 +168,28 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                     <div className="text-3xl font-bold text-yellow-400 sm:text-4xl">VS</div>
 
                     <div className="flex flex-1 flex-col items-center gap-3">
-                        <Avatar userId={opponentInfo.id} userName={opponentInfo.nickname} size={72} />
+                        <div
+                            className="flex h-[72px] w-[72px] items-center justify-center rounded-full border border-slate-500/50 bg-slate-900/80 text-2xl font-black text-slate-400"
+                            aria-hidden
+                        >
+                            ?
+                        </div>
                         <div className="text-center">
                             <p className="text-base font-bold text-white">{opponentInfo.nickname}</p>
-                            <p className="text-sm text-gray-300">{t('ranked.matchFound.rankingLabel', { rating: opponentInfo.rating })}</p>
+                            <p className="text-sm text-gray-300">
+                                {t('ranked.matchFound.hiddenUntilAccept', '수락 후 공개')}
+                            </p>
                         </div>
-                        <div className="w-full rounded-lg border border-gray-700/50 bg-gray-800/50 p-3">
-                            <p className="mb-1 text-xs text-gray-400">{t('ranked.matchFound.opponentRanking')}</p>
-                            <p className="text-sm text-gray-300">{t('ranked.matchFound.opponentRating', { rating: opponentInfo.rating })}</p>
-                        </div>
+                        {!isNormal ? (
+                            <div className="w-full rounded-lg border border-gray-700/50 bg-gray-800/50 p-3">
+                                <p className="mb-1 text-xs text-gray-400">{t('ranked.matchFound.opponentRanking')}</p>
+                                <p className="text-sm text-gray-300">—</p>
+                            </div>
+                        ) : (
+                            <div className="w-full rounded-lg border border-gray-700/40 bg-gray-900/40 p-3">
+                                <p className="text-xs text-gray-400">{t('ranked.normalMatchFound.anonymousOpponent', '익명 상대')}</p>
+                            </div>
+                        )}
                         <p className={`text-xs font-bold ${peerAccepted ? 'text-emerald-300' : 'text-slate-400'}`}>
                             {peerAccepted ? t('ranked.accepted') : t('ranked.waitingAccept')}
                         </p>
@@ -161,7 +199,9 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
                 {myAccepted && !peerAccepted ? (
                     <p className="text-center text-xs font-semibold text-slate-300">{t('ranked.matchFound.waitingPeer')}</p>
                 ) : peerAccepted && !myAccepted ? (
-                    <p className="text-center text-xs font-semibold text-emerald-200/90">{t('ranked.matchFound.peerAcceptedPleaseAccept')}</p>
+                    <p className="text-center text-xs font-semibold text-emerald-200/90">
+                        {t('ranked.matchFound.peerAcceptedPleaseAccept')}
+                    </p>
                 ) : null}
 
                 <div className="grid grid-cols-2 gap-2">

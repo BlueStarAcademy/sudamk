@@ -1517,12 +1517,12 @@ const ShopModal: React.FC<ShopModalProps> = ({
 
     const renderContent = () => {
         const equipmentItems = [
-            withShopItemText('equipment_box_1', { price: { gold: 2000 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const }),
-            withShopItemText('equipment_box_2', { price: { gold: 5000 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const }),
-            withShopItemText('equipment_box_3', { price: { gold: 10000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const }),
-            withShopItemText('equipment_box_4', { price: { gold: 20000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const }),
-            withShopItemText('equipment_box_5', { price: { diamonds: 150 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const }),
-            withShopItemText('equipment_box_6', { price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const }),
+            withShopItemText('equipment_box_1', { price: { gold: 2000 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const, dailyLimit: 100 }),
+            withShopItemText('equipment_box_2', { price: { gold: 5000 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const, dailyLimit: 50 }),
+            withShopItemText('equipment_box_3', { price: { gold: 10000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const, dailyLimit: 30 }),
+            withShopItemText('equipment_box_4', { price: { gold: 20000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const, dailyLimit: 10 }),
+            withShopItemText('equipment_box_5', { price: { diamonds: 150 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const, dailyLimit: 5 }),
+            withShopItemText('equipment_box_6', { price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const, dailyLimit: 3 }),
         ];
 
         switch (activeTab) {

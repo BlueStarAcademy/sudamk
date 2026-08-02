@@ -424,16 +424,19 @@ export const updateCurlingState = (game: types.LiveGameSession, now: number) => 
                 game.curlingStones = finalStones;
 
                 const inTiebreakerExtra = !!game.curlingTiebreakerSnap;
-                const knockoutPlayerEnum = stone.player;
-                const opponentEnum = knockoutPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
-                const knockoutScore = stonesFallen.filter(s => s.player === opponentEnum).length;
-                if (knockoutScore > 0) {
+                // 판 밖으로 나간 돌마다 그 돌의 상대 진영에 넉아웃 1점.
+                // (공격으로 상대 돌을 쳐낸 경우뿐 아니라, 공격한 쪽 돌이 같이/단독으로 아웃된 경우도 포함)
+                if (stonesFallen.length > 0) {
                     if (!(game as any).curlingKnockoutScores) {
                         (game as any).curlingKnockoutScores = { [types.Player.Black]: 0, [types.Player.White]: 0 };
                     }
-                    (game as any).curlingKnockoutScores[knockoutPlayerEnum] += knockoutScore;
-                    if (!inTiebreakerExtra) {
-                        game.curlingScores![knockoutPlayerEnum] += knockoutScore;
+                    for (const fallen of stonesFallen) {
+                        const scorerEnum =
+                            fallen.player === types.Player.Black ? types.Player.White : types.Player.Black;
+                        (game as any).curlingKnockoutScores[scorerEnum] += 1;
+                        if (!inTiebreakerExtra && game.curlingScores) {
+                            game.curlingScores[scorerEnum] += 1;
+                        }
                     }
                 }
                 if (inTiebreakerExtra) {

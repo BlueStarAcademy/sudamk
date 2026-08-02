@@ -21,8 +21,13 @@ export const PAIR_LOBBY_DENSE_SETTINGS_RULE_GRID_CLASS =
 /** 경기장 모바일 대국 설정: 셀당 ~7.25rem 이상이면 3열, 좁으면 2열 */
 export const LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS = '@container/lobby-settings';
 
+/** 경기장 모바일 대국 설정: 셀당 ~7.25rem 이상이면 3열, 좁으면 2열 */
 export const LOBBY_DENSE_SETTINGS_RESPONSIVE_COLS_GRID_CLASS =
     'grid w-full min-h-0 auto-rows-min min-w-0 grid-cols-2 content-start gap-x-2 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 @[22rem]/lobby-settings:grid-cols-3 [&>div]:min-w-0';
+
+/** 친선전·방 만들기 등: 가로 3열 고정으로 세로 높이 절약 */
+export const LOBBY_DENSE_SETTINGS_THREE_COLS_GRID_CLASS =
+    'grid w-full min-h-0 auto-rows-min min-w-0 grid-cols-3 content-start gap-x-2 gap-y-2 overflow-y-auto overflow-x-hidden pr-1 [&>div]:min-w-0';
 
 /** 경기장 가로 모드 피커 — 얇고 고급스러운 스크롤바(Firefox + WebKit) */
 export const LOBBY_HORIZONTAL_MODE_PICKER_SCROLL_CLASS =

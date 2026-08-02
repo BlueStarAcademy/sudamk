@@ -4,9 +4,11 @@ import {
     ENHANCE_MARKER_NUMBER_CLASS,
     ENHANCE_MARKER_NUMBER_CQMIN,
     ENHANCE_MARKER_NUMBER_DISC,
+    ENHANCE_MARKER_NUMBER_DISC_PCT,
+    ENHANCE_MARKER_NUMBER_STROKE,
+    ENHANCE_MARKER_NUMBER_STROKE_WIDTH,
     ENHANCE_MARKER_SIZE_PCT,
     getEnhanceMarkerTier,
-    type EnhanceMarkerTier,
 } from '../shared/constants/equipmentEnhanceMarker.js';
 
 interface EquipmentEnhancementBadgeProps {
@@ -21,60 +23,8 @@ interface EquipmentEnhancementBadgeProps {
 }
 
 /**
- * 별 색상별 숫자 외곽 — Star4(+10) 베이크 스타일(검정 채움+흰 외곽)에 맞춤.
- * 밝은 별(은/금)은 어두운 숫자+밝은 외곽, 어두운 별(보라)은 밝은 숫자+검정 외곽.
- */
-const NUMBER_STROKE: Record<1 | 2 | 3, string> = {
-    1: [
-        '0 0 1px #fff',
-        '0 1px 0 #fff',
-        '0 -1px 0 #fff',
-        '1px 0 0 #fff',
-        '-1px 0 0 #fff',
-        '1px 1px 0 #f8fafc',
-        '-1px -1px 0 #f8fafc',
-        '1px -1px 0 #f8fafc',
-        '-1px 1px 0 #f8fafc',
-        '0 0 2.5px rgba(255,255,255,0.95)',
-        '0 1px 2px rgba(0,0,0,0.55)',
-    ].join(', '),
-    2: [
-        '0 0 1px #fff7ed',
-        '0 1px 0 #fff7ed',
-        '0 -1px 0 #fff7ed',
-        '1px 0 0 #fff7ed',
-        '-1px 0 0 #fff7ed',
-        '1px 1px 0 #ffedd5',
-        '-1px -1px 0 #ffedd5',
-        '1px -1px 0 #ffedd5',
-        '-1px 1px 0 #ffedd5',
-        '0 0 2.5px rgba(255,247,237,0.95)',
-        '0 1px 2px rgba(0,0,0,0.55)',
-    ].join(', '),
-    3: [
-        '0 0 1.25px #000',
-        '0 1px 0 #000',
-        '0 -1px 0 #000',
-        '1px 0 0 #000',
-        '-1px 0 0 #000',
-        '1px 1px 0 #000',
-        '-1px -1px 0 #000',
-        '1px -1px 0 #000',
-        '-1px 1px 0 #000',
-        '0 0 3px rgba(0,0,0,0.95)',
-        '0 0 5px rgba(0,0,0,0.55)',
-    ].join(', '),
-};
-
-const NUMBER_STROKE_WIDTH: Record<1 | 2 | 3, string> = {
-    1: '0.55px rgba(255,255,255,0.9)',
-    2: '0.55px rgba(255,247,237,0.95)',
-    3: '0.65px rgba(0,0,0,0.95)',
-};
-
-/**
  * 장비 슬롯 우측 상단 강화 마커.
- * 코너 정사각 별 + 중앙 숫자(+10은 이미지에 베이크). 장착 마커와 같이 슬롯 %로 스케일.
+ * 별 중앙 안전 영역에 보색 숫자를 넣어 별 밖으로 삐져나오지 않게 함.
  */
 const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
     stars,
@@ -87,20 +37,19 @@ const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
     const tier = getEnhanceMarkerTier(n);
     if (!tier) return null;
 
-    const pct = Math.max(18, Math.min(30, sizePct));
+    const pct = Math.max(20, Math.min(34, sizePct));
     const isPrism = tier === 4;
-    /** +10은 Star4 에셋에 숫자가 구워져 있음 — CSS 오버레이 생략 */
-    const numberBakedInImage = n >= 10;
-    const cqmin = ENHANCE_MARKER_NUMBER_CQMIN.single;
-    const overlayTier = (tier === 4 ? 3 : tier) as 1 | 2 | 3;
+    const isDoubleDigit = n >= 10;
+    const cqmin = isDoubleDigit ? ENHANCE_MARKER_NUMBER_CQMIN.double : ENHANCE_MARKER_NUMBER_CQMIN.single;
+    const discPct = isDoubleDigit ? ENHANCE_MARKER_NUMBER_DISC_PCT + 4 : ENHANCE_MARKER_NUMBER_DISC_PCT;
 
     return (
         <div
-            className={`${inline ? 'relative' : 'absolute right-[1.5%] top-[1.5%] z-10'} pointer-events-none aspect-square overflow-visible ${
+            className={`${inline ? 'relative' : 'absolute right-[1%] top-[1%] z-10'} pointer-events-none aspect-square overflow-visible ${
                 emphasize ? 'animate-pulse' : ''
             } ${className}`.trim()}
             style={{
-                ...(inline ? { width: 22, height: 'auto' } : { width: `${pct}%`, height: 'auto' }),
+                ...(inline ? { width: 26, height: 'auto' } : { width: `${pct}%`, height: 'auto' }),
                 containerType: 'size',
             }}
             aria-label={`+${n}`}
@@ -109,36 +58,37 @@ const EquipmentEnhancementBadge: React.FC<EquipmentEnhancementBadgeProps> = ({
             <img
                 src={ENHANCE_MARKER_IMAGES[tier]}
                 alt=""
-                className={`pointer-events-none absolute inset-0 h-full w-full object-contain drop-shadow-[0_1px_1px_rgba(0,0,0,0.95)] ${
+                className={`pointer-events-none absolute inset-0 h-full w-full object-contain drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ${
                     isPrism ? 'prism-star-glow' : ''
                 } ${emphasize ? 'scale-110' : ''}`}
                 draggable={false}
                 decoding="async"
             />
-            {!numberBakedInImage && tier !== 4 ? (
-                <>
-                    {/* 숫자 가독용 어두운 원판 — 별 색에 숫자가 묻히지 않게 */}
-                    <span
-                        aria-hidden
-                        className={`pointer-events-none absolute left-1/2 top-[54%] -translate-x-1/2 -translate-y-1/2 rounded-full ${
-                            ENHANCE_MARKER_NUMBER_DISC[tier as Exclude<EnhanceMarkerTier, 4>]
-                        }`}
-                        style={{ width: '52%', height: '52%' }}
-                    />
-                    <span
-                        className={`absolute inset-0 z-[1] flex items-center justify-center font-black leading-none tabular-nums tracking-tight ${ENHANCE_MARKER_NUMBER_CLASS[tier]}`}
-                        style={{
-                            fontSize: `${cqmin}cqmin`,
-                            // 오각별 광학 중심에 맞춤(기하 중심보다 살짝 아래)
-                            transform: emphasize ? 'translateY(7%) scale(1.08)' : 'translateY(7%)',
-                            textShadow: NUMBER_STROKE[overlayTier],
-                            WebkitTextStroke: NUMBER_STROKE_WIDTH[overlayTier],
-                        }}
-                    >
-                        {n}
-                    </span>
-                </>
-            ) : null}
+            {/* 별 본체 안쪽만 덮는 작은 원판 — 포인트는 그대로 노출 */}
+            <span
+                aria-hidden
+                className={`pointer-events-none absolute left-1/2 top-[54%] -translate-x-1/2 -translate-y-1/2 rounded-full ${ENHANCE_MARKER_NUMBER_DISC[tier]}`}
+                style={{ width: `${discPct}%`, height: `${discPct}%` }}
+            />
+            {/* 안전 영역 클립 — 글리프가 별 포인트 밖으로 나가지 않게 */}
+            <span
+                className="absolute inset-[24%] z-[1] flex items-center justify-center overflow-hidden rounded-full"
+                style={{
+                    transform: emphasize ? 'translateY(6%) scale(1.06)' : 'translateY(6%)',
+                }}
+            >
+                <span
+                    className={`font-black leading-none tabular-nums tracking-tighter drop-shadow-sm ${ENHANCE_MARKER_NUMBER_CLASS[tier]}`}
+                    style={{
+                        fontSize: `${cqmin}cqmin`,
+                        textShadow: ENHANCE_MARKER_NUMBER_STROKE[tier],
+                        WebkitTextStroke: ENHANCE_MARKER_NUMBER_STROKE_WIDTH[tier],
+                        paintOrder: 'stroke fill',
+                    }}
+                >
+                    {n}
+                </span>
+            </span>
         </div>
     );
 };

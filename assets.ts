@@ -18,11 +18,18 @@ export const PLAYFUL_GO_LOBBY_IMG = "/images/bg/playfulbg.webp";
 export const PVP_ARENA_ENTRY_IMG = "/images/bg/pvp.webp";
 export const AI_ARENA_ENTRY_IMG = "/images/bg/ai.webp";
 export const PAIR_GO_LOBBY_IMG = "/images/bg/pairbg.webp";
-export const TOURNAMENT_LOBBY_IMG = "/images/Championship.webp";
-export const SINGLE_PLAYER_LOBBY_IMG = "/images/single/single.webp";
+/** 챔피언십 홈 입장·로비 타일 — 시네마틱 `bg/champ4` (세로형 Championship.webp는 16:9 크롭에 불리) */
+export const TOURNAMENT_LOBBY_IMG = "/images/bg/champ4.webp";
+export const SINGLE_PLAYER_LOBBY_IMG = "/images/bg/adventure-lobby.png";
 export const TOWER_CHALLENGE_LOBBY_IMG = "/images/tower/towergo.webp";
 /** 네이티브 모바일 도전의 탑 대기실 히어로(가로형 WebP, `public/images/tower/towergo.webp`) */
 export const TOWER_MOBILE_HERO_WEBP = "/images/tower/towergo.webp";
+/** PC 스테이지 패널 스크롤 배경 — 입장카드(towergo) 톤의 세로형 탑(하단=1층·상단=100층 꼭대기) */
+export const TOWER_STAGE_SCROLL_BG_WEBP = "/images/tower/tower-stage-scroll.webp";
+/** 생산소 홈 입장 — 성소형 생산 게이트 (`bg/factorybg`) */
+export const FACTORY_GO_LOBBY_IMG = "/images/bg/factorybg.webp";
+/** 길드 홈 입장 — 시네마틱 길드 홀 (`bg/guildbg1`) */
+export const GUILD_GO_LOBBY_IMG = "/images/bg/guildbg1.webp";
 
 // Guild Boss Images
 export const GUILD_BOSS_1_IMG = "/images/guild/boss/boss1.webp";

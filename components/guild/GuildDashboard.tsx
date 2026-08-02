@@ -2792,7 +2792,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({ guild, guildDona
                 style={{ backgroundImage: `url('${GUILD_HOME_BACKGROUND_IMAGE}')` }}
                 aria-hidden
             />
-            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-stone-950/50 via-stone-950/35 to-stone-950/55" aria-hidden />
+            <div className="pointer-events-none absolute inset-0 z-[1] bg-gradient-to-b from-stone-950/60 via-stone-950/42 to-stone-950/65" aria-hidden />
             <div className="relative z-10 flex h-full min-h-0 w-full min-w-0 flex-1 flex-col">
             {isMissionsOpen && <GuildMissionsPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsMissionsOpen(false)} />}
             {isResearchOpen && <GuildResearchPanel guild={currentGuild || guild} myMemberInfo={myMemberInfo} onClose={() => setIsResearchOpen(false)} />}

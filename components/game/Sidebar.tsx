@@ -39,6 +39,7 @@ import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModa
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
+import { formatSinglePlayerStageShortName } from '../../utils/singlePlayerStageDisplayName.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { CHESS_GO_BOARD_SIZE } from '../../shared/utils/chessGoRules.js';
 import {
@@ -88,7 +89,7 @@ export const GameInfoPanel: React.FC<{
     sidebarLayout?: 'desktop' | 'mobileDrawer';
     singlePlayerStagesListRevision?: number;
 }> = ({ session, currentUser, onClose, onAction, sidebarLayout, singlePlayerStagesListRevision = 0 }) => {
-    const { t } = useTranslation('game');
+    const { t } = useTranslation(['game', 'profile']);
     const { t: tCommon } = useTranslation('common');
     const drawerUi = sidebarLayout === 'mobileDrawer';
     const [matchGuideOpen, setMatchGuideOpen] = useState(false);
@@ -134,7 +135,9 @@ export const GameInfoPanel: React.FC<{
         details.push(renderSetting(t('sidebar.settings.gameMode'), gameModeDisplayName));
         if (session.isSinglePlayer && session.stageId) {
             const stage = resolveLiveSessionSinglePlayerStageRow(session);
-            const stageDisplay = stage ? `${stage.level} · ${stage.name}` : session.stageId;
+            const stageDisplay = stage
+                ? formatSinglePlayerStageShortName(stage, t)
+                : session.stageId;
             details.push(renderSetting(t('sidebar.settings.stage'), stageDisplay));
         }
         if (![GameMode.Alkkagi, GameMode.Curling, GameMode.Dice].includes(mode)) {
@@ -336,7 +339,7 @@ const UserListPanel: React.FC<SidebarProps & { onClose?: () => void }> = ({
     onViewUser,
     sidebarLayout,
 }) => {
-    const { t } = useTranslation('game');
+    const { t } = useTranslation(['game', 'profile']);
     const { t: tCommon } = useTranslation('common');
     const drawerUi = sidebarLayout === 'mobileDrawer';
     const rowText = drawerUi ? 'text-[13px]' : 'text-sm';

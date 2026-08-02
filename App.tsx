@@ -317,7 +317,8 @@ const AppContent: React.FC = () => {
      */
     const profileTab = ((currentRoute.params?.tab as string | undefined) ?? 'home');
     /**
-     * pvp/ai/tower 로비는 매칭 대기·입장 카드 위주라 실질 콘텐츠가 없어 whitelist에서 제외.
+     * pvp/ai 로비는 매칭 대기·입장 카드 위주라 실질 콘텐츠가 없어 whitelist에서 제외.
+     * 도전의 탑은 랭킹·스테이지·보상 안내가 있어 포함 — 홈과 동일 스카이스크래퍼 폭으로 캔버스 스케일이 튀지 않게 한다.
      * 실질 콘텐츠(가이드/미션/스토리 등)를 제공하는 뷰만 남긴다.
      */
     const isContentView = Boolean(
@@ -327,6 +328,7 @@ const AppContent: React.FC = () => {
         currentRoute.view === 'help' ||
         (currentUser && (
             currentRoute.view === 'singleplayer' ||
+            currentRoute.view === 'tower' ||
             currentRoute.view === 'adventure' ||
             currentRoute.view === 'guild' ||
             currentRoute.view === 'guildboss' ||

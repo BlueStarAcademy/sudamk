@@ -4,11 +4,12 @@ import { SINGLE_PLAYER_MISSIONS } from '../constants/singlePlayerConstants.js';
 export function userHasFullTrainingQuestReward(
     user:
         | {
+              userLevel?: number;
+              level?: number;
               singlePlayerMissions?: Record<
                   string,
                   { isStarted?: boolean; level?: number; lastCollectionTime?: number; accumulatedAmount?: number }
               >;
-              clearedSinglePlayerStages?: string[];
           }
         | null
         | undefined,
@@ -16,13 +17,13 @@ export function userHasFullTrainingQuestReward(
 ): boolean {
     if (!user) return false;
     const userMissions = user.singlePlayerMissions || {};
-    const clearedStages = user.clearedSinglePlayerStages || [];
+    const userLevel = Number(user.userLevel) || Number(user.level) || 1;
 
     return SINGLE_PLAYER_MISSIONS.some((mission) => {
         const missionState = userMissions[mission.id];
         if (!missionState) return false;
 
-        const isUnlocked = clearedStages.includes(mission.unlockStageId);
+        const isUnlocked = userLevel >= (mission.unlockUserLevel ?? 1);
         const isStarted = missionState.isStarted;
         if (!isUnlocked || !isStarted) return false;
 

@@ -3,6 +3,10 @@
  * Button 컴포넌트는 bare와 함께 사용해 기본 앰버 스타일·자동 글자 축소와 섞이지 않게 함.
  */
 
+import type { SinglePlayerStageInfo } from '../../types.js';
+import i18n from '../../shared/i18n/config.js';
+import { formatSinglePlayerStageShortName } from '../../utils/singlePlayerStageDisplayName.js';
+
 export type ArenaPostGameActionVariant = 'result' | 'danger' | 'primary' | 'retry' | 'success' | 'neutral';
 
 /**
@@ -111,14 +115,14 @@ export const arenaPostGameSingleModalConfirmButtonClass =
 export const arenaPostGamePanelShellClass =
     'min-w-0 rounded-xl border border-slate-600/40 bg-gradient-to-b from-slate-900/95 via-[#0f1218] to-[#06080c] px-2 py-3 sm:px-4 sm:py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-white/[0.03]';
 
-/** 싱글플레이 종료 패널 — `다음 단계(스테이지명)` + 소모 행동력 */
+/** 싱글플레이 종료 패널 — `다음 단계(맵이름 N)` + 소모 행동력 */
 export function formatSinglePlayerNextFooterLabel(
-    nextStage: { name: string } | undefined,
+    nextStage: Pick<SinglePlayerStageInfo, 'id' | 'level' | 'name'> | undefined,
     canTryNext: boolean,
     actionPointCost: number,
 ): string {
     if (!canTryNext || !nextStage) return '다음 단계(없음)';
-    const name = nextStage.name.replace(/^스테이지\s*/i, '').trim();
+    const name = formatSinglePlayerStageShortName(nextStage, i18n.t.bind(i18n));
     const base = `다음 단계(${name})`;
     return actionPointCost > 0 ? `${base} (⚡${actionPointCost})` : base;
 }

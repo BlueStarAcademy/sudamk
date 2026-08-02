@@ -110,39 +110,91 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
 
     const classLabel = t(`profile:stageLabels.${CLASS_STAGE_KEYS[selectedClass]}`);
 
-    const shellClass = isTopShelf
-        ? 'flex w-full min-w-0 flex-col gap-0 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)]'
-        : isCompact
-          ? 'flex w-full min-w-0 flex-col gap-0.5 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:rounded-lg sm:px-2 sm:py-1.5'
-          : 'flex w-full min-w-0 flex-col gap-1.5 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/35 via-zinc-900/45 to-amber-950/25 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:px-2.5';
+    /** 맵 오버레이: 그래프 없이 10/20 클리어 보상을 우측 상단에 세로 배치 */
+    if (isTopShelf) {
+        return (
+            <div className="flex flex-col items-end gap-1.5 bg-transparent">
+                {barThresholds.map((milestone) => {
+                    const itemDef = milestone === 10 ? classBarConfig.milestone10 : classBarConfig.milestone20;
+                    const progressMet = classStageProgress.cleared >= milestone;
+                    const isClaimed = milestone === 10 ? !!barClaims.m10 : !!barClaims.m20;
+                    const canClaim = progressMet && !isClaimed;
+                    const apBadge = classBarApBadge(itemDef.itemId);
+                    const itemSrc = resolveClassBarItemImageSrc(itemDef.itemId);
+                    return (
+                        <button
+                            key={`corner-mile-${milestone}`}
+                            type="button"
+                            onClick={() => canClaim && handleClaimClassBar(milestone)}
+                            disabled={!canClaim}
+                            className={`flex items-center gap-1.5 rounded-lg border border-white/15 bg-black/25 px-1.5 py-1 shadow-[0_4px_14px_rgba(0,0,0,0.35)] backdrop-blur-[1px] transition-transform hover:scale-[1.03] disabled:cursor-not-allowed ${
+                                canClaim ? 'ring-1 ring-amber-400/45 shadow-[0_0_16px_-4px_rgba(251,191,36,0.55)]' : ''
+                            }`}
+                            title={
+                                isClaimed
+                                    ? t('singleplayer.classBarRewardClaimed')
+                                    : progressMet
+                                      ? t('singleplayer.classBarRewardClaim')
+                                      : t('singleplayer.classBarRewardNeedClear', { milestone })
+                            }
+                        >
+                            <span className="whitespace-nowrap text-[10px] font-bold tabular-nums text-amber-50 [text-shadow:0_1px_6px_rgba(0,0,0,0.95)] sm:text-[11px]">
+                                {t('singleplayer.classBarClearRewardLabel', { milestone })}
+                            </span>
+                            <span
+                                className={`relative flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-slate-500/40 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 sm:h-9 sm:w-9 ${
+                                    !progressMet && !isClaimed ? 'opacity-45 grayscale' : ''
+                                }`}
+                                aria-label={t('singleplayer.classBarRewardAria', { milestone })}
+                            >
+                                <img
+                                    src={itemSrc ?? '/images/Box/box.webp'}
+                                    alt=""
+                                    className="h-full w-full object-contain"
+                                />
+                                {apBadge ? (
+                                    <span className="absolute right-0 top-0 rounded-bl bg-gray-900/90 px-0.5 text-[7px] font-bold leading-tight text-cyan-300 shadow-md">
+                                        {apBadge}
+                                    </span>
+                                ) : null}
+                                {isClaimed ? (
+                                    <span className="absolute inset-0 flex items-center justify-center rounded-md bg-black/65 text-sm text-emerald-400">
+                                        ✓
+                                    </span>
+                                ) : null}
+                            </span>
+                        </button>
+                    );
+                })}
+            </div>
+        );
+    }
 
-    const titleRowClass = isTopShelf
-        ? 'flex items-center justify-between gap-0.5 text-[8px] font-semibold tracking-tight text-slate-200/95'
-        : isCompact
-          ? 'flex items-center justify-between gap-1 text-[9px] font-semibold tracking-tight text-slate-200/95 sm:text-[10px]'
-          : 'flex items-center justify-between gap-2 text-xs font-semibold tracking-tight text-slate-200/95 sm:text-[13px]';
+    const shellClass = isCompact
+        ? 'flex w-full min-w-0 flex-col gap-0.5 rounded-md border border-emerald-500/30 bg-gradient-to-r from-emerald-950/40 via-zinc-900/50 to-amber-950/30 px-1.5 py-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:rounded-lg sm:px-2 sm:py-1.5'
+        : 'flex w-full min-w-0 flex-col gap-1.5 rounded-xl border border-emerald-500/25 bg-gradient-to-r from-emerald-950/35 via-zinc-900/45 to-amber-950/25 px-2 py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] sm:px-2.5';
 
-    const barTrackClass = isTopShelf
-        ? 'relative h-3 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_5px_rgba(0,0,0,0.55)]'
-        : isCompact
-          ? 'relative h-4 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)] sm:h-[1.125rem]'
-          : 'relative h-6 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.55)] sm:h-7';
+    const titleRowClass = isCompact
+        ? 'flex items-center justify-between gap-1 text-[9px] font-semibold tracking-tight text-slate-200/95 sm:text-[10px]'
+        : 'flex items-center justify-between gap-2 text-xs font-semibold tracking-tight text-slate-200/95 sm:text-[13px]';
 
-    const rewardRowClass = isTopShelf
-        ? 'relative h-7 w-full'
-        : isCompact
-          ? 'relative h-9 w-full sm:h-10'
-          : 'relative h-10 w-full sm:h-11';
-    const rewardBtnClass = isTopShelf
-        ? 'relative h-5 w-5 rounded border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-px shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed'
-        : isCompact
-          ? 'relative h-6 w-6 rounded border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-px shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed sm:h-7 sm:w-7 sm:rounded-md sm:p-0.5'
-          : 'relative h-7 w-7 rounded-md border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed';
+    const barTrackClass = isCompact
+        ? 'relative h-4 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_6px_rgba(0,0,0,0.55)] sm:h-[1.125rem]'
+        : 'relative h-6 w-full overflow-hidden rounded-full border border-slate-700/50 shadow-[inset_0_2px_10px_rgba(0,0,0,0.55)] sm:h-7';
+
+    const rewardRowClass = isCompact
+        ? 'relative h-9 w-full sm:h-10'
+        : 'relative h-10 w-full sm:h-11';
+    const rewardBtnClass = isCompact
+        ? 'relative h-6 w-6 rounded border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-px shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed sm:h-7 sm:w-7 sm:rounded-md sm:p-0.5'
+        : 'relative h-7 w-7 rounded-md border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed';
 
     return (
         <div className={shellClass}>
             <div className={titleRowClass}>
-                <span className="min-w-0 truncate text-emerald-100/90">{t('singleplayer.classStageClear', { classLabel })}</span>
+                <span className="min-w-0 truncate text-emerald-100/90">
+                    {t('singleplayer.classStageClear', { classLabel })}
+                </span>
                 <span className="flex-shrink-0 tabular-nums text-amber-100/95">
                     {classStageProgress.cleared} / {classStageProgress.total}
                 </span>
@@ -190,7 +242,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                     </div>
                 </div>
                 <div
-                    className={`flex justify-between px-0.5 leading-none text-slate-500 ${isTopShelf ? 'pt-0 text-[6px] font-bold tabular-nums' : isCompact ? 'pt-0 text-[7px] font-bold tabular-nums sm:text-[8px]' : 'pt-0 text-[9px] font-bold tabular-nums'}`}
+                    className={`flex justify-between px-0.5 leading-none text-slate-500 ${isCompact ? 'pt-0 text-[7px] font-bold tabular-nums sm:text-[8px]' : 'pt-0 text-[9px] font-bold tabular-nums'}`}
                 >
                     <span className="w-4 text-left text-slate-400">0</span>
                     <span className="flex-1 text-center text-slate-400">10</span>
@@ -247,7 +299,7 @@ const SinglePlayerClassBarRewardsPanel: React.FC<SinglePlayerClassBarRewardsPane
                                 <span
                                     className={`mt-0 font-bold tabular-nums leading-none ${
                                         progressMet ? 'text-amber-200' : 'text-slate-500'
-                                    } ${isTopShelf ? 'text-[7px]' : isCompact ? 'text-[8px] sm:text-[9px]' : 'text-[10px]'}`}
+                                    } ${isCompact ? 'text-[8px] sm:text-[9px]' : 'text-[10px]'}`}
                                 >
                                     {milestone}
                                 </span>

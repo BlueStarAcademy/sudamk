@@ -2,9 +2,9 @@ import type { User } from '../types/index.js';
 import { CoreStat } from '../types/enums.js';
 import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
 
-/** 도전의 탑 입장: 바둑학원 입문반 10 스테이지 최초 클리어 필요 */
+/** 도전의 탑 입장: 모험 새싹의 숲 10관문 최초 클리어 필요 */
 export const TOWER_ENTRANCE_REQUIRED_STAGE_ID = '입문-10';
-/** 모험 입장: 바둑학원 입문반 20 스테이지 최초 클리어 필요 */
+/** 탐험 입장: 모험 새싹의 숲 20관문 최초 클리어 필요 */
 export const ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID = '입문-20';
 /** PVP/AI 경기장: 1레벨부터 이용 가능 */
 export const PVP_LOBBIES_MIN_COMBINED_LEVEL = 1;
@@ -60,7 +60,10 @@ export function applyUserProgressionArenaLocks(
     }
     if (snap.userLevel < PVP_LOBBIES_MIN_COMBINED_LEVEL) {
         out.strategicLobby = false;
+        out.normalLobby = false;
+        out.friendlyLobby = false;
         out.playfulLobby = false;
+        out.pairLobby = false;
     }
     if (snap.badukAbilityTotal < CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL) {
         out.championship = false;
@@ -78,11 +81,13 @@ export function isBlacksmithQuickUnlocked(snap: Pick<BadukAbilitySnapshot, 'badu
 }
 
 export const USER_PROGRESSION_ARENA_BLOCK_MESSAGE: Partial<Record<ArenaEntranceKey, string>> = {
-    tower: `도전의 탑은 바둑학원 입문반 10스테이지를 클리어하면 입장할 수 있습니다.`,
-    strategicLobby: `전략 바둑 대기실은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
-    playfulLobby: `놀이 바둑 대기실은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
+    tower: `도전의 탑은 모험 새싹의 숲 10관문을 클리어하면 입장할 수 있습니다.`,
+    strategicLobby: `랭킹전은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
+    normalLobby: `일반전은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
+    friendlyLobby: `친선전은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
+    playfulLobby: `놀이터는 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
     championship: `챔피언십은 바둑 능력치 합 ${CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL} 이상에서 입장할 수 있습니다.`,
-    adventure: `모험은 바둑학원 입문반 20스테이지를 클리어하면 입장할 수 있습니다.`,
+    adventure: `탐험은 모험 새싹의 숲 20관문을 클리어하면 입장할 수 있습니다.`,
 };
 
 export const USER_PROGRESSION_QUEST_BLOCK_MESSAGE = `퀘스트는 유저 Lv.${QUEST_MIN_STRATEGY_LEVEL} 이상에서 이용할 수 있습니다.`;

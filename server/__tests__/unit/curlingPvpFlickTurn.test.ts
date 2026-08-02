@@ -79,3 +79,72 @@ describe('curling PVP flick turn handoff', () => {
         expect(game.animation).toBeNull();
     });
 });
+
+describe('curling knockout scoring', () => {
+    it('awards knockout to opponent when the attacker own stone leaves the board', async () => {
+        const game = makePvpCurlingPlaying();
+        game.curlingScores = { [Player.Black]: 0, [Player.White]: 0, [Player.None]: 0 };
+        (game as any).curlingKnockoutScores = { [Player.Black]: 0, [Player.White]: 0 };
+
+        // 강한 속도로 발사해 공격자(흑) 돌이 판 밖으로 나가게 함
+        await handleCurlingAction(
+            {} as any,
+            game,
+            {
+                type: 'CURLING_FLICK_STONE',
+                userId: game.player1.id,
+                payload: {
+                    gameId: game.id,
+                    launchPosition: { x: 420, y: 800 },
+                    velocity: { x: 0, y: -40 },
+                },
+            } as any,
+            game.player1,
+        );
+        const anim = game.animation as { startTime: number; duration: number };
+        updateCurlingState(game, anim.startTime + anim.duration);
+
+        expect((game as any).curlingKnockoutScores[Player.White]).toBeGreaterThanOrEqual(1);
+        expect(game.curlingScores![Player.White]).toBeGreaterThanOrEqual(1);
+        expect((game as any).curlingKnockoutScores[Player.Black]).toBe(0);
+    });
+
+    it('awards knockout for each fallen stone to that stone opposing side', async () => {
+        const game = makePvpCurlingPlaying();
+        game.curlingScores = { [Player.Black]: 0, [Player.White]: 0, [Player.None]: 0 };
+        (game as any).curlingKnockoutScores = { [Player.Black]: 0, [Player.White]: 0 };
+        const radius = (840 / 19) * 0.47;
+        // 보드 가장자리 근처 백 돌 — 흑 공격으로 함께 아웃될 수 있는 배치
+        game.curlingStones = [
+            { id: 1, player: Player.White, x: 420, y: 30, radius, vx: 0, vy: 0, onBoard: true },
+        ];
+
+        await handleCurlingAction(
+            {} as any,
+            game,
+            {
+                type: 'CURLING_FLICK_STONE',
+                userId: game.player1.id,
+                payload: {
+                    gameId: game.id,
+                    launchPosition: { x: 420, y: 120 },
+                    velocity: { x: 0, y: -35 },
+                },
+            } as any,
+            game.player1,
+        );
+        const anim = game.animation as { startTime: number; duration: number };
+        updateCurlingState(game, anim.startTime + anim.duration);
+
+        const blackKo = (game as any).curlingKnockoutScores[Player.Black] as number;
+        const whiteKo = (game as any).curlingKnockoutScores[Player.White] as number;
+        // 백 돌이 아웃되면 흑 득점, 흑 돌이 아웃되면 백 득점 — 둘 다 아웃되면 각각 1점 이상
+        expect(blackKo + whiteKo).toBeGreaterThanOrEqual(1);
+        if (blackKo > 0) {
+            expect(game.curlingScores![Player.Black]).toBe(blackKo);
+        }
+        if (whiteKo > 0) {
+            expect(game.curlingScores![Player.White]).toBe(whiteKo);
+        }
+    });
+});

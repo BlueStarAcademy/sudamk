@@ -528,11 +528,15 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         (m) => m && m.x !== -1 && m.y !== -1
     ).length;
 
-    if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode) && 
+    // 랭킹전은 10수 미만도 승패·shortRankedGamePenalty로 정산(무효 아님). 친선 등만 무효.
+    if (
+        SPECIAL_GAME_MODES.some((m) => m.mode === game.mode) &&
         !isPveNoContestExempt &&
-        strategicStoneMoveCount < NO_CONTEST_MOVE_THRESHOLD && 
-        !hasUsedMissile && 
-        !hasUsedScan) {
+        !(game.isRankedGame && !game.isAiGame) &&
+        strategicStoneMoveCount < NO_CONTEST_MOVE_THRESHOLD &&
+        !hasUsedMissile &&
+        !hasUsedScan
+    ) {
         game.gameStatus = 'no_contest';
         game.shortGameNoContest = true;
         if (!game.noContestInitiatorIds) game.noContestInitiatorIds = [];

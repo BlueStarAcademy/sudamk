@@ -1,6 +1,7 @@
 
 import { GameMode } from "../types/index.js";
 import type { ArenaChannel, ArenaLobbyIntent } from "../shared/types/api.js";
+import { APP_HOME_HASH } from '../shared/types/navigation.js';
 export {
     APP_HOME_HASH,
     APP_HOME_ARENA_HASH,
@@ -17,7 +18,9 @@ export type AppRoute = {
 };
 
 function parseLobbyChannel(value: string | undefined): ArenaChannel | null {
-    if (value === 'strategic' || value === 'pair' || value === 'playful') return value;
+    if (value === 'strategic' || value === 'pair' || value === 'playful' || value === 'friendly') {
+        return value;
+    }
     return null;
 }
 
@@ -68,6 +71,50 @@ export function markChampionshipArenaExitSuppressRedirect(): void {
     } catch {
         /* ignore */
     }
+}
+
+/**
+ * 챔피언십 인게임 경기장에서 홈의 챔피언십 화면(퀵유틸 homeViewer)으로 복귀한다.
+ * `#/tournament` 풀로비로 보내지 않는다.
+ */
+export function navigateToHomeChampionship(openChampionship?: () => void): void {
+    markChampionshipArenaExitSuppressRedirect();
+    try {
+        openChampionship?.();
+    } catch {
+        /* ignore */
+    }
+    replaceAppHash(APP_HOME_HASH);
+}
+
+/** 모험(싱글플레이) 풀페이지 로비 폐지 — 홈 퀵유틸 뷰어로 복귀 */
+export function navigateToHomeSinglePlayer(openSinglePlayerLobby?: () => void): void {
+    try {
+        openSinglePlayerLobby?.();
+    } catch {
+        /* ignore */
+    }
+    replaceAppHash(APP_HOME_HASH);
+}
+
+/** 도전의 탑 풀페이지 로비 폐지 — 홈 퀵유틸 뷰어로 복귀 */
+export function navigateToHomeTower(openTowerLobby?: () => void): void {
+    try {
+        openTowerLobby?.();
+    } catch {
+        /* ignore */
+    }
+    replaceAppHash(APP_HOME_HASH);
+}
+
+/** 탐험 로비 풀페이지 폐지 — 홈 퀵유틸 뷰어로 복귀 (`#/adventure/:stageId` 스테이지 맵은 유지) */
+export function navigateToHomeAdventure(openAdventureLobby?: () => void): void {
+    try {
+        openAdventureLobby?.();
+    } catch {
+        /* ignore */
+    }
+    replaceAppHash(APP_HOME_HASH);
 }
 
 export function shouldSuppressChampionshipArenaRedirect(): boolean {

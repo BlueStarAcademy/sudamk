@@ -4,6 +4,7 @@ import type { LiveGameSession } from '../../../shared/types/index.js';
 import {
     mergeGameUpdateByArena,
     preservePveAiHiddenPresentationOnMerge,
+    shouldAcceptAuthoritativePveAiHistoryAdvance,
 } from '../../../utils/clientGameMergePolicy.js';
 
 const board9 = () =>
@@ -119,5 +120,68 @@ describe('preservePveAiHiddenPresentationOnMerge', () => {
         const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
         expect(merged.animation).toEqual(existing.animation);
         expect((merged as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime).toBe(endTime);
+    });
+
+    it('does not keep expired ai_thinking leftover over a placement packet with board', () => {
+        const expired = Date.now() - 1000;
+        const existing = minimal({
+            gameStatus: 'playing',
+            currentPlayer: Player.White,
+            animation: {
+                type: 'ai_thinking',
+                startTime: expired - 4000,
+                duration: 4000,
+                playerId: 'ai-player-01',
+            } as any,
+            aiHiddenItemAnimationEndTime: expired,
+            moveHistory: [{ x: 4, y: 4, player: Player.Black }],
+        });
+        const board = board9();
+        board[3][3] = Player.White;
+        const incoming = minimal({
+            gameStatus: 'playing',
+            currentPlayer: Player.Black,
+            animation: null,
+            aiHiddenItemAnimationEndTime: undefined,
+            boardState: board,
+            moveHistory: [
+                { x: 4, y: 4, player: Player.Black },
+                { x: 3, y: 3, player: Player.White },
+            ],
+        });
+
+        const merged = preservePveAiHiddenPresentationOnMerge(incoming, existing);
+        expect(merged.moveHistory).toHaveLength(2);
+        expect(merged.boardState?.[3]?.[3]).toBe(Player.White);
+        expect(merged.currentPlayer).toBe(Player.Black);
+        expect(merged.animation).toBeNull();
+        expect((merged as { aiHiddenItemAnimationEndTime?: number }).aiHiddenItemAnimationEndTime).toBeUndefined();
+    });
+
+    it('accepts longer adventure AI history as authoritative', () => {
+        const existing = minimal({
+            moveHistory: [{ x: 4, y: 4, player: Player.Black }],
+        });
+        const incoming = minimal({
+            currentPlayer: Player.Black,
+            moveHistory: [
+                { x: 4, y: 4, player: Player.Black },
+                { x: 2, y: 2, player: Player.White },
+            ],
+        });
+        expect(shouldAcceptAuthoritativePveAiHistoryAdvance(incoming, existing)).toBe(true);
+        expect(
+            shouldAcceptAuthoritativePveAiHistoryAdvance(
+                minimal({
+                    isAiGame: false,
+                    gameCategory: undefined,
+                    moveHistory: [
+                        { x: 4, y: 4, player: Player.Black },
+                        { x: 2, y: 2, player: Player.White },
+                    ],
+                }),
+                existing,
+            ),
+        ).toBe(false);
     });
 });

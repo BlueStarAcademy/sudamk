@@ -34,6 +34,8 @@ const MemberManagementModal: React.FC<{
     member: GuildMember;
     memberDisplayName: string;
     roleLabel: string;
+    avatarUrl?: string;
+    borderUrl?: string;
     isMaster: boolean;
     isVice: boolean;
     onPromote: () => void;
@@ -41,7 +43,7 @@ const MemberManagementModal: React.FC<{
     onKick: () => void;
     onTransfer: () => void;
     onClose: () => void;
-}> = ({ member, memberDisplayName, roleLabel, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose }) => {
+}> = ({ member, memberDisplayName, roleLabel, avatarUrl, borderUrl, isMaster, isVice, onPromote, onDemote, onKick, onTransfer, onClose }) => {
     const { t } = useTranslation(['guild', 'common']);
     const isMobileShell = useNativeMobileShell();
     const canPromoteToVice = isMaster && member.role === GuildMemberRole.Member;
@@ -73,7 +75,7 @@ const MemberManagementModal: React.FC<{
                 {/* 대상 멤버 헤더 */}
                 <div className="relative mb-3 flex shrink-0 items-center gap-3 overflow-hidden rounded-2xl border border-cyan-400/25 bg-gradient-to-br from-slate-800/80 via-slate-900/75 to-black/85 p-3 shadow-[0_18px_44px_-26px_rgba(34,211,238,0.6)] ring-1 ring-white/[0.04]">
                     <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-cyan-500/10 via-transparent to-amber-500/10" aria-hidden />
-                    <Avatar userId={member.userId} userName={memberDisplayName} size={52} />
+                    <Avatar userId={member.userId} userName={memberDisplayName} size={52} avatarUrl={avatarUrl} borderUrl={borderUrl} />
                     <div className="flex-1 min-w-0">
                         <p className="truncate text-lg font-bold text-white drop-shadow-sm" title={memberDisplayName}>{memberDisplayName}</p>
                         <span className={`inline-block mt-1 px-2.5 py-0.5 rounded-md text-xs font-semibold border ${roleBadgeClass}`}>
@@ -170,6 +172,8 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                     guildId: guild.id,
                     userId: uid,
                     nickname: currentUserWithStatus.nickname || (currentUserWithStatus.isAdmin ? ADMIN_NICKNAME : ''),
+                    avatarId: currentUserWithStatus.avatarId,
+                    borderId: currentUserWithStatus.borderId,
                     role: guild.leaderId === uid ? 'leader' : 'member',
                     joinDate: Date.now(),
                     contributionTotal: 0,
@@ -434,9 +438,17 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                             const memberDisplayName = member.nickname
                                 || (member.userId === ADMIN_USER_ID ? ADMIN_NICKNAME : (user?.isAdmin ? ADMIN_NICKNAME : (user?.nickname || 'Unknown')));
                             const userStatus = onlineUsers.find(u => u.id === member.userId || (member.userId === ADMIN_USER_ID && u.isAdmin));
-                            const avatarUrl = user ? AVATAR_POOL.find(a => a.id === user.avatarId)?.url : undefined;
-                            const borderUrl = user ? BORDER_POOL.find(b => b.id === user.borderId)?.url : undefined;
                             const isSelf = effectiveUserId && (member.userId === effectiveUserId || member.userId === currentUserWithStatus?.id);
+                            const avatarId =
+                                member.avatarId
+                                ?? (isSelf ? currentUserWithStatus?.avatarId : undefined)
+                                ?? user?.avatarId;
+                            const borderId =
+                                member.borderId
+                                ?? (isSelf ? currentUserWithStatus?.borderId : undefined)
+                                ?? user?.borderId;
+                            const avatarUrl = avatarId ? AVATAR_POOL.find(a => a.id === avatarId)?.url : undefined;
+                            const borderUrl = borderId ? BORDER_POOL.find(b => b.id === borderId)?.url : undefined;
                             const isOnline = !!userStatus || !!isSelf;
                             const isClickable = user && user.id !== currentUserWithStatus?.id;
 
@@ -525,6 +537,20 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                         })()
                     }
                     roleLabel={getRoleName(managingMember.role)}
+                    avatarUrl={
+                        (() => {
+                            const u = allUsers.find(x => x.id === managingMember.userId || (managingMember.userId === ADMIN_USER_ID && x.isAdmin));
+                            const avatarId = managingMember.avatarId ?? u?.avatarId;
+                            return avatarId ? AVATAR_POOL.find(a => a.id === avatarId)?.url : undefined;
+                        })()
+                    }
+                    borderUrl={
+                        (() => {
+                            const u = allUsers.find(x => x.id === managingMember.userId || (managingMember.userId === ADMIN_USER_ID && x.isAdmin));
+                            const borderId = managingMember.borderId ?? u?.borderId;
+                            return borderId ? BORDER_POOL.find(b => b.id === borderId)?.url : undefined;
+                        })()
+                    }
                     isMaster={isMaster}
                     isVice={isVice}
                     onPromote={() => handleAction('PROMOTE', managingMember.userId)}
