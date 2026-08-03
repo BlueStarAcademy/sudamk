@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useTranslation, Trans } from 'react-i18next';
 import { tx } from '../../shared/i18n/runtimeText.js';
 import { useLocalizedItemGrade, useLocalizedPairPetText } from '../../shared/i18n/localizedCatalog.js';
+import { splitPairTrainingSlotNameLines } from '../../shared/i18n/pairPetText.js';
 import { flushSync } from 'react-dom';
 import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
@@ -1994,7 +1995,15 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     useTapTrainingFlow ? PET_MGMT_CAPTION : PET_MGMT_SEMI
                                                 } ${isVipTrainingSlot ? 'text-amber-100' : 'text-violet-100'}`}
                                             >
-                                                {localizeTrainingSlot(i)}
+                                                {useTapTrainingFlow
+                                                    ? splitPairTrainingSlotNameLines(localizeTrainingSlot(i)).map(
+                                                          (line, lineIdx) => (
+                                                              <span key={`train-slot-name-${i}-${lineIdx}`} className="block leading-tight">
+                                                                  {line}
+                                                              </span>
+                                                          ),
+                                                      )
+                                                    : localizeTrainingSlot(i)}
                                             </span>
                                         </div>
                                     <div

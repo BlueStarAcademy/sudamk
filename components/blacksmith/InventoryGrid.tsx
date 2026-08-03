@@ -99,7 +99,7 @@ const InventoryGrid: React.FC<InventoryGridProps> = ({
                                     if (!isTicket && stackQty <= 1) return null;
                                     if (isTicket && stackQty < 1) return null;
                                     return (
-                                        <span className="absolute bottom-0 right-0 text-xs font-bold text-white bg-black/60 px-1 rounded-tl-md">
+                                        <span className="absolute bottom-0 right-0 z-10 text-xs font-bold text-white bg-black/60 px-1 rounded-tl-md">
                                             {stackQty}
                                         </span>
                                     );

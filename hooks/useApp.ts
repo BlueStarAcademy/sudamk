@@ -14439,6 +14439,11 @@ export const useApp = () => {
                     setActiveQuickUtilityPanel('matchArena');
                 }
             },
+            openPairArena: () => {
+                if (!openQuickUtilityViewport('pairArena')) {
+                    setActiveQuickUtilityPanel('pairArena');
+                }
+            },
             openRankedMatch: () => {
                 if (!openQuickUtilityViewport('matchArena')) {
                     setActiveQuickUtilityPanel('matchArena');

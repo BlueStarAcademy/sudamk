@@ -275,8 +275,10 @@ export interface PairRoomState {
     pairRoomKickedUserIds?: string[];
     /** 클라이언트 목록용 — 서버가 브로드캐스트·동기 시 채움 */
     listOccupiedHumans?: number;
-    /** 펫 페어 랭킹전: 상단 패널 큐 전용 껍데기 방 — 슬롯·타인 목록에서 숨김 */
+    /** 펫 페어 랭킹전/일반전: 상단 패널 큐 전용 껍데기 방 — 슬롯·타인 목록에서 숨김 */
     pairPetRankedQueueShell?: boolean;
+    /** 펫 페어 큐 종류 — 미지정은 ranked (호환) */
+    pairPetQueueKind?: 'ranked' | 'normal';
     /** AI 2인 팀 대전: 초대 전용 껍데기 — 방 번호·타인 목록·번호 입장 불가 */
     pairAiDuoInviteShell?: boolean;
     /**
@@ -401,6 +403,7 @@ export type ServerAction =
               lobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly';
               lobbyIntent?: ArenaLobbyIntent;
               pairPetRankedQueueShell?: boolean;
+              pairPetQueueKind?: 'ranked' | 'normal';
           };
       }
     | {
@@ -430,6 +433,7 @@ export type ServerAction =
       }
     | { type: 'PAIR_START_MATCH', payload?: { mode?: GameMode; settings?: GameSettings } }
     | { type: 'PAIR_QUEUE_PET_RANKED'; payload: { mode: GameMode } }
+    | { type: 'PAIR_QUEUE_PET_NORMAL'; payload: { mode: GameMode } }
     | { type: 'PAIR_CANCEL_PAIR_PET_MATCHING', payload?: never }
     | { type: 'PAIR_PROPOSE_DUO_RANKED_MATCH', payload: { mode: GameMode } }
     | { type: 'PAIR_ACK_DUO_RANKED_MATCH', payload: { accept: boolean } }

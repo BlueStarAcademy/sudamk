@@ -1190,6 +1190,11 @@ const Profile: React.FC<ProfileProps> = () => {
         }
         handlers.openMatchArena?.();
     };
+    const onSelectPairArena = () => {
+        tryArenaEnter('pairLobby', () => {
+            handlers.openPairArena?.();
+        });
+    };
     const onSelectFriendlyLobby = () => {
         tryArenaEnter('friendlyLobby', () => {
             handlers.openFriendlyLobby?.();
@@ -2073,6 +2078,7 @@ const Profile: React.FC<ProfileProps> = () => {
     const homeEntranceHandlers = useMemo(
         () => ({
             arena: onSelectMatchArena,
+            pairArena: onSelectPairArena,
             championship: onSelectTournamentLobby,
             stage: onSelectSinglePlayerLobby,
             tower: onSelectTowerLobby,
@@ -2088,6 +2094,7 @@ const Profile: React.FC<ProfileProps> = () => {
             onSelectFriendlyLobby,
             onSelectGuildLobby,
             onSelectMatchArena,
+            onSelectPairArena,
             onSelectPlaygroundLobby,
             onSelectSinglePlayerLobby,
             onSelectTournamentLobby,
@@ -2110,6 +2117,15 @@ const Profile: React.FC<ProfileProps> = () => {
                     overallTiers.strategicIntegratedScore != null
                         ? `${overallTiers.strategicIntegratedScore}${t('points')}`
                         : undefined,
+            },
+            pairArena: {
+                tierIcon: overallTiers.pairTier?.icon,
+                scoreText:
+                    overallTiers.pairSeasonScore != null
+                        ? `${overallTiers.pairSeasonScore}${t('points')}`
+                        : undefined,
+                locked: !!getArenaEntryLockReason('pairLobby'),
+                lockReason: getArenaEntryLockReason('pairLobby') ?? undefined,
             },
             championship: {
                 tierIcon: championshipVenueStrip.tier?.icon,
@@ -2172,6 +2188,8 @@ const Profile: React.FC<ProfileProps> = () => {
         hasPcHomeTrainingQuestReward,
         overallTiers.strategicIntegratedScore,
         overallTiers.strategicTier?.icon,
+        overallTiers.pairSeasonScore,
+        overallTiers.pairTier?.icon,
         singleProgress,
         t,
         towerCurrentFloor,

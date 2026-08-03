@@ -100,35 +100,59 @@ export function pairLobbyRoomListScrollAreaClass(lobby: WaitingLobbyPanelTone): 
 
 export function pairLobbyRoomEmptyRowShellClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-cyan-500/14 bg-black/22 p-1.5 shadow-inner ring-1 ring-cyan-400/08';
+        return 'relative flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-dashed border-cyan-500/18 bg-black/18 p-2 shadow-inner ring-1 ring-cyan-400/06';
     }
     if (lobby === 'pair') {
-        return 'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-violet-500/16 bg-black/22 p-1.5 shadow-inner ring-1 ring-violet-400/08';
+        return 'relative flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-dashed border-violet-500/20 bg-black/18 p-2 shadow-inner ring-1 ring-violet-400/06';
     }
-    return 'flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1 overflow-hidden rounded-lg border border-amber-500/14 bg-black/22 p-1.5 shadow-inner ring-1 ring-amber-400/08';
+    return 'relative flex h-full min-h-0 w-full min-w-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-dashed border-amber-500/18 bg-black/18 p-2 shadow-inner ring-1 ring-amber-400/06';
 }
 
 export function pairLobbyRoomEmptySlotNumClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'rounded-md border border-cyan-400/22 bg-black/35 font-mono tabular-nums text-cyan-200/80 shadow-inner';
+        return 'flex h-9 w-9 items-center justify-center rounded-full border border-cyan-400/20 bg-cyan-950/25 font-mono text-sm font-black tabular-nums text-cyan-200/55 shadow-inner sm:h-10 sm:w-10 sm:text-base';
     }
     if (lobby === 'pair') {
-        return 'rounded-md border border-violet-400/24 bg-black/35 font-mono tabular-nums text-violet-200/85 shadow-inner';
+        return 'flex h-9 w-9 items-center justify-center rounded-full border border-violet-400/22 bg-violet-950/25 font-mono text-sm font-black tabular-nums text-violet-200/60 shadow-inner sm:h-10 sm:w-10 sm:text-base';
     }
-    return 'rounded-md border border-amber-400/22 bg-black/35 font-mono tabular-nums text-amber-200/85 shadow-inner';
+    return 'flex h-9 w-9 items-center justify-center rounded-full border border-amber-400/20 bg-amber-950/25 font-mono text-sm font-black tabular-nums text-amber-200/60 shadow-inner sm:h-10 sm:w-10 sm:text-base';
 }
 
 export function pairLobbyRoomFilledCardShellClass(lobby: WaitingLobbyPanelTone): string {
+    const base =
+        'relative flex h-full min-h-0 w-full min-w-0 flex-col gap-1 overflow-hidden rounded-xl p-1.5 shadow-[0_10px_28px_-18px_rgba(0,0,0,0.85)] sm:gap-1.5 sm:p-2';
     if (lobby === 'strategic') {
-        return `flex h-full min-h-0 w-full min-w-0 flex-col gap-0.5 overflow-hidden rounded-lg border border-cyan-400/22 bg-gradient-to-b from-black/40 via-cyan-950/20 to-black/35 p-1.5 shadow-sm ring-1 ring-cyan-400/10 sm:gap-1 sm:p-2`;
+        return `${base} border border-cyan-400/28 bg-gradient-to-br from-slate-950/95 via-cyan-950/35 to-black/80 ring-1 ring-cyan-400/14`;
     }
     if (lobby === 'pair') {
-        return `flex h-full min-h-0 w-full min-w-0 flex-col gap-0.5 overflow-hidden rounded-lg border border-violet-400/24 bg-gradient-to-b from-black/40 via-violet-950/22 to-black/35 p-1.5 shadow-sm ring-1 ring-violet-400/10 sm:gap-1 sm:p-2`;
+        return `${base} border border-violet-400/30 bg-gradient-to-br from-zinc-950/95 via-violet-950/38 to-black/80 ring-1 ring-violet-400/16`;
     }
-    return `flex h-full min-h-0 w-full min-w-0 flex-col gap-0.5 overflow-hidden rounded-lg border border-amber-400/22 bg-gradient-to-b from-black/40 via-amber-950/20 to-black/35 p-1.5 shadow-sm ring-1 ring-amber-400/10 sm:gap-1 sm:p-2`;
+    return `${base} border border-amber-400/28 bg-gradient-to-br from-zinc-950/95 via-amber-950/32 to-black/80 ring-1 ring-amber-400/14`;
 }
 
-export const pairLobbyRoomFilledCardShellHandheldExtraClass = 'gap-0.5 p-1';
+export const pairLobbyRoomFilledCardShellHandheldExtraClass = 'gap-1 p-1.5';
+
+/** 방 카드 상단 하이라이트 */
+export function pairLobbyRoomCardTopHairlineClass(lobby: WaitingLobbyPanelTone): string {
+    const via =
+        lobby === 'strategic' ? 'via-cyan-300/40' : lobby === 'pair' ? 'via-violet-300/42' : 'via-amber-300/42';
+    return `pointer-events-none absolute inset-x-2 top-1.5 h-px bg-gradient-to-r from-transparent ${via} to-transparent`;
+}
+
+/** 방 카드 인원 수 칩 */
+export function pairLobbyRoomOccupancyChipClass(lobby: WaitingLobbyPanelTone, full: boolean): string {
+    const size = 'shrink-0 rounded-md px-1.5 py-0.5 font-mono text-[10px] font-black tabular-nums leading-none sm:text-[11px]';
+    if (full) {
+        return `${size} border border-rose-400/40 bg-rose-950/50 text-rose-100`;
+    }
+    if (lobby === 'strategic') {
+        return `${size} border border-cyan-400/35 bg-cyan-950/45 text-cyan-50`;
+    }
+    if (lobby === 'pair') {
+        return `${size} border border-violet-400/38 bg-violet-950/45 text-violet-50`;
+    }
+    return `${size} border border-amber-400/35 bg-amber-950/45 text-amber-50`;
+}
 
 // —— GameList「진행중인 대국」 —— //
 
@@ -236,59 +260,59 @@ export function waitingLobbyGameListAdminPopoverClass(lobby: WaitingLobbyPanelTo
 
 export function pairLobbyRoomSlotNumOccupiedClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'rounded-md border border-cyan-400/40 bg-black/45 font-mono tabular-nums text-cyan-100 shadow-inner';
+        return 'rounded-lg border border-cyan-400/45 bg-gradient-to-b from-cyan-950/70 to-black/55 font-mono tabular-nums text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-cyan-400/15';
     }
     if (lobby === 'pair') {
-        return 'rounded-md border border-violet-400/42 bg-black/45 font-mono tabular-nums text-violet-100 shadow-inner';
+        return 'rounded-lg border border-violet-400/48 bg-gradient-to-b from-violet-950/70 to-black/55 font-mono tabular-nums text-violet-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-violet-400/15';
     }
-    return 'rounded-md border border-amber-400/40 bg-black/45 font-mono tabular-nums text-amber-100 shadow-inner';
+    return 'rounded-lg border border-amber-400/45 bg-gradient-to-b from-amber-950/70 to-black/55 font-mono tabular-nums text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] ring-1 ring-amber-400/15';
 }
 
 export function pairLobbyRoomKindBadgeClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'min-w-0 max-w-full truncate rounded border border-cyan-400/42 bg-cyan-950/50 px-1 py-0.5 text-[10px] font-extrabold leading-none text-cyan-100 sm:text-[11px]';
+        return 'min-w-0 max-w-[48%] truncate rounded-md border border-cyan-400/40 bg-cyan-950/55 px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-cyan-50 sm:text-[11px]';
     }
     if (lobby === 'pair') {
-        return 'min-w-0 max-w-full truncate rounded border border-violet-400/42 bg-violet-950/50 px-1 py-0.5 text-[10px] font-extrabold leading-none text-violet-100 sm:text-[11px]';
+        return 'min-w-0 max-w-[48%] truncate rounded-md border border-violet-400/40 bg-violet-950/55 px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-violet-50 sm:text-[11px]';
     }
-    return 'min-w-0 max-w-full truncate rounded border border-amber-400/42 bg-amber-950/50 px-1 py-0.5 text-[10px] font-extrabold leading-none text-amber-100 sm:text-[11px]';
+    return 'min-w-0 max-w-[48%] truncate rounded-md border border-amber-400/40 bg-amber-950/55 px-1.5 py-0.5 text-[10px] font-extrabold leading-none text-amber-50 sm:text-[11px]';
 }
 
 /** 방 카드: 예정 게임 모드(주사위 바둑 등) — 방 종류 배지와 구분되는 사각 박스 */
 export function pairLobbyGameModeBadgeClass(lobby: WaitingLobbyPanelTone, handheld: boolean): string {
-    const size = handheld ? 'text-[9px]' : 'text-[10px] sm:text-[11px]';
+    const size = handheld ? 'text-[10px]' : 'text-[10px] sm:text-[11px]';
     if (lobby === 'strategic') {
-        return `min-w-0 max-w-full truncate rounded border border-slate-500/45 bg-slate-950/70 px-1 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-cyan-500/12 ${size}`;
+        return `min-w-0 max-w-[52%] truncate rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-cyan-500/10 ${size}`;
     }
     if (lobby === 'pair') {
-        return `min-w-0 max-w-full truncate rounded border border-slate-500/45 bg-slate-950/70 px-1 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-violet-500/12 ${size}`;
+        return `min-w-0 max-w-[52%] truncate rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-violet-500/10 ${size}`;
     }
-    return `min-w-0 max-w-full truncate rounded border border-slate-500/45 bg-slate-950/70 px-1 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-amber-500/12 ${size}`;
+    return `min-w-0 max-w-[52%] truncate rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-left font-bold leading-tight text-slate-100 ring-1 ring-amber-500/10 ${size}`;
 }
 
 export function pairLobbyRoomJoinButtonClass(lobby: WaitingLobbyPanelTone, joinable: boolean): string {
     const base =
-        'flex w-full shrink-0 items-center justify-center rounded-md border text-[10px] font-extrabold leading-tight sm:text-xs';
+        'flex w-full shrink-0 items-center justify-center rounded-lg border text-[11px] font-black tracking-wide leading-none shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] transition sm:text-xs';
     if (!joinable) {
-        return `${base} cursor-not-allowed border-zinc-700 bg-zinc-900/60 text-zinc-500`;
+        return `${base} cursor-not-allowed border-zinc-700/80 bg-zinc-900/70 text-zinc-500`;
     }
     if (lobby === 'strategic') {
-        return `${base} border-cyan-300/55 bg-cyan-900/45 text-cyan-100 hover:brightness-110`;
+        return `${base} border-cyan-300/55 bg-gradient-to-b from-cyan-700/55 to-cyan-950/70 text-cyan-50 hover:brightness-110`;
     }
     if (lobby === 'pair') {
-        return `${base} border-violet-300/55 bg-violet-900/45 text-violet-100 hover:brightness-110`;
+        return `${base} border-violet-300/55 bg-gradient-to-b from-violet-700/55 to-violet-950/70 text-violet-50 hover:brightness-110`;
     }
-    return `${base} border-amber-300/55 bg-amber-900/45 text-amber-100 hover:brightness-110`;
+    return `${base} border-amber-300/55 bg-gradient-to-b from-amber-700/55 to-amber-950/70 text-amber-50 hover:brightness-110`;
 }
 
 export function pairLobbyRoomInGameJoinSlotClass(lobby: WaitingLobbyPanelTone): string {
     if (lobby === 'strategic') {
-        return 'flex w-full shrink-0 items-center justify-center rounded-md border border-cyan-400/45 bg-cyan-950/55 px-0.5 text-center shadow-inner ring-1 ring-cyan-500/15';
+        return 'flex w-full shrink-0 items-center justify-center rounded-lg border border-rose-400/45 bg-gradient-to-b from-rose-900/50 to-rose-950/70 px-0.5 text-center shadow-inner ring-1 ring-rose-500/15';
     }
     if (lobby === 'pair') {
-        return 'flex w-full shrink-0 items-center justify-center rounded-md border border-violet-400/45 bg-violet-950/55 px-0.5 text-center shadow-inner ring-1 ring-violet-500/15';
+        return 'flex w-full shrink-0 items-center justify-center rounded-lg border border-rose-400/45 bg-gradient-to-b from-rose-900/50 to-rose-950/70 px-0.5 text-center shadow-inner ring-1 ring-rose-500/15';
     }
-    return 'flex w-full shrink-0 items-center justify-center rounded-md border border-amber-400/45 bg-amber-950/55 px-0.5 text-center shadow-inner ring-1 ring-amber-500/15';
+    return 'flex w-full shrink-0 items-center justify-center rounded-lg border border-rose-400/45 bg-gradient-to-b from-rose-900/50 to-rose-950/70 px-0.5 text-center shadow-inner ring-1 ring-rose-500/15';
 }
 
 export function pairLobbyRoomInGameJoinSlotTextClass(lobby: WaitingLobbyPanelTone): string {

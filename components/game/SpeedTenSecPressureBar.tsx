@@ -9,7 +9,7 @@ export type SpeedTenSecPressureBarProps = {
     className?: string;
 };
 
-/** 스피드 바둑 수당 10초 압박: 카운트(10→1) + 진행 막대 */
+/** 스피드 바둑 수당 10초 압박: 카운트(10→1) + 진행 막대 (라벨 텍스트 없음) */
 const SpeedTenSecPressureBar: React.FC<SpeedTenSecPressureBarProps> = ({
     secToNextDrop,
     tickProgress,
@@ -17,31 +17,31 @@ const SpeedTenSecPressureBar: React.FC<SpeedTenSecPressureBarProps> = ({
     className = '',
 }) => {
     const fillPct = Math.max(0, Math.min(100, (1 - tickProgress) * 100));
+    const urgent = secToNextDrop <= 3;
 
     return (
         <div
-            className={`flex w-full min-w-0 items-center gap-2 ${className}`}
+            className={`flex w-full min-w-0 items-center gap-2.5 ${className}`}
             role="timer"
             aria-live="polite"
-            aria-label={tx("game:speedPressure.aria", { sec: secToNextDrop })}
+            aria-label={tx('game:speedPressure.aria', { sec: secToNextDrop })}
         >
-            <span className={`shrink-0 font-bold text-amber-100/90 ${compact ? 'text-[10px]' : 'text-xs'}`}>
-                {tx('game:speedPressure.label')}
-            </span>
             <span
-                className={`shrink-0 font-semibold tabular-nums text-amber-200 ${
-                    compact ? 'text-xs' : 'text-sm'
-                }`}
+                className={`shrink-0 min-w-[2ch] text-center font-black tabular-nums leading-none ${
+                    compact ? 'text-xl' : 'text-2xl'
+                } ${urgent ? 'text-red-300' : 'text-amber-200'}`}
             >
-                {secToNextDrop}초
+                {secToNextDrop}
             </span>
             <div
-                className={`min-w-0 flex-1 overflow-hidden rounded-full bg-white/15 ${
-                    compact ? 'h-2' : 'h-2.5'
+                className={`min-w-0 flex-1 overflow-hidden rounded-full bg-white/20 ${
+                    compact ? 'h-3.5' : 'h-4'
                 }`}
             >
                 <div
-                    className="h-full rounded-full bg-amber-400 transition-[width] duration-300"
+                    className={`h-full rounded-full transition-[width] duration-300 ${
+                        urgent ? 'bg-red-400' : 'bg-amber-400'
+                    }`}
                     style={{ width: `${fillPct}%` }}
                 />
             </div>

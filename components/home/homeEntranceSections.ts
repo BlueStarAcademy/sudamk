@@ -13,6 +13,7 @@ export type HomeEntranceSectionId = 'compete' | 'growth' | 'casual' | 'social';
 
 export type HomeEntranceCardId =
     | 'arena'
+    | 'pairArena'
     | 'championship'
     | 'stage'
     | 'tower'
@@ -75,6 +76,12 @@ export const HOME_ENTRANCE_SECTIONS: HomeEntranceSectionDef[] = [
                 titleKey: 'matchArena',
                 accent: 'amber',
                 imageSrc: STRATEGIC_GO_LOBBY_IMG,
+            },
+            {
+                id: 'pairArena',
+                titleKey: 'pairArena',
+                accent: 'violet',
+                imageSrc: PAIR_GO_LOBBY_IMG,
             },
             {
                 id: 'championship',

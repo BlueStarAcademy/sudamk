@@ -222,6 +222,15 @@ export interface PairPetRankedMatchModeModalProps {
     currentSeasonPanel?: ReactNode;
     /** dedicatedHome 좌열 — 최고 시즌 카드 */
     bestSeasonPanel?: ReactNode;
+    /** dedicatedHome 좌열 — 시즌 패널 하단(대표펫 등) */
+    seasonColumnFooter?: ReactNode;
+    /**
+     * 모바일 dedicatedHome 크롬 탭.
+     * - `seasonInfo`: 모드선택·매칭 우열 숨기고 시즌(·대표펫)만
+     * - `match`: 시즌 패널 숨기고 매칭 UI만 (탭 헤더·매칭 스피너는 유지)
+     * - 미지정: PC처럼 좌 시즌 / 우 매칭 동시 표시
+     */
+    dedicatedMobileChrome?: 'seasonInfo' | 'match';
     /** dedicatedHome: 매칭 중 — 버튼 취소로 전환, UI 잠금, 최고시즌 하단 스피너 */
     isMatching?: boolean;
     matchingElapsedSeconds?: number;
@@ -243,6 +252,8 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
     seasonColumnHeader = null,
     currentSeasonPanel = null,
     bestSeasonPanel = null,
+    seasonColumnFooter = null,
+    dedicatedMobileChrome,
     isMatching = false,
     matchingElapsedSeconds = 0,
     hideQueueCount = false,
@@ -647,11 +658,41 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
 
     if (presentation === 'dedicatedHome') {
         const matchingLocked = isMatching || isBusy;
+        const seasonInfoOnly = dedicatedMobileChrome === 'seasonInfo';
+        const matchChromeOnly = dedicatedMobileChrome === 'match';
+        const showSeasonPanels = !matchChromeOnly;
+        const showMatchWorkspace = !seasonInfoOnly;
         const formatMatchingElapsed = (seconds: number): string => {
             const mins = Math.floor(seconds / 60);
             const secs = seconds % 60;
             return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
         };
+
+        const matchingStatusCard = isMatching ? (
+            <div className="relative shrink-0 overflow-hidden rounded-xl border-2 border-yellow-500/55 bg-gradient-to-br from-yellow-900/45 via-amber-900/35 to-yellow-900/45 p-2.5 shadow-[0_6px_20px_rgba(234,179,8,0.28)] sm:p-3">
+                <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-yellow-500/15 via-transparent to-yellow-500/15" aria-hidden />
+                <div className="relative z-[1] flex flex-col items-center gap-2">
+                    <div className="relative h-11 w-11">
+                        <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-yellow-400 border-t-transparent" />
+                        <div
+                            className="absolute inset-1.5 animate-spin rounded-full border-[3px] border-amber-400 border-t-transparent"
+                            style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
+                        />
+                    </div>
+                    <span className="text-sm font-extrabold text-yellow-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
+                        {tLobby('ranked.matching')}
+                    </span>
+                    <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-yellow-400/30 bg-yellow-950/45 px-2 py-1.5">
+                        <span className="text-[10px] font-semibold text-yellow-200/90 sm:text-xs">
+                            {tLobby('ranked.waitTime')}
+                        </span>
+                        <span className="font-mono text-base font-black tabular-nums text-yellow-50 sm:text-lg">
+                            {formatMatchingElapsed(matchingElapsedSeconds)}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        ) : null;
 
         return (
             <div
@@ -659,7 +700,12 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                 data-ranked-match-mode-dedicated={windowId}
                 data-matching={isMatching ? '1' : '0'}
             >
+                {dedicatedMobileChrome && seasonColumnHeader ? (
+                    <div className="relative z-[2] shrink-0">{seasonColumnHeader}</div>
+                ) : null}
+
                 {/* 1행: 게임 모드 선택 */}
+                {showMatchWorkspace ? (
                 <section
                     className={`relative z-[1] shrink-0 rounded-xl border border-amber-400/30 bg-black/30 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-2.5 ${
                         isMatching ? 'pointer-events-none opacity-70' : ''
@@ -686,13 +732,22 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         ))}
                     </LobbyHorizontalModePickerScroll>
                 </section>
+                ) : null}
 
-                {/* 2·3행: 좌 시즌(좁게) / 우 설명·설정·매칭 */}
-                <div className="relative z-[1] grid min-h-0 min-w-0 flex-1 grid-cols-1 gap-2 overflow-hidden sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)] sm:gap-2.5 lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]">
+                {/* 2·3행: 좌 시즌(좁게) / 우 설명·설정·매칭 — 모바일 시즌정보·매칭 탭은 단일 열 */}
+                <div
+                    className={`relative z-[1] grid min-h-0 min-w-0 flex-1 gap-2 overflow-hidden sm:gap-2.5 ${
+                        seasonInfoOnly || matchChromeOnly
+                            ? 'grid-cols-1'
+                            : 'grid-cols-1 sm:grid-cols-[minmax(0,12.5rem)_minmax(0,1fr)] lg:grid-cols-[minmax(0,14rem)_minmax(0,1fr)]'
+                    }`}
+                >
+                    {showSeasonPanels || (!dedicatedMobileChrome && (seasonColumnHeader || isMatching)) ? (
                     <div className="flex min-h-0 min-w-0 flex-col gap-2 overflow-y-auto overscroll-contain [scrollbar-gutter:stable] sm:gap-2.5">
-                        {seasonColumnHeader ? (
+                        {!dedicatedMobileChrome && seasonColumnHeader ? (
                             <div className="relative z-[2] shrink-0">{seasonColumnHeader}</div>
                         ) : null}
+                        {showSeasonPanels ? (
                         <div
                             className={`flex min-h-0 min-w-0 flex-col gap-2 sm:gap-2.5 ${
                                 isMatching ? 'pointer-events-none' : ''
@@ -700,34 +755,16 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         >
                         {currentSeasonPanel}
                         {bestSeasonPanel}
+                        {seasonColumnFooter}
                         </div>
-                        {isMatching ? (
-                            <div className="relative shrink-0 overflow-hidden rounded-xl border-2 border-yellow-500/55 bg-gradient-to-br from-yellow-900/45 via-amber-900/35 to-yellow-900/45 p-2.5 shadow-[0_6px_20px_rgba(234,179,8,0.28)] sm:p-3">
-                                <div className="absolute inset-0 animate-pulse bg-gradient-to-r from-yellow-500/15 via-transparent to-yellow-500/15" aria-hidden />
-                                <div className="relative z-[1] flex flex-col items-center gap-2">
-                                    <div className="relative h-11 w-11">
-                                        <div className="absolute inset-0 animate-spin rounded-full border-[3px] border-yellow-400 border-t-transparent" />
-                                        <div
-                                            className="absolute inset-1.5 animate-spin rounded-full border-[3px] border-amber-400 border-t-transparent"
-                                            style={{ animationDirection: 'reverse', animationDuration: '1.5s' }}
-                                        />
-                                    </div>
-                                    <span className="text-sm font-extrabold text-yellow-100 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)]">
-                                        {tLobby('ranked.matching')}
-                                    </span>
-                                    <div className="flex w-full items-center justify-between gap-2 rounded-lg border border-yellow-400/30 bg-yellow-950/45 px-2 py-1.5">
-                                        <span className="text-[10px] font-semibold text-yellow-200/90 sm:text-xs">
-                                            {tLobby('ranked.waitTime')}
-                                        </span>
-                                        <span className="font-mono text-base font-black tabular-nums text-yellow-50 sm:text-lg">
-                                            {formatMatchingElapsed(matchingElapsedSeconds)}
-                                        </span>
-                                    </div>
-                                </div>
-                            </div>
                         ) : null}
+                        {!matchChromeOnly ? matchingStatusCard : null}
                     </div>
+                    ) : null}
 
+                    {matchChromeOnly ? matchingStatusCard : null}
+
+                    {showMatchWorkspace ? (
                     <div className="flex min-h-0 min-w-0 flex-col gap-2 overflow-hidden rounded-xl border border-white/10 bg-black/25 p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] sm:p-2.5">
                         <div
                             className={`flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-hidden ${
@@ -787,6 +824,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                             )}
                         </div>
                     </div>
+                    ) : null}
                 </div>
             </div>
         );

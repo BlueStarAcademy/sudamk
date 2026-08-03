@@ -78,6 +78,7 @@ import {
     pairLobbyQuickJoinRoomNumberInputClass,
     pairLobbyQuickJoinRoomNumberRowClass,
     pairLobbyQuickJoinToolbarClass,
+    pairLobbyRoomCardTopHairlineClass,
     pairLobbyRoomEmptyRowShellClass,
     pairLobbyRoomEmptySlotNumClass,
     pairLobbyRoomFilledCardShellClass,
@@ -89,6 +90,7 @@ import {
     pairLobbyRoomKindBadgeClass,
     pairLobbyRoomListOuterShellClass,
     pairLobbyRoomListScrollAreaClass,
+    pairLobbyRoomOccupancyChipClass,
     pairLobbyRoomSlotNumOccupiedClass,
     pairAggregateRoomInteriorActionBarClass,
     pairAggregateRoomInteriorActionBarHandheldClass,
@@ -179,18 +181,18 @@ function formatElapsedHhMmSs(totalSeconds: number): string {
     return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
 }
 
-/** 페어 경기장 중앙 그리드: 1번~N번 슬롯, 가로 5열 카드 */
-const PAIR_LOBBY_ROOM_SLOT_COLS = 5;
-const PAIR_LOBBY_ROOM_SLOT_ROWS = Math.ceil(PAIR_LOBBY_GRID_SLOT_COUNT / PAIR_LOBBY_ROOM_SLOT_COLS);
-/** 스크롤 뷰포트 측정 전·최소 높이 가정용 행 높이(px) — PC는 뷰÷4, 모바일은 카드 가독성 유지 */
-const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_PX = 128;
-const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_HANDHELD_PX = 112;
+/** 페어 경기장 중앙 그리드: PC 5열 · 모바일 2열(카드 가독성) */
+const PAIR_LOBBY_ROOM_SLOT_COLS_DESKTOP = 5;
+const PAIR_LOBBY_ROOM_SLOT_COLS_HANDHELD = 2;
+/** 스크롤 뷰포트 측정 전·최소 높이 가정용 행 높이(px) */
+const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_PX = 136;
+const PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_HANDHELD_PX = 128;
 /** 스크롤 뷰포트 측정 전·가상화 범위 계산용 최소 높이(px) */
 const PAIR_LOBBY_ROOM_SLOT_VIEWPORT_FALLBACK_PX = 560;
 const PAIR_LOBBY_ROOM_SLOT_VIEWPORT_FALLBACK_HANDHELD_PX = 400;
 /** 입장 직후 그리드 슬롯 선로드(측정 전 소수 칸만 fetch 되는 문제 방지) */
 const PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_DESKTOP = 40;
-const PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_HANDHELD = 25;
+const PAIR_LOBBY_ROOM_SLOT_INITIAL_FETCH_HANDHELD = 20;
 const PAIR_LOBBY_ROOM_SLOT_VIRTUAL_OVERSCAN_ROWS = 3;
 
 /** 방 내부 채팅: 전송 성공 후 전송 UI 비활성화 시간(ms) */
@@ -198,12 +200,12 @@ const PAIR_ROOM_INTERIOR_CHAT_SEND_COOLDOWN_MS = 3000;
 
 /** 슬롯 번호 박스 한 변 (카드 높이에 비례) */
 function pairLobbySlotBoxPxForRow(rowH: number): number {
-    return Math.max(22, Math.min(32, Math.round(rowH * 0.2)));
+    return Math.max(22, Math.min(30, Math.round(rowH * 0.17)));
 }
 
 /** 카드 하단 입장/관전 버튼 높이 */
 function pairLobbyJoinButtonHeightPxForRow(rowH: number): number {
-    return Math.max(22, Math.min(30, Math.round(rowH * 0.18)));
+    return Math.max(26, Math.min(34, Math.round(rowH * 0.2)));
 }
 
 /** 방 목록 세로 스크롤 — 얇은 트랙·썸 (Firefox + WebKit) */
@@ -212,6 +214,14 @@ const PAIR_LOBBY_ROOM_LIST_SCROLLBAR_CLASS =
 
 type RoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'team_pair' | 'arena_ai';
 export type PairWaitingLobbyChannel = 'pair' | 'strategic' | 'playful' | 'friendly';
+
+/** 목록 카드 인원 표시용 정원(인간) — 종류별 입장 정원과 동일 */
+function pairRoomListHumanCapacity(listRoomKind: RoomKind): number | null {
+    if (listRoomKind === 'friendly_2p' || listRoomKind === 'team_pair' || listRoomKind === 'duo_match') return 2;
+    if (listRoomKind === 'friendly_4p') return 4;
+    if (listRoomKind === 'ai_duel' || listRoomKind === 'arena_ai') return 1;
+    return null;
+}
 
 const PAIR_LOBBY_PRESENCE_CLIENT_ID_SESSION_KEY = 'sudamr_pair_lobby_presence_client_id';
 
@@ -291,6 +301,7 @@ type PairRoom = {
     pairOwnerStartDeadlineAt?: number;
     pairGuestJoinOrder?: string[];
     pairPetRankedQueueShell?: boolean;
+    pairPetQueueKind?: 'ranked' | 'normal';
     pairAiDuoInviteShell?: boolean;
     pairLobbyAiSeatSlots?: { teamB: Array<0 | 1> };
 };
@@ -1266,7 +1277,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             : lobbyChannel === 'strategic' && lobbyIntent === 'pvp' && !isHomeViewer
               ? 'match'
               : 'rooms';
-    /** 모바일 상단 탭에 「랭킹전」 분리 표시 (전략 집계·페어 본로비) */
+    /** 모바일 상단 탭에 「랭킹전」 분리 표시 (전략 집계·페어 본로비) — 홈 경기장 전용 매칭과 별개 레거시 경로 */
     const showHandheldRankedTab = lobbyChannel === 'strategic' || lobbyChannel === 'pair';
 
     const pairLobbyListRoomKindFilterOptions = useMemo(
@@ -1315,7 +1326,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
     }, [lobbyChannel, lobbyIntent]);
 
     useEffect(() => {
-        if (!showHandheldRankedTab && (pairLobbyMobileTab === 'ranked' || pairLobbyMobileTab === 'rankedAi')) {
+        if (
+            !showHandheldRankedTab &&
+            (pairLobbyMobileTab === 'ranked' || pairLobbyMobileTab === 'rankedAi')
+        ) {
             setPairLobbyMobileTab('rooms');
         }
     }, [showHandheldRankedTab, pairLobbyMobileTab]);
@@ -1949,9 +1963,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
     useEffect(() => {
         if (!isHandheld || pairLobbyMobileTab !== 'room') return;
         if (!showHandheldMyRoomTab) {
+            /** 방 생성·초대 직후 `myRoom` 반영 전: room 탭을 유저목록으로 튕기지 않음 */
+            if (isBusy) return;
+            try {
+                if (sessionStorage.getItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY) === '1') return;
+            } catch {
+                // ignore
+            }
             setPairLobbyMobileTab(lobbyIntent === 'ai' ? 'ai' : 'users');
         }
-    }, [isHandheld, pairLobbyMobileTab, showHandheldMyRoomTab, lobbyIntent]);
+    }, [isBusy, isHandheld, pairLobbyMobileTab, showHandheldMyRoomTab, lobbyIntent]);
 
     useEffect(() => {
         if (lobbyIntent === 'ai' && pairLobbyMobileTab === 'rooms') {
@@ -1963,10 +1984,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
 
     useEffect(() => {
         if (!isHandheld) return;
+        /** 참여 중이면 레이아웃 모드 전환으로 방 내부 탭을 덮어쓰지 않음 (`myRoom` 포커스는 별도 이펙트) */
+        if (myRoom?.id) return;
         if (lobbyLayoutMode === 'match') setPairLobbyMobileTab('ranked');
         else if (lobbyLayoutMode === 'ai') setPairLobbyMobileTab('ai');
         else setPairLobbyMobileTab('rooms');
-    }, [lobbyLayoutMode, isHandheld]);
+    }, [lobbyLayoutMode, isHandheld, myRoom?.id]);
 
     useEffect(() => {
         if (!aggregateLobbyMode && lobbyIntent !== 'ai' && pairLobbyMobileTab === 'ai') {
@@ -2015,12 +2038,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         isPairPetRankedQueueShellMatching,
     ]);
 
-    /** PVP PC: 참여 중인 방이 생기면 중앙 열을 내 방 탭으로 */
+    /** PVP: 참여 중인 방이 생기면 중앙 열을 내 방 탭으로 (모바일 homeViewer·방목록 중첩 UI 포함) */
     useEffect(() => {
-        if (!myRoom || lobbyIntent !== 'pvp' || isHandheld) return;
+        if (!myRoom || lobbyIntent !== 'pvp') return;
         if (isPairPetRankedQueueShellMatching) return;
         setPairLobbyCenterTab('room');
-    }, [myRoom?.id, lobbyIntent, isHandheld, isPairPetRankedQueueShellMatching]);
+    }, [myRoom?.id, lobbyIntent, isPairPetRankedQueueShellMatching]);
 
     useEffect(() => {
         if (!myRoom) {
@@ -2050,6 +2073,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             return;
         }
         setPairLobbyMobileTab(handheldPairLobbyRoomFocusTab(myRoom, lobbyIntent, lobbyChannel));
+        if (lobbyIntent === 'pvp') setPairLobbyCenterTab('room');
     }, [
         isHandheld,
         myRoom?.id,
@@ -2061,16 +2085,15 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         lobbyChannel,
     ]);
 
-    /** 초대 수락 직후 등: 방목록·유저목록에 머물지 않고 내 방(N번방) 탭으로 이동 */
+    /** 방 생성·초대 수락 직후 등: 방목록·유저목록에 머물지 않고 내 방(N번방) 탭으로 이동 */
     useEffect(() => {
         if (!myRoom?.id) return;
         try {
             if (sessionStorage.getItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY) !== '1') return;
             sessionStorage.removeItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY);
-            if (lobbyIntent === 'pvp' && !isHandheld) {
+            if (lobbyIntent === 'pvp') {
                 setPairLobbyCenterTab('room');
-            }
-            if (lobbyIntent !== 'pvp' && !isHandheld) {
+            } else {
                 setPairLobbyRightTab('room');
             }
             if (isHandheld) {
@@ -2167,6 +2190,13 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         return () => ro.disconnect();
     }, [pairLobbyMobileTab, pairLobbyCenterTab, pairLobbyRoomForm, lobbyChannel, lobbyIntent]);
 
+    /** PC: 5열·약 3.5~4행. 모바일: 2열·카드 폭 확보, 약 2.5~3행 */
+    const pairLobbyRoomSlotCols = isHandheld
+        ? PAIR_LOBBY_ROOM_SLOT_COLS_HANDHELD
+        : PAIR_LOBBY_ROOM_SLOT_COLS_DESKTOP;
+    const pairLobbyRoomSlotRows = Math.ceil(PAIR_LOBBY_GRID_SLOT_COUNT / pairLobbyRoomSlotCols);
+    const pairLobbyRoomSlotGridColsClass = isHandheld ? 'grid-cols-2' : 'grid-cols-5';
+
     const pairLobbySlotGridEffectiveViewportHeightPx = useMemo(() => {
         const measured = pairLobbySlotGridViewport.clientHeight;
         const fallback = isHandheld
@@ -2176,19 +2206,19 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         return Math.max(measured, fallback);
     }, [pairLobbySlotGridViewport.clientHeight, isHandheld]);
 
-    /** PC: 한 화면에 약 4행(5열 카드). 모바일: 카드 가독성 유지하며 3~4행 노출 */
+    /** PC: 카드 정보 밀도에 맞는 행 높이. 모바일: 2열 카드가 읽히도록 약간 더 높게 */
     const pairLobbySlotRowHeightPx = useMemo(() => {
         const ch = pairLobbySlotGridEffectiveViewportHeightPx;
         if (ch < 40) return isHandheld ? PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_HANDHELD_PX : PAIR_LOBBY_ROOM_SLOT_ROW_FALLBACK_PX;
         if (isHandheld) {
-            return Math.max(96, Math.min(132, Math.round(ch / 3.5)));
+            return Math.max(120, Math.min(152, Math.round(ch / 2.7)));
         }
-        return Math.max(112, Math.min(156, Math.round(ch / 4)));
+        return Math.max(128, Math.min(168, Math.round(ch / 3.7)));
     }, [pairLobbySlotGridEffectiveViewportHeightPx, isHandheld]);
 
     const pairLobbySlotGridVisibleRange = useMemo(() => {
         const rh = pairLobbySlotRowHeightPx;
-        const maxRow = PAIR_LOBBY_ROOM_SLOT_ROWS - 1;
+        const maxRow = pairLobbyRoomSlotRows - 1;
         const ch = Math.max(1, pairLobbySlotGridEffectiveViewportHeightPx);
         const st = pairLobbySlotGridViewport.scrollTop;
         const buf = PAIR_LOBBY_ROOM_SLOT_VIRTUAL_OVERSCAN_ROWS;
@@ -2200,6 +2230,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         pairLobbySlotGridViewport.scrollTop,
         pairLobbySlotGridEffectiveViewportHeightPx,
         pairLobbySlotRowHeightPx,
+        pairLobbyRoomSlotRows,
     ]);
 
     useEffect(() => {
@@ -2286,10 +2317,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             lobbyGridSliceDebounceRef.current = null;
             const first = pairLobbySlotGridVisibleRange.firstRow;
             const last = pairLobbySlotGridVisibleRange.lastRow;
-            const fromSlot = first * PAIR_LOBBY_ROOM_SLOT_COLS + 1;
+            const fromSlot = first * pairLobbyRoomSlotCols + 1;
             const toSlot = Math.min(
                 PAIR_LOBBY_GRID_SLOT_COUNT,
-                (last + 1) * PAIR_LOBBY_ROOM_SLOT_COLS,
+                (last + 1) * pairLobbyRoomSlotCols,
             );
             void fetchLobbyGridSlice(fromSlot, toSlot);
         }, 90);
@@ -2299,7 +2330,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 lobbyGridSliceDebounceRef.current = null;
             }
         };
-    }, [pairLobbySlotGridVisibleRange.firstRow, pairLobbySlotGridVisibleRange.lastRow, fetchLobbyGridSlice]);
+    }, [
+        pairLobbySlotGridVisibleRange.firstRow,
+        pairLobbySlotGridVisibleRange.lastRow,
+        pairLobbyRoomSlotCols,
+        fetchLobbyGridSlice,
+    ]);
 
     const isPairPetRoom = myRoom?.roomKind === 'ai_duel';
     const isFriendlyTwoPetRoom = myRoom?.roomKind === 'friendly_2p';
@@ -2630,10 +2666,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
     };
 
     const focusPairLobbyMyRoomTab = useCallback(() => {
-        if (lobbyIntent === 'pvp' && !isHandheld) {
+        if (lobbyIntent === 'pvp') {
             setPairLobbyCenterTab('room');
-        }
-        if (lobbyIntent !== 'pvp' && !isHandheld) {
+        } else {
             setPairLobbyRightTab('room');
         }
         if (isHandheld) {
@@ -2760,6 +2795,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 if (gameId) {
                     pairShellGameNavAllowIdRef.current = gameId;
                     window.location.hash = `#/game/${gameId}`;
+                }
+                try {
+                    sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
+                } catch {
+                    // ignore
                 }
                 setPairLobbyRoomForm('closed');
                 focusPairLobbyMyRoomTab();
@@ -3971,8 +4011,13 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         [handlers, myRoom],
     );
 
-    const renderPairLobbyPairRankedStats = (embeddedInUsersColumn = false) => {
+    const renderPairLobbyPairRankedStats = (
+        embeddedInUsersColumn = false,
+        panelSection: 'all' | 'season' | 'match' = 'all',
+    ) => {
         if (lobbyChannel !== 'pair') return null;
+        const showSeasonSection = panelSection !== 'match';
+        const showMatchSection = panelSection !== 'season';
         return (
             <div
                 className={
@@ -4008,7 +4053,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                 페어 랭킹전
                             </h2>
                         </div>
-                        {showPairLobbyPetRankedPanelMatching ? (
+                        {showMatchSection ? (
+                            showPairLobbyPetRankedPanelMatching ? (
                             <Button
                                 type="button"
                                 colorScheme="none"
@@ -4060,10 +4106,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                     </span>
                                 </span>
                             </Button>
-                        )}
+                        )
+                        ) : null}
                     </div>
                     <div className="relative z-10 flex flex-col gap-2">
-                        {showPairLobbyPetRankedPanelMatching ? (
+                        {showMatchSection && showPairLobbyPetRankedPanelMatching ? (
                             <div className="relative flex-shrink-0 overflow-hidden rounded-xl border-2 border-yellow-500/60 bg-gradient-to-br from-yellow-900/50 via-amber-900/40 to-yellow-900/50 p-3 shadow-[0_8px_32px_rgba(234,179,8,0.4)] sm:p-4">
                                 <div className="absolute inset-0 bg-gradient-to-r from-yellow-500/20 via-transparent to-yellow-500/20 animate-pulse" />
                                 <div className="relative z-10 flex flex-col gap-3 sm:gap-4">
@@ -4091,14 +4138,21 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                     </div>
                                 </div>
                             </div>
-                        ) : (
-                            <div className="grid min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:gap-3">
+                        ) : null}
+                        {showSeasonSection && (!showPairLobbyPetRankedPanelMatching || panelSection === 'season') ? (
+                            <div
+                                className={`grid min-w-0 gap-2 sm:gap-3 ${
+                                    panelSection === 'season' || isHandheld
+                                        ? 'grid-cols-1'
+                                        : 'grid-cols-1 sm:grid-cols-2'
+                                }`}
+                            >
                                 <div className="group relative overflow-hidden rounded-lg border-2 border-blue-500/50 bg-gradient-to-br from-blue-900/40 via-indigo-900/30 to-purple-900/40 p-2.5 shadow-[0_4px_20px_rgba(59,130,246,0.3)] sm:p-3">
                                     <div className="absolute inset-0 bg-gradient-to-r from-blue-500/10 via-transparent to-purple-500/10 opacity-0 transition-opacity duration-300 group-hover:opacity-100" />
                                     <div className="relative z-10 flex flex-col gap-1.5">
                                         <div className="flex items-center justify-between gap-1 border-b border-blue-400/30 pb-1.5">
                                             <p className="text-[11px] font-bold uppercase tracking-wide text-blue-300 sm:text-xs">
-                                                현재 시즌
+                                                {pt('waitingLobby.currentSeason')}
                                             </p>
                                             <div className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" />
                                         </div>
@@ -4125,7 +4179,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                         <div className="rounded-md border border-blue-500/30 bg-gradient-to-r from-blue-900/50 to-indigo-900/50 p-2">
                                             <div className="flex items-baseline justify-between gap-2">
                                                 <span className="shrink-0 text-[10px] font-medium text-blue-300/90 sm:text-xs">
-                                                    현재 점수
+                                                    {pt('waitingLobby.currentScore')}
                                                 </span>
                                                 <span className="text-right font-mono text-base font-bold tabular-nums text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] sm:text-lg">
                                                     {Math.round(pairLobbyRankedStrip.score).toLocaleString()}
@@ -4156,7 +4210,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                     <div className="relative z-10 flex flex-col gap-1.5">
                                         <div className="flex items-center justify-between gap-1 border-b border-amber-400/30 pb-1.5">
                                             <p className="text-[11px] font-bold uppercase tracking-wide text-amber-300 sm:text-xs">
-                                                최고 시즌
+                                                {pt('waitingLobby.bestSeason')}
                                             </p>
                                             <span className="text-xs">⭐</span>
                                         </div>
@@ -4226,28 +4280,31 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                                     </div>
                                                 </div>
                                                 <p className="border-t border-amber-400/20 pt-1 text-center text-[10px] text-amber-300/80 sm:text-xs">
-                                                    역대 최고 등급
+                                                    {pt('waitingLobby.allTimeBestTier')}
                                                 </p>
                                             </>
                                         ) : (
                                             <div className="flex flex-1 flex-col justify-center py-2">
                                                 <p className="text-center text-xs text-amber-300/70">-</p>
                                                 <p className="mt-0.5 text-center text-[10px] text-amber-300/70 sm:text-xs">
-                                                    역대 최고 등급
+                                                    {pt('waitingLobby.allTimeBestTier')}
                                                 </p>
                                             </div>
                                         )}
                                     </div>
                                 </div>
                             </div>
-                        )}
+                        ) : null}
                     </div>
                 </div>
             </div>
         );
     };
 
-    const renderStrategicPvpRankedMatchPanel = (embeddedInUsersColumn = false) => {
+    const renderStrategicPvpRankedMatchPanel = (
+        embeddedInUsersColumn = false,
+        panelSection: 'all' | 'season' | 'match' = 'all',
+    ) => {
         if (!(aggregateLobbyMode === 'strategic' && lobbyIntent === 'pvp')) return null;
         const panel = (
             <RankedMatchPanel
@@ -4258,6 +4315,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 shrinkToContent
                 queueKind={matchQueueKind}
                 onSelectQueueKind={selectMatchQueue}
+                panelSection={panelSection}
                 onMatchingStateChange={(isMatching, startTime) => {
                     setAggregateLobbyRankedMatching(isMatching);
                     setAggregateLobbyRankedMatchingStartTime(startTime);
@@ -4280,15 +4338,19 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         );
     };
 
-    const renderLobbyLeftRankedSection = (opts?: { embeddedInUsersColumn?: boolean }) => {
+    const renderLobbyLeftRankedSection = (opts?: {
+        embeddedInUsersColumn?: boolean;
+        panelSection?: 'all' | 'season' | 'match';
+    }) => {
         const embeddedInUsersColumn = opts?.embeddedInUsersColumn ?? false;
+        const panelSection = opts?.panelSection ?? 'all';
         return (
             <>
                 {lobbyChannel === 'strategic' && lobbyIntent === 'pvp'
-                    ? renderStrategicPvpRankedMatchPanel(embeddedInUsersColumn)
+                    ? renderStrategicPvpRankedMatchPanel(embeddedInUsersColumn, panelSection)
                     : null}
                 {lobbyChannel === 'pair' && lobbyIntent === 'pvp'
-                    ? renderPairLobbyPairRankedStats(embeddedInUsersColumn)
+                    ? renderPairLobbyPairRankedStats(embeddedInUsersColumn, panelSection)
                     : null}
             </>
         );
@@ -4433,7 +4495,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             >
                 <div
                     className="flex flex-col"
-                    style={{ minHeight: PAIR_LOBBY_ROOM_SLOT_ROWS * pairLobbySlotRowHeightPx }}
+                    style={{ minHeight: pairLobbyRoomSlotRows * pairLobbySlotRowHeightPx }}
                 >
                     {pairLobbySlotGridVisibleRange.firstRow > 0 ? (
                         <div
@@ -4450,16 +4512,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                         const numBoxStyle = { width: pairLobbySlotBoxPx, height: pairLobbySlotBoxPx };
                         const joinButtonStyle = { height: pairLobbyJoinButtonHeightPx };
                         const numTextClass = isHandheld
-                            ? 'text-[10px] font-extrabold'
-                            : 'text-xs font-extrabold sm:text-sm';
+                            ? 'text-[11px] font-black'
+                            : 'text-xs font-black sm:text-sm';
                         return (
                             <div
                                 key={`row-${row}`}
-                                className="grid shrink-0 grid-cols-5 gap-1 px-0.5 py-0.5"
+                                className={`grid shrink-0 gap-1.5 px-0.5 py-0.5 sm:gap-2 ${pairLobbyRoomSlotGridColsClass}`}
                                 style={{ height: pairLobbySlotRowHeightPx }}
                             >
-                                {Array.from({ length: PAIR_LOBBY_ROOM_SLOT_COLS }, (_, col) => {
-                                    const slotNumber = row * PAIR_LOBBY_ROOM_SLOT_COLS + col + 1;
+                                {Array.from({ length: pairLobbyRoomSlotCols }, (_, col) => {
+                                    const slotNumber = row * pairLobbyRoomSlotCols + col + 1;
                                     if (slotNumber > PAIR_LOBBY_GRID_SLOT_COUNT) {
                                         return <div key={`pad-${row}-${col}`} aria-hidden />;
                                     }
@@ -4473,12 +4535,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                             >
                                                 <div className={pairLobbyRoomEmptyRowShellClass(lobbyTone)}>
                                                     <div
-                                                        style={numBoxStyle}
-                                                        className={`flex shrink-0 items-center justify-center ${pairLobbyRoomEmptySlotNumClass(lobbyTone)}`}
+                                                        className={pairLobbyRoomEmptySlotNumClass(lobbyTone)}
+                                                        aria-hidden
                                                     >
-                                                        <span className={numTextClass}>{slotNumber}</span>
+                                                        {slotNumber}
                                                     </div>
-                                                    <div className="min-h-0 w-full flex-1 rounded-md bg-black/10" aria-hidden />
                                                 </div>
                                             </div>
                                         );
@@ -4491,10 +4552,18 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                     const joinable = getPairLobbyJoinableFromListRoom(room);
                                     const gameModeTitle =
                                         pairLobbyScheduledGameModeLabel(room.selectedGameMode) || pt('waitingLobby.undecided');
-                                    const visibilityBadgeClass =
-                                        room.visibility === 'private'
-                                            ? 'border-violet-400/45 bg-violet-950/55 text-violet-100'
-                                            : 'border-emerald-400/38 bg-emerald-950/40 text-emerald-100';
+                                    const humanCount = countHumanUsersInPairRoom(room);
+                                    const humanCap = pairRoomListHumanCapacity(listRoomKind);
+                                    const occupancyFull =
+                                        humanCap != null ? humanCount >= humanCap : pairRoomListIsAtHumanCapacity(room, listRoomKind);
+                                    const visibilityBadgeClass = roomInLiveGame
+                                        ? 'border-rose-400/45 bg-rose-950/55 text-rose-100'
+                                        : room.visibility === 'private'
+                                          ? 'border-violet-400/45 bg-violet-950/55 text-violet-100'
+                                          : 'border-emerald-400/38 bg-emerald-950/40 text-emerald-100';
+                                    const showArenaBadge = !(
+                                        lobbyChannel === 'playful' && arenaCh.short === pt('arenaBadges.playful')
+                                    );
                                     return (
                                         <div key={room.id} className="min-h-0 min-w-0">
                                             <div
@@ -4502,7 +4571,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                                     isHandheld ? pairLobbyRoomFilledCardShellHandheldExtraClass : ''
                                                 }`}
                                             >
-                                                <div className="flex min-w-0 items-center gap-1">
+                                                <div
+                                                    className={pairLobbyRoomCardTopHairlineClass(roomRowTone)}
+                                                    aria-hidden
+                                                />
+                                                <div className="flex min-w-0 items-center gap-1.5">
                                                     <div
                                                         style={numBoxStyle}
                                                         className={`flex shrink-0 items-center justify-center ${pairLobbyRoomSlotNumOccupiedClass(roomRowTone)}`}
@@ -4512,26 +4585,22 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                                     </div>
                                                     <div className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-0.5">
                                                         <span
-                                                            className={`shrink-0 rounded border px-1 py-0.5 font-extrabold leading-none ${visibilityBadgeClass} ${
-                                                                isHandheld ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
+                                                            className={`inline-flex shrink-0 items-center gap-0.5 rounded-md border px-1.5 py-0.5 font-extrabold leading-none ${visibilityBadgeClass} ${
+                                                                isHandheld ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'
                                                             }`}
                                                         >
-                                                            {room.visibility === 'private'
-                                                                ? pt('waitingLobby.private')
-                                                                : pt('waitingLobby.public')}
+                                                            {roomInLiveGame
+                                                                ? pt('waitingLobby.inMatch')
+                                                                : room.visibility === 'private'
+                                                                  ? room.passwordProtected
+                                                                    ? `${pt('waitingLobby.private')} · 암호`
+                                                                    : pt('waitingLobby.private')
+                                                                  : pt('waitingLobby.public')}
                                                         </span>
-                                                        {room.passwordProtected ? (
-                                                            <span className="shrink-0 rounded border border-amber-400/45 bg-amber-950/55 px-1 py-0.5 text-[8px] font-extrabold leading-none text-amber-100 sm:text-[9px]">
-                                                                암호
-                                                            </span>
-                                                        ) : null}
-                                                        {!(
-                                                            lobbyChannel === 'playful' &&
-                                                            arenaCh.short === pt('arenaBadges.playful')
-                                                        ) ? (
+                                                        {showArenaBadge ? (
                                                             <span
-                                                                className={`shrink-0 rounded border px-1 py-0.5 font-extrabold leading-none ${arenaCh.badgeClass} ${
-                                                                    isHandheld ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'
+                                                                className={`shrink-0 rounded-md border px-1.5 py-0.5 font-extrabold leading-none ${arenaCh.badgeClass} ${
+                                                                    isHandheld ? 'text-[9px]' : 'text-[9px] sm:text-[10px]'
                                                                 }`}
                                                                 title={
                                                                     arenaCh.short === pt('arenaBadges.strategic')
@@ -4547,14 +4616,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                                     </div>
                                                 </div>
                                                 <div
-                                                    className={`min-w-0 truncate font-extrabold leading-tight text-white ${
-                                                        isHandheld ? 'text-[10px]' : 'text-xs sm:text-sm'
+                                                    className={`min-w-0 flex-1 font-black leading-snug text-white ${
+                                                        isHandheld
+                                                            ? 'line-clamp-2 text-[12px]'
+                                                            : 'truncate text-[12px] sm:text-sm'
                                                     }`}
                                                     title={room.title}
                                                 >
                                                     {room.title}
                                                 </div>
-                                                <div className="flex min-w-0 flex-col gap-0.5">
+                                                <div className="flex min-w-0 items-center gap-1">
                                                     <span className={pairLobbyRoomKindBadgeClass(roomRowTone)}>
                                                         {roomKindLabel(listRoomKind, lobbyChannel)}
                                                     </span>
@@ -4565,15 +4636,28 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                                         {gameModeTitle}
                                                     </span>
                                                 </div>
-                                                <div
-                                                    className={`min-w-0 flex-1 truncate text-slate-200 ${
-                                                        isHandheld ? 'text-[9px]' : 'text-[10px] sm:text-xs'
-                                                    }`}
-                                                >
-                                                    <span className="font-semibold text-slate-500">
-                                                        {pt('waitingLobby.host')}
-                                                    </span>{' '}
-                                                    <span className="font-bold text-slate-100">{room.ownerName}</span>
+                                                <div className="flex min-w-0 items-center justify-between gap-1.5">
+                                                    <div
+                                                        className={`min-w-0 flex-1 truncate ${
+                                                            isHandheld ? 'text-[10px]' : 'text-[10px] sm:text-xs'
+                                                        }`}
+                                                    >
+                                                        <span className="font-semibold text-slate-500">
+                                                            {pt('waitingLobby.host')}
+                                                        </span>{' '}
+                                                        <span className="font-bold text-slate-100">{room.ownerName}</span>
+                                                    </div>
+                                                    {humanCap != null ? (
+                                                        <span
+                                                            className={pairLobbyRoomOccupancyChipClass(
+                                                                roomRowTone,
+                                                                occupancyFull,
+                                                            )}
+                                                            title={`${humanCount}/${humanCap}`}
+                                                        >
+                                                            {humanCount}/{humanCap}
+                                                        </span>
+                                                    ) : null}
                                                 </div>
                                                 {roomInLiveGame ? (
                                                     <button
@@ -4600,7 +4684,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                                                 spectateGameId
                                                                     ? ''
                                                                     : pairLobbyRoomInGameJoinSlotTextClass(roomRowTone)
-                                                            } ${isHandheld ? 'text-[8px]' : 'text-[9px] sm:text-[10px]'}`}
+                                                            } ${isHandheld ? 'text-[10px]' : 'text-[10px] sm:text-[11px]'}`}
                                                         >
                                                             {pt('waitingLobby.spectate')}
                                                         </span>
@@ -4628,12 +4712,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                             </div>
                         );
                     })}
-                    {pairLobbySlotGridVisibleRange.lastRow < PAIR_LOBBY_ROOM_SLOT_ROWS - 1 ? (
+                    {pairLobbySlotGridVisibleRange.lastRow < pairLobbyRoomSlotRows - 1 ? (
                         <div
                             aria-hidden
                             style={{
                                 height:
-                                    (PAIR_LOBBY_ROOM_SLOT_ROWS - 1 - pairLobbySlotGridVisibleRange.lastRow) *
+                                    (pairLobbyRoomSlotRows - 1 - pairLobbySlotGridVisibleRange.lastRow) *
                                     pairLobbySlotRowHeightPx,
                             }}
                         />

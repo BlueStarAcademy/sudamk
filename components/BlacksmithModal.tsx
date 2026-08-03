@@ -5,6 +5,8 @@ import EnhancementView from './blacksmith/EnhancementView.js';
 import CombinationView from './blacksmith/CombinationView.js';
 import DisassemblyView, {
     applyDisassemblyAutoSelectByGrades,
+    computeDisassemblyExpectedMaterialRanges,
+    formatDisassemblyExpectedYield,
     DisassemblyAutoSelectModal,
 } from './blacksmith/DisassemblyView.js';
 import ConversionView from './blacksmith/ConversionView.js';
@@ -15,6 +17,7 @@ import { CombineSlotPreview } from './blacksmith/BlacksmithEquipmentPickerModal.
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { BLACKSMITH_MAX_LEVEL, BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL, BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP } from '../constants/rules';
+import { MATERIAL_ITEMS } from '../constants';
 import { InventoryItem, EnhancementResult, ServerAction } from '../types.js';
 import { ItemGrade } from '../types/enums.js';
 import BlacksmithLevelEffectsSummary from './blacksmith/BlacksmithLevelEffectsSummary.js';
@@ -536,6 +539,11 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         }
     }, [activeTab, t]);
 
+    const mobileDisassemblyExpected = useMemo(
+        () => computeDisassemblyExpectedMaterialRanges(selectedForDisassembly, inventory),
+        [selectedForDisassembly, inventory],
+    );
+
     const mobileFeatureOpenButtonLabel = useMemo(() => {
         switch (activeTab) {
             case 'enhance':
@@ -649,54 +657,164 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                             ) : (
                                 <>
                                     <div className="flex shrink-0 flex-col gap-2 rounded-xl border border-color/40 bg-tertiary/20 p-2">
-                                        <p className="text-center text-[12px] leading-relaxed text-slate-400 sm:text-[13px]">
+                                        <p className="flex min-h-[2.75rem] items-center justify-center text-center text-[12px] leading-snug text-slate-400 sm:text-[13px]">
                                             {mobilePickHint}
                                         </p>
-                                        {activeTab === 'combine' ? (
-                                            <div className="flex gap-1.5">
-                                                {combinationItems.map((item, index) => (
-                                                    <CombineSlotPreview
-                                                        key={index}
-                                                        item={item}
-                                                        onRemove={() => handleRemoveCombineSlot(index)}
-                                                    />
-                                                ))}
-                                            </div>
-                                        ) : null}
-                                        {activeTab === 'disassemble' &&
-                                        selectedForDisassembly.size > 0 &&
-                                        !equipmentFeatureModalOpen ? (
-                                            <button
-                                                type="button"
-                                                onClick={() => setEquipmentFeatureModalOpen(true)}
-                                                className="w-full rounded-xl border-2 border-amber-400/55 bg-gradient-to-b from-amber-600/55 via-amber-500/35 to-orange-950/50 px-4 py-2.5 text-[13px] font-bold text-amber-50 shadow-[0_12px_28px_-14px_rgba(251,191,36,0.65)] transition hover:border-amber-300/80 active:scale-[0.99]"
-                                            >
-                                                {t('picker.selectComplete')} ({selectedForDisassembly.size})
-                                            </button>
-                                        ) : null}
-                                        {isMobileEquipmentTab &&
-                                        mobileShowEquipmentWorkPanel &&
-                                        equipmentFeatureModalOpen ? (
-                                            <div className="flex flex-col items-center gap-2">
-                                                <p className="text-center text-[12px] leading-relaxed text-slate-400">
-                                                    {t('inProgressHint')}
-                                                </p>
+                                        <div className="flex h-20 min-h-20 gap-1.5">
+                                            {activeTab === 'combine' ? (
+                                                mobileShowEquipmentWorkPanel && equipmentFeatureModalOpen ? (
+                                                    <div className="flex h-20 min-w-0 flex-1 items-center gap-1.5">
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setEquipmentFeatureModalOpen(true)}
+                                                            className="flex h-full min-w-0 flex-1 items-center justify-center rounded-lg border-2 border-cyan-400/50 bg-gradient-to-b from-cyan-900/40 via-slate-800/60 to-slate-900/80 px-2 text-[12px] font-bold leading-snug text-cyan-50 shadow-[0_12px_28px_-14px_rgba(34,211,238,0.45)] transition hover:border-cyan-300/70 active:scale-[0.99] sm:text-[13px]"
+                                                        >
+                                                            {mobileFeatureOpenButtonLabel}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            onClick={handleMobileEquipmentBack}
+                                                            className="flex h-full shrink-0 items-center justify-center rounded-lg border border-slate-600/55 bg-slate-800/70 px-2.5 text-[12px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99] sm:text-[13px]"
+                                                        >
+                                                            {t('reselectGear')}
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    combinationItems.map((item, index) => (
+                                                        <CombineSlotPreview
+                                                            key={index}
+                                                            item={item}
+                                                            onRemove={() => handleRemoveCombineSlot(index)}
+                                                        />
+                                                    ))
+                                                )
+                                            ) : activeTab === 'disassemble' ? (
                                                 <button
                                                     type="button"
-                                                    onClick={() => setEquipmentFeatureModalOpen(true)}
-                                                    className="w-full max-w-xs rounded-xl border-2 border-cyan-400/50 bg-gradient-to-b from-cyan-900/40 via-slate-800/60 to-slate-900/80 px-4 py-2.5 text-[13px] font-bold text-cyan-50 shadow-[0_12px_28px_-14px_rgba(34,211,238,0.45)] transition hover:border-cyan-300/70 active:scale-[0.99]"
+                                                    disabled={selectedForDisassembly.size === 0}
+                                                    onClick={() => {
+                                                        if (selectedForDisassembly.size > 0) {
+                                                            setEquipmentFeatureModalOpen(true);
+                                                        }
+                                                    }}
+                                                    className={`flex h-20 min-w-0 flex-1 items-stretch overflow-hidden rounded-lg border-2 px-1.5 py-1 text-left transition active:scale-[0.99] ${
+                                                        mobileDisassemblyExpected.totalMaterials.length > 0
+                                                            ? 'border-amber-400/45 bg-gradient-to-b from-amber-950/40 via-slate-900/55 to-orange-950/35 hover:border-amber-300/65'
+                                                            : 'cursor-default border-dashed border-amber-500/35 bg-black/35 disabled:opacity-100'
+                                                    }`}
                                                 >
-                                                    {mobileFeatureOpenButtonLabel}
+                                                    {mobileDisassemblyExpected.totalMaterials.length > 0 ? (
+                                                        <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                                                            {mobileDisassemblyExpected.totalMaterials.map(({ name }) => {
+                                                                const template =
+                                                                    MATERIAL_ITEMS[name as keyof typeof MATERIAL_ITEMS];
+                                                                const range = mobileDisassemblyExpected.rangeMap[name];
+                                                                return (
+                                                                    <div
+                                                                        key={name}
+                                                                        className="flex h-full min-w-[4.25rem] max-w-[5.5rem] flex-none flex-col items-center justify-center gap-0.5 rounded-md border border-slate-600/35 bg-slate-900/55 px-1 py-0.5"
+                                                                        title={name}
+                                                                    >
+                                                                        <div className="flex h-8 w-8 items-center justify-center overflow-hidden rounded border border-slate-600/40 bg-black/40">
+                                                                            {template?.image ? (
+                                                                                <img
+                                                                                    src={template.image}
+                                                                                    alt=""
+                                                                                    className="h-6 w-6 object-contain"
+                                                                                />
+                                                                            ) : null}
+                                                                        </div>
+                                                                        <span className="w-full truncate text-center text-[9px] font-medium leading-tight text-slate-200">
+                                                                            {name}
+                                                                        </span>
+                                                                        <span className="font-mono text-[10px] font-bold tabular-nums text-emerald-300">
+                                                                            {range
+                                                                                ? formatDisassemblyExpectedYield(
+                                                                                      range.min,
+                                                                                      range.max,
+                                                                                  )
+                                                                                : '0'}
+                                                                        </span>
+                                                                    </div>
+                                                                );
+                                                            })}
+                                                        </div>
+                                                    ) : (
+                                                        <span className="flex flex-1 items-center justify-center px-2 text-center text-[12px] leading-snug text-amber-100/75">
+                                                            {t('disassemble.previewHint')}
+                                                        </span>
+                                                    )}
                                                 </button>
-                                                <button
-                                                    type="button"
-                                                    onClick={handleMobileEquipmentBack}
-                                                    className="rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-[13px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
-                                                >
-                                                    {t('reselectGear')}
-                                                </button>
-                                            </div>
-                                        ) : null}
+                                            ) : activeTab === 'refine' ? (
+                                                <div className="flex h-20 min-w-0 flex-1 gap-1.5">
+                                                    {(
+                                                        [
+                                                            {
+                                                                key: 'type',
+                                                                label: t('refine.typeChangeShort'),
+                                                                emoji: '🔄',
+                                                                activeClass:
+                                                                    'bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 text-white shadow-[0_0_14px_rgba(168,85,247,0.45)]',
+                                                            },
+                                                            {
+                                                                key: 'value',
+                                                                label: t('refine.valueChangeShort'),
+                                                                emoji: '📊',
+                                                                activeClass:
+                                                                    'bg-gradient-to-r from-emerald-500 via-teal-500 to-cyan-500 text-white shadow-[0_0_14px_rgba(20,184,166,0.45)]',
+                                                            },
+                                                            {
+                                                                key: 'mythic',
+                                                                label: t('refine.specialChangeShort'),
+                                                                emoji: '✨',
+                                                                activeClass:
+                                                                    'bg-gradient-to-r from-orange-500 via-red-500 to-pink-500 text-white shadow-[0_0_14px_rgba(249,115,22,0.45)]',
+                                                            },
+                                                        ] as const
+                                                    ).map((method) => (
+                                                        <button
+                                                            key={method.key}
+                                                            type="button"
+                                                            disabled={!selectedItem}
+                                                            onClick={() => {
+                                                                if (!selectedItem) return;
+                                                                setEquipmentFeatureModalOpen(true);
+                                                            }}
+                                                            className={`flex h-full min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-lg px-1 text-[11px] font-bold leading-tight transition active:scale-[0.99] disabled:cursor-default disabled:opacity-55 sm:text-[12px] ${
+                                                                selectedItem
+                                                                    ? method.activeClass
+                                                                    : 'border border-slate-600/45 bg-gradient-to-r from-gray-800 to-gray-900 text-gray-400'
+                                                            }`}
+                                                        >
+                                                            <span className="text-sm leading-none">{method.emoji}</span>
+                                                            <span className="line-clamp-2 text-center">{method.label}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            ) : mobileShowEquipmentWorkPanel && equipmentFeatureModalOpen ? (
+                                                <div className="flex h-20 min-w-0 flex-1 items-center gap-1.5">
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setEquipmentFeatureModalOpen(true)}
+                                                        className="flex h-full min-w-0 flex-1 items-center justify-center rounded-lg border-2 border-cyan-400/50 bg-gradient-to-b from-cyan-900/40 via-slate-800/60 to-slate-900/80 px-2 text-[12px] font-bold leading-snug text-cyan-50 shadow-[0_12px_28px_-14px_rgba(34,211,238,0.45)] transition hover:border-cyan-300/70 active:scale-[0.99] sm:text-[13px]"
+                                                    >
+                                                        {mobileFeatureOpenButtonLabel}
+                                                    </button>
+                                                    <button
+                                                        type="button"
+                                                        onClick={handleMobileEquipmentBack}
+                                                        className="flex h-full shrink-0 items-center justify-center rounded-lg border border-slate-600/55 bg-slate-800/70 px-2.5 text-[12px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99] sm:text-[13px]"
+                                                    >
+                                                        {t('reselectGear')}
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <CombineSlotPreview
+                                                    item={selectedItem}
+                                                    onRemove={() => setSelectedItem(null)}
+                                                />
+                                            )}
+                                        </div>
                                     </div>
 
                                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/30 p-2">

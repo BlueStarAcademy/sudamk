@@ -143,7 +143,18 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
                     <StrategicRankedMatchArena
                         embedded
                         showQueueKindTabs
+                        arenaScope="strategic"
                         queueKind={kind === 'normalMatch' ? 'normal' : 'ranked'}
+                        onClose={onBack}
+                    />
+                );
+            case 'pairArena':
+                return (
+                    <StrategicRankedMatchArena
+                        embedded
+                        showQueueKindTabs
+                        arenaScope="pair"
+                        queueKind="pairRanked"
                         onClose={onBack}
                     />
                 );

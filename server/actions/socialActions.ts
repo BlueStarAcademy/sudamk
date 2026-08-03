@@ -69,6 +69,11 @@ import {
 } from '../../shared/utils/pairGameTurn.js';
 import { readStrategicRankedBlock, readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import {
+    ensurePairNormalStatBlock,
+    readPairNormalMatchScore,
+    writePairNormalMatchScore,
+} from '../../shared/utils/pairNormalMmr.js';
+import {
     arenaChannelForGameMode,
     arenaChannelForGameSession,
     normalizeArenaChannel,
@@ -2093,6 +2098,20 @@ const getRankedRatingForMode = (user: Pick<User, 'stats'> | null | undefined, mo
 const getPairArenaRankedRating = (user: Pick<User, 'stats'> | null | undefined): number =>
     readPairRankedBlock(user?.stats as Record<string, unknown>).rankingScore;
 
+type PairPetQueueKind = 'ranked' | 'normal';
+
+const resolvePairPetQueueKind = (
+    room: Pick<types.PairRoomState, 'pairPetQueueKind'> | null | undefined,
+): PairPetQueueKind => (room?.pairPetQueueKind === 'normal' ? 'normal' : 'ranked');
+
+const getPairPetQueueMatchRating = (
+    user: Pick<User, 'stats'> | null | undefined,
+    queueKind: PairPetQueueKind,
+): number =>
+    queueKind === 'normal'
+        ? readPairNormalMatchScore(user?.stats as Record<string, unknown>)
+        : getPairArenaRankedRating(user);
+
 const getEntryRatingForMode = (entry: RankedQueueEntry, mode: GameMode): number => {
     const modeRating = entry.modeRatings?.[mode];
     if (Number.isFinite(modeRating)) return Number(modeRating);
@@ -2351,8 +2370,9 @@ async function openPairRankedPetMatchProposal(
 ): Promise<void> {
     const { room: roomA, owner: ownerA } = bestMatch.a;
     const { room: roomB, owner: ownerB } = bestMatch.b;
-    const player1Rating = getPairArenaRankedRating(ownerA);
-    const player2Rating = getPairArenaRankedRating(ownerB);
+    const queueKind = resolvePairPetQueueKind(roomA);
+    const player1Rating = getPairPetQueueMatchRating(ownerA, queueKind);
+    const player2Rating = getPairPetQueueMatchRating(ownerB, queueKind);
     const proposalId = randomUUID();
     const createdAt = Date.now();
     const acceptDeadlineAt = createdAt + PAIR_RANKED_MATCH_ACCEPT_WINDOW_MS;
@@ -2426,6 +2446,8 @@ async function finalizePairRankedPetRankedGame(
     delete roomB.pairPetMatchingQueuedAt;
 
     const settings = buildRankedPairPetGameSettings(roomA, ownerA, roomB, ownerB);
+    const queueKind = resolvePairPetQueueKind(roomA);
+    const isRankedQueue = queueKind === 'ranked';
     const negotiation: Negotiation = {
         id: `neg-pair-ranked-${randomUUID()}`,
         challenger: ownerA,
@@ -2436,12 +2458,15 @@ async function finalizePairRankedPetRankedGame(
         status: 'pending',
         deadline: Date.now(),
         turnCount: 0,
-        isRanked: true,
+        isRanked: isRankedQueue,
         pairPetStatUsers: [ownerA, ownerB],
         pairPetConfigureOwnerId: ownerA.id,
     };
     const game = await initializeGame(negotiation);
     configurePairClassicGameStart(game, ownerA, [ownerA, ownerB]);
+    if (!isRankedQueue) {
+        game.isNormalMatchQueue = true;
+    }
     await db.saveGame(game);
 
     clearPairInvitesForRoom(volatileState, roomA.id);
@@ -2456,12 +2481,15 @@ async function finalizePairRankedPetRankedGame(
     setInGameUserStatusForArena(volatileState, ownerA.id, game);
     setInGameUserStatusForArena(volatileState, ownerB.id, game);
 
-    const player1Rating = getPairArenaRankedRating(ownerA);
-    const player2Rating = getPairArenaRankedRating(ownerB);
+    const player1Rating = getPairPetQueueMatchRating(ownerA, queueKind);
+    const player2Rating = getPairPetQueueMatchRating(ownerB, queueKind);
     const player1WinChange = summaryService.calculateEloChange(player1Rating, player2Rating, 'win');
     const player1LossChange = summaryService.calculateEloChange(player1Rating, player2Rating, 'loss');
     const player2WinChange = summaryService.calculateEloChange(player2Rating, player1Rating, 'win');
     const player2LossChange = summaryService.calculateEloChange(player2Rating, player1Rating, 'loss');
+
+    delete roomA.pairPetQueueKind;
+    delete roomB.pairPetQueueKind;
 
     const { broadcastToGameParticipants, broadcastLiveGameToList } = await import('../socket.js');
     broadcast({
@@ -2541,7 +2569,12 @@ async function tryMatchPairPetRankedRooms(volatileState: VolatileState): Promise
             const modeA = pairModeOrDefault(a.room.selectedGameMode);
             const modeB = pairModeOrDefault(b.room.selectedGameMode);
             if (modeA !== modeB) continue;
-            const diff = Math.abs(getPairArenaRankedRating(a.owner) - getPairArenaRankedRating(b.owner));
+            const kindA = resolvePairPetQueueKind(a.room);
+            const kindB = resolvePairPetQueueKind(b.room);
+            if (kindA !== kindB) continue;
+            const diff = Math.abs(
+                getPairPetQueueMatchRating(a.owner, kindA) - getPairPetQueueMatchRating(b.owner, kindB),
+            );
             if (diff > RANKED_MATCH_MAX_RATING_DIFF) continue;
             const oldest = Math.min(a.room.createdAt, b.room.createdAt);
             if (!bestMatch || diff < bestMatch.diff || (diff === bestMatch.diff && oldest < bestMatch.oldest)) {
@@ -4830,6 +4863,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     phase: 'waiting',
                     lobbyChannel: 'pair',
                     pairPetRankedQueueShell: true,
+                    pairPetQueueKind: 'ranked',
                     title: clampPairRoomTitle('랭킹전 대기'),
                     ownerId: user.id,
                     ownerName: user.nickname,
@@ -4861,6 +4895,116 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 ...DEFAULT_GAME_SETTINGS,
                 ...getRankedGameSettings(requestedMode),
             };
+            target.pairPetQueueKind = 'ranked';
+            target.pairPetMatchingQueuedAt = Date.now();
+            target.phase = 'matching';
+            target.ownerReady = true;
+            target.partnerReady = true;
+            target.matchStartedAt = undefined;
+            refreshPairRoomTeams(target);
+            await tryMatchPairPetRankedRooms(volatileState);
+            await tryMatchDuoPairRankedRooms(volatileState);
+            broadcastPairRooms(volatileState);
+            return {
+                clientResponse: {
+                    matching: true,
+                    pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms),
+                },
+            };
+        }
+        case 'PAIR_QUEUE_PET_NORMAL': {
+            if (!volatileState.pairRooms) volatileState.pairRooms = {};
+            const modePayload = (payload as { mode?: GameMode }).mode ?? GameMode.Standard;
+            const existingRoom = Object.values(volatileState.pairRooms).find((room) => userInActivePairLobbyRoom(room, user.id));
+            if (existingRoom) {
+                if (existingRoom.roomKind !== 'ai_duel' || !existingRoom.pairPetRankedQueueShell) {
+                    return { error: '페어 일반전을 시작하려면 다른 페어 방에서 나와 주세요.' };
+                }
+                if (existingRoom.ownerId !== user.id) {
+                    return { error: '방장만 일반전 매칭을 시작할 수 있습니다.' };
+                }
+                if (existingRoom.pairRankedPetProposal) {
+                    return { error: '이미 매칭 제안 대기 중입니다.' };
+                }
+                if (existingRoom.phase === 'match_pending') {
+                    return { error: '이미 매칭 진행 중입니다.' };
+                }
+                if (existingRoom.phase === 'in_game') {
+                    return { error: '진행 중인 대국이 있습니다.' };
+                }
+                if (existingRoom.phase === 'matching') {
+                    broadcastPairRooms(volatileState);
+                    return {
+                        clientResponse: {
+                            matching: true,
+                            pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms),
+                        },
+                    };
+                }
+            }
+            if (!hasUsableEquippedPairPet(user)) {
+                return { error: '펫 페어 매칭을 시작하려면 페어 펫을 장착해야 합니다.' };
+            }
+            {
+                const stats = (user.stats ?? {}) as Record<string, unknown>;
+                const block = ensurePairNormalStatBlock(stats as any);
+                if (!(stats as any).pairNormal?.matchScore) {
+                    writePairNormalMatchScore(stats, block.matchScore);
+                    user.stats = stats as User['stats'];
+                    await db.updateUser(user);
+                }
+            }
+
+            let target = existingRoom;
+            if (!target) {
+                const roomId = `pair-room-${randomUUID()}`;
+                const code = `rq-${randomUUID().replace(/-/g, '').slice(0, 20)}`;
+                const ownerPairPetName = equippedPairPetDisplayNameForUser(user);
+                const rankedSettings = getRankedGameSettings(modePayload);
+                const room: types.PairRoomState = {
+                    id: roomId,
+                    code,
+                    mode: 'ai',
+                    pairMode: 'ai',
+                    roomKind: 'ai_duel',
+                    visibility: 'public',
+                    passwordProtected: false,
+                    phase: 'waiting',
+                    lobbyChannel: 'pair',
+                    pairPetRankedQueueShell: true,
+                    pairPetQueueKind: 'normal',
+                    title: clampPairRoomTitle('일반전 대기'),
+                    ownerId: user.id,
+                    ownerName: user.nickname,
+                    partnerId: `pet-ai-${user.id}`,
+                    partnerName: ownerPairPetName,
+                    selectedGameMode: PAIR_MODE_DEFAULT_GAME_MODE,
+                    settings: { ...DEFAULT_GAME_SETTINGS },
+                    teamA: { id: 'teamA', name: '우리 팀', members: [] },
+                    teamB: { id: 'teamB', name: '상대 팀', members: [] },
+                    futurePetAi: pairPetAiPlaceholder(),
+                    ownerReady: false,
+                    partnerReady: true,
+                    createdAt: Date.now(),
+                    pairChatMessages: [],
+                };
+                const snap = pairLobbyPetSnapshotFromUser(user);
+                if (snap) room.ownerLobbyPet = snap;
+                mergePairRoomLobbyGameSettings(room, {
+                    selectedGameMode: modePayload,
+                    settings: { ...DEFAULT_GAME_SETTINGS, ...rankedSettings },
+                });
+                volatileState.pairRooms[roomId] = refreshPairRoomTeams(room);
+                target = volatileState.pairRooms[roomId]!;
+            }
+
+            const requestedMode = resolvePairWaitingRoomSelectedGameMode(target, modePayload);
+            target.selectedGameMode = requestedMode;
+            target.settings = {
+                ...DEFAULT_GAME_SETTINGS,
+                ...getRankedGameSettings(requestedMode),
+            };
+            target.pairPetQueueKind = 'normal';
             target.pairPetMatchingQueuedAt = Date.now();
             target.phase = 'matching';
             target.ownerReady = true;

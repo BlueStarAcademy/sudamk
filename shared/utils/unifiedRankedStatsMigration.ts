@@ -6,6 +6,7 @@ import {
     STRATEGIC_RANKED_MATCH_RECORD_KEY,
     STRATEGIC_NORMAL_MATCH_RECORD_KEY,
     PAIR_RANKED_MATCH_RECORD_KEY,
+    PAIR_NORMAL_MATCH_RECORD_KEY,
     PAIR_ARENA_AI_MATCH_RECORD_KEY,
     type RankedStatBlock,
     type RankedPvpMatchRecord,
@@ -86,6 +87,19 @@ export function readPairArenaAiMatchRecord(stats: StatsMapInput): RankedPvpMatch
     const sm = toStatsMap(stats);
     if (statsObjectHasOwnKey(sm, PAIR_ARENA_AI_MATCH_RECORD_KEY)) {
         const rec = sm![PAIR_ARENA_AI_MATCH_RECORD_KEY]!;
+        return {
+            wins: typeof rec.wins === 'number' && Number.isFinite(rec.wins) ? Math.max(0, rec.wins) : 0,
+            losses: typeof rec.losses === 'number' && Number.isFinite(rec.losses) ? Math.max(0, rec.losses) : 0,
+        };
+    }
+    return { wins: 0, losses: 0 };
+}
+
+/** 페어 일반전 전적 — `pairNormalMatchRecord`만 사용 */
+export function readPairNormalMatchRecord(stats: StatsMapInput): RankedPvpMatchRecord {
+    const sm = toStatsMap(stats);
+    if (statsObjectHasOwnKey(sm, PAIR_NORMAL_MATCH_RECORD_KEY)) {
+        const rec = sm![PAIR_NORMAL_MATCH_RECORD_KEY]!;
         return {
             wins: typeof rec.wins === 'number' && Number.isFinite(rec.wins) ? Math.max(0, rec.wins) : 0,
             losses: typeof rec.losses === 'number' && Number.isFinite(rec.losses) ? Math.max(0, rec.losses) : 0,

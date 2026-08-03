@@ -1596,6 +1596,8 @@ export type LiveGameSession = {
   shortRankedGamePenalty?: boolean;
   badMannerPlayerId?: string; // 비매너 행동자 ID
   isRankedGame?: boolean; // true면 랭킹전, false면 친선전 (기본값: false)
+  /** 전략·페어 일반전 매칭 큐에서 생성된 PvP — 시즌 랭킹과 분리된 전적/MMR만 갱신 */
+  isNormalMatchQueue?: boolean;
   diceGoItemUses?: { [playerId: string]: { odd: number; even: number; low: number; high: number } };
   diceGoBonuses?: { [playerId: string]: number };
   diceCapturesThisTurn?: number;

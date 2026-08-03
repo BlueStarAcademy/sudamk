@@ -3328,7 +3328,7 @@ const InventoryItemCard: React.FC<{
                 if (isTicket && stackQty < 1) return null;
                 return (
                     <div
-                        className="absolute bg-black/70 text-white font-bold rounded border border-white/30"
+                        className="absolute z-10 bg-black/70 text-white font-bold rounded border border-white/30"
                         style={{
                             bottom: `${Math.max(2, Math.round(2 * scaleFactor))}px`,
                             right: `${Math.max(2, Math.round(2 * scaleFactor))}px`,

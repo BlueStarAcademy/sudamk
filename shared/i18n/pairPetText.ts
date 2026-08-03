@@ -49,6 +49,20 @@ export function translatePairTrainingSlotName(slotIndex: number, t: TFunction): 
     return t(`pair:trainingSlots.${slotIndex}.name`, { defaultValue: fallback });
 }
 
+/** 모바일 수련 이름 레일 — `기술수련` → `기술`/`수련`, `Technique Training` → `Technique`/`Training` */
+export function splitPairTrainingSlotNameLines(name: string): string[] {
+    const trimmed = name.trim();
+    if (!trimmed) return [];
+    if (trimmed.endsWith('수련') && trimmed.length > 2) {
+        return [trimmed.slice(0, -2), '수련'];
+    }
+    const trainingMatch = trimmed.match(/^(.+?)\s+Training$/i);
+    if (trainingMatch?.[1]) {
+        return [trainingMatch[1].trim(), 'Training'];
+    }
+    return [trimmed];
+}
+
 export function translatePairHatcheryUpgradeTierLabel(tierIndex: number, t: TFunction): string {
     const def = getPairHatcheryUpgradeTierDef(tierIndex);
     const fallback = def?.displayLabel ?? `강화 ${tierIndex}`;

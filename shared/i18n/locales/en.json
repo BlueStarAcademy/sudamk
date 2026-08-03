@@ -2384,34 +2384,6 @@
         "withdrawConfirm": "Delete your account?\n\nAll data will be removed. You cannot re-register with the same email for 1 week.",
         "withdrawComplete": "Account deleted.\nRe-registration with the same email is blocked for 1 week."
       }
-    },
-    "languageOptions": {
-      "ko": "한국어",
-      "en": "English",
-      "ja": "日本語",
-      "zh-CN": "简体中文",
-      "zh-TW": "繁體中文",
-      "es": "Español",
-      "fr": "Français",
-      "de": "Deutsch",
-      "pt": "Português",
-      "ru": "Русский",
-      "vi": "Tiếng Việt",
-      "th": "ไทย",
-      "id": "Bahasa Indonesia",
-      "ar": "العربية",
-      "hi": "हिन्दी",
-      "tr": "Türkçe",
-      "it": "Italiano",
-      "pl": "Polski",
-      "nl": "Nederlands",
-      "ms": "Bahasa Melayu",
-      "uk": "Українська",
-      "sv": "Svenska",
-      "cs": "Čeština",
-      "ro": "Română",
-      "he": "עברית",
-      "fil": "Filipino"
     }
   },
   "lobby": {
@@ -2572,7 +2544,11 @@
       "queueRanked": "Ranked",
       "queuePairRanked": "Pair Ranked",
       "queuePairRankedTab": "Pair\nRanked",
+      "queuePairNormal": "Pair Normal",
+      "queuePairNormalTab": "Pair\nNormal",
       "queueNormal": "Normal",
+      "equippedPet": "Representative pet",
+      "equipPetHint": "Equip a representative pet to start pair matching.",
       "matchTypeTitle": "Match type"
     },
     "gameList": {
@@ -3211,6 +3187,7 @@
     "challengeTower": "Challenge Tower",
     "pvpArena": "PVP Arena",
     "matchArena": "Arena",
+    "pairArena": "Pair Arena",
     "normalMatch": "Normal",
     "friendlyMatch": "Friendly",
     "playground": "Playground",
@@ -5832,11 +5809,7 @@
         "changeTicket": "Gear change ticket",
         "rewardRandom": "Payout may vary by match result (random).",
         "changeTicketMax": "Up to {{count}} per stage",
-        "defaultReward": "Obtainable rewards",
-        "statShortageWarning": "Your stats are lower than the opponent — this match may be tough.",
-        "formatNeighborhood": "6-player round robin",
-        "formatNational": "Quarterfinal tournament",
-        "formatWorld": "Round of 16 tournament",
+        "defaultReward": "Default reward",
         "continueView": "Continue",
         "viewResult": "View result",
         "inProgressToday": "You have a match today. Check results.",
@@ -5864,7 +5837,6 @@
         "avgStat": "Avg stat",
         "badukAbility": "Go ability",
         "defaultRewardFallback": "Default reward",
-        "rankRewardLabel": "Rank rewards",
         "continueViewAlt": "Continue"
       },
       "help": {
@@ -6692,6 +6664,7 @@
       "userListPairAi": "Users · Pair AI match",
       "aiSettingsTitle": "AI match settings",
       "rankedMatchTitle": "Ranked matching",
+      "seasonInfoTab": "Season",
       "pairMatchSettings": "Pair match settings",
       "friendlyArena": "Friendly Arena",
       "gameKindTitle": "Match type",
@@ -6847,10 +6820,10 @@
       "default": "Open work screen"
     },
     "pickHints": {
-      "enhance": "Tap gear in the inventory below to open the enhance screen.",
-      "combine": "Add 3 same-grade gear from the inventory below to open combine.",
-      "disassemble": "Select gear to disassemble below, then tap confirm.",
-      "refine": "Tap gear in the inventory below to open the refine screen."
+      "enhance": "Enhance gear to amplify its combat stats.",
+      "combine": "Combine same-grade gear to obtain higher-grade equipment.",
+      "disassemble": "Disassemble gear to recover some enhancement materials.",
+      "refine": "Refine gear to change option types or values to your liking."
     },
     "picker": {
       "selectGear": "Select gear",

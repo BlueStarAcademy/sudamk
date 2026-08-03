@@ -4,7 +4,10 @@ import { UserStatus } from '../../../types.js';
 import { SPECIAL_GAME_MODES } from '../../../constants.js';
 import { useAppContext } from '../../../hooks/useAppContext.js';
 import { APP_HOME_HASH, replaceAppHash } from '../../../utils/appUtils.js';
-import RankedMatchPanel, { type ArenaMatchQueueKind } from '../../waiting-room/RankedMatchPanel.js';
+import RankedMatchPanel, {
+    type ArenaMatchArenaScope,
+    type ArenaMatchQueueKind,
+} from '../../waiting-room/RankedMatchPanel.js';
 import MatchFoundModal from '../../waiting-room/MatchFoundModal.js';
 import PairPetRankedMatchOfferModal from '../../pair/PairPetRankedMatchOfferModal.js';
 
@@ -14,10 +17,12 @@ export type StrategicRankedMatchArenaProps = {
     /** 홈 중앙 퀵유틸 뷰어 인라인 — 자체 뒤로가기 헤더 숨김 */
     embedded?: boolean;
     onClose?: () => void;
-    /** 익명 큐: 랭킹전 / 페어랭킹전 / 일반전 (미지정 시 내부 탭으로 전환) */
+    /** 익명 큐 종류 (미지정 시 내부 탭으로 전환) */
     queueKind?: StrategicMatchQueueKind;
-    /** true면 대국 설정 패널 좌열 상단에 랭킹전/페어랭킹전/일반전 탭 표시 */
+    /** true면 대국 설정 패널 좌열 상단에 경기 종류 탭 표시 */
     showQueueKindTabs?: boolean;
+    /** `strategic`: 랭킹전/일반전 — `pair`: 페어랭킹전/페어일반전 */
+    arenaScope?: ArenaMatchArenaScope;
 };
 
 function userInPairRoomClient(
@@ -38,7 +43,7 @@ function userInPairRoomClient(
 }
 
 /**
- * 전략 PVP 매칭 전용 뷰: 시즌 정보 + 종목 선택/매칭.
+ * 전략·페어 PVP 매칭 전용 뷰: 시즌 정보 + 종목 선택/매칭.
  * `embedded`면 홈 화면 전환 없이 중앙 뷰어에 표시.
  */
 const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
@@ -46,6 +51,7 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
     onClose,
     queueKind: queueKindProp,
     showQueueKindTabs = false,
+    arenaScope = 'strategic',
 }) => {
     const { t } = useTranslation('lobby');
     const {
@@ -61,17 +67,29 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
     const handleActionRef = useRef(handlers.handleAction);
     handleActionRef.current = handlers.handleAction;
 
+    const defaultQueueKind: StrategicMatchQueueKind =
+        arenaScope === 'pair' ? 'pairRanked' : 'ranked';
     const [queueKindState, setQueueKindState] = useState<StrategicMatchQueueKind>(
-        queueKindProp ?? 'ranked',
+        queueKindProp ?? defaultQueueKind,
     );
-    const queueKind = showQueueKindTabs ? queueKindState : (queueKindProp ?? 'ranked');
-    const isPairRanked = queueKind === 'pairRanked';
+    const queueKind = showQueueKindTabs ? queueKindState : (queueKindProp ?? defaultQueueKind);
+    const isPairPetQueue = queueKind === 'pairRanked' || queueKind === 'pairNormal';
 
     useEffect(() => {
         if (!showQueueKindTabs && queueKindProp) {
             setQueueKindState(queueKindProp);
         }
     }, [queueKindProp, showQueueKindTabs]);
+
+    useEffect(() => {
+        if (!showQueueKindTabs) return;
+        setQueueKindState((prev) => {
+            if (arenaScope === 'pair') {
+                return prev === 'pairRanked' || prev === 'pairNormal' ? prev : 'pairRanked';
+            }
+            return prev === 'ranked' || prev === 'normal' ? prev : 'ranked';
+        });
+    }, [arenaScope, showQueueKindTabs]);
 
     const [isMatching, setIsMatching] = useState(false);
     const [matchingStartTime, setMatchingStartTime] = useState(0);
@@ -107,7 +125,7 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
     }, [currentUserWithStatus]);
 
     useEffect(() => {
-        if (isPairRanked) {
+        if (isPairPetQueue) {
             const matching =
                 myPairRoom?.phase === 'matching' &&
                 Boolean(myPairRoom?.pairPetRankedQueueShell) &&
@@ -139,7 +157,7 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
             setIsMatching(false);
             setMatchingStartTime(0);
         }
-    }, [rankedMatchingQueue, currentUserWithStatus?.id, queueKind, isPairRanked, myPairRoom]);
+    }, [rankedMatchingQueue, currentUserWithStatus?.id, queueKind, isPairPetQueue, myPairRoom]);
 
     useEffect(() => {
         if (!rankedMatchFound?.gameId || !currentUserId) return;
@@ -156,7 +174,7 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
     }, [rankedMatchFound, currentUserId, handlers, embedded]);
 
     useEffect(() => {
-        if (!isPairRanked) return;
+        if (!isPairPetQueue) return;
         const gameId = currentUserWithStatus?.gameId;
         if (
             currentUserWithStatus?.status === UserStatus.InGame &&
@@ -169,7 +187,7 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
             replaceAppHash(`/game/${gameId}`);
         }
     }, [
-        isPairRanked,
+        isPairPetQueue,
         currentUserWithStatus?.status,
         currentUserWithStatus?.gameId,
         embedded,
@@ -253,6 +271,7 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
             isMatching={isMatching}
             matchingStartTime={matchingStartTime}
             queueKind={queueKind}
+            arenaScope={arenaScope}
             onSelectQueueKind={showQueueKindTabs ? selectQueueKind : undefined}
             onMatchingStateChange={(matching, startTime) => {
                 setIsMatching(matching);
@@ -328,7 +347,7 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
                 </div>
             </div>
 
-            {rankedMatchProposal && !isPairRanked ? (
+            {rankedMatchProposal && !isPairPetQueue ? (
                 <MatchFoundModal
                     proposal={rankedMatchProposal}
                     currentUserId={currentUserId}

@@ -39,6 +39,63 @@ function formatDisassemblyExpectedYield(min: number, max: number): string {
     return `${lo.toLocaleString()}~${hi.toLocaleString()}`;
 }
 
+export function computeDisassemblyExpectedMaterialRanges(
+    selectedIds: Set<string>,
+    inventory: InventoryItem[],
+): {
+    rangeMap: Record<string, { min: number; max: number }>;
+    totalMaterials: Array<{ name: string; amount: number }>;
+    itemCount: number;
+} {
+    const selectedItems = inventory.filter((item) => selectedIds.has(item.id));
+    const materials: Record<string, number> = {};
+    const ranges: Record<string, { min: number; max: number }> = {};
+
+    for (const item of selectedItems) {
+        const costsForNextLevel = getEnhancementCostRowForDisassembly(item.grade, item.stars);
+        if (costsForNextLevel) {
+            for (const cost of costsForNextLevel) {
+                const minYield = Math.max(1, Math.floor(cost.amount * 0.1));
+                const maxYield = Math.max(minYield, Math.floor(cost.amount * 0.2));
+
+                if (!ranges[cost.name]) {
+                    ranges[cost.name] = { min: 0, max: 0 };
+                }
+
+                ranges[cost.name].min += minYield;
+                ranges[cost.name].max += maxYield;
+            }
+        }
+
+        const spentTotals = getCumulativeEnhancementMaterialsSpentToReachStars(item.grade, item.stars);
+        for (const [name, totalSpent] of Object.entries(spentTotals)) {
+            const invested = Math.floor(totalSpent * 0.1);
+            if (invested <= 0) continue;
+            if (!ranges[name]) {
+                ranges[name] = { min: 0, max: 0 };
+            }
+            ranges[name].min += invested;
+            ranges[name].max += invested;
+        }
+    }
+
+    Object.entries(ranges).forEach(([name, value]) => {
+        const minYield = Math.trunc(value.min);
+        const maxYield = Math.trunc(value.max);
+        const avgYield = Math.max(minYield, Math.round((minYield + maxYield) / 2));
+        materials[name] = avgYield;
+        ranges[name] = { min: minYield, max: maxYield };
+    });
+
+    return {
+        rangeMap: ranges,
+        totalMaterials: Object.entries(materials).map(([name, amount]) => ({ name, amount })),
+        itemCount: selectedItems.length,
+    };
+}
+
+export { formatDisassemblyExpectedYield };
+
 /** 하단 대장간 장비 인벤(10열·130px 높이) 셀과 비슷하게 맞춘 고정 크기 */
 const getSelectedDisassemblyCellPx = (pcViewer: boolean) => (pcViewer ? 72 : 58);
 
@@ -165,53 +222,10 @@ const DisassemblyPreviewPanel: React.FC<{
     const jackpotRatePct = BLACKSMITH_DISASSEMBLY_JACKPOT_RATES[Math.max(0, blacksmithLevel - 1)];
     const jackpotHint = t('disassemble.jackpotHint', { rate: formatBlacksmithPercentInt(jackpotRatePct) });
 
-    const { rangeMap, totalMaterials, itemCount } = useMemo(() => {
-        const selectedItems = inventory.filter(item => selectedIds.has(item.id));
-        const materials: Record<string, number> = {};
-        const ranges: Record<string, { min: number; max: number }> = {};
-
-        for (const item of selectedItems) {
-            const costsForNextLevel = getEnhancementCostRowForDisassembly(item.grade, item.stars);
-            if (costsForNextLevel) {
-                for (const cost of costsForNextLevel) {
-                    const minYield = Math.max(1, Math.floor(cost.amount * 0.1));
-                    const maxYield = Math.max(minYield, Math.floor(cost.amount * 0.2));
-
-                    if (!ranges[cost.name]) {
-                        ranges[cost.name] = { min: 0, max: 0 };
-                    }
-
-                    ranges[cost.name].min += minYield;
-                    ranges[cost.name].max += maxYield;
-                }
-            }
-
-            const spentTotals = getCumulativeEnhancementMaterialsSpentToReachStars(item.grade, item.stars);
-            for (const [name, totalSpent] of Object.entries(spentTotals)) {
-                const invested = Math.floor(totalSpent * 0.1);
-                if (invested <= 0) continue;
-                if (!ranges[name]) {
-                    ranges[name] = { min: 0, max: 0 };
-                }
-                ranges[name].min += invested;
-                ranges[name].max += invested;
-            }
-        }
-
-        Object.entries(ranges).forEach(([name, value]) => {
-            const minYield = Math.trunc(value.min);
-            const maxYield = Math.trunc(value.max);
-            const avgYield = Math.max(minYield, Math.round((minYield + maxYield) / 2));
-            materials[name] = avgYield;
-            ranges[name] = { min: minYield, max: maxYield };
-        });
-
-        return {
-            rangeMap: ranges,
-            totalMaterials: Object.entries(materials).map(([name, amount]) => ({ name, amount })),
-            itemCount: selectedItems.length
-        };
-    }, [selectedIds, inventory]);
+    const { rangeMap, totalMaterials, itemCount } = useMemo(
+        () => computeDisassemblyExpectedMaterialRanges(selectedIds, inventory),
+        [selectedIds, inventory],
+    );
 
     const mobileEmptyHint =
         itemCount === 0

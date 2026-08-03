@@ -617,32 +617,42 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                 } ${isLeft ? 'text-left' : 'text-right'}`}
             >
                 <div
-                    className={`flex w-full min-w-0 items-center gap-1.5 ${
+                    className={`flex w-full min-w-0 items-center gap-2 ${
                         isLeft ? 'flex-row' : 'flex-row-reverse'
                     }`}
+                    role="timer"
+                    aria-live="polite"
+                    aria-label={t('speedPressure.aria', { sec: speedBonusSecToNextDrop })}
                 >
                     <span
-                        className={`shrink-0 font-bold ${
-                            fluidTextLayout && isMobile ? 'text-[10px]' : isMobile ? 'text-[11px]' : 'text-xs'
-                        } ${panelType === 'white' ? 'text-amber-900' : 'text-amber-100/90'}`}
+                        className={`shrink-0 min-w-[2ch] text-center font-black tabular-nums leading-none ${
+                            fluidTextLayout && isMobile ? 'text-base' : isMobile ? 'text-lg' : 'text-xl'
+                        } ${
+                            speedBonusSecToNextDrop <= 3
+                                ? panelType === 'white'
+                                    ? 'text-red-700'
+                                    : 'text-red-300'
+                                : panelType === 'white'
+                                  ? 'text-amber-800'
+                                  : 'text-amber-200'
+                        }`}
                     >
-                        {t('speedPressure.label')}
-                    </span>
-                    <span
-                        className={`shrink-0 font-semibold tabular-nums ${
-                            fluidTextLayout && isMobile ? 'text-[11px]' : isMobile ? 'text-xs' : 'text-sm'
-                        } ${panelType === 'white' ? 'text-amber-800' : 'text-amber-200'}`}
-                    >
-                        {speedBonusSecToNextDrop}초
+                        {speedBonusSecToNextDrop}
                     </span>
                     <div
                         className={`min-w-0 flex-1 overflow-hidden rounded-full ${
-                            panelType === 'white' ? 'bg-slate-400/35' : 'bg-white/15'
-                        } ${fluidTextLayout && isMobile ? 'h-2' : 'h-2.5'}`}
+                            panelType === 'white' ? 'bg-slate-400/35' : 'bg-white/20'
+                        } ${fluidTextLayout && isMobile ? 'h-3' : 'h-3.5'}`}
                     >
                         <div
                             className={`h-full rounded-full transition-[width] duration-300 ${
-                                panelType === 'white' ? 'bg-amber-500' : 'bg-amber-400'
+                                speedBonusSecToNextDrop <= 3
+                                    ? panelType === 'white'
+                                        ? 'bg-red-500'
+                                        : 'bg-red-400'
+                                    : panelType === 'white'
+                                      ? 'bg-amber-500'
+                                      : 'bg-amber-400'
                             }`}
                             style={{ width: `${speedBonusTickPct}%` }}
                         />
@@ -1504,14 +1514,8 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         rightSpeedBonusTick.secToNextDrop != null &&
         (isPvpHumanSpeedLiveBonusUi || rightPlayerUser.id === currentUser?.id);
 
-    /** 모바일 전략 PVP 스피드: 수당 10초 막대를 패널이 아닌 전용 행으로 표시 */
-    const useMobileStrategicSpeedTenSecBar =
-        compactPlayerBar &&
-        isPvpHumanSpeedLiveBonusUi &&
-        isStrategicMode &&
-        !isSinglePlayer &&
-        session.gameCategory !== 'tower' &&
-        session.gameCategory !== 'adventure';
+    /** 모바일·좁은 창 스피드: 수당 10초 막대를 패널이 아닌 전용 행으로 표시(라벨 없이 카운트+막대만) */
+    const useMobileDedicatedSpeedTenSecBar = compactPlayerBar && isSpeedLiveBonusUi;
     const myPlayerEnumForSpeedBar =
         currentUser?.id === leftPlayerUser.id
             ? leftPlayerEnum
@@ -1525,13 +1529,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
               ? rightSpeedBonusTick
               : { progress: null as number | null, secToNextDrop: null as number | null };
     const showDedicatedMobileSpeedTenSecBar =
-        useMobileStrategicSpeedTenSecBar &&
+        useMobileDedicatedSpeedTenSecBar &&
         myPlayerEnumForSpeedBar != null &&
         session.currentPlayer === myPlayerEnumForSpeedBar &&
         mySpeedBonusTickForBar.progress != null &&
         mySpeedBonusTickForBar.secToNextDrop != null;
-    const leftShowSpeedTenSecBarPanel = leftShowSpeedTenSecBar && !useMobileStrategicSpeedTenSecBar;
-    const rightShowSpeedTenSecBarPanel = rightShowSpeedTenSecBar && !useMobileStrategicSpeedTenSecBar;
+    const leftShowSpeedTenSecBarPanel = leftShowSpeedTenSecBar && !useMobileDedicatedSpeedTenSecBar;
+    const rightShowSpeedTenSecBarPanel = rightShowSpeedTenSecBar && !useMobileDedicatedSpeedTenSecBar;
 
     const buildHumanPenaltyPointsForPlayer = (playerEnum: Player, playerId: string): number | null => {
         if (!isSpeedLiveBonusUi || playerId === aiUserId) return null;
@@ -2117,11 +2121,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                     </div>
                 </div>
                 {showDedicatedMobileSpeedTenSecBar && (
-                    <div className="flex w-full shrink-0 items-center rounded-lg border border-amber-400/35 bg-gradient-to-r from-gray-900/95 via-gray-900/90 to-gray-900/95 px-2.5 py-1.5 shadow-md ring-1 ring-amber-500/25">
+                    <div className="flex w-full shrink-0 items-center rounded-lg border border-amber-400/45 bg-gradient-to-r from-gray-900 via-gray-900/95 to-gray-900 px-3 py-2 shadow-md ring-1 ring-amber-500/30">
                         <SpeedTenSecPressureBar
                             secToNextDrop={mySpeedBonusTickForBar.secToNextDrop!}
                             tickProgress={mySpeedBonusTickForBar.progress!}
-                            compact
                         />
                     </div>
                 )}

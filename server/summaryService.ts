@@ -101,12 +101,14 @@ import {
     STRATEGIC_RANKED_MATCH_RECORD_KEY,
     STRATEGIC_NORMAL_MATCH_RECORD_KEY,
     PAIR_RANKED_MATCH_RECORD_KEY,
+    PAIR_NORMAL_MATCH_RECORD_KEY,
     PAIR_ARENA_AI_MATCH_RECORD_KEY,
 } from '../shared/constants/userRankedStats.js';
 import {
     readStrategicRankedBlock,
     readPairRankedBlock,
     readPairArenaAiMatchRecord,
+    readPairNormalMatchRecord,
     readStrategicNormalMatchRecord,
 } from '../shared/utils/unifiedRankedStatsMigration.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
@@ -2704,6 +2706,32 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         }
         user.stats[PAIR_ARENA_AI_MATCH_RECORD_KEY] = { wins: nextPairAiWins, losses: nextPairAiLosses };
         user.stats[PAIR_RANKED_STAT_KEY] = { rankingScore: pairRankingScore };
+        // 페어 일반전 매칭: 숨은 MMR·전적만 갱신 (랭킹점수·티어 불변)
+        if (
+            game.isNormalMatchQueue &&
+            !isNoContest &&
+            !isAiGame &&
+            !isPairAiGame &&
+            !isDraw &&
+            game.settings?.pairGame?.pairMode === 'pvp'
+        ) {
+            const {
+                readPairNormalMatchScore,
+                applyNormalMatchScoreDelta,
+                writePairNormalMatchScore,
+            } = await import('../shared/utils/pairNormalMmr.js');
+            const opponentId = humanIds.find((id) => id !== userId);
+            const oppUser = opponentId ? await db.getUser(opponentId) : null;
+            const myMmr = readPairNormalMatchScore(user.stats as any);
+            const oppMmr = readPairNormalMatchScore((oppUser?.stats ?? {}) as any);
+            const nextMmr = applyNormalMatchScoreDelta(myMmr, oppMmr, isWinner);
+            writePairNormalMatchScore(user.stats as Record<string, unknown>, nextMmr);
+            const normalRec = readPairNormalMatchRecord(user.stats as Record<string, unknown>);
+            user.stats[PAIR_NORMAL_MATCH_RECORD_KEY] = {
+                wins: normalRec.wins + (isWinner ? 1 : 0),
+                losses: normalRec.losses + (isWinner ? 0 : 1),
+            };
+        }
         if (game.isRankedGame && !game.isAiGame && !isNoContest) {
             if (!user.cumulativeRankingScore) user.cumulativeRankingScore = {};
             user.cumulativeRankingScore['pair'] = pairRankingScore - RANKED_ELO_BASE_SCORE;

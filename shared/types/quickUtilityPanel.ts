@@ -7,6 +7,7 @@ export type QuickUtilityPanelKind =
     | 'pet'
     | 'trainingQuest'
     | 'matchArena'
+    | 'pairArena'
     /** @deprecated 홈 뷰어는 matchArena로 통합 — 레거시 스택/딥링크 호환 */
     | 'rankedMatch'
     /** @deprecated 홈 뷰어는 matchArena로 통합 — 레거시 스택/딥링크 호환 */
@@ -31,6 +32,7 @@ export type QuickUtilityPanelKind =
 /** 홈 입장 카드 → 중앙 뷰어 (해시 이동 없이 해결) */
 export const HOME_VIEWER_UTILITY_KINDS = [
     'matchArena',
+    'pairArena',
     'friendlyLobby',
     'playgroundLobby',
     'championship',
@@ -52,6 +54,7 @@ export const QUICK_UTILITY_PANEL_TITLES: Record<QuickUtilityPanelKind, string> =
     pet: '펫',
     trainingQuest: '생산소',
     matchArena: '경기장',
+    pairArena: '페어 경기장',
     rankedMatch: '랭킹전',
     normalMatch: '일반전',
     friendlyLobby: '친선전',
@@ -149,6 +152,13 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
         bodyRingClass: 'ring-emerald-400/22',
     },
     matchArena: MATCH_ARENA_CHROME,
+    pairArena: {
+        titleChromeClass: 'border-violet-400/50 bg-gradient-to-r from-violet-950/55 via-zinc-900/80 to-fuchsia-950/45',
+        titleHeadingClass:
+            'bg-gradient-to-r from-violet-50 via-fuchsia-100 to-violet-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
+        hairlineViaClass: 'via-violet-300/42',
+        bodyRingClass: 'ring-violet-400/22',
+    },
     rankedMatch: MATCH_ARENA_CHROME,
     normalMatch: {
         titleChromeClass: 'border-sky-400/50 bg-gradient-to-r from-sky-950/55 via-zinc-900/80 to-cyan-950/45',

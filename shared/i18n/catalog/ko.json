@@ -2573,7 +2573,11 @@
       "queueRanked": "랭킹전",
       "queuePairRanked": "페어랭킹전",
       "queuePairRankedTab": "페어\n랭킹전",
+      "queuePairNormal": "페어일반전",
+      "queuePairNormalTab": "페어\n일반전",
       "queueNormal": "일반전",
+      "equippedPet": "대표 펫",
+      "equipPetHint": "대표 펫을 장착하면 페어 매칭을 시작할 수 있습니다.",
       "matchTypeTitle": "경기 종류"
     },
     "gameList": {
@@ -3212,6 +3216,7 @@
     "challengeTower": "도전의 탑",
     "pvpArena": "PVP 경기장",
     "matchArena": "경기장",
+    "pairArena": "페어 경기장",
     "normalMatch": "일반전",
     "friendlyMatch": "친선전",
     "playground": "놀이터",
@@ -6688,6 +6693,7 @@
       "userListPairAi": "유저 목록 · 페어 AI 대전",
       "aiSettingsTitle": "AI 대전 설정",
       "rankedMatchTitle": "랭킹전 매칭",
+      "seasonInfoTab": "시즌정보",
       "pairMatchSettings": "페어바둑 대국 설정",
       "friendlyArena": "친선 경기장",
       "gameKindTitle": "경기 종류",
@@ -6843,10 +6849,10 @@
       "default": "작업 화면 열기"
     },
     "pickHints": {
-      "enhance": "아래 인벤토리에서 강화할 장비를 탭하면 강화 화면으로 이동합니다.",
-      "combine": "같은 등급 장비 3개를 아래 인벤토리에서 담으면 합성 화면으로 이동합니다.",
-      "disassemble": "아래 인벤토리에서 분해할 장비를 선택한 뒤 선택 완료를 누르세요.",
-      "refine": "아래 인벤토리에서 제련할 장비를 탭하면 제련 화면으로 이동합니다."
+      "enhance": "장비 강화를 통해 장비의 능력치를 증폭시킬 수 있습니다.",
+      "combine": "장비 합성으로 같은 등급 장비를 모아 더 높은 등급의 장비를 얻을 수 있습니다.",
+      "disassemble": "장비 분해로 강화에 사용한 재료를 일부 회수할 수 있습니다.",
+      "refine": "장비 제련으로 옵션의 종류나 수치를 원하는 방향으로 바꿀 수 있습니다."
     },
     "picker": {
       "selectGear": "장비 선택",
