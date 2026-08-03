@@ -25,6 +25,7 @@ import { audioService } from './services/audioService.js';
 import { TerritoryAnalysisWindow, HintWindow } from './components/game/AnalysisWindows.js';
 import GameControls from './components/game/GameControls.js';
 import { AVATAR_POOL, BORDER_POOL, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, NO_CONTEST_MOVE_THRESHOLD, aiUserId } from './constants.js';
+import { ACTION_POINT_ICON_PATH } from './components/resourceIcons.js';
 import { countValidStoneMoves } from './shared/utils/shortRankedGamePenalty.js';
 import type { GameConfirmModalType } from './components/game/GameModals.js';
 import { useAppGameStoreSlice, useAppRealtimeSlice, useAppRouteSlice, useAppUiSlice, useAppUserSlice } from './hooks/useAppSlices.js';
@@ -830,7 +831,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (!reward) return '/images/icon/Reward.webp';
         if (reward.kind === 'gold') return '/images/icon/Gold.webp';
         if (reward.kind === 'diamonds') return '/images/icon/Zem.webp';
-        if (reward.kind === 'actionPoints') return '';
+        if (reward.kind === 'actionPoints') return ACTION_POINT_ICON_PATH;
         return MATERIAL_ITEMS[reward.itemName]?.image || '/images/icon/Reward.webp';
     }, []);
 
@@ -841,7 +842,6 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return String(amount);
         }
         const amount = Math.max(1, Math.floor(Number(reward.amount) || 1));
-        if (reward.kind === 'actionPoints') return `⚡${amount}`;
         return String(amount);
     }, []);
 

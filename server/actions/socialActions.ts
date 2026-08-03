@@ -2355,7 +2355,7 @@ async function assertAndConsumePairLobbyMatchActionPoints(
         await applyPassiveActionPointRegenToUser(u, nowMs);
         const cost = effectivePairRankedApCostForUser(u, baseCost, pricingRoom);
         if (u.actionPoints.current < cost && !u.isAdmin) {
-            return { ok: false, error: `행동력이 부족합니다. (인당 최대 ⚡${baseCost} — 대표 펫 특화로 감소 가능)` };
+            return { ok: false, error: `행동력이 부족합니다. (인당 최대 ${baseCost} — 대표 펫 특화로 감소 가능)` };
         }
     }
     return { ok: true };
@@ -4557,6 +4557,16 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             const senderTeam = getPairRoomUserTeamId(target, user.id);
             if (!senderTeam) return { error: '채팅을 보낼 수 없습니다.' };
+
+            if (normalizedScope === 'team') {
+                const teams = buildPairTeams(target);
+                const teammates =
+                    senderTeam === 'teamA' ? teams.teamA.members : teams.teamB.members;
+                const humanTeammates = teammates.filter((m) => m.kind === 'user').length;
+                if (humanTeammates < 2) {
+                    return { error: '팀 채팅은 같은 팀에 사람이 두 명 이상일 때만 사용할 수 있습니다.' };
+                }
+            }
 
             if (!volatileState.userConsecutiveChatMessages) volatileState.userConsecutiveChatMessages = {};
             const consecutive = volatileState.userConsecutiveChatMessages[user.id];

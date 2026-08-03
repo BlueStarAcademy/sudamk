@@ -48,7 +48,7 @@ const pickRingIdle =
 const BORDER_CATEGORY_ORDER: BorderCategory[] = ['basic', 'levelLocked', 'shop', 'seasonReward'];
 
 /** 테두리(링 등)로 시각이 커져도 미리보기 칸(px)은 고정 — `Avatar`의 `size`는 이 값에 맞춰 산출 */
-const PROFILE_PREVIEW_FRAME_PX = { mobile: 112, pc: 136 } as const;
+const PROFILE_PREVIEW_FRAME_PX = { mobile: 136, pc: 168 } as const;
 /** `Avatar` 이미지 테두리 최대 배율(Ring5–8 = 1.74)에 맞춰 미리보기 size 산출 */
 const PROFILE_PREVIEW_BORDER_SCALE_MAX = 1.74;
 
@@ -82,12 +82,16 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
     const [newNickname, setNewNickname] = useState(currentUser.nickname);
     const [nowMs, setNowMs] = useState(() => Date.now());
 
-    // currentUser 변경 시 로컬 상태 동기화
+    // 필드별로만 동기화 — 한쪽 저장 응답이 다른 쪽 미저장 선택을 덮어쓰지 않도록
     React.useEffect(() => {
         setSelectedAvatarId(currentUser.avatarId);
+    }, [currentUser.avatarId]);
+    React.useEffect(() => {
         setSelectedBorderId(currentUser.borderId);
+    }, [currentUser.borderId]);
+    React.useEffect(() => {
         setNewNickname(currentUser.nickname);
-    }, [currentUser.avatarId, currentUser.borderId, currentUser.nickname]);
+    }, [currentUser.nickname]);
     
     const parseMbti = (mbtiString: string | null | undefined): MbtiState => {
         if (mbtiString && mbtiString.length === 4) {
@@ -246,15 +250,16 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
     const handleSave = () => {
         switch (activeTab) {
             case 'avatar':
+            case 'border': {
+                // 아바타/테두리 탭 어디서 저장해도 미저장 선택을 함께 반영
                 if (selectedAvatarId !== currentUser.avatarId) {
                     onAction({ type: 'UPDATE_AVATAR', payload: { avatarId: selectedAvatarId } });
                 }
-                break;
-            case 'border':
-                 if (selectedBorderId !== currentUser.borderId) {
+                if (selectedBorderId !== currentUser.borderId) {
                     onAction({ type: 'UPDATE_BORDER', payload: { borderId: selectedBorderId } });
                 }
                 break;
+            }
             case 'nickname':
                 if (newNickname !== currentUser.nickname) {
                     if (containsProfanity(newNickname)) {
@@ -311,8 +316,9 @@ const ProfileEditModal: React.FC<ProfileEditModalProps> = ({ currentUser, onClos
 
     const isSaveDisabled = useMemo(() => {
         switch (activeTab) {
-            case 'avatar': return selectedAvatarId === currentUser.avatarId;
-            case 'border': return selectedBorderId === currentUser.borderId;
+            case 'avatar':
+            case 'border':
+                return selectedAvatarId === currentUser.avatarId && selectedBorderId === currentUser.borderId;
             case 'nickname':
                 return (
                     newNickname === currentUser.nickname ||

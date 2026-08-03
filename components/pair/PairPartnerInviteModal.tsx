@@ -5,7 +5,7 @@ import type { ServerAction } from '../../types.js';
 import PlayerList, { type PairInviteListTab } from '../waiting-room/PlayerList.js';
 import { UserStatus } from '../../types.js';
 import { LOBBY_CHANNEL_MIN } from '../../shared/constants/lobbyChannel.js';
-import { resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
+import { buildLobbyChannelStatusMap, resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { getApiUrl } from '../../utils/apiConfig.js';
 
@@ -183,14 +183,15 @@ const PairPartnerInviteModal: React.FC<Props> = ({
         } as UserWithStatus;
     };
 
-    const statusMap = useMemo(() => {
-        const map: Record<string, Pick<UserWithStatus, 'status' | 'lobbyChannel'> | undefined> = {};
-        for (const u of onlineUsers) {
-            if (u?.id) map[u.id] = u;
-        }
-        map[currentUserId] = currentUser;
-        return map;
-    }, [onlineUsers, currentUser, currentUserId]);
+    const statusMap = useMemo(
+        () =>
+            buildLobbyChannelStatusMap({
+                users: onlineUsers,
+                viewer: currentUser,
+                viewerChannel: myChannel,
+            }),
+        [onlineUsers, currentUser, myChannel],
+    );
 
     /** 같은 접속 채널(Ch.N)에 있는 라이브 유저 */
     const liveSameChannelUsers = useMemo(() => {

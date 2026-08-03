@@ -1280,14 +1280,14 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                 <div
                     role="tablist"
                     aria-label={t('lobby.championshipZoneAria')}
-                    className="mx-1 mt-1 flex w-[calc(100%-0.5rem)] shrink-0 gap-0.5 rounded-lg border border-amber-500/40 bg-black/45 p-0.5 shadow-inner sm:mx-1.5 sm:mt-1.5 sm:w-[calc(100%-0.75rem)]"
+                    className="mx-1 mt-1 flex w-fit max-w-[calc(100%-0.5rem)] shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/45 p-0.5 shadow-inner sm:mx-1.5 sm:mt-1.5 sm:max-w-[calc(100%-0.75rem)]"
                 >
                     <button
                         type="button"
                         role="tab"
                         aria-selected={homeViewerChampionshipTab === 'arena'}
                         onClick={() => setHomeViewerChampionshipTab('arena')}
-                        className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-1 py-1 text-[11px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:text-xs ${
+                        className={`min-h-[2.125rem] shrink-0 rounded-md px-3 py-1.5 text-xs font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-3.5 sm:text-sm ${
                             homeViewerChampionshipTab === 'arena'
                                 ? 'bg-amber-500/90 text-slate-950 shadow'
                                 : 'text-amber-100/80 hover:bg-white/10'
@@ -1300,7 +1300,7 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                         role="tab"
                         aria-selected={homeViewerChampionshipTab === 'shop'}
                         onClick={() => setHomeViewerChampionshipTab('shop')}
-                        className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-1 py-1 text-[11px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:text-xs ${
+                        className={`min-h-[2.125rem] shrink-0 rounded-md px-3 py-1.5 text-xs font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-3.5 sm:text-sm ${
                             homeViewerChampionshipTab === 'shop'
                                 ? 'bg-amber-500/90 text-slate-950 shadow'
                                 : 'text-amber-100/80 hover:bg-white/10'
@@ -1382,14 +1382,14 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                     <div
                         role="tablist"
                         aria-label={t('lobby.championshipZoneAria')}
-                        className="flex w-full shrink-0 gap-0.5 rounded-lg border border-amber-500/40 bg-black/45 p-0.5 shadow-inner"
+                        className="flex w-fit max-w-full shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/45 p-0.5 shadow-inner"
                     >
                         <button
                             type="button"
                             role="tab"
                             aria-selected={nativeChampionshipTab === 'stats'}
                             onClick={() => setNativeChampionshipTab('stats')}
-                            className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-0.5 py-1 text-[10px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-1.5 sm:text-xs ${
+                            className={`min-h-[2.125rem] shrink-0 rounded-md px-3 py-1.5 text-xs font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-3.5 sm:text-sm ${
                                 nativeChampionshipTab === 'stats'
                                     ? 'bg-amber-500/90 text-slate-950 shadow'
                                     : 'text-amber-100/80 hover:bg-white/10'
@@ -1402,7 +1402,7 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                             role="tab"
                             aria-selected={nativeChampionshipTab === 'arena'}
                             onClick={() => setNativeChampionshipTab('arena')}
-                            className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-0.5 py-1 text-[10px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-1.5 sm:text-xs ${
+                            className={`min-h-[2.125rem] shrink-0 rounded-md px-3 py-1.5 text-xs font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-3.5 sm:text-sm ${
                                 nativeChampionshipTab === 'arena'
                                     ? 'bg-amber-500/90 text-slate-950 shadow'
                                     : 'text-amber-100/80 hover:bg-white/10'
@@ -1415,7 +1415,7 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                             role="tab"
                             aria-selected={nativeChampionshipTab === 'shop'}
                             onClick={() => setNativeChampionshipTab('shop')}
-                            className={`min-h-[2.125rem] min-w-0 flex-1 rounded-md px-0.5 py-1 text-[9px] font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-1.5 sm:text-xs ${
+                            className={`min-h-[2.125rem] shrink-0 rounded-md px-3 py-1.5 text-xs font-black leading-tight transition-colors sm:min-h-[2.35rem] sm:px-3.5 sm:text-sm ${
                                 nativeChampionshipTab === 'shop'
                                     ? 'bg-amber-500/90 text-slate-950 shadow'
                                     : 'text-amber-100/80 hover:bg-white/10'
@@ -1597,14 +1597,14 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                             <div
                                 role="tablist"
                                 aria-label={t('lobby.statsPanelAria')}
-                                className="flex w-full shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/40 p-0.5 shadow-inner"
+                                className="flex w-fit max-w-full shrink-0 gap-1 rounded-lg border border-amber-500/40 bg-black/40 p-0.5 shadow-inner"
                             >
                                 <button
                                     type="button"
                                     role="tab"
                                     aria-selected={pcChampionshipLeftAbilityTab === 'user'}
                                     onClick={() => setPcChampionshipLeftAbilityTab('user')}
-                                    className={`min-h-[2.25rem] flex-1 rounded-md px-1.5 text-xs font-black transition-colors sm:px-2 sm:text-sm ${
+                                    className={`min-h-[2.25rem] shrink-0 rounded-md px-3 text-xs font-black transition-colors sm:px-3.5 sm:text-sm ${
                                         pcChampionshipLeftAbilityTab === 'user'
                                             ? 'bg-amber-500/90 text-slate-950 shadow'
                                             : 'text-amber-100/85 hover:bg-white/10'
@@ -1617,7 +1617,7 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                                     role="tab"
                                     aria-selected={pcChampionshipLeftAbilityTab === 'pet'}
                                     onClick={() => setPcChampionshipLeftAbilityTab('pet')}
-                                    className={`min-h-[2.25rem] flex-1 rounded-md px-1.5 text-xs font-black transition-colors sm:px-2 sm:text-sm ${
+                                    className={`min-h-[2.25rem] shrink-0 rounded-md px-3 text-xs font-black transition-colors sm:px-3.5 sm:text-sm ${
                                         pcChampionshipLeftAbilityTab === 'pet'
                                             ? 'bg-amber-500/90 text-slate-950 shadow'
                                             : 'text-amber-100/85 hover:bg-white/10'
@@ -1630,7 +1630,7 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                                     role="tab"
                                     aria-selected={pcChampionshipLeftAbilityTab === 'shop'}
                                     onClick={() => setPcChampionshipLeftAbilityTab('shop')}
-                                    className={`min-h-[2.25rem] flex-1 rounded-md px-1 text-[10px] font-black leading-tight transition-colors sm:px-2 sm:text-xs ${
+                                    className={`min-h-[2.25rem] shrink-0 rounded-md px-3 text-xs font-black transition-colors sm:px-3.5 sm:text-sm ${
                                         pcChampionshipLeftAbilityTab === 'shop'
                                             ? 'bg-amber-500/90 text-slate-950 shadow'
                                             : 'text-amber-100/85 hover:bg-white/10'

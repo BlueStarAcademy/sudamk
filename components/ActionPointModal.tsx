@@ -7,6 +7,7 @@ import { UserWithStatus, InventoryItem, ServerAction } from '../types.js';
 import { isActionPointConsumable } from '../constants/items.js';
 import { ACTION_POINT_PURCHASE_COSTS_DIAMONDS, MAX_ACTION_POINT_PURCHASES_PER_DAY, ACTION_POINT_PURCHASE_REFILL_AMOUNT } from '../constants';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
+import ActionPointIcon from './ui/ActionPointIcon.js';
 
 interface ActionPointModalProps {
     currentUser: UserWithStatus;
@@ -76,7 +77,7 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                     <div className="shrink-0 border-b border-slate-700/80 p-3 sm:p-4">
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex min-w-0 items-center gap-2">
-                                <span className="shrink-0 text-2xl">⚡</span>
+                                <ActionPointIcon size="lg" variant="raster" className="shrink-0" />
                                 <div className="min-w-0 flex flex-col">
                                     <span className="text-xs text-slate-400 sm:text-sm sm:text-slate-300">{t('actionPoint.currentAp')}</span>
                                     <span className="text-base font-bold text-cyan-300 sm:text-lg">
@@ -144,7 +145,7 @@ const ActionPointModal: React.FC<ActionPointModalProps> = ({ currentUser, onClos
                                     <div className="pointer-events-none absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent" />
                                     <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-500 group-hover:opacity-20 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.3),transparent_55%)]" />
                                     <div className="relative mb-3 flex h-20 w-20 items-center justify-center rounded-xl bg-gradient-to-br from-[#14b8a6]/30 via-[#06b6d4]/20 to-transparent sm:mb-4 sm:h-24 sm:w-24">
-                                        <span className="text-4xl text-cyan-300 drop-shadow-[0_0_18px_rgba(14,165,233,0.35)] sm:text-5xl">⚡</span>
+                                        <ActionPointIcon size="xl" variant="raster" className="drop-shadow-[0_0_18px_rgba(14,165,233,0.45)]" />
                                         <span className="absolute bottom-1.5 right-1.5 text-xl font-bold text-cyan-200 drop-shadow-[0_0_8px_rgba(14,165,233,0.5)] sm:bottom-2 sm:right-2 sm:text-2xl">
                                             {ACTION_POINT_PURCHASE_REFILL_AMOUNT}
                                         </span>

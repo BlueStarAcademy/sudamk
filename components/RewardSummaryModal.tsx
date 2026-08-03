@@ -7,6 +7,7 @@ import MailRewardItemTile from './MailRewardItemTile.js';
 import { audioService } from '../services/audioService.js';
 import GuildExpBadge from './guild/GuildExpBadge.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
+import ActionPointIcon from './ui/ActionPointIcon.js';
 
 interface RewardSummaryModalProps {
     summary: {
@@ -125,12 +126,7 @@ const RewardSummaryModal: React.FC<RewardSummaryModalProps> = ({ summary, onClos
                                 )}
                                 {(reward.actionPoints ?? 0) > 0 && (
                                     <div className="flex w-full max-w-[16rem] items-center justify-center gap-2.5 rounded-xl border border-emerald-500/20 bg-emerald-950/25 px-4 py-2.5 shadow-inner">
-                                        <span
-                                            className="flex h-6 w-6 shrink-0 items-center justify-center text-base font-black leading-none text-emerald-300"
-                                            aria-hidden
-                                        >
-                                            ⚡
-                                        </span>
+                                        <ActionPointIcon size="md" className="!h-6 !w-6" />
                                         <span className="text-lg font-bold tabular-nums text-emerald-300 sm:text-xl">
                                             +{reward.actionPoints!.toLocaleString()}
                                         </span>

@@ -50,6 +50,8 @@ import {
     PET_MGMT_TR_SLOT_DROP_MOBILE_CLASS,
     PET_MGMT_TR_SLOT_NAME_RAIL_CLASS,
     PET_MGMT_TR_SLOT_NAME_RAIL_MOBILE_CLASS,
+    PET_MGMT_TR_SLOT_NAME_MARKER_DEFAULT_CLASS,
+    PET_MGMT_TR_SLOT_NAME_MARKER_VIP_CLASS,
     PET_MGMT_TR_SLOT_NAME_TEXT_CLASS,
     PET_MGMT_TR_SLOT_ROW_CLASS,
     PET_MGMT_TR_SOUL_COL,
@@ -1991,19 +1993,24 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                 </span>
                                             ) : null}
                                             <span
-                                                className={`${PET_MGMT_TR_SLOT_NAME_TEXT_CLASS} ${
-                                                    useTapTrainingFlow ? PET_MGMT_CAPTION : PET_MGMT_SEMI
-                                                } ${isVipTrainingSlot ? 'text-amber-100' : 'text-violet-100'}`}
+                                                className={`${
+                                                    isVipTrainingSlot
+                                                        ? PET_MGMT_TR_SLOT_NAME_MARKER_VIP_CLASS
+                                                        : PET_MGMT_TR_SLOT_NAME_MARKER_DEFAULT_CLASS
+                                                } ${PET_MGMT_TR_SLOT_NAME_TEXT_CLASS} ${PET_MGMT_CAPTION} ${
+                                                    isVipTrainingSlot ? 'text-amber-50' : 'text-violet-50'
+                                                }`}
                                             >
-                                                {useTapTrainingFlow
-                                                    ? splitPairTrainingSlotNameLines(localizeTrainingSlot(i)).map(
-                                                          (line, lineIdx) => (
-                                                              <span key={`train-slot-name-${i}-${lineIdx}`} className="block leading-tight">
-                                                                  {line}
-                                                              </span>
-                                                          ),
-                                                      )
-                                                    : localizeTrainingSlot(i)}
+                                                {splitPairTrainingSlotNameLines(localizeTrainingSlot(i)).map(
+                                                    (line, lineIdx) => (
+                                                        <span
+                                                            key={`train-slot-name-${i}-${lineIdx}`}
+                                                            className="block leading-tight"
+                                                        >
+                                                            {line}
+                                                        </span>
+                                                    ),
+                                                )}
                                             </span>
                                         </div>
                                     <div

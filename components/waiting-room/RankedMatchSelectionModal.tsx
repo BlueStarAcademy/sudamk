@@ -4,6 +4,7 @@ import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
 import { GameMode, GameSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, RANKED_STRATEGIC_MODES, STRATEGIC_ACTION_POINT_COST } from '../../constants/index.js';
+import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 import { RANKED_GAME_SETTINGS } from '../../constants/rankedGameSettings.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { effectiveStrategicRankedQueueApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
@@ -420,7 +421,10 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                             disabled={selectedModes.length === 0}
                             style={{ fontSize: `${Math.max(10, Math.round(12 * mobileTextScale))}px` }}
                         >
-                            {t('ranked.startMatching', { count: selectedModes.length })} (⚡{actionPointCost})
+                            <ActionPointLabelWithCost
+                                label={t('ranked.startMatching', { count: selectedModes.length })}
+                                cost={actionPointCost}
+                            />
                         </Button>
                     </div>
                 </div>

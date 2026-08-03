@@ -60,11 +60,14 @@ import {
 } from '../constants.js';
 import {
     baseAiLobbyActionPointCostForModeAndSettings,
+    basePvpActionPointCostForMode,
     effectivePairAiLobbyApCostForUser,
     effectivePairRankedApCostForUser,
+    effectivePvpEntryApCostForUser,
     effectiveStrategicRankedQueueApCostForUser,
     formatActionPointCostWithPetDiscount,
 } from '../shared/utils/pairPetArenaApDiscount.js';
+import { ActionPointCostInline, ActionPointLabelWithCost } from './ui/ActionPointIcon.js';
 import { useScreenGuide } from '../hooks/useScreenGuide.js';
 import ScreenGuideModal from './ScreenGuideModal.js';
 import {
@@ -128,6 +131,8 @@ import {
     clampPairRoomTitle,
     pairLobbyGridSlotFromRoomCode,
 } from '../shared/constants/pairArena.js';
+import { LOBBY_CHANNEL_MIN } from '../shared/constants/lobbyChannel.js';
+import { buildLobbyChannelStatusMap, resolveLobbyChannel } from '../shared/utils/lobbyChannel.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import { getAiScoringTurnLimitByBoardSize } from '../shared/constants/gameSettings.js';
 import { RANKED_STRATEGIC_MODES, getRankedGameSettings } from '../constants/rankedGameSettings.js';
@@ -534,6 +539,25 @@ function pairAiLobbyActionPointCostLabel(
     return formatActionPointCostWithPetDiscount(base, eff);
 }
 
+/** 친선 경기 시작(`PAIR_START_MATCH`) — 인게임 입장 시 차감과 동일 */
+function pairFriendlyMatchActionPointCostLabel(
+    mode: GameMode | undefined,
+    lobbyChannel: PairWaitingLobbyChannel,
+    user: { inventory: unknown[]; equippedPairPetTemplateId?: string | null; equippedPairPetInventoryItemId?: string | null } | null | undefined,
+): string {
+    const resolvedMode = mode ?? GameMode.Standard;
+    const base = basePvpActionPointCostForMode(resolvedMode);
+    if (!user) return String(base);
+    const ch =
+        lobbyChannel === 'strategic' || lobbyChannel === 'playful' || lobbyChannel === 'pair'
+            ? lobbyChannel
+            : lobbyChannel === 'friendly'
+              ? 'pair'
+              : undefined;
+    const eff = effectivePvpEntryApCostForUser(user as User, resolvedMode, ch);
+    return formatActionPointCostWithPetDiscount(base, eff);
+}
+
 /** 페어/경기장 랭킹전 매칭 — 대기실 랭킹전과 동일하게 로비·선택 모드 기준 행동력 */
 function pairRankedLobbyActionPointCost(
     lobbyChannel: PairWaitingLobbyChannel,
@@ -700,6 +724,20 @@ function countHumanUsersInPairRoom(room: PairRoom): number {
         return Math.max(new Set(userMembers.map((m) => m.id)).size, fromSlots);
     }
     return fromSlots;
+}
+
+/** 시청자 팀의 인간 수 — 팀 채팅(사람+사람) 노출 여부 */
+function countHumanUsersOnViewerPairTeam(room: PairRoom, userId: string): number {
+    if (!userId) return 0;
+    const countOn = (members: Array<{ id: string; kind?: string }> | undefined) =>
+        (members ?? []).filter((m) => pairLobbyRowLooksLikeHumanUser(m)).length;
+    const teamA = room.teamA?.members ?? [];
+    const teamB = room.teamB?.members ?? [];
+    if (teamA.some((m) => m.id === userId)) return countOn(teamA);
+    if (teamB.some((m) => m.id === userId)) return countOn(teamB);
+    /** 팀 스냅샷 전: 방장만 있으면 우리 팀 1명으로 본다 */
+    if (room.ownerId === userId) return Math.max(1, countOn(teamA));
+    return 0;
 }
 
 /** 목록·빠른참가 입장 — 인간 자리가 꽉 찬 방은 클릭 불가(서버 `friendly_4p`·`friendly_2p`·`duo_match` 정원과 동일) */
@@ -1929,6 +1967,15 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         const eff = effectivePairRankedApCostForUser(currentUserWithStatus as User, base, { lobbyChannel });
         return formatActionPointCostWithPetDiscount(base, eff);
     }, [lobbyChannel, myRoom?.selectedGameMode, currentUserWithStatus]);
+    const pairFriendlyStartApButtonLabel = useMemo(
+        () =>
+            pairFriendlyMatchActionPointCostLabel(
+                myRoom?.selectedGameMode,
+                lobbyChannel,
+                currentUserWithStatus,
+            ),
+        [myRoom?.selectedGameMode, lobbyChannel, currentUserWithStatus],
+    );
     const strategicArenaRankedApButtonLabel = useMemo(() => {
         if (!currentUserWithStatus) return String(STRATEGIC_ACTION_POINT_COST);
         const eff = effectiveStrategicRankedQueueApCostForUser(currentUserWithStatus as User);
@@ -4102,7 +4149,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                 <span className={`flex items-center justify-center ${isHandheld ? 'gap-0.5' : 'gap-1.5'}`}>
                                     <span className={isHandheld ? 'text-[0.65rem] sm:text-xs' : ''}>⚔️</span>
                                     <span className={isHandheld ? 'text-[0.65rem] sm:text-xs' : ''}>
-                                        {`${isHandheld ? pt('waitingLobby.startShort') : pt('waitingLobby.rankedStart')} (⚡${pairRankedMatchApButtonLabel})`}
+                                        <ActionPointLabelWithCost
+                                            label={isHandheld ? pt('waitingLobby.startShort') : pt('waitingLobby.rankedStart')}
+                                            cost={pairRankedMatchApButtonLabel}
+                                        />
                                     </span>
                                 </span>
                             </Button>
@@ -4427,6 +4477,16 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         </div>
     );
 
+    const lobbyChannelStatusMapForPlayerList = useMemo(
+        () =>
+            buildLobbyChannelStatusMap({
+                users: onlineUsers,
+                viewer: currentUserWithStatus,
+                viewerChannel: resolveLobbyChannel(currentUserWithStatus) ?? LOBBY_CHANNEL_MIN,
+            }),
+        [onlineUsers, currentUserWithStatus],
+    );
+
     const pairLobbyPlayerListSection = (
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
                 <PlayerList
@@ -4442,6 +4502,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                     disableStatusSelect={Boolean(myRoom)}
                     pairAlignedNativeCompact={Boolean(aggregateLobbyMode && isHandheld)}
                     showArenaPartnerInviteBlockToggle
+                    lobbyChannelStatusMap={lobbyChannelStatusMapForPlayerList}
                     listScopeTabs={
                         <div className="grid grid-cols-3 gap-1 rounded-lg border border-white/10 bg-black/25 p-1">
                             <button
@@ -5165,7 +5226,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 interiorLobbyTone={lobbyTone}
                 compact={useHandheldRoomChrome}
                 fillAvailableHeight
-                roomOnlyChat={!!aggregateLobbyMode}
+                roomOnlyChat={countHumanUsersOnViewerPairTeam(myRoom, currentUserId) < 2}
                 onSend={sendPairRoomChat}
             />
         );
@@ -5399,7 +5460,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                         : `rounded-lg border-2 border-amber-400/80 bg-gradient-to-b from-amber-600/95 to-amber-950/95 px-4 py-3.5 text-sm font-extrabold text-amber-50 shadow-[0_6px_22px_-6px_rgba(251,191,36,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-45 sm:rounded-xl min-h-[3.35rem]`
                                 }
                             >
-                                랭킹전 매칭 (⚡{pairRankedMatchApButtonLabel})
+                                <ActionPointLabelWithCost label="랭킹전 매칭" cost={pairRankedMatchApButtonLabel} />
                             </button>
                         ) : !aggregateLobbyMode && isArenaStrategicAiRoom && lobbyChannel === 'strategic' && inStrategicRankedQueue ? (
                             <button
@@ -5425,7 +5486,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                         : `rounded-lg border-2 border-amber-400/80 bg-gradient-to-b from-amber-600/95 to-amber-950/95 px-4 py-3.5 text-sm font-extrabold text-amber-50 shadow-[0_6px_22px_-6px_rgba(251,191,36,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-45 sm:rounded-xl min-h-[3.35rem]`
                                 }
                             >
-                                랭킹전 매칭 (⚡{strategicArenaRankedApButtonLabel})
+                                <ActionPointLabelWithCost label="랭킹전 매칭" cost={strategicArenaRankedApButtonLabel} />
                             </button>
                         ) : aggregateLobbyMode && isArenaStrategicAiRoom ? null : lobbyChannel === 'pair' && isPairPetRoom ? null : isPairAiDuoInviteLobby ? null : (
                             <button
@@ -5446,16 +5507,31 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                 }
                             >
                                 {isPairChannelDuoAiRoom || isTeamPairRoom ? (
-                                    `${pt('waitingLobby.startAi')} (⚡${pairAiLobbyActionPointCostLabel(myRoom.selectedGameMode, myRoom.settings, lobbyChannel, currentUserWithStatus)})`
+                                    <span className="inline-flex items-center justify-center gap-1.5">
+                                        <span>{pt('waitingLobby.startAi')}</span>
+                                        <ActionPointCostInline
+                                            cost={pairAiLobbyActionPointCostLabel(
+                                                myRoom.selectedGameMode,
+                                                myRoom.settings,
+                                                lobbyChannel,
+                                                currentUserWithStatus,
+                                            )}
+                                            wrapParens
+                                        />
+                                    </span>
                                 ) : isPairPetRoom ? (
-                                    pt('rankedMatch.queueWithAp', { cost: pairRankedMatchApButtonLabel })
+                                    <span className="inline-flex items-center justify-center gap-1.5">
+                                        <span>{pt('waitingLobby.startMatching')}</span>
+                                        <ActionPointCostInline cost={pairRankedMatchApButtonLabel} wrapParens />
+                                    </span>
                                 ) : myRoom?.roomKind === 'friendly_4p' ||
                                   myRoom?.roomKind === 'friendly_2p' ||
                                   (aggregateLobbyMode && !isDuoArenaRanked) ||
                                   (isArenaFriendlyDuoRoom && !isDuoArenaRanked) ? (
-                                    pairOwnerStartCountdownOnStartButton ? (
-                                        <span className="inline-flex items-center justify-center gap-2">
-                                            <span>{pt('waitingLobby.startMatch')}</span>
+                                    <span className="inline-flex items-center justify-center gap-1.5">
+                                        <span>{pt('waitingLobby.startMatch')}</span>
+                                        <ActionPointCostInline cost={pairFriendlyStartApButtonLabel} wrapParens />
+                                        {pairOwnerStartCountdownOnStartButton ? (
                                             <span
                                                 className={`font-mono font-black tabular-nums leading-none ${
                                                     useHandheldRoomChrome ? 'text-base' : 'text-lg'
@@ -5463,10 +5539,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                             >
                                                 {pairOwnerStartDeadlineRemainingSec}
                                             </span>
-                                        </span>
-                                    ) : (
-                                        pt('waitingLobby.startMatch')
-                                    )
+                                        ) : null}
+                                    </span>
                                 ) : (
                                     pt('waitingLobby.startMatching')
                                 )}
@@ -5487,7 +5561,15 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                     : `rounded-lg border-2 border-sky-400/75 bg-gradient-to-b from-sky-600/90 to-sky-950/95 px-4 py-3.5 text-sm font-extrabold text-sky-50 shadow-[0_6px_20px_-6px_rgba(56,189,248,0.5),inset_0_1px_0_rgba(255,255,255,0.12)] transition hover:brightness-110 disabled:pointer-events-none disabled:opacity-45 sm:rounded-xl min-h-[3.35rem]`
                             }
                         >
-                            AI 대전 (⚡{pairAiLobbyActionPointCostLabel(myRoom.selectedGameMode, myRoom.settings, lobbyChannel, currentUserWithStatus)})
+                            <ActionPointLabelWithCost
+                                label="AI 대전"
+                                cost={pairAiLobbyActionPointCostLabel(
+                                    myRoom.selectedGameMode,
+                                    myRoom.settings,
+                                    lobbyChannel,
+                                    currentUserWithStatus,
+                                )}
+                            />
                         </button>
                     )}
                     <button
@@ -5636,7 +5718,17 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 editRoomDisabled={editRoomDisabled}
                 onStartAi={() => void startPairAiFromRoomSettings()}
                 startAiDisabled={!duoCanStartAiMatch}
-                startAiLabel={`${pt('waitingLobby.startAi')} (⚡${pairAiLobbyActionPointCostLabel(duoRoom.selectedGameMode, duoRoom.settings, lobbyChannel, currentUserWithStatus)})`}
+                startAiLabel={
+                    <ActionPointLabelWithCost
+                        label={pt('waitingLobby.startAi')}
+                        cost={pairAiLobbyActionPointCostLabel(
+                            duoRoom.selectedGameMode,
+                            duoRoom.settings,
+                            lobbyChannel,
+                            currentUserWithStatus,
+                        )}
+                    />
+                }
             />
         );
     };
@@ -5808,7 +5900,17 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                             : pairLobbyRoomForm === 'propose'
                               ? pt('waitingLobby.propose')
                               : lobbyChannel === 'playful' && createModalRoomKind === 'arena_ai'
-                                ? `${pt('waitingLobby.startAiGame')} (⚡${pairAiLobbyActionPointCostLabel(createModalDraftGame.mode, createModalDraftGame.settings, lobbyChannel, currentUserWithStatus)})`
+                                ? (
+                                    <ActionPointLabelWithCost
+                                        label={pt('waitingLobby.startAiGame')}
+                                        cost={pairAiLobbyActionPointCostLabel(
+                                            createModalDraftGame.mode,
+                                            createModalDraftGame.settings,
+                                            lobbyChannel,
+                                            currentUserWithStatus,
+                                        )}
+                                    />
+                                  )
                                 : pt('waitingLobby.create')}
                     </Button>
                 </>
@@ -6935,7 +7037,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                     startActionType="PAIR_START_MATCH"
                     title={pt('waitingLobby.pairMatchSettings')}
                     submitLabel={pt('waitingLobby.startMatch')}
-                    showActionPointCost={false}
+                    showActionPointCost
                     transformSettingsBeforeStart={transformPairAiSettings}
                     hideScoringTurnLimit
                 />

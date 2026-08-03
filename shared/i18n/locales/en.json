@@ -1311,7 +1311,7 @@
       "matchSettings": "Match settings",
       "cancelApplication": "Cancel challenge",
       "applying": "Sending…",
-      "applyWithCost": "Challenge (⚡{{cost}})"
+      "applyWithCost": "Challenge"
     },
     "modals": {
       "noContest": {
@@ -1337,10 +1337,10 @@
         "goShopConsumables": "Buy recovery items (shop consumables)",
         "goDiamondRecharge": "Instant recharge with diamonds",
         "selfHeading": "You do not have enough action points.",
-        "selfDetail": "Action points (⚡) are required to request, accept, or start AI games. Recharge and try again.",
+        "selfDetail": "Action points are required to request, accept, or start AI games. Recharge and try again.",
         "opponentTitle": "Match request",
         "opponentMessage": "Cannot apply because the opponent lacks action points.",
-        "opponentDetail": "Your opponent also needs enough action points (⚡) to play. Ask them to recharge and try again."
+        "opponentDetail": "Your opponent also needs enough action points to play. Ask them to recharge and try again."
       }
     },
     "baseFooter": {
@@ -2820,7 +2820,7 @@
       "classBarRewardNeedClear": "Clear {{milestone}} stages",
       "classBarRewardAria": "{{milestone}}-point reward",
       "cleared": "Cleared",
-      "enterStage": "Challenge ⚡{{cost}}",
+      "enterStage": "Challenge",
       "enterStageTitle": "Challenge · {{cost}} AP",
       "locked": "Locked",
       "unlockRequired": "Requires {{stageId}}",
@@ -5809,7 +5809,11 @@
         "changeTicket": "Gear change ticket",
         "rewardRandom": "Payout may vary by match result (random).",
         "changeTicketMax": "Up to {{count}} per stage",
-        "defaultReward": "Default reward",
+        "defaultReward": "Obtainable rewards",
+        "statShortageWarning": "Your stats are lower than the opponent — this match may be tough.",
+        "formatNeighborhood": "6-player round robin",
+        "formatNational": "Quarterfinal tournament",
+        "formatWorld": "Round of 16 tournament",
         "continueView": "Continue",
         "viewResult": "View result",
         "inProgressToday": "You have a match today. Check results.",
@@ -6176,13 +6180,13 @@
     "equippedPet": "Equipped pet",
     "roomKinds": {
       "friendly4p": "4-player friendly",
-      "friendly2p": "2-player friendly",
+      "friendly2p": "Pet pair",
       "duoAi": "2-player vs AI",
-      "friendly": "Friendly",
+      "friendly": "1:1",
       "arenaAi": "Vs AI",
       "petPair": "Pet pair",
       "aiDuel": "AI Match",
-      "friendlyTeamPair": "Friendly Team Pair",
+      "friendlyTeamPair": "Team pair",
       "userDuel": "User Match"
     },
     "filters": {
@@ -6213,7 +6217,7 @@
       "noRules": "No rules to display.",
       "selectGameMode": "Select game mode",
       "mobilePickHint": "Tap a mode, then review rank info and rules on the next step.",
-      "queueWithAp": "Join queue (⚡{{cost}})",
+      "queueWithAp": "Join queue",
       "titleStrategic": "Strategic ranked matchmaking",
       "titleDuo": "2-player pair ranked matchmaking",
       "titlePet": "Pair pet ranked matchmaking"
@@ -7029,16 +7033,16 @@
     "casualTag": "Friendly",
     "casualTitle": "Friendly match",
     "casualDesc": "This is a friendly match. Rankings will not change.",
-    "actionPointNotice": "⚡{{cost}} action points will be spent by both sides when the match starts. If short, the AP manager opens on accept/start.",
+    "actionPointNotice": "{{cost}} action points will be spent by both sides when the match starts. If short, the AP manager opens on accept/start.",
     "titleAi": "{{prefix}}{{mode}} AI match settings",
     "titleRematch": "{{prefix}}Rematch settings ({{mode}})",
     "titleDefault": "{{prefix}}Match settings ({{mode}})",
     "cancel": "Cancel",
-    "start": "Start (⚡{{cost}})",
-    "request": "Request match (⚡{{cost}})",
+    "start": "Start",
+    "request": "Request match",
     "reject": "Decline",
     "counter": "Counter offer",
-    "accept": "Accept (⚡{{cost}})",
+    "accept": "Accept",
     "statusAi": "Review the AI match settings.",
     "statusDraft": "Review settings and press [Request match].",
     "statusRespond": "Accept or counter the opponent's offer.",

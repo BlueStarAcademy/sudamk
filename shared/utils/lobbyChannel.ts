@@ -20,6 +20,36 @@ export function resolveLobbyChannel(status: Pick<UserStatusInfo, 'lobbyChannel'>
     return isValidLobbyChannel(ch) ? ch : null;
 }
 
+/**
+ * 채널 변경 모달·정원 집계용 맵.
+ * - 전체 온라인 유저를 넣어야 다른 채널 인원이 맞게 나오고
+ * - 본인은 항상 `viewerChannel`로 보정(목록의 「나를 포함한 접속자」와 동일)
+ */
+export function buildLobbyChannelStatusMap(params: {
+    users: Array<{ id?: string; status?: UserStatusInfo['status']; lobbyChannel?: number | null } | null | undefined>;
+    viewer?: { id?: string; status?: UserStatusInfo['status']; lobbyChannel?: number | null } | null;
+    viewerChannel?: number | null;
+}): LobbyChannelStatusMap {
+    const map: LobbyChannelStatusMap = {};
+    for (const u of params.users) {
+        if (!u?.id) continue;
+        map[u.id] = { status: u.status, lobbyChannel: u.lobbyChannel ?? undefined };
+    }
+    const viewer = params.viewer;
+    if (viewer?.id) {
+        const ch =
+            resolveLobbyChannel(viewer) ??
+            (isValidLobbyChannel(params.viewerChannel) ? params.viewerChannel : null) ??
+            resolveLobbyChannel(map[viewer.id]) ??
+            LOBBY_CHANNEL_MIN;
+        map[viewer.id] = {
+            status: viewer.status ?? map[viewer.id]?.status ?? UserStatus.Online,
+            lobbyChannel: ch,
+        };
+    }
+    return map;
+}
+
 export function countUsersInLobbyChannel(
     userStatuses: LobbyChannelStatusMap,
     channel: number,

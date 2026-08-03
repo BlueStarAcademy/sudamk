@@ -1303,7 +1303,7 @@
       "matchSettings": "대국 설정",
       "cancelApplication": "신청 취소",
       "applying": "신청 중",
-      "applyWithCost": "대국 신청 (⚡{{cost}})"
+      "applyWithCost": "대국 신청"
     },
     "modals": {
       "noContest": {
@@ -1329,10 +1329,10 @@
         "goShopConsumables": "상점(소모품)에서 회복제 구매",
         "goDiamondRecharge": "다이아로 즉시 충전",
         "selfHeading": "본인의 행동력이 부족합니다.",
-        "selfDetail": "대국 신청·수락, AI 대국 시작 등에는 행동력(⚡)이 필요합니다. 충전한 뒤 다시 시도해 주세요.",
+        "selfDetail": "대국 신청·수락, AI 대국 시작 등에는 행동력이 필요합니다. 충전한 뒤 다시 시도해 주세요.",
         "opponentTitle": "대국 신청",
         "opponentMessage": "상대방이 행동력이 부족하여 신청할 수 없습니다.",
-        "opponentDetail": "상대방에게도 대국을 진행할 만큼의 행동력(⚡)이 있어야 합니다. 상대가 충전한 뒤 다시 시도해 주세요."
+        "opponentDetail": "상대방에게도 대국을 진행할 만큼의 행동력이 있어야 합니다. 상대가 충전한 뒤 다시 시도해 주세요."
       }
     },
     "baseFooter": {
@@ -3077,7 +3077,7 @@
       "classBarRewardNeedClear": "{{milestone}} 관문 클리어 필요",
       "classBarRewardAria": "{{milestone}}점 보상",
       "cleared": "클리어 완료",
-      "enterStage": "도전 ⚡{{cost}}",
+      "enterStage": "도전",
       "enterStageTitle": "도전 행동력 {{cost}}",
       "locked": "잠김",
       "unlockRequired": "{{stageId}} 필요",
@@ -5838,7 +5838,11 @@
         "changeTicket": "장비 변경권",
         "rewardRandom": "경기 결과에 따라 지급 여부·수량이 달라질 수 있습니다 (랜덤).",
         "changeTicketMax": "단계 기준 최대 {{count}}개 범위",
-        "defaultReward": "기본 보상",
+        "defaultReward": "획득 보상",
+        "statShortageWarning": "상대보다 능력치가 낮아 불리할 수 있습니다.",
+        "formatNeighborhood": "6인 풀리그",
+        "formatNational": "8강 토너먼트",
+        "formatWorld": "16강 토너먼트",
         "continueView": "이어서 보기",
         "viewResult": "결과보기",
         "inProgressToday": "오늘 진행한 경기가 있습니다. 결과를 확인하세요.",
@@ -6205,13 +6209,13 @@
     "equippedPet": "장착 펫",
     "roomKinds": {
       "friendly4p": "4인 친선",
-      "friendly2p": "2인 친선",
+      "friendly2p": "펫페어",
       "duoAi": "2인 AI대전",
-      "friendly": "친선전",
+      "friendly": "1:1",
       "arenaAi": "AI와 대결",
       "petPair": "펫 페어",
       "aiDuel": "AI 대전",
-      "friendlyTeamPair": "친선 팀페어",
+      "friendlyTeamPair": "팀페어",
       "userDuel": "유저 대전"
     },
     "filters": {
@@ -6242,7 +6246,7 @@
       "noRules": "표시할 규칙이 없습니다.",
       "selectGameMode": "게임 모드 선택",
       "mobilePickHint": "종목을 눌러 선택한 뒤 다음에서 랭킹 정보와 규칙을 확인하세요.",
-      "queueWithAp": "매칭 대기 (⚡{{cost}})",
+      "queueWithAp": "매칭 대기",
       "titleStrategic": "전략바둑 랭킹전 매칭",
       "titleDuo": "2인 페어 랭킹전 매칭",
       "titlePet": "페어 펫 랭킹전 매칭"
@@ -7058,16 +7062,16 @@
     "casualTag": "친선전",
     "casualTitle": "친선전",
     "casualDesc": "이 대국은 친선전입니다. 랭킹 점수 변동이 없습니다.",
-    "actionPointNotice": "대국 확정 시 양측에서 행동력 ⚡{{cost}}가 소모됩니다. 수락·AI 시작 시 부족하면 행동력 관리 창이 열립니다.",
+    "actionPointNotice": "대국 확정 시 양측에서 행동력 {{cost}}가 소모됩니다. 수락·AI 시작 시 부족하면 행동력 관리 창이 열립니다.",
     "titleAi": "{{prefix}}{{mode}} AI 대국 설정",
     "titleRematch": "{{prefix}}재대결 설정 ({{mode}})",
     "titleDefault": "{{prefix}}대국 설정 ({{mode}})",
     "cancel": "취소",
-    "start": "시작하기 (⚡{{cost}})",
-    "request": "대국 신청 (⚡{{cost}})",
+    "start": "시작하기",
+    "request": "대국 신청",
     "reject": "거절",
     "counter": "수정 제안",
-    "accept": "수락 (⚡{{cost}})",
+    "accept": "수락",
     "statusAi": "AI 대국 설정을 확인해주세요.",
     "statusDraft": "대국 설정을 확인하고 [대국 신청] 버튼을 누르세요.",
     "statusRespond": "상대방의 제안을 [수락] 또는 [수정 제안]하세요.",

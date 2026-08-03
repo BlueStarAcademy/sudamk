@@ -4,6 +4,7 @@ import { ServerAction, AdminProps, InventoryItemType, User } from '../../types/i
 import { ItemGrade, type MythicStat, type EquipmentSlot } from '../../types/enums.js';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
+import ActionPointIcon from '../ui/ActionPointIcon.js';
 import { PortalHoverBubble } from '../PortalHoverBubble.js';
 import { getApiUrl } from '../../utils/apiConfig.js';
 import {
@@ -121,7 +122,7 @@ interface ItemSelectionModalProps {
 
 type ModalSelectedItem = { name: string; type: InventoryItemType; grade?: ItemGrade };
 
-/** 상점 `ShopItemCard` 소모품 탭과 동일: ⚡ + 우상단 +N 배지 */
+/** 상점 `ShopItemCard` 소모품 탭과 동일: 우상단 +N 배지 */
 function actionPointPotionShopBadge(name: string): string | null {
     const m = name.match(/\+(\d+)/);
     return m ? `+${m[1]}` : null;
@@ -627,7 +628,10 @@ const MailSystemPanel: React.FC<MailSystemPanelProps> = ({ allUsers: _allUsers, 
 
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
                     <div>
-                        <label className="mb-1 block font-medium text-secondary">⚡ 행동력</label>
+                        <label className="mb-1 flex items-center gap-1 font-medium text-secondary">
+                            <ActionPointIcon size="xs" />
+                            행동력
+                        </label>
                         <input type="number" min={0} max={MAX_GAME_INTEGER_INPUT} value={actionPoints} onChange={(e) => setActionPoints(clampGameInt(parseInt(e.target.value, 10) || 0))} className={adminInput} />
                     </div>
                     <div>

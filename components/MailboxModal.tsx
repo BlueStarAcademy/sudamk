@@ -5,6 +5,7 @@ import Button from './Button.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useIsHandheldDevice } from '../hooks/useIsMobileLayout.js';
 import MailRewardItemTile from './MailRewardItemTile.js';
+import ActionPointIcon from './ui/ActionPointIcon.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
 import { CASH_SHOP_PACKAGE_KO_LABEL, type CashShopPackageId } from '../shared/constants/cashShopPackages.js';
 import { isMailRewardsClaimExpired, isMailRewardSettledForDeletion } from '../shared/utils/mailRewardsExpiry.js';
@@ -62,7 +63,8 @@ function renderAttachmentsBlock(m: Mail, t: TFunction<'mail'>, compact?: boolean
                         <div className="mb-3 flex flex-wrap gap-2 text-sm sm:mb-4 sm:gap-3">
                             {(m.attachments.actionPoints ?? 0) > 0 ? (
                                 <span className="inline-flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-950/30 px-2.5 py-1.5 text-[13px] font-medium text-emerald-200 sm:px-3 sm:py-2 sm:text-sm">
-                                    ⚡ {t('actionPoints', { count: m.attachments.actionPoints!.toLocaleString() })}
+                                    <ActionPointIcon size="sm" />
+                                    {t('actionPoints', { count: m.attachments.actionPoints!.toLocaleString() })}
                                 </span>
                             ) : null}
                             {(m.attachments.guildCoins ?? 0) > 0 ? (

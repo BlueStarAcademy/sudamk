@@ -32,6 +32,7 @@ import {
 import StrategicTimeControlFields from './game/StrategicTimeControlFields.js';
 import { AlkkagiPlacementType, AlkkagiLayoutType } from '../types';
 import Button from './Button';
+import { ActionPointLabelWithCost } from './ui/ActionPointIcon.js';
 import DraggableWindow from './DraggableWindow';
 import Avatar from './Avatar';
 import { useAppContext } from '../hooks/useAppContext';
@@ -1468,7 +1469,7 @@ const ChallengeSelectionModal: React.FC<ChallengeSelectionModalProps> = ({ oppon
                           }
                     }
                   >
-                    대국 신청 (⚡{actionPointCostDisplay})
+                    <ActionPointLabelWithCost label="대국 신청" cost={actionPointCostDisplay} />
                   </Button>
                 </>
               )}

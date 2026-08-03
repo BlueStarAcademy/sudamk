@@ -6,6 +6,7 @@ const towerTx = (key: string, opts?: Record<string, unknown>) => i18n.t(`tower:$
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useTowerRanking } from '../hooks/useTowerRanking.js';
 import Button from './Button.js';
+import ActionPointIcon from './ui/ActionPointIcon.js';
 import Avatar from './Avatar.js';
 import { RankPlaceMark } from './FantasyRankBadge.js';
 import { AVATAR_POOL, BORDER_POOL, CONSUMABLE_ITEMS } from '../constants';
@@ -501,15 +502,16 @@ const TowerLobby: React.FC<TowerLobbyProps> = ({ presentation = 'full' }) => {
                         type="button"
                         onClick={onChallengeClick}
                         disabled={!pcChallengeEnabled || isChallengingRef.current}
-                        aria-label={`${t('challenge')} ⚡${effectiveActionPointCost}`}
+                        aria-label={`${t('challenge')} ${effectiveActionPointCost}`}
                         className={`relative z-[1] flex h-12 w-12 shrink-0 flex-col items-center justify-center rounded-lg border-2 transition-all active:translate-y-px ${
                             pcChallengeEnabled
                                 ? 'border-amber-300/70 bg-gradient-to-b from-amber-400 via-amber-600 to-amber-900 text-white shadow-[inset_0_1px_0_rgba(255,255,255,0.35),0_4px_0_rgb(120,53,15),0_6px_14px_rgba(180,83,9,0.45)] hover:from-amber-300 hover:via-amber-500 hover:to-amber-800 hover:brightness-105'
                                 : 'cursor-not-allowed border-zinc-600/50 bg-gradient-to-b from-zinc-700 to-zinc-900 text-zinc-400 shadow-[inset_0_1px_0_rgba(255,255,255,0.06),0_3px_0_rgb(24,24,27)]'
                         }`}
                     >
-                        <span className="text-[11px] font-black leading-none tabular-nums">
-                            ⚡{effectiveActionPointCost}
+                        <span className="flex items-center gap-0.5 text-[11px] font-black leading-none tabular-nums">
+                            <ActionPointIcon size="xs" className="!h-3 !w-3" />
+                            {effectiveActionPointCost}
                         </span>
                         <span className="mt-0.5 text-[10px] font-extrabold leading-none tracking-tight">
                             {t('challenge')}

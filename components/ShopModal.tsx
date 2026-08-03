@@ -25,6 +25,7 @@ import {
 import { PAYMENT_PRODUCT_PRICE_KRW } from '../shared/constants/paymentProducts.js';
 import { VIP_SHOP_DURATION_DAYS, VIP_SHOP_PRODUCT_IDS } from '../shared/constants/vipShopProducts.js';
 import PurchaseQuantityModal from './PurchaseQuantityModal.js';
+import ActionPointIcon from './ui/ActionPointIcon.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useKSTCalendarDayTick } from '../hooks/useKSTCalendarDayTick.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -178,7 +179,7 @@ const ActionPointCard: React.FC<{ currentUser: UserWithStatus, onBuy: () => void
             <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-cyan-400/70 to-transparent pointer-events-none" />
             <div className="absolute inset-0 opacity-0 pointer-events-none transition-opacity duration-500 group-hover:opacity-20 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.3),transparent_55%)]" />
             <div className="w-24 h-24 bg-gradient-to-br from-[#14b8a6]/30 via-[#06b6d4]/20 to-transparent rounded-xl mb-4 flex items-center justify-center relative">
-                <span className="text-5xl text-cyan-300 drop-shadow-[0_0_18px_rgba(14,165,233,0.35)]">⚡</span>
+                <ActionPointIcon size="xl" variant="raster" className="!h-14 !w-14 drop-shadow-[0_0_18px_rgba(14,165,233,0.45)]" />
                 <span className="absolute bottom-2 right-2 text-2xl font-bold text-cyan-200 drop-shadow-[0_0_8px_rgba(14,165,233,0.5)]">{ACTION_POINT_PURCHASE_REFILL_AMOUNT}</span>
             </div>
             <h3 className="text-xl font-bold tracking-wide text-white drop-shadow-lg">{t('shop:actionPoint.title')}</h3>

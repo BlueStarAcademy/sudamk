@@ -2,6 +2,7 @@ import React from 'react';
 import { useTranslation } from 'react-i18next';
 import type { AdventureTreasureUserRewardSections } from '../../shared/utils/adventureMapTreasureRewards.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
+import ActionPointIcon from '../ui/ActionPointIcon.js';
 
 const GOLD_SRC = '/images/icon/Gold.webp';
 
@@ -70,9 +71,7 @@ const AdventureTreasureChestRewardSections: React.FC<Props> = ({ sections, compa
                     <section className={cell} aria-label={t('adventure.actionPointsRecoverAria', { points: sections.actionPoints })}>
                         <span className="sr-only">{t('adventure.actionPointsRecovery')}</span>
                         <div className="flex flex-1 flex-col items-center justify-center gap-1.5">
-                            <span className="text-3xl leading-none drop-shadow-md sm:text-[2rem]" aria-hidden>
-                                ⚡
-                            </span>
+                            <ActionPointIcon size="lg" variant="raster" className="!h-8 !w-8 sm:!h-9 sm:!w-9" />
                             <p className="bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text text-center font-mono text-sm font-black tabular-nums leading-none text-transparent">
                                 {t('adventure.recoverPoints', { points: sections.actionPoints })}
                             </p>
@@ -136,9 +135,7 @@ const AdventureTreasureChestRewardSections: React.FC<Props> = ({ sections, compa
                 >
                     <span className="sr-only">{t('adventure.actionPointsRecovery')}</span>
                     <div className="flex flex-1 flex-col items-center justify-center gap-1.5">
-                        <span className="text-[1.75rem] leading-none drop-shadow-md sm:text-[2rem]" aria-hidden>
-                            ⚡
-                        </span>
+                        <ActionPointIcon size="md" variant="raster" className="!h-7 !w-7 sm:!h-8 sm:!w-8" />
                         <p className="bg-gradient-to-r from-amber-200 via-yellow-100 to-amber-300 bg-clip-text text-center font-mono text-xs font-black tabular-nums leading-none text-transparent sm:text-[13px]">
                             {t('adventure.recoverPoints', { points: sections.actionPoints })}
                         </p>

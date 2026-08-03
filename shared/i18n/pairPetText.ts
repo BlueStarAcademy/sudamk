@@ -49,7 +49,7 @@ export function translatePairTrainingSlotName(slotIndex: number, t: TFunction): 
     return t(`pair:trainingSlots.${slotIndex}.name`, { defaultValue: fallback });
 }
 
-/** 모바일 수련 이름 레일 — `기술수련` → `기술`/`수련`, `Technique Training` → `Technique`/`Training` */
+/** 수련 이름 레일 — `기술수련` → `기술`/`수련`, `Technique Training` → `Technique`/`Training` */
 export function splitPairTrainingSlotNameLines(name: string): string[] {
     const trimmed = name.trim();
     if (!trimmed) return [];

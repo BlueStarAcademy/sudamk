@@ -8,7 +8,7 @@ import {
     LOBBY_CHANNEL_CAPACITY,
     LOBBY_CHANNEL_MIN,
 } from '../../shared/constants/lobbyChannel.js';
-import { resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
+import { resolveLobbyChannel, buildLobbyChannelStatusMap } from '../../shared/utils/lobbyChannel.js';
 import PlayerList from '../waiting-room/PlayerList.js';
 
 type UserScopeTab = 'channel' | 'friends' | 'guild';
@@ -47,16 +47,15 @@ const HomeViewerOnlineUsersColumn: React.FC<HomeViewerOnlineUsersColumnProps> = 
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
     }, [guildId, guildTotalMembers]);
 
-    const statusMap = useMemo(() => {
-        const map: Record<string, Pick<UserWithStatus, 'status' | 'lobbyChannel'> | undefined> = {};
-        for (const u of onlineUsers) {
-            if (u?.id) map[u.id] = u;
-        }
-        if (currentUserWithStatus?.id) {
-            map[currentUserWithStatus.id] = currentUserWithStatus;
-        }
-        return map;
-    }, [onlineUsers, currentUserWithStatus]);
+    const statusMap = useMemo(
+        () =>
+            buildLobbyChannelStatusMap({
+                users: onlineUsers,
+                viewer: currentUserWithStatus,
+                viewerChannel: myChannel,
+            }),
+        [onlineUsers, currentUserWithStatus, myChannel],
+    );
 
     const liveSameChannelUsers = useMemo(() => {
         if (!currentUserWithStatus) return [] as UserWithStatus[];

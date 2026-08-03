@@ -23,6 +23,7 @@ import {
     formatAiRematchFooterLabel,
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
+import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 import { MoveConfirmFooterReservePlaceholder, MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
     arenaGameRoomControlsAdminBarClass,
@@ -1997,10 +1998,16 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             className={endedIngameRowBtn('min-w-0 truncate')}
                             disabled={blockPostGameFooter || !canTryNextStage}
                         >
-                            {formatSinglePlayerNextFooterLabel(nextStage, canTryNextStage, nextStageActionPointCost)}
+                            <ActionPointLabelWithCost
+                                label={formatSinglePlayerNextFooterLabel(nextStage, canTryNextStage, nextStageActionPointCost)}
+                                cost={canTryNextStage && nextStageActionPointCost > 0 ? nextStageActionPointCost : null}
+                            />
                         </Button>
                         <Button bare onClick={handleRetry} colorScheme="none" className={endedIngameRowBtn()} disabled={blockPostGameFooter}>
-                            {formatArenaRetryLabel(retryActionPointCost)}
+                            <ActionPointLabelWithCost
+                                label={formatArenaRetryLabel(retryActionPointCost)}
+                                cost={retryActionPointCost > 0 ? retryActionPointCost : null}
+                            />
                         </Button>
                         {isPvpRematchEligible && (
                             <Button
@@ -2031,7 +2038,15 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                                 className={endedIngameRowBtn()}
                                 disabled={blockPostGameFooter}
                             >
-                                {formatAiRematchFooterLabel(aiLobbyRematchActionPointCostLabel)}
+                                <ActionPointLabelWithCost
+                                    label={formatAiRematchFooterLabel(aiLobbyRematchActionPointCostLabel)}
+                                    cost={
+                                        typeof aiLobbyRematchActionPointCostLabel === 'number' &&
+                                        aiLobbyRematchActionPointCostLabel > 0
+                                            ? aiLobbyRematchActionPointCostLabel
+                                            : null
+                                    }
+                                />
                             </Button>
                         )}
                         <Button bare onClick={handleCloseResults} colorScheme="none" className={endedIngameLobbyLeaveRowBtn()} disabled={blockPostGameFooter}>
@@ -2354,7 +2369,15 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             className={endedIngameRowBtn()}
                             disabled={blockPostGameFooter}
                         >
-                            {formatAiRematchFooterLabel(aiLobbyRematchActionPointCostLabel)}
+                            <ActionPointLabelWithCost
+                                label={formatAiRematchFooterLabel(aiLobbyRematchActionPointCostLabel)}
+                                cost={
+                                    typeof aiLobbyRematchActionPointCostLabel === 'number' &&
+                                    aiLobbyRematchActionPointCostLabel > 0
+                                        ? aiLobbyRematchActionPointCostLabel
+                                        : null
+                                }
+                            />
                         </Button>
                     )}
                     {onLeaveOrResign && (

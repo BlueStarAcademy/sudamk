@@ -169,13 +169,23 @@ export const PET_MGMT_TR_PET_IMG_MOBILE_CLASS = 'h-[3rem] w-[3rem] shrink-0 roun
 export const PET_MGMT_TR_SLOT_ROW_CLASS = 'flex min-w-0 flex-row items-stretch gap-1';
 
 export const PET_MGMT_TR_SLOT_NAME_RAIL_CLASS =
-    'flex w-[3rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch px-0.5 text-center';
+    'flex w-[3.25rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch px-0.5 text-center';
 
 export const PET_MGMT_TR_SLOT_NAME_RAIL_MOBILE_CLASS =
-    'flex w-[2.75rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch px-0.5 text-center';
+    'flex w-[3rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch px-0.5 text-center';
 
 export const PET_MGMT_TR_SLOT_NAME_TEXT_CLASS =
     'w-full break-keep text-center font-semibold leading-tight whitespace-normal';
+
+/** 수련 슬롯 타이틀 — 마커처럼 테두리·배경으로 감싼 라벨 (PC/모바일 공통) */
+export const PET_MGMT_TR_SLOT_NAME_MARKER_CLASS =
+    'inline-flex w-full flex-col items-center justify-center rounded-md border px-0.5 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]';
+
+export const PET_MGMT_TR_SLOT_NAME_MARKER_VIP_CLASS =
+    `${PET_MGMT_TR_SLOT_NAME_MARKER_CLASS} border-amber-400/55 bg-amber-500/25`;
+
+export const PET_MGMT_TR_SLOT_NAME_MARKER_DEFAULT_CLASS =
+    `${PET_MGMT_TR_SLOT_NAME_MARKER_CLASS} border-violet-400/50 bg-violet-500/20`;
 
 export const PET_MGMT_TR_SLOT_DROP_CLASS =
     'flex h-[6.75rem] w-[6.75rem] shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed p-1';

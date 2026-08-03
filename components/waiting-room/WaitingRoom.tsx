@@ -38,6 +38,8 @@ import { WAITING_LOBBY_PANEL_GLASS } from './WaitingLobbyAnnouncementBoard.js';
 import { userInUnifiedArenaLobbyUserList, normalizeStaleArenaLobbyUserStatus } from './aggregateWaitingLobbyUserFilter.js';
 import { sumLobbyAiMatchRecordFromStats } from '../../shared/utils/lobbyAiMatchRecord.js';
 import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
+import { LOBBY_CHANNEL_MIN } from '../../shared/constants/lobbyChannel.js';
+import { buildLobbyChannelStatusMap, resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
 import { useTranslation } from 'react-i18next';
 import { useLocalizedGameMode } from '../../shared/i18n/localizedCatalog.js';
 
@@ -281,6 +283,16 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
     }
     return usersInThisRoom;
   }, [mode, usersInThisRoom, waitingUserListScope, currentUserWithStatus.id, currentUserWithStatus.guildId, friendIdsSet]);
+
+  const lobbyChannelStatusMap = useMemo(
+    () =>
+      buildLobbyChannelStatusMap({
+        users: onlineUsers,
+        viewer: currentUserWithStatus,
+        viewerChannel: resolveLobbyChannel(currentUserWithStatus) ?? LOBBY_CHANNEL_MIN,
+      }),
+    [onlineUsers, currentUserWithStatus],
+  );
 
   const waitingRoomTitle =
     mode === 'strategic'
@@ -546,6 +558,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         pairAlignedNativeCompact
                         listScopeTabs={waitingUserScopeTabs}
                         showArenaPartnerInviteBlockToggle
+                        lobbyChannelStatusMap={lobbyChannelStatusMap}
                       />
                     </div>
                   </div>
@@ -750,6 +763,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         userCount={playersForListPanel.length}
                         listScopeTabs={waitingUserScopeTabs}
                         showArenaPartnerInviteBlockToggle
+                        lobbyChannelStatusMap={lobbyChannelStatusMap}
                       />
                     </div>
                   </div>
@@ -860,6 +874,7 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
                         lobbyType={isStrategic ? 'strategic' : 'playful'}
                         userCount={usersInThisRoom.length}
                         showArenaPartnerInviteBlockToggle
+                        lobbyChannelStatusMap={lobbyChannelStatusMap}
                       />
                     </div>
                   </div>

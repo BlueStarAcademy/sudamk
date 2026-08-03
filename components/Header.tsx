@@ -18,6 +18,7 @@ import { ACTION_POINT_REGEN_INTERVAL_MS } from '../constants/rules.js';
 import { isInsideSudamrAdUi } from '../constants/ads.js';
 import { useAppUserSlice, useAppUiSlice, useAppRouteSlice } from '../hooks/useAppSlices.js';
 import { resourceIcons, ResourceIconKey, specialResourceIcons, SpecialResourceIconKey } from './resourceIcons.js';
+import ActionPointIcon from './ui/ActionPointIcon.js';
 import ChampionshipVersusDuelTicketCountdown from './ChampionshipVersusDuelTicketCountdown.js';
 import LiveCountdownToMs from './LiveCountdownToMs.js';
 import { computeChampionshipVersusDuelTicketStateForVenue } from '../shared/utils/championshipVersusDuelTickets.js';
@@ -574,11 +575,10 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                                       : 'gap-0.5 text-sm sm:gap-1 sm:text-base'
                             }`}
                         >
-                            <span
-                                className={`leading-none ${isMobile ? 'text-[clamp(0.85rem,calc(0.65rem+2vw),1.05rem)]' : 'text-base'}`}
-                            >
-                                ⚡
-                            </span>
+                            <ActionPointIcon
+                                size="sm"
+                                className={isMobile ? '!h-[clamp(0.85rem,calc(0.65rem+2vw),1.05rem)] !w-[clamp(0.85rem,calc(0.65rem+2vw),1.05rem)]' : ''}
+                            />
                             {`${safeActionPoints.current}/${safeActionPoints.max}`}
                         </span>
                         <ActionPointTimer user={currentUserWithStatus} mobile={isMobile} />

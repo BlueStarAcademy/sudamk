@@ -185,7 +185,7 @@ function rollStrategicPetHintBonus(petLevel: number): BonusReward {
     }
     if (category.kind === 'actionPoints') {
         const amount = 1;
-        return { kind: 'actionPoints', amount, label: `⚡${amount}` };
+        return { kind: 'actionPoints', amount, label: `행동력 ${amount}` };
     }
     const amount = 1;
     return { kind: 'diamonds', amount, label: `다이아 ${amount}` };

@@ -28,6 +28,7 @@ import { formatSinglePlayerStageShortName } from '../../utils/singlePlayerStageD
 import { useMapViewport } from '../../hooks/useMapViewport.js';
 import StageClearRewardPreview from '../rewards/StageClearRewardPreview.js';
 import Button from '../Button.js';
+import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 
 const PREMIUM_STAGE_ENTER_CLASS =
     'w-full !rounded-lg !border !border-amber-300/50 !bg-gradient-to-b !from-amber-400/90 !via-amber-800 !to-amber-950 !py-2 !text-sm !font-bold !tracking-wide !text-amber-50 !shadow-[0_3px_14px_rgba(245,158,11,0.35),inset_0_1px_0_rgba(255,255,255,0.2)] hover:!brightness-110 active:!scale-[0.98] disabled:!cursor-not-allowed disabled:!opacity-45 disabled:!grayscale';
@@ -560,7 +561,7 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
                                 disabled={!hasEnoughAP}
                                 title={t('singleplayer.enterStageTitle', { cost })}
                             >
-                                {t('singleplayer.enterStage', { cost })}
+                                <ActionPointLabelWithCost label={t('singleplayer.enterStage')} cost={cost} />
                             </Button>
                         </div>
                     </div>

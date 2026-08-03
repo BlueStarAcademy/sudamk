@@ -26,6 +26,7 @@ import {
     PAIR_LOBBY_DENSE_SETTING_VALUE_READONLY_CLASS,
 } from '../../shared/constants/pairLobbyDenseSettingFieldLayout.js';
 import { LobbyHorizontalModePickerScroll } from '../waiting-room/LobbyHorizontalModePickerScroll.js';
+import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 import { getCurrentSeason } from '../../utils/timeUtils.js';
 import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
@@ -538,7 +539,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                         isHandheld ? 'py-2.5 text-sm' : 'py-3 text-base'
                     }`}
                 >
-                    {t('rankedMatch.queueWithAp', { cost: displayedQueueApCost })}
+                    <ActionPointLabelWithCost label={t('rankedMatch.matchQueue')} cost={displayedQueueApCost} />
                 </Button>
             </div>
         </div>
@@ -619,7 +620,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                     presentation === 'embedded' ? '!w-full flex-1' : '!w-auto flex-[1.22]'
                                 }`}
                             >
-                                {t('rankedMatch.queueWithAp', { cost: displayedQueueApCost })}
+                                <ActionPointLabelWithCost label={t('rankedMatch.matchQueue')} cost={displayedQueueApCost} />
                             </Button>
                         </div>
                     </div>
@@ -819,7 +820,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                     onClick={() => void onQueue(selected)}
                                     className="min-w-[min(100%,14rem)] rounded-xl border border-amber-400/60 bg-gradient-to-b from-amber-600/90 to-amber-950/95 px-4 py-2.5 text-sm font-extrabold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:min-w-[16rem] sm:py-3 sm:text-base"
                                 >
-                                    {t('rankedMatch.queueWithAp', { cost: displayedQueueApCost })}
+                                    <ActionPointLabelWithCost label={t('rankedMatch.matchQueue')} cost={displayedQueueApCost} />
                                 </Button>
                             )}
                         </div>

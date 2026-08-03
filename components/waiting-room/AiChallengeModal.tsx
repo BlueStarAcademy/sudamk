@@ -8,6 +8,7 @@ import { useNativeMobileShell } from '../../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../../constants/ads.js';
 import { GameMode, ServerAction, GameSettings, Player, AlkkagiPlacementType, User } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, DEFAULT_GAME_SETTINGS, STRATEGIC_ACTION_POINT_COST, filterPlayableLobbyGameModes, isPlayableLobbyGameMode } from '../../constants';
+import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 import { useLocalizedLobbyGameModes } from '../../shared/i18n/localizedCatalog.js';
 import { 
   BOARD_SIZES, TIME_LIMITS, BYOYOMI_COUNTS, BYOYOMI_TIMES, CAPTURE_BOARD_SIZES, 
@@ -59,8 +60,10 @@ import { stableStringify } from '../../utils/appUtils.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import {
     baseAiLobbyActionPointCostForModeAndSettings,
+    basePvpActionPointCostForMode,
     effectiveAiLobbyApCostForUser,
     effectivePairAiLobbyApCostForUser,
+    effectivePvpEntryApCostForUser,
     formatActionPointCostWithPetDiscount,
     type PairPetArenaApLobbyChannel,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
@@ -761,6 +764,12 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
     const actionPointCostDisplay = useMemo(() => {
         if (!selectedGameMode) return String(STRATEGIC_ACTION_POINT_COST);
+        if (startActionType === 'PAIR_START_MATCH') {
+            const base = basePvpActionPointCostForMode(selectedGameMode);
+            if (!appCurrentUser) return String(base);
+            const eff = effectivePvpEntryApCostForUser(appCurrentUser as User, selectedGameMode, aiApLobbyChannel);
+            return formatActionPointCostWithPetDiscount(base, eff);
+        }
         const base = baseAiLobbyActionPointCostForModeAndSettings(selectedGameMode, settings);
         if (!appCurrentUser) return String(base);
         const eff =
@@ -2448,7 +2457,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 disabled={!selectedGameMode || submitDisabled}
                 className="min-h-[2.85rem] w-full rounded-xl border border-emerald-400/55 bg-gradient-to-r from-emerald-900/70 via-emerald-800/65 to-teal-900/60 px-5 py-2.5 text-sm font-extrabold text-emerald-50 shadow-[0_8px_24px_-8px_rgba(16,185,129,0.55),inset_0_1px_0_rgba(255,255,255,0.12)] sm:min-h-[3rem] sm:text-base disabled:cursor-not-allowed disabled:opacity-45"
             >
-                {showActionPointCost ? `${resolvedSubmitLabel} (⚡${actionPointCostDisplay})` : submitLabel}
+                {showActionPointCost ? (
+                    <ActionPointLabelWithCost label={resolvedSubmitLabel} cost={actionPointCostDisplay} />
+                ) : (
+                    submitLabel
+                )}
             </Button>
         </div>
     );
@@ -2457,9 +2470,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         ? 'relative flex min-h-0 min-w-0 flex-1 flex-col gap-1.5 overflow-hidden p-1.5 sm:gap-2 sm:p-2'
         : `${standaloneLobbyFrameClass} relative flex min-h-0 max-h-[min(94dvh,880px)] flex-1 flex-col gap-2 overflow-hidden p-2 sm:gap-2.5 sm:p-2.5`;
 
-    const mobileWizardStartButtonLabel = showActionPointCost
-        ? `${resolvedSubmitLabel} (⚡${actionPointCostDisplay})`
-        : submitLabel;
+    const mobileWizardStartButtonLabel = showActionPointCost ? (
+        <ActionPointLabelWithCost label={resolvedSubmitLabel} cost={actionPointCostDisplay} />
+    ) : (
+        submitLabel
+    );
 
     const stackedInlineBody = (
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
@@ -2698,7 +2713,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                                             disabled={!selectedGameMode}
                                             className="min-h-[2.75rem] rounded-xl border border-emerald-400/50 bg-emerald-900/55 px-5 py-2.5 text-sm font-extrabold text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)] sm:min-h-[2.85rem] sm:text-base disabled:cursor-not-allowed disabled:opacity-45"
                                         >
-                                            {showActionPointCost ? `${resolvedSubmitLabel} (⚡${actionPointCostDisplay})` : submitLabel}
+                                            {showActionPointCost ? (
+                                                <ActionPointLabelWithCost label={resolvedSubmitLabel} cost={actionPointCostDisplay} />
+                                            ) : (
+                                                submitLabel
+                                            )}
                                         </Button>
                                     </div>
                                 ) : null}

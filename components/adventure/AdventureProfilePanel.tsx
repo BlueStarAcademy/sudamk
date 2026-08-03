@@ -348,12 +348,12 @@ const AdventureProfilePanel: React.FC<{
         <div className={`flex min-h-0 w-full min-w-0 flex-col ${blockGap}`}>
             {adventureHuntingStatsPanel}
             {adventureBattleRecordPanel}
-            <div className="relative z-[1] w-full min-w-0 shrink-0">{topHuntedMonsterPanel}</div>
         </div>
     );
 
     const understandingTabContent = (
         <div className={`flex min-h-0 w-full min-w-0 flex-col ${blockGap}`}>
+            <div className="relative z-[1] w-full min-w-0 shrink-0">{topHuntedMonsterPanel}</div>
             <div
                 className={`w-full min-w-0 rounded-xl border border-white/8 bg-black/25 ${
                     embedded || mobileOneScreen

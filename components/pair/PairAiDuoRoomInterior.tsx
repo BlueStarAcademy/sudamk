@@ -51,7 +51,7 @@ export type PairAiDuoRoomInteriorProps = {
     editRoomDisabled?: boolean;
     onStartAi?: () => void;
     startAiDisabled?: boolean;
-    startAiLabel?: string;
+    startAiLabel?: React.ReactNode;
 };
 
 const PairAiDuoRoomInterior: React.FC<PairAiDuoRoomInteriorProps> = ({

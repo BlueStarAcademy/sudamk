@@ -139,7 +139,7 @@ export function trainingSoulBonusQuantityFromMeta(meta: Pick<PairPetMeta, 'speci
 
 /**
  * 버튼·푸터 등: 실제 소모량 + 대표 펫 할인 표기. 예: 기본 3·실제 2 → `2 (-1)`.
- * (⚡ 접두는 호출부에서 붙인다)
+ * (행동력 비용 표기는 호출부에서 ActionPointIcon으로 표시)
  */
 export function formatActionPointCostWithPetDiscount(baseCost: number, effectiveCost: number): string {
     const base = Number(baseCost);

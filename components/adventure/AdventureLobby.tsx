@@ -22,9 +22,9 @@ import {
     type AdventureChapterUnlockContext,
 } from '../../utils/adventureChapterUnlock.js';
 
-/** 우측 챕터 뷰어를 꽉 채우는 2열·3행 그리드 */
+/** 우측 챕터 뷰어: 가로 1열(한 줄에 챕터 1개) · 세로 스크롤 */
 const ADVENTURE_CHAPTER_GRID_DESKTOP =
-    'grid h-full min-h-0 w-full grid-cols-2 grid-rows-3 gap-2.5 overflow-hidden lg:gap-3 [&>*]:min-h-0 [&>*]:min-w-0';
+    'flex h-full min-h-0 w-full flex-col gap-2.5 overflow-y-auto overscroll-contain lg:gap-3 [&>*]:shrink-0';
 
 /** 모바일: 챕터 카드 가로 1열 · 세로 스크롤 */
 const ADVENTURE_CHAPTER_LIST_MOBILE =
@@ -152,13 +152,11 @@ const AdventureLobby: React.FC<AdventureLobbyProps> = ({ presentation = 'full' }
                         return (
                             <li
                                 key={stage.id}
-                                className={`min-h-0 min-w-0 overflow-hidden ${
-                                    mobileScrollableList ? 'flex flex-col' : 'flex h-full min-h-0 flex-col'
-                                }`}
+                                className="flex min-h-0 min-w-0 flex-col overflow-hidden"
                             >
                                 <div
                                     className={`group flex w-full min-w-0 flex-col overflow-hidden rounded-xl border text-left shadow-[0_18px_44px_-22px_rgba(0,0,0,0.92)] ring-1 transition-[border-color,box-shadow,filter] duration-200 sm:rounded-2xl ${ringClass} ${
-                                        mobileScrollableList ? 'min-h-[8.75rem]' : 'h-full min-h-0'
+                                        mobileScrollableList ? 'min-h-[8.75rem]' : 'min-h-[9.5rem] sm:min-h-[10.5rem]'
                                     } ${
                                         unlocked
                                             ? 'border-white/14 hover:border-amber-400/30 hover:shadow-[0_22px_52px_-22px_rgba(251,191,36,0.2)]'
@@ -182,18 +180,16 @@ const AdventureLobby: React.FC<AdventureLobbyProps> = ({ presentation = 'full' }
                                               })
                                     }
                                     className={`m-0 flex w-full min-w-0 flex-col overflow-hidden border-0 bg-transparent p-0 text-left transition-[filter] duration-200 ${
-                                        mobileScrollableList ? '' : 'min-h-0 flex-1'
-                                    } ${
                                         unlocked
                                             ? 'cursor-pointer group-hover:brightness-[1.02]'
                                             : 'cursor-not-allowed'
                                     }`}
                                 >
                                     <div
-                                        className={`relative overflow-hidden ${
+                                        className={`relative shrink-0 overflow-hidden ${
                                             mobileScrollableList
-                                                ? 'h-[5.25rem] min-h-[5rem] shrink-0'
-                                                : 'min-h-0 flex-1'
+                                                ? 'h-[5.25rem] min-h-[5rem]'
+                                                : 'h-[6rem] min-h-[5.5rem] sm:h-[7rem]'
                                         }`}
                                     >
                                         <img

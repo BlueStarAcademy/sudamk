@@ -17,6 +17,7 @@ import {
 } from '../constants.js';
 import { audioService } from '../services/audioService.js';
 import Button from './Button.js';
+import { ActionPointLabelWithCost } from './ui/ActionPointIcon.js';
 import DraggableWindow from './DraggableWindow.js';
 import Avatar from './Avatar.js';
 import { useAppContext } from '../hooks/useAppContext.js';
@@ -332,7 +333,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                     {tCommon('actions.cancel')}
                 </Button>
                 <Button onClick={tryStartAiGame} colorScheme="none" className={`${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide`}>
-                    {t('start', { cost: actionPointCostDisplay })}
+                    <ActionPointLabelWithCost label={t('start')} cost={actionPointCostDisplay} />
                 </Button>
             </div>
         );
@@ -351,7 +352,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
             colorScheme="none"
             className={`${PRE_GAME_MODAL_PRIMARY_BTN_CLASS} shrink-0 !font-semibold !tracking-wide ${isMixModeInvalid ? '!cursor-not-allowed !opacity-45' : ''}`}
           >
-            {t('request', { cost: actionPointCostDisplay })}
+            <ActionPointLabelWithCost label={t('request')} cost={actionPointCostDisplay} />
           </Button>
         </div>
       );
@@ -385,7 +386,7 @@ const NegotiationModal: React.FC<NegotiationModalProps> = (props) => {
                   : `${PRE_GAME_MODAL_SUCCESS_BTN_CLASS} ${flexThird} !font-semibold !tracking-wide`
               }
             >
-                {t('accept', { cost: actionPointCostDisplay })}
+                <ActionPointLabelWithCost label={t('accept')} cost={actionPointCostDisplay} />
             </Button>
         </div>
       );

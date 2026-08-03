@@ -27,6 +27,7 @@ import {
     formatArenaRetryLabel,
     formatTowerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
+import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 import {
     arenaGameRoomControlsDividerClass,
     arenaGameRoomIngameBottomBarShellClass,
@@ -293,7 +294,10 @@ const TowerControls: React.FC<TowerControlsProps> = ({
                         className={`${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} min-w-0 truncate`}
                         disabled={blockPostGameFooter || !canTryNext}
                     >
-                        {formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorApCost)}
+                        <ActionPointLabelWithCost
+                            label={formatTowerNextFooterLabel(nextFloor, canTryNext, effectiveNextFloorApCost)}
+                            cost={canTryNext && effectiveNextFloorApCost > 0 ? effectiveNextFloorApCost : null}
+                        />
                     </Button>
                     <Button
                         bare
@@ -302,7 +306,11 @@ const TowerControls: React.FC<TowerControlsProps> = ({
                         className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
                         disabled={blockPostGameFooter}
                     >
-                        {formatArenaRetryLabel(effectiveRetryApCost)}
+                        <ActionPointLabelWithCost
+                            label={formatArenaRetryLabel(effectiveRetryApCost)}
+                            cost={effectiveRetryApCost > 0 ? effectiveRetryApCost : null}
+                            showWhenZero
+                        />
                     </Button>
                     <Button
                         bare

@@ -30,6 +30,7 @@ import {
     type AdventureChapterUnlockContext,
 } from '../../utils/adventureChapterUnlock.js';
 import Button from '../Button.js';
+import ActionPointIcon from '../ui/ActionPointIcon.js';
 import { GameMode } from '../../shared/types/enums.js';
 import {
     adventureMapMsUntilNextAppearance,
@@ -990,7 +991,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                                 {t('adventure.attack')}
                                                             </span>
                                                             <span className="flex items-center gap-1 rounded-lg border border-amber-300/25 bg-black/40 px-2.5 py-1 text-base font-black tabular-nums text-amber-100 shadow-inner sm:px-3 sm:text-lg">
-                                                                <span aria-hidden>⚡</span>
+                                                                <ActionPointIcon size="sm" />
                                                                 <span>{selectionDetails.apCost}</span>
                                                             </span>
                                                         </span>
@@ -1141,17 +1142,17 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             <div className="flex items-center justify-between gap-2 border-b border-white/10 px-4 py-3 sm:px-5">
                                 <h2
                                     id="adventure-roster-modal-title"
-                                    className="flex min-w-0 flex-1 items-center gap-2 truncate text-sm font-black text-amber-100 sm:text-base"
+                                    className="flex min-w-0 flex-1 items-center gap-2 truncate text-base font-black text-amber-50 sm:text-lg"
                                 >
                                     {rosterModalIsTreasure ? (
-                                        <span className="min-w-0 flex-1 truncate text-sm font-black tracking-tight text-amber-100 sm:text-base">
+                                        <span className="min-w-0 flex-1 truncate text-base font-black tracking-tight text-amber-50 sm:text-lg">
                                             {t('adventure.treasureChestTitle', { title: stage.title })}
                                         </span>
                                     ) : (
                                         <>
                                             <span className="min-w-0 truncate">{rosterModalRow?.name}</span>
                                             {rosterModalRow && isAdventureChapterBossCodexId(rosterModalRow.codexId) ? (
-                                                <span className="shrink-0 rounded border border-amber-400/45 bg-amber-500/15 px-1.5 py-px text-[9px] font-black uppercase tracking-wider text-amber-100 sm:text-[10px]">
+                                                <span className="shrink-0 rounded border border-amber-400/50 bg-amber-500/20 px-1.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-amber-50 sm:text-xs">
                                                     {t('adventure.boss')}
                                                 </span>
                                             ) : null}
@@ -1161,7 +1162,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 {rosterModalIsTreasure ? (
                                     <button
                                         type="button"
-                                        className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-zinc-200 transition hover:bg-white/10 active:scale-[0.98]"
+                                        className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-bold text-zinc-50 transition hover:bg-white/15 active:scale-[0.98]"
                                         onClick={() => setRosterModalCodexId(null)}
                                     >
                                         {t('common:actions.close')}
@@ -1169,7 +1170,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                 ) : (
                                     <button
                                         type="button"
-                                        className="shrink-0 rounded-lg border border-white/15 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-zinc-200 transition hover:bg-white/10"
+                                        className="shrink-0 rounded-lg border border-white/20 bg-white/10 px-3 py-1.5 text-sm font-bold text-zinc-50 transition hover:bg-white/15"
                                         onClick={() => setRosterModalCodexId(null)}
                                     >
                                         {t('common:actions.close')}
@@ -1178,7 +1179,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                             </div>
                             <div className="space-y-5 p-5 sm:p-6">
                                 {!rosterModalIsTreasure ? (
-                                    <p className="text-center text-sm sm:text-base">
+                                    <p className="text-center text-base sm:text-lg">
                                         <span className={`${rosterModalRightClass}`}>{rosterModalRightSlot}</span>
                                     </p>
                                 ) : null}
@@ -1213,11 +1214,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             <div
                                                 className={`flex min-h-[2.25rem] shrink-0 flex-col items-center justify-center gap-0.5 bg-gradient-to-b px-1.5 py-1.5 ${rosterModalInstanceDetails.chapterUi.nameBarClass}`}
                                             >
-                                                <p className="line-clamp-2 text-center text-[11px] font-black leading-tight text-amber-50 sm:text-xs">
+                                                <p className="line-clamp-2 text-center text-xs font-black leading-tight text-amber-50 sm:text-sm">
                                                     {rosterModalInstanceDetails.codexRow?.name ?? rosterModalInstance.speciesName}
                                                 </p>
                                                 {rosterModalInstanceDetails.isBoss ? (
-                                                    <span className="rounded border border-amber-400/40 bg-black/50 px-1 py-px text-[7px] font-black uppercase tracking-wider text-amber-100 sm:text-[8px]">
+                                                    <span className="rounded border border-amber-400/50 bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-50 sm:text-[11px]">
                                                         {t('adventure.boss')}
                                                     </span>
                                                 ) : null}
@@ -1235,34 +1236,34 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                 />
                                             </div>
                                         </div>
-                                        <div className="min-w-0 flex-1 space-y-2">
+                                        <div className="min-w-0 flex-1 space-y-2.5">
                                             <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
-                                                <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">{t('adventure.battle')}</span>
+                                                <span className="text-sm font-bold text-zinc-200 sm:text-base">{t('adventure.battle')}</span>
                                                 <div className="flex flex-wrap items-center justify-end gap-2">
-                                                    <span className="rounded-md border border-amber-400/35 bg-amber-500/15 px-2 py-0.5 font-mono text-[11px] font-black tabular-nums text-amber-100 sm:text-xs">
+                                                    <span className="rounded-md border border-amber-400/45 bg-amber-500/20 px-2.5 py-1 font-mono text-sm font-black tabular-nums text-amber-50 sm:text-base">
                                                         LV{rosterModalInstance.level}
                                                     </span>
-                                                    <span className="text-xs font-bold text-fuchsia-100/95 sm:text-sm">
+                                                    <span className="text-sm font-bold text-fuchsia-50 sm:text-base">
                                                         {getAdventureMonsterModeLabel(t, rosterModalInstance.mode)}
                                                     </span>
                                                 </div>
                                             </div>
-                                            <div className="rounded-lg border border-white/10 bg-black/35 px-2.5 py-2">
+                                            <div className="rounded-lg border border-white/12 bg-black/40 px-3 py-2.5">
                                                 <div className="flex items-center justify-between gap-2">
-                                                    <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">{t('adventure.comprehensionLevel')}</span>
-                                                    <span className="font-mono text-xs font-bold tabular-nums text-cyan-200 sm:text-sm">
+                                                    <span className="text-sm font-bold text-zinc-200 sm:text-base">{t('adventure.comprehensionLevel')}</span>
+                                                    <span className="font-mono text-sm font-bold tabular-nums text-cyan-100 sm:text-base">
                                                         Lv.{rosterModalComprehensionLevel}
                                                     </span>
                                                 </div>
                                                 <div className="mt-1.5 flex items-center justify-between gap-2">
-                                                    <span className="text-[11px] font-semibold text-zinc-500 sm:text-xs">{t('adventure.comprehensionXpLabel')}</span>
-                                                    <span className="font-mono text-[11px] font-bold tabular-nums text-zinc-300 sm:text-xs">
+                                                    <span className="text-sm font-bold text-zinc-200 sm:text-base">{t('adventure.comprehensionXpLabel')}</span>
+                                                    <span className="font-mono text-sm font-bold tabular-nums text-zinc-100 sm:text-base">
                                                         {rosterModalComprehensionProgress.nextAt != null
                                                             ? `${rosterModalCodexWins}/${rosterModalComprehensionProgress.nextAt}`
                                                             : t('adventure.comprehensionXpMaxShort', { wins: rosterModalCodexWins })}
                                                     </span>
                                                 </div>
-                                                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
+                                                <div className="mt-2 h-2 overflow-hidden rounded-full bg-zinc-800/95 ring-1 ring-inset ring-black/40">
                                                     <div
                                                         className="h-full rounded-full bg-gradient-to-r from-cyan-500 via-sky-500 to-indigo-400 transition-all duration-500"
                                                         style={{
@@ -1271,9 +1272,9 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                     />
                                                 </div>
                                             </div>
-                                            <ul className="space-y-1.5 text-[13px] font-medium leading-snug text-zinc-100 sm:text-sm">
+                                            <ul className="space-y-1.5 text-sm font-semibold leading-snug text-zinc-50 sm:text-base">
                                                 {rosterModalInstanceDetails.quickLines.map((line, i) => (
-                                                    <li key={`${i}-${line}`} className="border-b border-white/[0.06] pb-1.5 last:border-0 last:pb-0">
+                                                    <li key={`${i}-${line}`} className="border-b border-white/[0.08] pb-1.5 last:border-0 last:pb-0">
                                                         {line}
                                                     </li>
                                                 ))}
@@ -1290,11 +1291,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                     className="pointer-events-none absolute inset-0 bg-gradient-to-r from-transparent via-white/[0.07] to-transparent opacity-0 transition-opacity duration-300 group-hover:opacity-100"
                                                 />
                                                 <span className="relative z-[1] flex w-full items-center justify-between gap-3">
-                                                    <span className="text-left text-sm font-black tracking-wide text-amber-50 drop-shadow-sm sm:text-[0.95rem]">
+                                                    <span className="text-left text-base font-black tracking-wide text-amber-50 drop-shadow-sm sm:text-lg">
                                                         {t('adventure.attack')}
                                                     </span>
-                                                    <span className="flex items-center gap-1 rounded-lg border border-amber-300/25 bg-black/40 px-2.5 py-1 text-base font-black tabular-nums text-amber-100 shadow-inner sm:px-3 sm:text-lg">
-                                                        <span aria-hidden>⚡</span>
+                                                    <span className="flex items-center gap-1 rounded-lg border border-amber-300/25 bg-black/40 px-2.5 py-1 text-lg font-black tabular-nums text-amber-50 shadow-inner sm:px-3 sm:text-xl">
+                                                        <ActionPointIcon size="sm" />
                                                         <span>{rosterModalInstanceDetails.apCost}</span>
                                                     </span>
                                                 </span>
@@ -1311,11 +1312,11 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             <div
                                                 className={`flex min-h-[2.25rem] shrink-0 flex-col items-center justify-center gap-0.5 bg-gradient-to-b px-1.5 py-1.5 ${rosterModalStaticPreview.chapterUi.nameBarClass}`}
                                             >
-                                                <p className="line-clamp-2 text-center text-[11px] font-black leading-tight text-amber-50 sm:text-xs">
+                                                <p className="line-clamp-2 text-center text-xs font-black leading-tight text-amber-50 sm:text-sm">
                                                     {rosterModalRow!.name}
                                                 </p>
                                                 {rosterModalStaticPreview.isBoss ? (
-                                                    <span className="rounded border border-amber-400/40 bg-black/50 px-1 py-px text-[7px] font-black uppercase tracking-wider text-amber-100 sm:text-[8px]">
+                                                    <span className="rounded border border-amber-400/50 bg-black/55 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-50 sm:text-[11px]">
                                                         {t('adventure.boss')}
                                                     </span>
                                                 ) : null}
@@ -1330,25 +1331,25 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                             </div>
                                         </div>
                                         <div className="min-w-0 flex-1 space-y-2.5">
-                                            <p className="text-[13px] leading-relaxed text-zinc-300 sm:text-sm">{rosterModalRow!.codexDescription}</p>
-                                            <p className="text-xs text-zinc-500">
+                                            <p className="text-sm leading-relaxed text-zinc-100 sm:text-base">{rosterModalRow!.codexDescription}</p>
+                                            <p className="text-sm font-semibold text-zinc-200 sm:text-base">
                                                 {t('adventure.spawnLevelRange', {
                                                     min: rosterModalStaticPreview.min,
                                                     max: rosterModalStaticPreview.max,
                                                 })}
                                             </p>
-                                            <p className="text-xs text-zinc-500">
-                                                <span className="font-mono font-bold text-amber-100">
-                                                    <span aria-hidden>⚡ </span>
+                                            <p className="text-sm font-semibold text-zinc-200 sm:text-base">
+                                                <span className="font-mono font-black text-amber-50">
+                                                    <ActionPointIcon size="xs" className="mr-0.5 inline-block align-[-0.1em]" />
                                                     {t('adventure.attackApCost', { cost: rosterModalStaticPreview.apCost })}
                                                 </span>
                                             </p>
-                                            <p className="text-xs leading-snug text-zinc-500">
+                                            <p className="text-sm font-semibold leading-snug text-zinc-200 sm:text-base">
                                                 {t('adventure.availableBattles', { modes: rosterModalStaticPreview.modes })}
                                             </p>
-                                            <ul className="space-y-1.5 text-[13px] font-medium leading-snug text-zinc-100 sm:text-sm">
+                                            <ul className="space-y-1.5 text-sm font-semibold leading-snug text-zinc-50 sm:text-base">
                                                 {rosterModalStaticPreview.quickLinesClassic.map((line, i) => (
-                                                    <li key={`${i}-${line}`} className="border-b border-white/[0.06] pb-1.5 last:border-0 last:pb-0">
+                                                    <li key={`${i}-${line}`} className="border-b border-white/[0.08] pb-1.5 last:border-0 last:pb-0">
                                                         {line}
                                                     </li>
                                                 ))}
@@ -1573,7 +1574,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                               <span className="relative z-[1] flex items-center justify-center gap-2.5">
                                                   <span className="text-sm font-black tracking-wide text-amber-50">{t('adventure.attack')}</span>
                                                   <span className="flex items-center gap-1 rounded-lg border border-amber-300/25 bg-black/40 px-2 py-0.5 text-sm font-black tabular-nums text-amber-100 shadow-inner">
-                                                      <span aria-hidden>⚡</span>
+                                                      <ActionPointIcon size="sm" />
                                                       <span>{selectionDetails.apCost}</span>
                                                   </span>
                                               </span>

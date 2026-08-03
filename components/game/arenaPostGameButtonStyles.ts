@@ -78,16 +78,14 @@ export function arenaPostGameButtonClass(
     return `${shell}${tightStrip} ${VARIANT[variant]}`;
 }
 
-/** 인게임 푸터·결과 모달 공통 재도전 라벨 */
-export function formatArenaRetryLabel(actionPointCost: number): string {
-    return actionPointCost > 0 ? `재도전 (⚡${actionPointCost})` : '재도전';
+/** 인게임 푸터·결과 모달 공통 재도전 라벨 (행동력 비용은 `ActionPointLabelWithCost`로 표시) */
+export function formatArenaRetryLabel(_actionPointCost?: number): string {
+    return '재도전';
 }
 
-/** 대기실 AI 대국 종료 푸터 재대결 라벨 (`2 (-1)` 등 대표 펫 할인 문자열 허용) */
-export function formatAiRematchFooterLabel(actionPointCost: number | string): string {
-    const hasCost = typeof actionPointCost === 'string' ? actionPointCost.length > 0 : actionPointCost > 0;
-    const token = typeof actionPointCost === 'number' ? String(actionPointCost) : actionPointCost;
-    return hasCost ? `재대결 (⚡${token})` : '재대결';
+/** 대기실 AI 대국 종료 푸터 재대결 라벨 */
+export function formatAiRematchFooterLabel(_actionPointCost?: number | string): string {
+    return '재대결';
 }
 
 /** 경기 종료 버튼 묶음: 열 폭 균등 (좁으면 자동으로 줄바꿈) — 결과 모달·넓은 푸터용 */
@@ -123,17 +121,15 @@ export function formatSinglePlayerNextFooterLabel(
 ): string {
     if (!canTryNext || !nextStage) return '다음 단계(없음)';
     const name = formatSinglePlayerStageShortName(nextStage, i18n.t.bind(i18n));
-    const base = `다음 단계(${name})`;
-    return actionPointCost > 0 ? `${base} (⚡${actionPointCost})` : base;
+    return `다음 단계(${name})`;
 }
 
-/** 도전의 탑 종료 패널 — `다음 단계(N층)` + 소모 행동력 */
+/** 도전의 탑 종료 패널 — `다음 단계(N층)` (행동력은 호출부에서 아이콘 표시) */
 export function formatTowerNextFooterLabel(
     nextFloor: number | null,
     canTryNext: boolean,
-    actionPointCost: number,
+    _actionPointCost?: number,
 ): string {
     if (!canTryNext || nextFloor == null) return '다음 단계(없음)';
-    const base = `다음 단계(${nextFloor}층)`;
-    return actionPointCost > 0 ? `${base} (⚡${actionPointCost})` : base;
+    return `다음 단계(${nextFloor}층)`;
 }

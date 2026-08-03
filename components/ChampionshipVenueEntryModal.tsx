@@ -11,13 +11,13 @@ import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposi
 const CORE_STAT_CAP = 1500;
 
 import {
-    TOURNAMENT_DEFINITIONS,
     CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE,
     DUNGEON_STAGE_BASE_REWARDS_EQUIPMENT,
     DUNGEON_STAGE_BASE_REWARDS_MATERIAL,
     DUNGEON_STAGE_BOT_STATS,
     gradeBackgrounds,
 } from '../constants';
+import { getLocalizedTournamentDefinition } from './tournaments.js';
 import {
     DUNGEON_STAGE_EQUIPMENT_DROP,
     DUNGEON_STAGE_MATERIAL_WEIGHTED,
@@ -671,7 +671,7 @@ const ChampionshipVenueEntryModal: React.FC<ChampionshipVenueEntryModalProps> = 
     const { handlers } = useAppContext();
     const { showShopAdRewardInterstitial, isAdFree } = useAdContext();
     const [adClaimPending, setAdClaimPending] = useState(false);
-    const definition = TOURNAMENT_DEFINITIONS[type];
+    const definition = getLocalizedTournamentDefinition(t, type);
     const venueLobbyBg = CHAMPIONSHIP_VENUE_LOBBY_BG_IMAGE[type];
     const isHandheld = useIsHandheldDevice(1025);
     /** 이미지+VS/보상 구성에 맞춘 폭 (과도한 빈 여백 방지) */

@@ -51,7 +51,7 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
     currentUserId,
     currentUserLevel,
 }) => {
-    const { t } = useTranslation(['lobby', 'tournament', 'common']);
+    const { t } = useTranslation(['lobby', 'tournament', 'profile']);
     const tierDisplayName = translateRankingTierName(tier.name);
     const hasChampionshipAbility =
         user.openingAbility != null &&
@@ -189,33 +189,43 @@ const SeasonalBadukRankingRow: React.FC<SeasonalBadukRankingRowProps> = ({
                 fixedFrameSize
                 className="relative z-10 shrink-0 transition-transform duration-300 group-hover:scale-105"
             />
-            <div className={`relative z-10 flex min-w-0 flex-1 flex-col gap-0.5 leading-tight ${lineCls}`}>
-                <span className="shrink-0 font-extrabold tabular-nums text-amber-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
-                    Lv.{displayLevel ?? '—'}
-                </span>
-                <span
-                    className={`min-w-0 truncate font-bold drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
-                        isTopThree || isMyRankDisplay ? 'text-white' : 'text-gray-100'
-                    }`}
-                >
-                    {user.nickname}
-                </span>
+            <div className={`relative z-10 flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2 ${lineCls}`}>
+                <div className="flex min-w-0 shrink-0 flex-col gap-0.5 leading-tight">
+                    <span className="shrink-0 font-extrabold tabular-nums text-amber-200 drop-shadow-[0_1px_2px_rgba(0,0,0,0.45)]">
+                        Lv.{displayLevel ?? '—'}
+                    </span>
+                    <span
+                        className={`max-w-[7.5rem] truncate font-bold sm:max-w-[9rem] drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
+                            isTopThree || isMyRankDisplay ? 'text-white' : 'text-gray-100'
+                        }`}
+                    >
+                        {user.nickname}
+                    </span>
+                </div>
                 {hasChampionshipAbility && (
                     <div
-                        className={`mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 font-semibold tabular-nums text-violet-200/90 ${
-                            rankSmall ? 'text-[9px] sm:text-[10px]' : 'text-[10px] sm:text-xs'
+                        className={`flex min-w-0 flex-1 flex-wrap items-center justify-center gap-x-2 gap-y-1 text-center font-bold tabular-nums tracking-tight text-violet-100 ${
+                            rankSmall ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                         }`}
                         title={t('tournament:championshipAbility')}
                         aria-label={t('tournament:championshipAbility')}
                     >
-                        <span className="shrink-0 text-violet-300/80">{t('common:coreAbility.opening')}</span>
-                        <span className="font-mono font-bold text-amber-100/95">{Math.round(user.openingAbility!)}</span>
-                        <span className="shrink-0 text-violet-300/80">{t('common:coreAbility.midgame')}</span>
-                        <span className="font-mono font-bold text-amber-100/95">{Math.round(user.midgameAbility!)}</span>
-                        <span className="shrink-0 text-violet-300/80">{t('common:coreAbility.endgame')}</span>
-                        <span className="font-mono font-bold text-amber-100/95">{Math.round(user.endgameAbility!)}</span>
-                        <span className="shrink-0 text-fuchsia-300/85">{t('tournament:overallAbility')}</span>
-                        <span className="font-mono font-black text-fuchsia-100">{Math.round(user.totalAbility!)}</span>
+                        <span className="inline-flex items-center gap-1">
+                            <span className="shrink-0 text-violet-200">{t('profile:coreAbility.opening')}</span>
+                            <span className="font-mono font-extrabold text-amber-100">{Math.round(user.openingAbility!)}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                            <span className="shrink-0 text-violet-200">{t('profile:coreAbility.midgame')}</span>
+                            <span className="font-mono font-extrabold text-amber-100">{Math.round(user.midgameAbility!)}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                            <span className="shrink-0 text-violet-200">{t('profile:coreAbility.endgame')}</span>
+                            <span className="font-mono font-extrabold text-amber-100">{Math.round(user.endgameAbility!)}</span>
+                        </span>
+                        <span className="inline-flex items-center gap-1">
+                            <span className="shrink-0 text-fuchsia-200">{t('tournament:overallAbility')}</span>
+                            <span className="font-mono font-black text-fuchsia-50">{Math.round(user.totalAbility!)}</span>
+                        </span>
                     </div>
                 )}
             </div>

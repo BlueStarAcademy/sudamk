@@ -6,6 +6,7 @@ import {
     type AdventureTreasureRollResult,
 } from '../../shared/utils/adventureMapTreasureRewards.js';
 import { formatGoldAmountKoG } from '../../shared/utils/walletAmountDisplay.js';
+import ActionPointIcon from '../ui/ActionPointIcon.js';
 
 type Phase = 'pick' | 'spin' | 'result';
 
@@ -103,9 +104,7 @@ function RouletteStripCell({ roll }: { roll: AdventureTreasureRollResult }) {
             <div className="flex h-full w-full items-stretch justify-center px-0.5 py-1">
                 <div className="flex min-h-0 w-[min(100%,4.85rem)] flex-1 flex-col rounded-lg border border-cyan-200/22 bg-gradient-to-b from-cyan-400/[0.07] via-white/[0.02] to-transparent shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_4px_14px_rgba(0,0,0,0.28)] backdrop-blur-[3px]">
                     <div className="flex min-h-0 flex-1 flex-col items-center justify-center pt-1">
-                        <span className="text-[1.45rem] leading-none drop-shadow-[0_2px_10px_rgba(34,211,238,0.4)]" aria-hidden>
-                            ⚡
-                        </span>
+                        <ActionPointIcon size="lg" variant="raster" className="!h-7 !w-7 drop-shadow-[0_2px_10px_rgba(34,211,238,0.4)]" />
                     </div>
                     <span className="pb-1.5 pt-0.5 text-center font-mono text-[10px] font-black tabular-nums text-amber-200/95 sm:text-[11px]">
                         {t('adventure.recoverPoints', { points: roll.actionPoints })}

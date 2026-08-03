@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { GameMode, ServerAction, UserWithStatus } from '../../types.js';
 import type { RankingEntry } from '../../hooks/useRanking.js';
 import Button from '../Button.js';
+import ActionPointIcon, { ActionPointCostInline } from '../ui/ActionPointIcon.js';
 import PairPetRankedMatchModeModal from '../pair/PairPetRankedMatchModeModal.js';
 import {
     RANKING_TIERS,
@@ -639,7 +640,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                             : nativeNarrow
                                               ? t('ranked.startShort')
                                               : t('ranked.start')}{' '}
-                                    (⚡{rankedActionPointCost})
+                                    <ActionPointCostInline cost={rankedActionPointCost} wrapParens />
                                 </span>
                             </span>
                         </Button>

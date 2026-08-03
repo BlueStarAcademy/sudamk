@@ -20,6 +20,7 @@ import {
     formatArenaRetryLabel,
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
+import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 import {
     arenaGameRoomControlsDividerClass,
     arenaGameRoomControlsInnerPanelClass,
@@ -436,10 +437,16 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                         className={endedRowBtn('min-w-0 truncate')}
                         disabled={blockPostGameFooter || !canTryNext}
                     >
-                        {formatSinglePlayerNextFooterLabel(nextStage, canTryNext, nextStageActionPointCost)}
+                        <ActionPointLabelWithCost
+                            label={formatSinglePlayerNextFooterLabel(nextStage, canTryNext, nextStageActionPointCost)}
+                            cost={canTryNext && nextStageActionPointCost > 0 ? nextStageActionPointCost : null}
+                        />
                     </Button>
                     <Button bare onClick={handleRetry} colorScheme="none" className={endedRowBtn()} disabled={blockPostGameFooter}>
-                        {formatArenaRetryLabel(retryActionPointCost)}
+                        <ActionPointLabelWithCost
+                            label={formatArenaRetryLabel(retryActionPointCost)}
+                            cost={retryActionPointCost > 0 ? retryActionPointCost : null}
+                        />
                     </Button>
                     <Button bare onClick={handleExitToLobby} colorScheme="none" className={endedRowBtn()} disabled={blockPostGameFooter}>
                         대기실로

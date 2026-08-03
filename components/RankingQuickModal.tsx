@@ -11,7 +11,7 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH } from '../constants/ads.js';
 import { MobileEqualHeightTabPanels } from './game/MobileGameResultTabBar.js';
 import { useAppContext } from '../hooks/useAppContext.js';
-import { RANKING_MODAL_SLIM_SCROLL_X, RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
+import { RANKING_MODAL_SLIM_SCROLL_Y } from '../shared/constants/rankingModalScrollbar.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 import type { MobileRankingGuideVariant } from './MobileRankingGuidePanel.js';
 
@@ -56,12 +56,53 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
     const isCompactViewport = useIsHandheldDevice(1024);
     const { isNativeMobile } = useNativeMobileShell();
     const { currentUserWithStatus, handlers } = useAppContext();
-    const isMobile = !embedded && (isCompactViewport || isNativeMobile);
+    /** 좁은 화면·네이티브: 임베드(홈 퀵유틸) 포함 — 랭킹을 항목별 단건 + 드롭다운 */
+    const isMobile = isCompactViewport || isNativeMobile;
     const [mobilePanelTab, setMobilePanelTab] = useState<RankingMobileTab>('combat');
     const [isTipModalOpen, setIsTipModalOpen] = useState(false);
     const [guideMainTab, setGuideMainTab] = useState<RankingMobileTab>('combat');
     const [pcMainTab, setPcMainTab] = useState<PcMainTab>('game');
     const [tierInfoOpen, setTierInfoOpen] = useState(false);
+
+    const mobileTabTone = (id: RankingMobileTab): 'game' | 'baduk' =>
+        id === 'strategic' || id === 'pair' || id === 'championship' ? 'baduk' : 'game';
+
+    const mobileRankingSelectClass = (tone: 'game' | 'baduk') =>
+        tone === 'baduk'
+            ? 'border-emerald-300/45 bg-gradient-to-b from-emerald-950/80 via-zinc-950/90 to-black text-emerald-50 focus:border-emerald-300/70 focus:ring-1 focus:ring-emerald-400/25'
+            : 'border-amber-300/50 bg-gradient-to-b from-amber-950/75 via-zinc-950/90 to-black text-amber-50 focus:border-amber-300/70 focus:ring-1 focus:ring-amber-400/25';
+
+    const renderMobileRankingSelect = (
+        value: RankingMobileTab,
+        onChange: (next: RankingMobileTab) => void,
+        ariaLabel: string,
+    ) => {
+        const tone = mobileTabTone(value);
+        return (
+            <div className="relative min-w-0 flex-1">
+                <select
+                    value={value}
+                    aria-label={ariaLabel}
+                    onChange={(e) => onChange(e.target.value as RankingMobileTab)}
+                    className={`w-full appearance-none rounded-xl border px-3 py-2 pr-9 text-[13px] font-extrabold tracking-tight shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] outline-none ring-1 ring-white/[0.04] transition ${mobileRankingSelectClass(tone)}`}
+                >
+                    {mobileRankingTabs.map(({ id, label }) => (
+                        <option key={id} value={id} className="bg-zinc-950 text-zinc-100">
+                            {label}
+                        </option>
+                    ))}
+                </select>
+                <span
+                    className={`pointer-events-none absolute inset-y-0 right-2.5 flex items-center text-[10px] font-black ${
+                        tone === 'baduk' ? 'text-emerald-200/80' : 'text-amber-200/80'
+                    }`}
+                    aria-hidden
+                >
+                    ▼
+                </span>
+            </div>
+        );
+    };
 
     const guideVariant = useMemo((): MobileRankingGuideVariant | null => {
         switch (guideMainTab) {
@@ -110,23 +151,6 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
             </div>
         );
 
-    const mobileBadukTabSelectedClass =
-        'border-emerald-300/50 bg-gradient-to-b from-emerald-600/85 via-teal-800/75 to-zinc-950/80 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15)] ring-1 ring-emerald-300/22';
-    const mobileBadukTabIdleClass =
-        'border-white/10 bg-gradient-to-b from-zinc-800/65 to-zinc-950/70 text-zinc-300 hover:border-emerald-400/30 hover:text-emerald-100';
-    const mobileGameTabSelectedClass =
-        'border-amber-300/55 bg-gradient-to-b from-amber-500/85 via-amber-700/75 to-amber-950/80 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.2),0_10px_22px_-12px_rgba(251,191,36,0.55)] ring-1 ring-amber-300/25';
-    const mobileGameTabIdleClass =
-        'border-white/10 bg-gradient-to-b from-zinc-800/65 to-zinc-950/70 text-zinc-300 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] hover:border-amber-400/30 hover:text-amber-100';
-
-    const mobileTabButtonClass = (id: RankingMobileTab, selected: boolean) => {
-        const isBadukTab = id === 'strategic' || id === 'pair' || id === 'championship';
-        if (selected) {
-            return isBadukTab ? mobileBadukTabSelectedClass : mobileGameTabSelectedClass;
-        }
-        return isBadukTab ? mobileBadukTabIdleClass : mobileGameTabIdleClass;
-    };
-
     const handleClose = () => {
         if (tierInfoOpen) {
             setTierInfoOpen(false);
@@ -166,34 +190,14 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                 {isMobile ? (
                     <div className="relative z-[1] flex min-h-0 flex-1 flex-col gap-2 overflow-hidden">
                         <div className="flex min-w-0 items-center gap-2">
-                            <div
-                                className={`flex min-w-0 flex-1 shrink-0 gap-1.5 overflow-x-auto pb-0.5 [-webkit-overflow-scrolling:touch] ${RANKING_MODAL_SLIM_SCROLL_X}`}
-                                role="tablist"
-                                aria-label={t('rankingQuick.tabAria')}
-                            >
-                                {mobileRankingTabs.map(({ id, label }) => {
-                                    const selected = mobilePanelTab === id;
-                                    return (
-                                        <button
-                                            key={id}
-                                            type="button"
-                                            role="tab"
-                                            aria-selected={selected}
-                                            onClick={() => setMobilePanelTab(id)}
-                                            className={`min-h-[31px] shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold tracking-tight transition-all duration-200 active:scale-[0.98] ${mobileTabButtonClass(id, selected)}`}
-                                        >
-                                            {label}
-                                        </button>
-                                    );
-                                })}
-                            </div>
+                            {renderMobileRankingSelect(mobilePanelTab, setMobilePanelTab, t('rankingQuick.tabAria'))}
                             <button
                                 type="button"
                                 onClick={() => {
                                     setGuideMainTab(mobilePanelTab);
                                     setIsTipModalOpen(true);
                                 }}
-                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-amber-300/40 bg-amber-500/20 text-[13px] shadow-sm shadow-amber-900/40 transition hover:bg-amber-500/30 active:scale-[0.97]"
+                                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-amber-300/40 bg-amber-500/20 text-[13px] shadow-sm shadow-amber-900/40 transition hover:bg-amber-500/30 active:scale-[0.97]"
                                 title={t('rankingQuick.scrollGuide')}
                                 aria-label={t('rankingQuick.scrollGuideAria')}
                             >
@@ -294,24 +298,7 @@ const RankingQuickModal: React.FC<RankingQuickModalProps> = ({ onClose, isTopmos
                                         </button>
                                     </div>
                                     <div className="flex flex-col gap-2 border-b border-white/10 px-3 py-2">
-                                        <div className={`flex items-center gap-1.5 overflow-x-auto ${RANKING_MODAL_SLIM_SCROLL_X}`}>
-                                            {mobileRankingTabs.map(({ id, label }) => (
-                                                <button
-                                                    key={id}
-                                                    type="button"
-                                                    onClick={() => setGuideMainTab(id)}
-                                                    className={`shrink-0 rounded-lg border px-2 py-1 text-[11px] font-semibold ${
-                                                        guideMainTab === id
-                                                            ? id === 'strategic' || id === 'pair' || id === 'championship'
-                                                                ? 'border-emerald-300/50 bg-emerald-500/20 text-emerald-50'
-                                                                : 'border-amber-300/50 bg-amber-500/20 text-amber-50'
-                                                            : 'border-white/15 bg-white/5 text-zinc-300'
-                                                    }`}
-                                                >
-                                                    {label}
-                                                </button>
-                                            ))}
-                                        </div>
+                                        {renderMobileRankingSelect(guideMainTab, setGuideMainTab, t('rankingQuick.categoryAria'))}
                                     </div>
                                     <div className={`min-h-0 flex-1 overflow-y-auto p-2 ${RANKING_MODAL_SLIM_SCROLL_Y}`}>
                                         {guideVariant ? (

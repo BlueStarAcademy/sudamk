@@ -7,6 +7,7 @@ import {
     NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH,
     NATIVE_MOBILE_MODAL_MAX_WIDTH_VW,
 } from '../constants/ads.js';
+import ActionPointIcon from './ui/ActionPointIcon.js';
 
 interface InsufficientActionPointsModalProps {
     onClose: () => void;
@@ -71,9 +72,7 @@ function SelfModalContent({
         <>
             <header className={`relative shrink-0 px-5 ${embeddedInWindow ? 'pt-4 pb-3' : 'pt-5 pb-4'} text-center`}>
                 <div className="mx-auto mb-3 flex h-[3.25rem] w-[3.25rem] items-center justify-center rounded-2xl border border-amber-400/35 bg-gradient-to-br from-amber-500/30 via-amber-600/15 to-violet-950/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.15),0_8px_28px_-12px_rgba(245,158,11,0.45)]">
-                    <span className="text-[1.65rem] leading-none drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]" aria-hidden>
-                        ⚡
-                    </span>
+                    <ActionPointIcon size="lg" variant="raster" className="!h-8 !w-8 drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]" />
                 </div>
                 <h2
                     id="insufficient-ap-modal-title"

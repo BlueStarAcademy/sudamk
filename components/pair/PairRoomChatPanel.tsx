@@ -19,7 +19,8 @@ type Props = {
     /** 부모가 `flex-1 min-h-0`로 줄인 세로 공간을 메시지 영역이 모두 쓰게 함 */
     fillAvailableHeight?: boolean;
     /**
-     * 전략바둑 방 등 팀이 없는 경우: 「페어 채팅」·팀 탭 없이 방 참가자만 보는 채팅만 (`scope`는 항상 `room`).
+     * 우리 팀 인간이 1명뿐이면 팀 탭 없이 방 전체 채팅만 (`scope`는 항상 `room`).
+     * 사람+사람 팀일 때만 전체/팀 탭을 노출한다.
      */
     roomOnlyChat?: boolean;
     onSend: (payload: { text: string; scope: PairRoomChatScope }) => void | Promise<void>;
@@ -88,23 +89,14 @@ const PairRoomChatPanel: React.FC<Props> = ({
                       : `flex flex-col rounded-xl border border-white/10 bg-black/30 ${compact ? 'min-h-[8.5rem]' : 'min-h-[11rem]'}`
             }
         >
-            <div
-                className={
-                    interior && interiorChrome
-                        ? `flex shrink-0 items-center gap-1.5 ${interiorChrome.toolbar} ${compact ? 'px-1.5 py-1' : 'px-2 py-1.5'} ${roomOnlyChat ? '' : 'justify-between'}`
-                        : `flex shrink-0 items-center gap-1.5 border-b border-white/10 ${compact ? 'px-1.5 py-1' : 'px-2 py-1.5'} ${roomOnlyChat ? '' : 'justify-between'}`
-                }
-            >
-                <span
+            {!roomOnlyChat ? (
+                <div
                     className={
                         interior && interiorChrome
-                            ? `${interiorChrome.title} ${roomOnlyChat ? '' : 'uppercase'} ${compact ? 'text-[10px]' : 'text-[11px]'}`
-                            : `font-extrabold tracking-wide text-cyan-100/90 ${roomOnlyChat ? '' : 'uppercase'} ${compact ? 'text-[10px]' : 'text-[11px]'}`
+                            ? `flex shrink-0 items-center justify-end gap-1.5 ${interiorChrome.toolbar} ${compact ? 'px-1.5 py-1' : 'px-2 py-1.5'}`
+                            : `flex shrink-0 items-center justify-end gap-1.5 border-b border-white/10 ${compact ? 'px-1.5 py-1' : 'px-2 py-1.5'}`
                     }
                 >
-                    {roomOnlyChat ? t('room.chatTitle') : t('room.pairChatTitle')}
-                </span>
-                {!roomOnlyChat ? (
                     <div
                         className={
                             interior && interiorChrome
@@ -137,8 +129,8 @@ const PairRoomChatPanel: React.FC<Props> = ({
                             );
                         })}
                     </div>
-                ) : null}
-            </div>
+                </div>
+            ) : null}
             <div
                 ref={listRef}
                 className={`flex-1 overflow-y-auto leading-snug ${
@@ -230,5 +222,4 @@ const PairRoomChatPanel: React.FC<Props> = ({
         </div>
     );
 };
-
 export default PairRoomChatPanel;

@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { SinglePlayerLevel, UserWithStatus } from '../../types.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
+import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import {
     isSinglePlayerStageCleared,
@@ -267,7 +268,10 @@ const StageGrid: React.FC<StageGridProps> = ({
                                                   : undefined
                                         }
                                     >
-                                        {t('singleplayer.enterStage', { cost: effectiveActionPointCost })}
+                                        <ActionPointLabelWithCost
+                                            label={t('singleplayer.enterStage')}
+                                            cost={effectiveActionPointCost}
+                                        />
                                     </Button>
                                 ) : (
                                     <div className="mt-auto min-h-[1.25rem]" aria-hidden />

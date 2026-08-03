@@ -373,8 +373,8 @@ const AdventureRegionalBuffPanel: React.FC<{
                                 />
                             </div>
                             <p
-                                className={`mt-1 tabular-nums text-zinc-500 ${
-                                    panelCompact ? 'text-[11px] sm:text-xs' : 'text-xs sm:text-sm'
+                                className={`mt-1 tabular-nums text-zinc-300 ${
+                                    panelCompact ? 'text-xs sm:text-sm' : 'text-sm sm:text-base'
                                 }`}
                             >
                                 XP ({(understandingRow.xpInTier ?? understandingRow.xp).toLocaleString()}/
@@ -395,14 +395,14 @@ const AdventureRegionalBuffPanel: React.FC<{
                         </div>
                         {embeddedInModal ? (
                             <div className="flex min-w-0 flex-col items-center justify-center rounded-lg border border-amber-500/35 bg-gradient-to-br from-amber-950/45 via-amber-950/20 to-zinc-950/85 px-3 py-2.5 text-center">
-                                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-300/85">
+                                <p className="text-[11px] font-bold uppercase tracking-wider text-amber-200">
                                     {t('adventure.enhancePoints')}
                                 </p>
                                 <p className="mt-1 flex items-baseline justify-center gap-1 tabular-nums">
-                                    <span className="text-2xl font-black leading-none text-amber-100">
+                                    <span className="text-2xl font-black leading-none text-amber-50">
                                         {remainingPts.toLocaleString()}
                                     </span>
-                                    <span className="text-sm font-semibold text-zinc-500">
+                                    <span className="text-sm font-semibold text-zinc-300">
                                         / {grantPts.toLocaleString()}
                                     </span>
                                 </p>
@@ -423,7 +423,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                                 }`}
                             >
                                 <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>🔒</span>
-                                <p className="min-w-0 flex-1 font-bold text-zinc-500">
+                                <p className="min-w-0 flex-1 font-bold text-zinc-300">
                                     {t('adventure.slot1LockedChapterOpen', { stageIndex: stage.stageIndex })}
                                 </p>
                             </div>
@@ -442,7 +442,7 @@ const AdventureRegionalBuffPanel: React.FC<{
                                     >
                                         <span className="shrink-0 text-base leading-none sm:text-lg" aria-hidden>🔒</span>
                                         <p
-                                            className={`min-w-0 flex-1 font-bold text-zinc-500 ${
+                                            className={`min-w-0 flex-1 font-bold text-zinc-300 ${
                                                 embeddedInModal ? 'whitespace-nowrap' : 'truncate'
                                             }`}
                                         >

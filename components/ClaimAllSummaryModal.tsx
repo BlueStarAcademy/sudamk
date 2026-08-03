@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import DraggableWindow, { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import Button from './Button.js';
 import { formatGoldAmountKoG, formatWalletDiamonds } from '../shared/utils/walletAmountDisplay.js';
+import ActionPointIcon from './ui/ActionPointIcon.js';
 
 interface ClaimAllSummaryModalProps {
     summary: { gold: number, diamonds: number, actionPoints: number };
@@ -32,9 +33,7 @@ const ClaimAllSummaryModal: React.FC<ClaimAllSummaryModalProps> = ({ summary, on
                     )}
                     {summary.actionPoints > 0 && (
                         <div className="flex justify-between items-center gap-3">
-                            <span className="shrink-0 text-lg" title={t('actionPoints', { ns: 'common' })} aria-hidden>
-                                ⚡
-                            </span>
+                            <ActionPointIcon size="md" title={t('actionPoints', { ns: 'common' })} alt="" />
                             <span className="font-bold text-green-300 tabular-nums">+{summary.actionPoints.toLocaleString()}</span>
                         </div>
                     )}

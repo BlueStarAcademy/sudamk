@@ -7,7 +7,7 @@ import Button from '../Button.js';
 import { readPairRankedBlock } from '../../shared/utils/unifiedRankedStatsMigration.js';
 import { RANKED_ELO_BASE_SCORE } from '../../shared/constants/rules.js';
 import { LOBBY_CHANNEL_MIN } from '../../shared/constants/lobbyChannel.js';
-import { resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
+import { buildLobbyChannelStatusMap, resolveLobbyChannel } from '../../shared/utils/lobbyChannel.js';
 import { userArenaChannelBadge } from '../../shared/utils/unifiedArenaLobbyUserList.js';
 import { useTranslation } from 'react-i18next';
 import LobbyChannelChangeModal from './LobbyChannelChangeModal.js';
@@ -166,15 +166,19 @@ const PlayerList: React.FC<PlayerListProps> = ({
     const { t } = useTranslation('lobby');
     const [channelModalOpen, setChannelModalOpen] = useState(false);
     const myChannel = resolveLobbyChannel(currentUser) ?? LOBBY_CHANNEL_MIN;
-    const statusMap = useMemo(() => {
-        if (lobbyChannelStatusMap) return lobbyChannelStatusMap;
-        const map: Record<string, Pick<UserWithStatus, 'status' | 'lobbyChannel'> | undefined> = {};
-        for (const u of users) {
-            if (u?.id) map[u.id] = u;
-        }
-        if (currentUser?.id) map[currentUser.id] = currentUser;
-        return map;
-    }, [lobbyChannelStatusMap, users, currentUser]);
+    const statusMap = useMemo(
+        () =>
+            buildLobbyChannelStatusMap({
+                users: lobbyChannelStatusMap
+                    ? Object.entries(lobbyChannelStatusMap).map(([id, st]) =>
+                          st ? { id, status: st.status, lobbyChannel: st.lobbyChannel } : null,
+                      )
+                    : users,
+                viewer: currentUser,
+                viewerChannel: myChannel,
+            }),
+        [lobbyChannelStatusMap, users, currentUser, myChannel],
+    );
     const me =
         users.find((user) => user.id === currentUser.id) ??
         users.find((user) => String(user?.id) === String(currentUser?.id));
