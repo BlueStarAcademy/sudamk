@@ -711,6 +711,7 @@
       "goldAlt": "Gold",
       "hiddenPlaceTitle": "Place hidden stone",
       "scanDetectTitle": "Detect opponent hidden stones",
+      "opponentHiddenOnBoard": "Opp {{count}}",
       "missileLaunchTitle": "Launch missile",
       "stoneRefreshTitle": "Refresh stones",
       "rematch": "Rematch",

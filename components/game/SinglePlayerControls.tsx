@@ -9,6 +9,7 @@ import AlertModal from '../AlertModal.js';
 import ConfirmModal from '../ConfirmModal.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
+import { countUnrevealedOpponentHiddenStones } from '../../shared/utils/opponentUnrevealedHiddenCount.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
 import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
@@ -224,49 +225,15 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
     // 스캔 아이템: 상대(AI)에 미공개 히든돌이 1개라도 있을 때만 활성화
     // 베이스 싱글에서 유저가 백이 되면 상대 AI가 흑이므로 색 비교에 `opponentPlayerEnum`을 사용해야 한다.
     const myScansLeft = resolvePveItemCountFromSession(session as any, myUserId, 'scan', scanCountSetting);
-    const canScan = React.useMemo(() => {
-        const board = session.boardState;
-        if (!Array.isArray(board) || board.length === 0) return false;
-
-        const scannedAiInitialByMe = !!myUserId && !!(session as any).scannedAiInitialHiddenByUser?.[myUserId];
-        // AI 초기/아이템 히든 모두 서버 스캔 판정 대상이다. 클라이언트도 같은 기준으로 버튼을 활성화한다.
-        const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
-        if (aiInitialHiddenStone) {
-            const { x, y } = aiInitialHiddenStone;
-            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (inBounds && board[y][x] === opponentPlayerEnum) {
-                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
-                if (!isPermanentlyRevealed && !scannedAiInitialByMe) return true;
-            }
-        }
-
-        // moveHistory 상의 상대(봇) 히든 스톤이 하나라도 있어야 스캔 가능
-        if (!session.hiddenMoves || typeof session.hiddenMoves !== 'object' || !session.moveHistory?.length) return false;
-        const myRevealed = myUserId ? session.revealedHiddenMoves?.[myUserId] : undefined;
-        const hasOpponentUnrevealedHidden = Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
-            if (!isHidden) return false;
-            const idx = parseInt(moveIndexStr, 10);
-            if (myRevealed?.includes(idx)) return false;
-            const move = session.moveHistory![idx];
-            if (!move || move.player !== opponentPlayerEnum) return false;
-            const { x, y } = move;
-            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (!inBounds || board[y][x] !== opponentPlayerEnum) return false;
-            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
-            return !isPermanentlyRevealed;
-        });
-        return hasOpponentUnrevealedHidden;
-    }, [
-        myUserId,
-        opponentPlayerEnum,
-        session.hiddenMoves,
-        session.moveHistory,
-        session.boardState,
-        session.permanentlyRevealedStones,
-        session.revealedHiddenMoves,
-        (session as any).aiInitialHiddenStone,
-        (session as any).scannedAiInitialHiddenByUser,
-    ]);
+    const opponentUnrevealedHiddenCount = React.useMemo(() => {
+        if (!myUserId) return 0;
+        return countUnrevealedOpponentHiddenStones(session, myUserId, opponentPlayerEnum);
+    }, [myUserId, opponentPlayerEnum, session]);
+    const canScan = opponentUnrevealedHiddenCount > 0;
+    const scanControlLabel =
+        opponentUnrevealedHiddenCount > 0
+            ? `${t('controls.scan')} · ${t('controls.opponentHiddenOnBoard', { count: opponentUnrevealedHiddenCount })}`
+            : t('controls.scan');
     
     // 상대 미공개 히든이 없으면 비활성 (착수로 발각된 경우 등은 canScan이 false)
     const scanDisabled =
@@ -694,7 +661,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
                         count={myScansLeft}
                         compact={isMobile}
                     />
-                    <span className={`${lblBase} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("controls.scan")}</span>
+                    <span className={`${lblBase} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{scanControlLabel}</span>
                 </div>
             )}
             {isMissileMode && (

@@ -16,6 +16,7 @@ import {
     TOWER_ITEM_REFRESH_NAMES,
 } from '../../utils/towerLobbyInventory.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
+import { countUnrevealedOpponentHiddenStones } from '../../shared/utils/opponentUnrevealedHiddenCount.js';
 import { getTowerSessionFloor, isTowerHumanWinnerFromSession } from '../../utils/towerPreGameDisplay.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
 import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
@@ -163,56 +164,26 @@ const TowerControls: React.FC<TowerControlsProps> = ({
             : ((session as any).scans_p1 as number | undefined) ?? ((session as any).scans_p2 as number | undefined);
     /** 인벤 또는 세션 중 하나라도 있으면 스캔 시도 가능(경기 중 구매 직후 세션만 늦게 오는 경우) */
     const hasScanStock = scanInventoryCount > 0 || (sessionScansLeft ?? 0) > 0;
-    const canScan = React.useMemo(() => {
-        if (!showMissileAndHiddenForHook || !hasScanStock) return false;
-        const board = session.boardState;
-        if (!Array.isArray(board) || board.length === 0) return false;
-        /** 백(봇) 히든: 수순·hiddenMoves로 확정된 칸은 클라 병합/연출 타이밍에 board가 빈칸(None)으로만 올 수 있어 White만 허용하면 스캔 버튼이 꺼진다. 흑이 있는 칸은 제외. */
-        const cellIsTowerOpponentHiddenSurface = (x: number, y: number): boolean => {
-            const c = board[y]?.[x];
-            return c === opponentPlayerEnum || c === Player.None;
-        };
+    const opponentUnrevealedHiddenCount = React.useMemo(() => {
+        if (!showMissileAndHiddenForHook || !hasScanStock) return 0;
         const uid = currentUser?.id;
-        const scannedAiInitialByMe =
-            !!uid && !!(session as any).scannedAiInitialHiddenByUser?.[uid as string];
-        const aiInitialHiddenStone = (session as any).aiInitialHiddenStone;
-        const aiHiddenIsPrePlaced = (session as any).aiInitialHiddenStoneIsPrePlaced;
-        if (aiInitialHiddenStone && !aiHiddenIsPrePlaced) {
-            const { x, y } = aiInitialHiddenStone;
-            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (inBounds && cellIsTowerOpponentHiddenSurface(x, y)) {
-                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
-                if (!isPermanentlyRevealed && !scannedAiInitialByMe) return true;
-            }
-        }
-        if (!session.hiddenMoves || !session.moveHistory) return false;
-        const myRevealed = uid ? session.revealedHiddenMoves?.[uid] : undefined;
-        return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
-            if (!isHidden) return false;
-            const moveIndex = parseInt(moveIndexStr, 10);
-            if (myRevealed?.includes(moveIndex)) return false;
-            const move = session.moveHistory![moveIndex];
-            if (!move || move.player !== opponentPlayerEnum) return false;
-            const { x, y } = move;
-            const inBounds = typeof x === 'number' && typeof y === 'number' && y >= 0 && y < board.length && x >= 0 && x < board[y].length;
-            if (!inBounds || !cellIsTowerOpponentHiddenSurface(x, y)) return false;
-            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p: { x: number; y: number }) => p.x === x && p.y === y);
-            return !isPermanentlyRevealed;
+        if (!uid) return 0;
+        return countUnrevealedOpponentHiddenStones(session, uid, opponentPlayerEnum, {
+            allowEmptyBoardCellForHiddenMoves: true,
+            excludePrePlacedAiInitialHidden: true,
         });
     }, [
         showMissileAndHiddenForHook,
         hasScanStock,
-        session.boardState,
-        session.hiddenMoves,
-        session.moveHistory,
-        session.permanentlyRevealedStones,
-        session.revealedHiddenMoves,
-        myUserId,
+        currentUser?.id,
+        session,
         opponentPlayerEnum,
-        (session as any).aiInitialHiddenStone,
-        (session as any).aiInitialHiddenStoneIsPrePlaced,
-        (session as any).scannedAiInitialHiddenByUser,
     ]);
+    const canScan = opponentUnrevealedHiddenCount > 0;
+    const scanControlLabel =
+        opponentUnrevealedHiddenCount > 0
+            ? `${t('controls.scan')} · ${t('controls.opponentHiddenOnBoard', { count: opponentUnrevealedHiddenCount })}`
+            : t('controls.scan');
 
     if (session.gameStatus === 'ended' || session.gameStatus === 'no_contest') {
         const isWinner = isTowerHumanWinnerFromSession(session);
@@ -775,7 +746,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
 						maxCount={scanCountSettingForHook}
 						compact={isMobile}
 					/>
-					<span className={`${lbl} font-semibold whitespace-nowrap ${scanButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{t("controls.scan")}</span>
+					<span className={`${lbl} font-semibold whitespace-nowrap ${scanButtonDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{scanControlLabel}</span>
 				</div>
 			)}
 		</>

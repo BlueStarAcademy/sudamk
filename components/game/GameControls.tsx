@@ -47,6 +47,7 @@ import {
     pairSeatMatchesViewerUser,
 } from '../../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { countUnrevealedOpponentHiddenStones } from '../../shared/utils/opponentUnrevealedHiddenCount.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import {
     baseAiLobbyActionPointCostForModeAndSettings,
@@ -1680,91 +1681,27 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         );
     };
 
-    // 서버 hasOpponentHiddenScanTargets와 동일: 미공개 히든이 수순에 있고, 영구 공개 전이며, 보드에 상대 돌로 남아 있을 때만 스캔 가능.
-    // (aiHiddenItemUsed만으로 true를 주면 전체 공개 후에도 스캔이 켜지는 버그가 난다)
-    const canScan = useMemo(() => {
-        const board = session.boardState;
-        const boardOk =
-            Array.isArray(board) &&
-            board.length > 0 &&
-            board[0] &&
-            Array.isArray(board[0]) &&
-            board[0].length > 0;
-
-        const isPairHiddenBoard =
-            Boolean(session.settings.pairGame?.turnOrder?.length) &&
-            (mode === GameMode.Hidden || (mode === GameMode.Mix && (session.settings.mixedModes || []).includes(GameMode.Hidden)));
-
-        const myRevealed = session.revealedHiddenMoves?.[currentUser.id];
-        const fromHistory =
-            session.hiddenMoves &&
-            session.moveHistory &&
-            Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
-                if (!isHidden) return false;
-                const idx = parseInt(moveIndexStr, 10);
-                if (myRevealed?.includes(idx)) return false;
-                const move = session.moveHistory![idx];
-                if (!move || move.player !== opponentPlayerEnum || move.x < 0 || move.y < 0) {
-                    return false;
-                }
-                const { x, y } = move;
-                const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
-                if (isPermanentlyRevealed) return false;
-                if (boardOk) {
-                    const row = board[y];
-                    if (!row || x < 0 || x >= row.length) return false;
-                    const cell = row[x];
-                    if (cell === opponentPlayerEnum) return true;
-                    // 페어 히든: 클라가 미공개 히든을 빈칸으로만 받는 경우에도 서버 START_SCANNING과 맞춘다.
-                    if (isPairHiddenBoard && cell === Player.None) return true;
-                    return false;
-                }
-                return true;
-            });
-        if (fromHistory) return true;
-
-        const aiPt = (session as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone;
-        const scannedAiInitialByMe = !!(session as any).scannedAiInitialHiddenByUser?.[currentUser.id];
-        if (
-            aiPt &&
-            typeof aiPt.x === 'number' &&
-            typeof aiPt.y === 'number' &&
-            aiPt.x >= 0 &&
-            aiPt.y >= 0 &&
-            (session.isAiGame || session.gameCategory === 'adventure' || session.isSinglePlayer || session.gameCategory === 'tower')
-        ) {
-            const revealed = session.permanentlyRevealedStones?.some((p) => p.x === aiPt.x && p.y === aiPt.y);
-            if (revealed || scannedAiInitialByMe) return false;
-            if (boardOk) {
-                const row = board[aiPt.y];
-                if (!row || aiPt.x < 0 || aiPt.x >= row.length) return false;
-                const cell = row[aiPt.x];
-                if (cell === opponentPlayerEnum) return true;
-                if (isPairHiddenBoard && cell === Player.None) return true;
-                return false;
-            }
-            return true;
-        }
-        return false;
+    // 서버 hasOpponentHiddenScanTargets와 동일 규칙(shared count 유틸).
+    const isPairHiddenBoard =
+        Boolean(session.settings.pairGame?.turnOrder?.length) &&
+        (mode === GameMode.Hidden || (mode === GameMode.Mix && (session.settings.mixedModes || []).includes(GameMode.Hidden)));
+    const opponentUnrevealedHiddenCount = useMemo(() => {
+        if (isSpectator || !currentUser?.id) return 0;
+        return countUnrevealedOpponentHiddenStones(session, currentUser.id, opponentPlayerEnum, {
+            allowEmptyBoardCellForHiddenMoves: isPairHiddenBoard,
+        });
     }, [
-        session.boardState,
-        session.hiddenMoves,
-        session.moveHistory,
-        session.permanentlyRevealedStones,
-        session.revealedHiddenMoves,
-        session.gameCategory,
-        session.isSinglePlayer,
-        session.blackPlayerId,
-        session.whitePlayerId,
-        session.isAiGame,
-        session.settings.pairGame,
-        session.settings.mixedModes,
-        mode,
+        isSpectator,
+        currentUser?.id,
+        session,
         opponentPlayerEnum,
-        currentUser.id,
-        (session as any).scannedAiInitialHiddenByUser,
-        (session as { aiInitialHiddenStone?: { x: number; y: number } }).aiInitialHiddenStone,
+        isPairHiddenBoard,
     ]);
+    const canScan = opponentUnrevealedHiddenCount > 0;
+    const scanControlLabel =
+        opponentUnrevealedHiddenCount > 0
+            ? `${t('controls.scan')} · ${t('controls.opponentHiddenOnBoard', { count: opponentUnrevealedHiddenCount })}`
+            : t('controls.scan');
     
     const getLuxuryButtonClasses = (_variant?: 'primary' | 'danger' | 'neutral' | 'accent' | 'success') =>
         arenaPostGameButtonClass('neutral', isMobile, 'strip');
@@ -1837,7 +1774,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         key="scan"
                         src="/images/button/scan.webp"
                         alt={t('controls.scan')}
-                        label={t('controls.scan')}
+                        label={scanControlLabel}
                         onClick={() => handleUseItem('scan')}
                         disabled={scanDisabled}
                         title={t('controls.scanTitle')}
@@ -2220,7 +2157,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             count={myScansLeft > 0 ? myScansLeft : undefined}
                             compact={isMobile}
                         />
-                        <span className={labelClass}>{t('controls.scan')}</span>
+                        <span className={labelClass}>{scanControlLabel}</span>
                     </div>
                 )}
                 {isMissileMode && (

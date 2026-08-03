@@ -8,6 +8,7 @@ import { GameProps, Player, Point, AppSettings } from '../../types.js';
 import Button from '../Button.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
+import { countUnrevealedOpponentHiddenStones } from '../../shared/utils/opponentUnrevealedHiddenCount.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
 import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
@@ -103,44 +104,17 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
     const hasPendingRevealResolution = !!session.pendingCapture || !!session.revealAnimationEndTime;
 
     const uid = currentUser?.id;
-    const canScan = useMemo(() => {
-        const board = session.boardState;
-        if (!Array.isArray(board) || board.length === 0) return false;
-        const scannedAiInitialByMe = !!uid && !!(session as any).scannedAiInitialHiddenByUser?.[uid];
-        const aiInitial = (session as any).aiInitialHiddenStone as { x: number; y: number } | undefined;
-        const aiPre = (session as any).aiInitialHiddenStoneIsPrePlaced;
-        if (aiInitial && !aiPre) {
-            const { x, y } = aiInitial;
-            if (y >= 0 && y < board.length && x >= 0 && x < board[y].length && board[y][x] === opponentPlayerEnum) {
-                const perm = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
-                if (!perm && !scannedAiInitialByMe) return true;
-            }
-        }
-        if (!session.hiddenMoves || !session.moveHistory) return false;
-        const myRevealed = uid ? session.revealedHiddenMoves?.[uid] : undefined;
-        return Object.entries(session.hiddenMoves).some(([moveIndexStr, isHidden]) => {
-            if (!isHidden) return false;
-            const idx = parseInt(moveIndexStr, 10);
-            if (myRevealed?.includes(idx)) return false;
-            const move = session.moveHistory![idx];
-            if (!move || move.player !== opponentPlayerEnum || move.x < 0 || move.y < 0) return false;
-            const { x, y } = move;
-            if (y < 0 || y >= board.length || x < 0 || x >= board[y].length || board[y][x] !== opponentPlayerEnum) return false;
-            const isPermanentlyRevealed = session.permanentlyRevealedStones?.some((p) => p.x === x && p.y === y);
-            return !isPermanentlyRevealed;
+    const opponentUnrevealedHiddenCount = useMemo(() => {
+        if (!uid) return 0;
+        return countUnrevealedOpponentHiddenStones(session, uid, opponentPlayerEnum, {
+            excludePrePlacedAiInitialHidden: true,
         });
-    }, [
-        session.hiddenMoves,
-        session.moveHistory,
-        session.permanentlyRevealedStones,
-        session.boardState,
-        session.revealedHiddenMoves,
-        (session as any).aiInitialHiddenStone,
-        (session as any).aiInitialHiddenStoneIsPrePlaced,
-        (session as any).scannedAiInitialHiddenByUser,
-        opponentPlayerEnum,
-        uid,
-    ]);
+    }, [uid, session, opponentPlayerEnum]);
+    const canScan = opponentUnrevealedHiddenCount > 0;
+    const scanControlLabel =
+        opponentUnrevealedHiddenCount > 0
+            ? `${tx('game:controls.scan')} · ${tx('game:controls.opponentHiddenOnBoard', { count: opponentUnrevealedHiddenCount })}`
+            : tx('game:controls.scan');
 
     const hiddenMaxCount = (session.settings as { hiddenStoneCount?: number })?.hiddenStoneCount ?? 3;
     const scanMaxCount = (session.settings as { scanCount?: number })?.scanCount ?? 2;
@@ -300,7 +274,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                                         count={scansLeft}
                                         compact={isMobile}
                                     />
-                                    <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{tx("game:controls.scan")}</span>
+                                    <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{scanControlLabel}</span>
                                 </div>
                             </ArenaControlStrip>
                         </div>
@@ -355,7 +329,7 @@ const GuildWarHiddenTowerControls: React.FC<GuildWarHiddenTowerControlsProps> = 
                                     count={scansLeft}
                                     compact={isMobile}
                                 />
-                                <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{tx("game:controls.scan")}</span>
+                                <span className={`${lbl} font-semibold whitespace-nowrap ${scanDisabled ? 'text-gray-500' : 'text-amber-100'}`}>{scanControlLabel}</span>
                             </div>
                         </ArenaControlStrip>
                     </div>

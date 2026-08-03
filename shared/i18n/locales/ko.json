@@ -706,6 +706,7 @@
       "goldAlt": "골드",
       "hiddenPlaceTitle": "히든 스톤 배치",
       "scanDetectTitle": "상대 히든 스톤 탐지",
+      "opponentHiddenOnBoard": "상대 {{count}}",
       "missileLaunchTitle": "미사일 발사",
       "stoneRefreshTitle": "돌 재배치",
       "rematch": "재대결",

@@ -109,47 +109,9 @@ export type ScanTargetOptions = {
     hiddenStoneCountOrMix: boolean;
 };
 
-/** START_SCANNING 진입 가능 여부: 상대 미전체공개 히든이 남았는지(내가 이미 몰래공개한 칸 제외) */
-export function hasOpponentHiddenScanTargets(
-    game: types.LiveGameSession,
-    userId: string,
-    opponentPlayerEnum: types.Player,
-    opts: ScanTargetOptions
-): boolean {
-    const myRevealedIdx = game.revealedHiddenMoves?.[userId] || [];
-    const hasUnrevealedInMoveHistory = !!(
-        game.hiddenMoves &&
-        game.moveHistory &&
-        game.moveHistory.some((m: types.Move, idx: number) => {
-            if (m.x === -1 || m.y === -1) return false;
-            if (m.player !== opponentPlayerEnum) return false;
-            if (!isHiddenMoveAtIndex(game, idx)) return false;
-            const isRevealed = game.permanentlyRevealedStones?.some((p: types.Point) => p.x === m.x && p.y === m.y);
-            const stillOnBoard = game.boardState?.[m.y]?.[m.x] === opponentPlayerEnum;
-            const alreadyFoundByMyScan = myRevealedIdx.includes(idx);
-            return !isRevealed && stillOnBoard && !alreadyFoundByMyScan;
-        })
-    );
+/** START_SCANNING 진입 가능 여부 / 개수 — shared 유틸에 위임 */
+export {
+    countUnrevealedOpponentHiddenStones,
+    hasOpponentHiddenScanTargets,
+} from '../../shared/utils/opponentUnrevealedHiddenCount.js';
 
-    const aiHidden = (game as any).aiInitialHiddenStone as { x: number; y: number } | undefined;
-    const aiInitialAlreadySoftFound = !!(aiHidden && (game as any).scannedAiInitialHiddenByUser?.[userId]);
-    const hasUnrevealedAiInitial = !!(
-        aiHidden &&
-        !game.permanentlyRevealedStones?.some((p: types.Point) => p.x === aiHidden.x && p.y === aiHidden.y) &&
-        game.boardState?.[aiHidden.y]?.[aiHidden.x] === opponentPlayerEnum &&
-        !aiInitialAlreadySoftFound
-    );
-
-    let hasLoose = false;
-    if (opts.includeLooseOpponentStones && opts.hiddenStoneCountOrMix && game.boardState && game.moveHistory) {
-        hasLoose = game.moveHistory.some((m: types.Move) => {
-            if (m.x < 0 || m.y < 0) return false;
-            if (m.player !== opponentPlayerEnum) return false;
-            const isRevealed = game.permanentlyRevealedStones?.some((p: types.Point) => p.x === m.x && p.y === m.y);
-            const stillOnBoard = game.boardState![m.y][m.x] === opponentPlayerEnum;
-            return !isRevealed && stillOnBoard;
-        });
-    }
-
-    return hasUnrevealedInMoveHistory || hasUnrevealedAiInitial || hasLoose;
-}
