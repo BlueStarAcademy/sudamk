@@ -718,6 +718,9 @@ export interface PairRoomSeatGridProps {
     /** 친선전·4인: 상대 빈 슬롯에 로비 AI 추가/제거 */
     allowOpponentLobbyAiFill?: boolean;
     onSetLobbyAiSeat?: (team: 'teamB', index: 0 | 1, enabled: boolean) => void;
+    /** 팀페어: 우리 팀 빈 슬롯에 장착 펫 추가/제거 */
+    allowOwnerPetFill?: boolean;
+    onSetLobbyPetSeat?: (team: 'teamA', index: 0 | 1, enabled: boolean) => void;
     onCommitSeatAssignments?: (teamA: string[], teamB: string[]) => void | Promise<void>;
     /** 방장: 해당 유저 강퇴 확인 모달을 띄움 */
     onKickRoomMemberRequest?: (userId: string) => void;
@@ -765,6 +768,8 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
     onInviteEmptySlot,
     allowOpponentLobbyAiFill = false,
     onSetLobbyAiSeat,
+    allowOwnerPetFill = false,
+    onSetLobbyPetSeat,
     onCommitSeatAssignments,
     onKickRoomMemberRequest,
     onDelegateRoomOwnershipRequest,
@@ -946,6 +951,54 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 />
             );
         }
+        const isLobbyPetCell = Boolean(
+            cell.userId &&
+                String(cell.kind).toLowerCase() === 'pet' &&
+                String(cell.userId).startsWith('pet-ai-'),
+        );
+        if (isLobbyPetCell && cell.userId && cell.name && roomKind === 'team_pair') {
+            const canRemovePet =
+                allowOwnerPetFill && isOwnerViewer && team === 'teamA' && Boolean(onSetLobbyPetSeat);
+            return (
+                <SeatTile
+                    key={`${team}-lobby-pet-${slotIdx}`}
+                    tone="filled"
+                    label={cell.userId === `pet-ai-${viewerId}` ? t('room.myPet', '내 펫') : cell.name}
+                    userId={cell.userId}
+                    userName={cell.name}
+                    subLabel={cell.petLineLevel ?? undefined}
+                    portraitSrc={cell.portraitSrc}
+                    accent={accent}
+                    isRoomHost={false}
+                    showReady
+                    compact={compact}
+                    profileInline={Boolean(compact && cell.portraitSrc)}
+                    petLineLevel={cell.petLineLevel ?? undefined}
+                    petLineName={cell.petLineName ?? undefined}
+                    lobbyChromeTone={seatChromeTone}
+                    onProfileClick={
+                        cell.userId === `pet-ai-${viewerId}` ? onViewOwnerEquippedPetDetail : undefined
+                    }
+                    actionFooter={
+                        canRemovePet ? (
+                            <button
+                                type="button"
+                                disabled={kickUiDisabled}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onSetLobbyPetSeat?.('teamA', slotIdx as 0 | 1, false);
+                                }}
+                                className={`${kickStripBtnClass} border border-zinc-400/55 bg-zinc-900/70 text-zinc-100 hover:border-zinc-300/60 hover:bg-zinc-800/55 disabled:pointer-events-none disabled:opacity-45`}
+                            >
+                                {t('room.removePet')}
+                            </button>
+                        ) : (
+                            emptySeatKickReserveFooter
+                        )
+                    }
+                />
+            );
+        }
         if (cell.userId && cell.name) {
             const isHost = cell.userId === ownerId;
             const ready = Boolean(cell.ready);
@@ -1055,8 +1108,18 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
             team === 'teamB' &&
             Boolean(onSetLobbyAiSeat) &&
             !cell.userId;
+        const canAddLobbyPet =
+            allowOwnerPetFill &&
+            isOwnerViewer &&
+            team === 'teamA' &&
+            slotIdx === 1 &&
+            Boolean(onSetLobbyPetSeat) &&
+            !cell.userId;
         const emptyAiFooter =
-            canAddLobbyAi || (opts.onOpen && allowOpponentLobbyAiFill && team === 'teamB' && isOwnerViewer) ? (
+            canAddLobbyAi ||
+            canAddLobbyPet ||
+            (opts.onOpen && allowOpponentLobbyAiFill && team === 'teamB' && isOwnerViewer) ||
+            (opts.onOpen && canAddLobbyPet) ? (
                 <div className="flex w-full min-w-0 gap-0.5">
                     {opts.onOpen ? (
                         <button
@@ -1084,6 +1147,19 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                             {t('room.addAi', 'AI')}
                         </button>
                     ) : null}
+                    {canAddLobbyPet ? (
+                        <button
+                            type="button"
+                            disabled={kickUiDisabled}
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                onSetLobbyPetSeat?.('teamA', 1, true);
+                            }}
+                            className={`${kickStripBtnClass} border border-fuchsia-400/55 bg-fuchsia-950/70 text-fuchsia-100 hover:border-fuchsia-300/60 hover:bg-fuchsia-900/55 disabled:pointer-events-none disabled:opacity-45`}
+                        >
+                            {t('room.addPet')}
+                        </button>
+                    ) : null}
                 </div>
             ) : (
                 emptySeatKickReserveFooter
@@ -1096,10 +1172,12 @@ const PairRoomSeatGrid: React.FC<PairRoomSeatGridProps> = ({
                 subLabel={
                     canAddLobbyAi
                         ? t('room.tapInviteOrAi', '초대 또는 AI')
-                        : opts.emptySub
+                        : canAddLobbyPet
+                          ? t('room.tapInviteOrPet')
+                          : opts.emptySub
                 }
                 accent={accent}
-                onOpenClick={canAddLobbyAi ? undefined : opts.onOpen}
+                onOpenClick={canAddLobbyAi || canAddLobbyPet ? undefined : opts.onOpen}
                 onDropUser={canDragAssign ? handleDrop : undefined}
                 dropTeam={team}
                 dropIndex={slotIdx}

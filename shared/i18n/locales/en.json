@@ -6171,8 +6171,11 @@
     "viewRewardItem": "Reward item: {{name}}",
     "rewardInfoTitle": "Rewards",
     "closePanelAria": "Close panel",
+    "openSideMenuAria": "Open side menu",
+    "closeSideMenuAria": "Close side menu",
+    "sideMenuTitle": "Record · Ranking · Items",
     "close": "Close",
-    "allTimeBest": "All-time best floor",
+    "allTimeBest": "All-time best",
     "currentFloorLabel": "Current floor",
     "monthlyBest": "Best floor this month",
     "expectedReward": "Expected reward",
@@ -6520,6 +6523,9 @@
       "send": "Send",
       "addAi": "Add AI",
       "tapInviteOrAi": "Invite or AI",
+      "tapInviteOrPet": "Invite or pet",
+      "addPet": "Add pet",
+      "removePet": "Remove pet",
       "inviteShort": "Invite",
       "removeAi": "Remove AI"
     },
@@ -6840,10 +6846,10 @@
       "default": "Open work screen"
     },
     "pickHints": {
-      "enhance": "Pick gear in the modal, then confirm to open the enhance screen.",
-      "combine": "Add 3 same-grade gear in the modal, then confirm to open combine.",
-      "disassemble": "Pick gear to disassemble in the modal, then confirm.",
-      "refine": "Pick gear to refine in the modal, then confirm."
+      "enhance": "Tap gear in the inventory below to open the enhance screen.",
+      "combine": "Add 3 same-grade gear from the inventory below to open combine.",
+      "disassemble": "Select gear to disassemble below, then tap confirm.",
+      "refine": "Tap gear in the inventory below to open the refine screen."
     },
     "picker": {
       "selectGear": "Select gear",

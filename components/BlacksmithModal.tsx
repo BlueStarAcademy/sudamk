@@ -11,7 +11,7 @@ import ConversionView from './blacksmith/ConversionView.js';
 import RefinementView from './blacksmith/RefinementView.js';
 import RefinementResultModal from './blacksmith/RefinementResultModal.js';
 import InventoryGrid from './blacksmith/InventoryGrid.js';
-import BlacksmithEquipmentPickerModal from './blacksmith/BlacksmithEquipmentPickerModal.js';
+import { CombineSlotPreview } from './blacksmith/BlacksmithEquipmentPickerModal.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import { BLACKSMITH_MAX_LEVEL, BLACKSMITH_COMBINABLE_GRADES_BY_LEVEL, BLACKSMITH_XP_REQUIRED_FOR_LEVEL_UP } from '../constants/rules';
@@ -127,19 +127,21 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
 
     if (!currentUserWithStatus) return null;
 
+    const prevActiveTabRef = useRef(activeTab);
     useEffect(() => {
-        if (selectedItemForEnhancement) {
-            setSelectedItem(selectedItemForEnhancement);
-        }
-    }, [selectedItemForEnhancement]);
-
-    useEffect(() => {
+        if (prevActiveTabRef.current === activeTab) return;
+        prevActiveTabRef.current = activeTab;
         setCombinationItems([null, null, null]);
-    }, [activeTab]);
-
-    useEffect(() => {
+        setSelectedItem(null);
+        setSelectedForDisassembly(new Set());
         if (activeTab !== 'disassemble') setDisassemblyAutoSelectOpen(false);
     }, [activeTab]);
+
+    useEffect(() => {
+        if (selectedItemForEnhancement && (activeTab === 'enhance' || activeTab === 'refine')) {
+            setSelectedItem(selectedItemForEnhancement);
+        }
+    }, [selectedItemForEnhancement, activeTab]);
 
     // Sync selected item with inventory (for enhancement updates) — paint 전에 맞춰 성공확률·실패 보너스가 바로 반영되게 함
     useLayoutEffect(() => {
@@ -262,29 +264,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         return [];
     }, [activeTab, inventory, combinationItems, maxCombinableGradeIndex, currentUserWithStatus.equipmentPresets]);
 
-    const [equipmentPickerOpen, setEquipmentPickerOpen] = useState(false);
-    const [pickerSingle, setPickerSingle] = useState<InventoryItem | null>(null);
-    const [pickerCombine, setPickerCombine] = useState<(InventoryItem | null)[]>([null, null, null]);
-    const [pickerDisassemble, setPickerDisassemble] = useState<Set<string>>(new Set());
-
-    const pickerDisabledItemIds = useMemo(() => {
-        if (!equipmentPickerOpen) return [];
-        if (activeTab === 'combine') {
-            return getCombineDisabledItemIds(inventory, pickerCombine, maxCombinableGradeIndex);
-        }
-        if (activeTab === 'disassemble') {
-            return getDisassembleDisabledItemIds(inventory, currentUserWithStatus.equipmentPresets);
-        }
-        return [];
-    }, [
-        equipmentPickerOpen,
-        activeTab,
-        inventory,
-        pickerCombine,
-        maxCombinableGradeIndex,
-        currentUserWithStatus.equipmentPresets,
-    ]);
-
     const mobileShowEquipmentWorkPanel = useMemo(() => {
         if (!useStackedBlacksmithLayout) return true;
         if (activeTab === 'convert') return true;
@@ -306,85 +285,16 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         activeTab === 'disassemble' ||
         activeTab === 'refine';
 
-    const openEquipmentPicker = useCallback(() => {
-        if (activeTab === 'enhance' || activeTab === 'refine') {
-            setPickerSingle(selectedItem);
-        } else if (activeTab === 'combine') {
-            setPickerCombine([...combinationItems]);
-        } else if (activeTab === 'disassemble') {
-            setPickerDisassemble(new Set(selectedForDisassembly));
-        }
-        setEquipmentPickerOpen(true);
-    }, [activeTab, selectedItem, combinationItems, selectedForDisassembly]);
-
-    const handlePickerConfirm = useCallback(() => {
-        if (activeTab === 'enhance' || activeTab === 'refine') {
-            if (pickerSingle) setSelectedItem(pickerSingle);
-        } else if (activeTab === 'combine') {
-            setCombinationItems([...pickerCombine]);
-        } else if (activeTab === 'disassemble') {
-            setSelectedForDisassembly(new Set(pickerDisassemble));
-        }
-        setEquipmentPickerOpen(false);
-    }, [activeTab, pickerSingle, pickerCombine, pickerDisassemble]);
-
-    const handlePickSingleCompleteMobile = useCallback((item: InventoryItem) => {
-        setSelectedItem(item);
-        setEquipmentPickerOpen(false);
-    }, []);
-
-    const handlePickerSelectSingle = useCallback((item: InventoryItem) => {
-        setPickerSingle(item);
-    }, []);
-
-    const handlePickerSelectForCombine = useCallback((item: InventoryItem) => {
-        setPickerCombine(prev => {
-            const emptyIndex = prev.findIndex(i => i === null);
-            if (emptyIndex === -1) return prev;
-            const next = [...prev];
-            next[emptyIndex] = item;
-            return next;
-        });
-    }, []);
-
-    const handlePickerRemoveCombineSlot = useCallback((index: number) => {
-        setPickerCombine(prev => {
-            const next = [...prev];
-            next[index] = null;
-            return next;
-        });
-    }, []);
-
-    const handlePickerToggleDisassembly = useCallback((itemId: string) => {
-        setPickerDisassemble(prev => {
-            const next = new Set(prev);
-            if (next.has(itemId)) next.delete(itemId);
-            else next.add(itemId);
-            return next;
-        });
-    }, []);
-
     const handleDisassemblyAutoSelectConfirm = useCallback(
         (grades: ItemGrade[]) => {
-            const toggler =
-                equipmentPickerOpen && activeTab === 'disassemble'
-                    ? handlePickerToggleDisassembly
-                    : handleToggleDisassemblySelection;
             applyDisassemblyAutoSelectByGrades(
                 grades,
                 inventory,
                 currentUserWithStatus.equipmentPresets,
-                toggler
+                handleToggleDisassemblySelection
             );
         },
-        [
-            equipmentPickerOpen,
-            activeTab,
-            inventory,
-            currentUserWithStatus.equipmentPresets,
-            handlePickerToggleDisassembly,
-            handleToggleDisassemblySelection,
-        ]
+        [inventory, currentUserWithStatus.equipmentPresets, handleToggleDisassemblySelection]
     );
 
     const handleMobileEquipmentBack = useCallback(() => {
@@ -397,8 +307,21 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         }
     }, [activeTab]);
 
+    const handleRemoveCombineSlot = useCallback((index: number) => {
+        setCombinationItems((prev) => {
+            const next = [...prev];
+            next[index] = null;
+            return next;
+        });
+    }, []);
+
     const [equipmentFeatureModalOpen, setEquipmentFeatureModalOpen] = useState(false);
     const prevMobileEquipmentWorkRef = useRef(false);
+
+    useEffect(() => {
+        setEquipmentFeatureModalOpen(false);
+        prevMobileEquipmentWorkRef.current = false;
+    }, [activeTab]);
 
     useEffect(() => {
         if (!useStackedBlacksmithLayout || !isMobileEquipmentTab) {
@@ -408,14 +331,15 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         }
         const now = mobileShowEquipmentWorkPanel;
         const prev = prevMobileEquipmentWorkRef.current;
-        if (now && !prev) {
+        // 분해는 다중 선택 후「선택 완료」로 직접 연다
+        if (activeTab !== 'disassemble' && now && !prev) {
             setEquipmentFeatureModalOpen(true);
         }
         if (!now) {
             setEquipmentFeatureModalOpen(false);
         }
         prevMobileEquipmentWorkRef.current = now;
-    }, [useStackedBlacksmithLayout, isMobileEquipmentTab, mobileShowEquipmentWorkPanel]);
+    }, [useStackedBlacksmithLayout, isMobileEquipmentTab, mobileShowEquipmentWorkPanel, activeTab]);
 
     const tabs = [
         { id: 'enhance', label: t('tabs.enhance') },
@@ -528,13 +452,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         return sorted;
     }, [inventory, activeTab, sortOption]);
 
-    /** 합성 피커: 선택 불가(장착·등급·대장간 레벨) 장비는 목록에서 제외해 모바일에서 회색만 가득한 것처럼 보이지 않게 함 */
-    const pickerFilteredInventory = useMemo(() => {
-        if (!equipmentPickerOpen || activeTab !== 'combine') return filteredInventory;
-        const disabledSet = new Set(pickerDisabledItemIds);
-        return filteredInventory.filter(item => !disabledSet.has(item.id));
-    }, [equipmentPickerOpen, activeTab, filteredInventory, pickerDisabledItemIds]);
-
     const inventorySlotsToDisplay = (() => {
         const slots = inventorySlots || {};
         if (activeTab === 'enhance' || activeTab === 'combine' || activeTab === 'disassemble' || activeTab === 'refine') {
@@ -553,10 +470,9 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         }
         return t('inventoryType.bag');
     }, [activeTab, t]);
-    /** 재료 변환만 그리드·스크롤용 최소 높이; 장비 탭(선택/작업 안내)은 콘텐츠 높이로 두어 하단 여백 제거 */
+    /** 재료 변환만 그리드·스크롤용 최소 높이 */
     const mobileViewerMinH =
         activeTab === 'convert' ? 'clamp(9.5rem, 28dvh, 17rem)' : undefined;
-    const stackedMobileFillHeight = useStackedBlacksmithLayout && activeTab === 'convert';
     const pcViewer = !useStackedBlacksmithLayout;
     const inventoryViewportRef = useRef<HTMLDivElement>(null);
     const [inventoryViewportHeightPx, setInventoryViewportHeightPx] = useState<number | null>(null);
@@ -613,6 +529,8 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                 return t('tabs.disassemble');
             case 'refine':
                 return t('tabs.refine');
+            case 'convert':
+                return t('tabs.convert');
             default:
                 return t('title');
         }
@@ -633,14 +551,14 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
         }
     }, [activeTab, t]);
 
+    const mobileInventoryColumnCount = windowWidth < 380 ? 5 : windowWidth < 480 ? 6 : 8;
+
     const blacksmithMain = (
                 <div
-                    className={`flex min-h-0 w-full flex-col ${embedded ? 'h-full flex-1' : stackedMobileFillHeight ? 'flex-1' : useStackedBlacksmithLayout ? 'shrink-0' : 'h-full flex-1'} ${!useStackedBlacksmithLayout ? 'gap-3' : ''}`}
+                    className={`flex min-h-0 w-full flex-col ${embedded || useStackedBlacksmithLayout ? 'h-full flex-1' : 'h-full flex-1'} ${!useStackedBlacksmithLayout ? 'gap-3' : ''}`}
                 >
                     {useStackedBlacksmithLayout ? (
-                        <div
-                            className={`flex min-h-0 w-full flex-col gap-2 ${stackedMobileFillHeight ? 'min-h-0 flex-1' : 'shrink-0'}`}
-                        >
+                        <div className="flex min-h-0 w-full flex-1 flex-col gap-2">
                             <div className="shrink-0 rounded-xl border border-cyan-400/25 bg-gradient-to-b from-stone-900/80 to-cyan-950/30 p-2 shadow-inner">
                                 <div className="flex min-h-[12rem] w-full items-stretch gap-2 sm:min-h-[12.5rem]">
                                     <div className="min-h-0 min-w-0 flex-1">
@@ -721,49 +639,114 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                                 </div>
                             </div>
 
-                            <div
-                                className={`flex min-h-0 min-w-0 flex-col overflow-y-auto overflow-x-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2 [scrollbar-gutter:stable] ${stackedMobileFillHeight ? 'min-h-0 flex-1' : 'shrink-0'}`}
-                                style={mobileViewerMinH ? { minHeight: mobileViewerMinH } : undefined}
-                            >
-                                {activeTab === 'convert' && renderContent()}
-                                {isMobileEquipmentTab && !mobileShowEquipmentWorkPanel && (
-                                    <div className="flex flex-col items-center justify-center gap-3 px-2 py-4">
-                                        <p className="max-w-sm text-center text-[13px] leading-relaxed text-slate-400">
+                            {activeTab === 'convert' ? (
+                                <div
+                                    className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overflow-x-hidden rounded-xl border border-color/40 bg-tertiary/20 p-2 [scrollbar-gutter:stable]"
+                                    style={mobileViewerMinH ? { minHeight: mobileViewerMinH } : undefined}
+                                >
+                                    {renderContent()}
+                                </div>
+                            ) : (
+                                <>
+                                    <div className="flex shrink-0 flex-col gap-2 rounded-xl border border-color/40 bg-tertiary/20 p-2">
+                                        <p className="text-center text-[12px] leading-relaxed text-slate-400 sm:text-[13px]">
                                             {mobilePickHint}
                                         </p>
-                                        <button
-                                            type="button"
-                                            onClick={openEquipmentPicker}
-                                            className="w-full max-w-xs rounded-xl border-2 border-amber-400/55 bg-gradient-to-b from-amber-600/55 via-amber-500/35 to-orange-950/50 px-4 py-3.5 text-[13px] font-bold text-amber-50 shadow-[0_12px_28px_-14px_rgba(251,191,36,0.65)] transition hover:border-amber-300/80 active:scale-[0.99]"
-                                        >
-                                            {t('selectGear')}
-                                        </button>
+                                        {activeTab === 'combine' ? (
+                                            <div className="flex gap-1.5">
+                                                {combinationItems.map((item, index) => (
+                                                    <CombineSlotPreview
+                                                        key={index}
+                                                        item={item}
+                                                        onRemove={() => handleRemoveCombineSlot(index)}
+                                                    />
+                                                ))}
+                                            </div>
+                                        ) : null}
+                                        {activeTab === 'disassemble' &&
+                                        selectedForDisassembly.size > 0 &&
+                                        !equipmentFeatureModalOpen ? (
+                                            <button
+                                                type="button"
+                                                onClick={() => setEquipmentFeatureModalOpen(true)}
+                                                className="w-full rounded-xl border-2 border-amber-400/55 bg-gradient-to-b from-amber-600/55 via-amber-500/35 to-orange-950/50 px-4 py-2.5 text-[13px] font-bold text-amber-50 shadow-[0_12px_28px_-14px_rgba(251,191,36,0.65)] transition hover:border-amber-300/80 active:scale-[0.99]"
+                                            >
+                                                {t('picker.selectComplete')} ({selectedForDisassembly.size})
+                                            </button>
+                                        ) : null}
+                                        {isMobileEquipmentTab &&
+                                        mobileShowEquipmentWorkPanel &&
+                                        equipmentFeatureModalOpen ? (
+                                            <div className="flex flex-col items-center gap-2">
+                                                <p className="text-center text-[12px] leading-relaxed text-slate-400">
+                                                    {t('inProgressHint')}
+                                                </p>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => setEquipmentFeatureModalOpen(true)}
+                                                    className="w-full max-w-xs rounded-xl border-2 border-cyan-400/50 bg-gradient-to-b from-cyan-900/40 via-slate-800/60 to-slate-900/80 px-4 py-2.5 text-[13px] font-bold text-cyan-50 shadow-[0_12px_28px_-14px_rgba(34,211,238,0.45)] transition hover:border-cyan-300/70 active:scale-[0.99]"
+                                                >
+                                                    {mobileFeatureOpenButtonLabel}
+                                                </button>
+                                                <button
+                                                    type="button"
+                                                    onClick={handleMobileEquipmentBack}
+                                                    className="rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-[13px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
+                                                >
+                                                    {t('reselectGear')}
+                                                </button>
+                                            </div>
+                                        ) : null}
                                     </div>
-                                )}
-                                {isMobileEquipmentTab && mobileShowEquipmentWorkPanel && (
-                                    <div className="flex flex-col items-center justify-center gap-3 px-2 py-4">
-                                        <p className="max-w-sm text-center text-[13px] leading-relaxed text-slate-400">
-                                            {equipmentFeatureModalOpen
-                                                ? t('inProgressHint')
-                                                : t('openWorkHint')}
-                                        </p>
-                                        <button
-                                            type="button"
-                                            onClick={() => setEquipmentFeatureModalOpen(true)}
-                                            className="w-full max-w-xs rounded-xl border-2 border-cyan-400/50 bg-gradient-to-b from-cyan-900/40 via-slate-800/60 to-slate-900/80 px-4 py-3 text-[13px] font-bold text-cyan-50 shadow-[0_12px_28px_-14px_rgba(34,211,238,0.45)] transition hover:border-cyan-300/70 active:scale-[0.99]"
-                                        >
-                                            {mobileFeatureOpenButtonLabel}
-                                        </button>
-                                        <button
-                                            type="button"
-                                            onClick={handleMobileEquipmentBack}
-                                            className="rounded-lg border border-slate-600/55 bg-slate-800/70 px-3 py-2 text-[13px] font-bold text-slate-200 shadow-sm transition hover:border-cyan-500/35 hover:bg-slate-700/80 active:scale-[0.99]"
-                                        >
-                                            {t('reselectGear')}
-                                        </button>
+
+                                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/30 p-2">
+                                        <div className="mb-1.5 flex shrink-0 items-center justify-between gap-2">
+                                            <h3 className="min-w-0 truncate text-sm font-black tracking-tight text-amber-100">
+                                                {bagHeaderText}
+                                            </h3>
+                                            <div className="flex shrink-0 items-center gap-1.5">
+                                                {activeTab === 'disassemble' ? (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setDisassemblyAutoSelectOpen(true)}
+                                                        className="rounded-md border border-amber-400/40 bg-amber-950/50 px-2 py-1 text-[11px] font-bold text-amber-100 transition hover:border-amber-300/60"
+                                                    >
+                                                        {t('picker.autoSelect')}
+                                                    </button>
+                                                ) : null}
+                                                <select
+                                                    value={sortOption}
+                                                    onChange={(e) => setSortOption(e.target.value as SortOption)}
+                                                    className="rounded-md border border-amber-400/30 bg-slate-900/85 px-2 py-1 text-[11px] font-semibold text-amber-100 outline-none transition focus:border-amber-300/60"
+                                                >
+                                                    <option value="grade">{t('sort.grade')}</option>
+                                                    <option value="stars">{t('sort.stars')}</option>
+                                                    <option value="name">{t('sort.name')}</option>
+                                                    <option value="date">{t('sort.date')}</option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5 [scrollbar-width:thin]">
+                                            <InventoryGrid
+                                                inventory={filteredInventory}
+                                                inventorySlots={inventorySlotsToDisplay}
+                                                onSelectItem={handleSelectItem}
+                                                selectedItemId={selectedItem?.id || null}
+                                                disabledItemIds={disabledItemIds}
+                                                selectedItemIdsForDisassembly={
+                                                    activeTab === 'disassemble' ? selectedForDisassembly : undefined
+                                                }
+                                                onToggleDisassemblySelection={
+                                                    activeTab === 'disassemble'
+                                                        ? handleToggleDisassemblySelection
+                                                        : undefined
+                                                }
+                                                columnCount={mobileInventoryColumnCount}
+                                            />
+                                        </div>
                                     </div>
-                                )}
-                            </div>
+                                </>
+                            )}
                         </div>
                     ) : (
                     <>
@@ -928,42 +911,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                 </div>
     );
 
-    const equipmentPickerMode =
-        activeTab === 'enhance' || activeTab === 'combine' || activeTab === 'disassemble' || activeTab === 'refine'
-            ? activeTab
-            : 'enhance';
-
-    const equipmentPickerModal = (
-        <BlacksmithEquipmentPickerModal
-            embedded={embedded && !useStackedBlacksmithLayout}
-            mode={equipmentPickerMode}
-            onClose={() => setEquipmentPickerOpen(false)}
-            onConfirm={handlePickerConfirm}
-            onPickSingleComplete={
-                activeTab === 'enhance' || activeTab === 'refine' ? handlePickSingleCompleteMobile : undefined
-            }
-            filteredInventory={pickerFilteredInventory}
-            inventorySlots={Math.max(inventorySlotsToDisplay, pickerFilteredInventory.length)}
-            sortOption={sortOption}
-            onSortChange={setSortOption}
-            columnCount={windowWidth < 380 ? 5 : windowWidth < 480 ? 6 : 8}
-            gapPx={windowWidth < 400 ? 4 : 6}
-            disabledItemIds={pickerDisabledItemIds}
-            pickerSingle={pickerSingle}
-            onSelectSingle={handlePickerSelectSingle}
-            pickerCombine={pickerCombine}
-            onRemoveCombineSlot={handlePickerRemoveCombineSlot}
-            onSelectForCombine={handlePickerSelectForCombine}
-            pickerDisassemble={pickerDisassemble}
-            onToggleDisassembly={handlePickerToggleDisassembly}
-            onOpenDisassemblyAutoSelect={
-                activeTab === 'disassemble' ? () => setDisassemblyAutoSelectOpen(true) : undefined
-            }
-            disassemblyAutoSelectOpen={disassemblyAutoSelectOpen}
-            isTopmost={Boolean(isTopmost)}
-        />
-    );
-
     return (
         <>
             {embedded ? (
@@ -972,7 +919,7 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                 </div>
             ) : (
             <DraggableWindow 
-                title={blacksmithVisualName}
+                title={useStackedBlacksmithLayout ? mobileFeatureModalTitle : blacksmithVisualName}
                 onClose={onClose} 
                 bodyScrollable
                 bodyNoScroll={false}
@@ -987,7 +934,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                 isTopmost={
                     isTopmost &&
                     !disassemblyAutoSelectOpen &&
-                    !equipmentPickerOpen &&
                     !equipmentFeatureModalOpen &&
                     !modals.isBlacksmithEffectsModalOpen &&
                     !modals.disassemblyResult
@@ -1002,10 +948,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
             </DraggableWindow>
             )}
 
-            {equipmentPickerOpen && useStackedBlacksmithLayout && isMobileEquipmentTab && (
-                equipmentPickerModal
-            )}
-
             {equipmentFeatureModalOpen &&
                 useStackedBlacksmithLayout &&
                 isMobileEquipmentTab &&
@@ -1017,7 +959,6 @@ const BlacksmithModal: React.FC<BlacksmithModalProps> = ({
                         isTopmost={
                             isTopmost &&
                             !disassemblyAutoSelectOpen &&
-                            !equipmentPickerOpen &&
                             !modals.isBlacksmithEffectsModalOpen &&
                             !modals.disassemblyResult
                         }

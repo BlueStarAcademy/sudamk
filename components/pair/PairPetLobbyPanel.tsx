@@ -47,6 +47,10 @@ import {
     PET_MGMT_TR_SLOT_COL_MOBILE_CLASS,
     PET_MGMT_TR_SLOT_DROP_CLASS,
     PET_MGMT_TR_SLOT_DROP_MOBILE_CLASS,
+    PET_MGMT_TR_SLOT_NAME_RAIL_CLASS,
+    PET_MGMT_TR_SLOT_NAME_RAIL_MOBILE_CLASS,
+    PET_MGMT_TR_SLOT_NAME_TEXT_CLASS,
+    PET_MGMT_TR_SLOT_ROW_CLASS,
     PET_MGMT_TR_SOUL_COL,
     PET_MGMT_HATCHERY_EGG_IMG_CLASS,
     PET_MGMT_HATCHERY_EGG_IMG_MOBILE_CLASS,
@@ -80,7 +84,6 @@ import {
     PET_MGMT_SOUL_GRID_MOBILE_CLASS,
     PET_MGMT_TAB_BTN_BASE,
     PET_MGMT_TAB_PANEL_CLASS,
-    PET_MGMT_TITLE,
     PET_MGMT_TOP_SPLIT_CLASS,
     PET_MGMT_VIEWER_FRAME_CLASS,
     PET_MGMT_XBOLD,
@@ -274,8 +277,8 @@ function HatcheryOwnedEggThumb({
 
     return (
         <div
-            className={`relative flex w-full min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-1 shadow-inner ${borderClass} ${
-                compact ? 'py-1' : 'py-1.5'
+            className={`relative flex min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border px-1 shadow-inner ${borderClass} ${
+                compact ? 'min-w-[3.25rem] flex-1 py-1' : 'w-full py-1.5'
             }`}
             title={title}
         >
@@ -1552,7 +1555,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                             {t('hatchery.totalEggs', { count: eggCount })}
                         </span>
                     </div>
-                    <div className="ml-auto flex min-w-0 max-w-[58%] flex-col items-stretch justify-center gap-1">
+                    <div className="ml-auto flex min-w-0 flex-1 flex-row items-stretch justify-end gap-1.5">
                         <HatcheryOwnedEggThumb
                             imageUrl={welcomeEggThumbSrc}
                             qty={welcomeEggCount}
@@ -1792,7 +1795,6 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
 
         const trLbl = PET_MGMT_TR_REWARD_LBL_CLASS;
         const trAmt = PET_MGMT_TR_REWARD_AMT_CLASS;
-        const trSlotTitle = `${PET_MGMT_TITLE} text-violet-100`;
         const trMono = `tabular-nums font-mono ${PET_MGMT_BOLD}`;
         const trIconBox = useTapTrainingFlow ? 'h-[2.5rem] w-[2.5rem] shrink-0' : PET_MGMT_TR_ICON_BOX;
         const trIconImg = useTapTrainingFlow ? 'h-6 w-6' : PET_MGMT_TR_ICON_IMG;
@@ -1801,6 +1803,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
         const trPetImgClass = useTapTrainingFlow ? PET_MGMT_TR_PET_IMG_MOBILE_CLASS : PET_MGMT_TR_PET_IMG_CLASS;
         const trSlotDropClass = useTapTrainingFlow ? PET_MGMT_TR_SLOT_DROP_MOBILE_CLASS : PET_MGMT_TR_SLOT_DROP_CLASS;
         const trSlotCardClass = useTapTrainingFlow ? PET_MGMT_TR_SLOT_CARD_MOBILE_CLASS : PET_MGMT_TR_SLOT_CARD_CLASS;
+        const trSlotNameRailClass = useTapTrainingFlow
+            ? PET_MGMT_TR_SLOT_NAME_RAIL_MOBILE_CLASS
+            : PET_MGMT_TR_SLOT_NAME_RAIL_CLASS;
         /** 확률보상 아이콘·이미지는 확정보상과 동일 크기 */
         const soulRewardSizing = {
             colClass: `flex shrink-0 flex-col items-center justify-center ${trSoulCol}`,
@@ -1966,20 +1971,32 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                 }`}
                             >
                                 <div className={trSlotCol}>
-                                    <span
-                                        className={`${trSlotTitle} flex w-full min-w-0 flex-row flex-wrap items-center justify-center gap-0.5 ${
-                                            isVipTrainingSlot ? 'text-amber-100' : ''
-                                        }`}
-                                    >
-                                        {isVipTrainingSlot ? (
-                                            <span className={`shrink-0 rounded border border-amber-400/50 bg-amber-500/20 px-1 py-px font-black uppercase tracking-wider text-amber-200 ${PET_MGMT_CAPTION}`}>
-                                                VIP
+                                    <div className={PET_MGMT_TR_SLOT_ROW_CLASS}>
+                                        <div
+                                            className={`${trSlotNameRailClass} ${
+                                                isVipTrainingSlot ? 'text-amber-100' : 'text-violet-100'
+                                            }`}
+                                            aria-label={
+                                                isVipTrainingSlot
+                                                    ? `VIP ${localizeTrainingSlot(i)}`
+                                                    : localizeTrainingSlot(i)
+                                            }
+                                        >
+                                            {isVipTrainingSlot ? (
+                                                <span
+                                                    className={`shrink-0 rounded border border-amber-400/50 bg-amber-500/20 px-1 py-px font-black uppercase tracking-wider text-amber-200 ${PET_MGMT_CAPTION}`}
+                                                >
+                                                    VIP
+                                                </span>
+                                            ) : null}
+                                            <span
+                                                className={`${PET_MGMT_TR_SLOT_NAME_TEXT_CLASS} ${
+                                                    useTapTrainingFlow ? PET_MGMT_CAPTION : PET_MGMT_SEMI
+                                                } ${isVipTrainingSlot ? 'text-amber-100' : 'text-violet-100'}`}
+                                            >
+                                                {localizeTrainingSlot(i)}
                                             </span>
-                                        ) : null}
-                                        <span className={`min-w-0 flex-1 text-center ${PET_MGMT_SEMI} leading-none`}>
-                                            {localizeTrainingSlot(i)}
-                                        </span>
-                                    </span>
+                                        </div>
                                     <div
                                         role={useTapTrainingFlow && unlocked && !session ? 'button' : undefined}
                                         tabIndex={useTapTrainingFlow && unlocked && !session ? 0 : undefined}
@@ -2144,6 +2161,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
                                                     : t('training.dragPet')}
                                             </span>
                                         ) : null}
+                                    </div>
                                     </div>
                                     {unlocked && session && petRow && !canClaim ? (
                                         <button

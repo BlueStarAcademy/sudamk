@@ -196,6 +196,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
     const { currentUserWithStatus, handlers } = useAppContext();
     const stage = getAdventureStageById(stageId);
     const theme = stage ? ADVENTURE_MAP_THEMES[stage.id as AdventureStageId] : null;
+    const chapterUi = stage ? ADVENTURE_CODEX_CHAPTER_UI[stage.id as AdventureStageId] : null;
 
     const [selectedId, setSelectedId] = useState<string | null>(null);
     const [, setUiTick] = useState(0);
@@ -883,12 +884,18 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                         }`}
                                         onClick={(e) => e.stopPropagation()}
                                     >
-                                        <div className="relative rounded-2xl border border-amber-400/55 bg-zinc-950 shadow-[0_20px_56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.08)] backdrop-blur-md">
+                                        <div
+                                            className={`relative rounded-2xl backdrop-blur-md ${
+                                                chapterUi?.selectionDialogClass ??
+                                                'border border-amber-400/55 bg-zinc-950 shadow-[0_20px_56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(255,255,255,0.08)]'
+                                            }`}
+                                        >
                                             {selectedMonster && selectionDetails ? (
                                             <div className="relative flex flex-col gap-3.5 p-3.5 sm:flex-row sm:items-start sm:gap-4 sm:p-4">
                                                 <div
                                                     className={[
-                                                        'mx-auto flex w-[7.5rem] shrink-0 flex-col self-start overflow-hidden rounded-xl border-[3px] border-amber-400/60 shadow-md sm:mx-0 sm:w-[8.25rem]',
+                                                        'mx-auto flex w-[7.5rem] shrink-0 flex-col self-start overflow-hidden rounded-xl border-[3px] shadow-md sm:mx-0 sm:w-[8.25rem]',
+                                                        selectionDetails.chapterUi.frameBorderClass,
                                                     ].join(' ')}
                                                 >
                                                     <div
@@ -972,7 +979,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                                         bare
                                                         onClick={() => void handleStartMonsterBattle()}
                                                         title={t('adventure.actionPointsTitle', { cost: selectionDetails.apCost })}
-                                                        className="group relative mt-auto w-full overflow-hidden rounded-xl border border-amber-400/55 bg-gradient-to-b from-amber-500/[0.22] via-amber-600/[0.14] to-zinc-900/80 px-3 py-3 shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition-all duration-200 hover:border-amber-300/70 hover:from-amber-400/[0.28] hover:shadow-[0_14px_36px_rgba(251,191,36,0.14)] active:translate-y-px active:shadow-[0_6px_16px_rgba(0,0,0,0.45)] sm:px-4 sm:py-3.5"
+                                                        className={`group relative mt-auto w-full overflow-hidden rounded-xl px-3 py-3 shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition-all duration-200 active:translate-y-px active:shadow-[0_6px_16px_rgba(0,0,0,0.45)] sm:px-4 sm:py-3.5 ${selectionDetails.chapterUi.attackButtonClass}`}
                                                     >
                                                         <span
                                                             aria-hidden
@@ -1400,13 +1407,18 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                       ? t('adventure.treasureChestTitle', { title: stage.title }) + ' ' + t('adventure.treasureChestInfo')
                                       : t('adventure.monsterInfo')
                               }
-                              className={`pointer-events-auto flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] w-full min-h-0 flex-col overflow-hidden rounded-2xl border border-amber-400/50 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black shadow-[0_24px_64px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)] ${
-                                  selectedTreasure ? 'max-w-[min(100%,36rem)]' : 'max-w-[24rem]'
-                              }`}
+                              className={`pointer-events-auto flex max-h-[min(92dvh,calc(100dvh-env(safe-area-inset-top,0px)-env(safe-area-inset-bottom,0px)-1.5rem))] w-full min-h-0 flex-col overflow-hidden rounded-2xl backdrop-blur-md ${
+                                  chapterUi?.selectionDialogClass ??
+                                  'border border-amber-400/50 bg-gradient-to-b from-zinc-900 via-zinc-950 to-black shadow-[0_24px_64px_rgba(0,0,0,0.88),inset_0_1px_0_rgba(255,255,255,0.06)]'
+                              } ${selectedTreasure ? 'max-w-[min(100%,36rem)]' : 'max-w-[24rem]'}`}
                               onClick={(e) => e.stopPropagation()}
                           >
                               <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-                                  <div className="flex shrink-0 items-start gap-3 border-b border-amber-500/15 px-4 pb-3 pt-3">
+                                  <div
+                                      className={`flex shrink-0 items-start gap-3 border-b px-4 pb-3 pt-3 ${
+                                          chapterUi?.dividerBorderClass ?? 'border-amber-500/15'
+                                      }`}
+                                  >
                                       <div className="min-w-0 flex-1">
                                           {selectedTreasure ? (
                                               <h2 className="min-w-0 flex-1 truncate text-lg font-black leading-tight tracking-tight text-white">
@@ -1436,7 +1448,8 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                       <div className="flex items-start gap-3">
                                           <div
                                               className={[
-                                                  'flex w-[6.25rem] shrink-0 flex-col self-start overflow-hidden rounded-lg border-2 border-amber-400/55 shadow-md',
+                                                  'flex w-[6.25rem] shrink-0 flex-col self-start overflow-hidden rounded-lg border-2 shadow-md',
+                                                  selectionDetails.chapterUi.frameBorderClass,
                                               ].join(' ')}
                                           >
                                               <div
@@ -1540,14 +1553,18 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                           />
                                       ) : null}
                                   </div>
-                                  <div className="flex shrink-0 justify-center border-t border-amber-500/20 bg-gradient-to-t from-black/80 to-zinc-950 px-4 pt-3 pb-[max(0.85rem,env(safe-area-inset-bottom,0px))]">
+                                  <div
+                                      className={`flex shrink-0 justify-center border-t bg-gradient-to-t from-black/80 to-transparent px-4 pt-3 pb-[max(0.85rem,env(safe-area-inset-bottom,0px))] ${
+                                          chapterUi?.dividerBorderClass ?? 'border-amber-500/20'
+                                      }`}
+                                  >
                                       {selectedMonster && selectionDetails ? (
                                           <Button
                                               type="button"
                                               bare
                                               onClick={() => void handleStartMonsterBattle()}
                                               title={t('adventure.actionPointsTitle', { cost: selectionDetails.apCost })}
-                                              className="group relative w-auto min-w-[10.5rem] max-w-full overflow-hidden rounded-xl border border-amber-400/55 bg-gradient-to-b from-amber-500/[0.22] via-amber-600/[0.14] to-zinc-900/80 px-5 py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition-all active:translate-y-px active:shadow-[0_6px_16px_rgba(0,0,0,0.45)]"
+                                              className={`group relative w-auto min-w-[10.5rem] max-w-full overflow-hidden rounded-xl px-5 py-2.5 shadow-[0_10px_28px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.14)] transition-all active:translate-y-px active:shadow-[0_6px_16px_rgba(0,0,0,0.45)] ${selectionDetails.chapterUi.attackButtonClass}`}
                                           >
                                               <span
                                                   aria-hidden

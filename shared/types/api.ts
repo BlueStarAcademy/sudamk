@@ -284,6 +284,11 @@ export interface PairRoomState {
      * 인덱스 0|1 — 해당 칸에 인간이 있으면 무시된다.
      */
     pairLobbyAiSeatSlots?: { teamB: Array<0 | 1> };
+    /**
+     * 팀페어: 방장이 teamA 빈 슬롯에 넣은 내 펫 자리.
+     * 인간이 파트너로 들어오면 무시·제거된다.
+     */
+    pairLobbyPetSeatSlots?: { teamA: Array<0 | 1> };
     /** 방이 속한 경기장(미지정=페어) */
     lobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly';
     ownerLobbyPet?: PairLobbyPetSnapshot;
@@ -418,6 +423,10 @@ export type ServerAction =
     | {
           type: 'PAIR_SET_LOBBY_AI_SEAT';
           payload: { roomId: string; team: 'teamB'; index: 0 | 1; enabled: boolean };
+      }
+    | {
+          type: 'PAIR_SET_LOBBY_PET_SEAT';
+          payload: { roomId: string; team: 'teamA'; index: 0 | 1; enabled: boolean };
       }
     | { type: 'PAIR_START_MATCH', payload?: { mode?: GameMode; settings?: GameSettings } }
     | { type: 'PAIR_QUEUE_PET_RANKED'; payload: { mode: GameMode } }

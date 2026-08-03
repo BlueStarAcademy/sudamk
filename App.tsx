@@ -291,13 +291,17 @@ const AppContent: React.FC = () => {
     const hideAppHeader = Boolean(currentUser && currentRoute.view === 'set-nickname');
     /** 모바일 셸: 로그인 화면에만 약관·사업자 정보 푸터 표시 */
     const showMobileLoginFooter = !currentUser && currentRoute.view === 'login';
+    /**
+     * 로그인/온보딩·PC 홈만 사진 배경(loginpc/loginmb).
+     * 네이티브 모바일 홈은 카드·탭과 겹쳐 지저분해 보이므로 bg-primary만 사용.
+     */
     const showMainBg =
         !currentUser ||
-        currentRoute.view === 'profile' ||
         currentRoute.view === 'set-nickname' ||
         currentRoute.view === 'register' ||
-        currentRoute.view === 'kakao-callback';
-    const backgroundClass = !currentUser || showMainBg ? 'bg-login-background' : 'bg-primary';
+        currentRoute.view === 'kakao-callback' ||
+        (currentRoute.view === 'profile' && !isNativeMobile);
+    const backgroundClass = showMainBg ? 'bg-login-background' : 'bg-primary';
 
     const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout === true;
     /** 8인치+ 태블릿(PC 셸)은 세로 스크롤 여유를 PC 화면 보기와 동일하게 둔다 */

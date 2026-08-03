@@ -162,6 +162,14 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
         tabIdleHoverClass: string;
         /** 도감 문장 앞 동그라미 */
         bulletClass: string;
+        /** 맵 스테이지 클릭 패널(몬스터·보물) 외곽 — panelClass + 외곽 그림자 */
+        selectionDialogClass: string;
+        /** 초상화 프레임 테두리 */
+        frameBorderClass: string;
+        /** 패널 헤더/푸터 구분선 */
+        dividerBorderClass: string;
+        /** 공격 버튼 */
+        attackButtonClass: string;
     }
 > = {
     neighborhood_hill: {
@@ -175,6 +183,12 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-emerald-400/55 bg-emerald-500/20 text-emerald-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-emerald-500/35 hover:text-emerald-100/90',
         bulletClass: 'bg-emerald-400/80',
+        selectionDialogClass:
+            'border border-emerald-400/50 bg-gradient-to-br from-emerald-950/92 via-green-950/88 to-zinc-950 shadow-[0_20px_56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(167,243,208,0.12)]',
+        frameBorderClass: 'border-emerald-400/60',
+        dividerBorderClass: 'border-emerald-500/25',
+        attackButtonClass:
+            'border-emerald-400/55 bg-gradient-to-b from-emerald-500/[0.26] via-emerald-700/[0.16] to-zinc-900/80 hover:border-emerald-300/70 hover:from-emerald-400/[0.32] hover:shadow-[0_14px_36px_rgba(16,185,129,0.16)]',
     },
     lake_park: {
         panelClass:
@@ -187,6 +201,12 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-sky-400/55 bg-sky-500/20 text-sky-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-sky-500/35 hover:text-sky-100/90',
         bulletClass: 'bg-sky-400/80',
+        selectionDialogClass:
+            'border border-sky-400/50 bg-gradient-to-br from-sky-950/92 via-blue-950/88 to-zinc-950 shadow-[0_20px_56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(186,230,253,0.12)]',
+        frameBorderClass: 'border-sky-400/60',
+        dividerBorderClass: 'border-sky-500/25',
+        attackButtonClass:
+            'border-sky-400/55 bg-gradient-to-b from-sky-500/[0.26] via-sky-700/[0.16] to-zinc-900/80 hover:border-sky-300/70 hover:from-sky-400/[0.32] hover:shadow-[0_14px_36px_rgba(14,165,233,0.16)]',
     },
     aquarium: {
         panelClass:
@@ -199,6 +219,12 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-cyan-400/55 bg-cyan-500/18 text-cyan-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-cyan-500/35 hover:text-cyan-100/90',
         bulletClass: 'bg-cyan-400/80',
+        selectionDialogClass:
+            'border border-cyan-400/50 bg-gradient-to-br from-slate-950/94 via-blue-950/90 to-cyan-950/92 shadow-[0_20px_56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(165,243,252,0.12)]',
+        frameBorderClass: 'border-cyan-400/60',
+        dividerBorderClass: 'border-cyan-500/25',
+        attackButtonClass:
+            'border-cyan-400/55 bg-gradient-to-b from-cyan-500/[0.26] via-cyan-700/[0.16] to-zinc-900/80 hover:border-cyan-300/70 hover:from-cyan-400/[0.32] hover:shadow-[0_14px_36px_rgba(34,211,238,0.16)]',
     },
     zoo: {
         panelClass:
@@ -211,6 +237,12 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-amber-400/55 bg-amber-500/22 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-amber-500/35 hover:text-amber-100/90',
         bulletClass: 'bg-amber-400/80',
+        selectionDialogClass:
+            'border border-amber-400/55 bg-gradient-to-br from-amber-950/92 via-yellow-950/85 to-zinc-950 shadow-[0_20px_56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(253,230,138,0.12)]',
+        frameBorderClass: 'border-amber-400/60',
+        dividerBorderClass: 'border-amber-500/25',
+        attackButtonClass:
+            'border-amber-400/55 bg-gradient-to-b from-amber-500/[0.26] via-amber-700/[0.16] to-zinc-900/80 hover:border-amber-300/70 hover:from-amber-400/[0.32] hover:shadow-[0_14px_36px_rgba(251,191,36,0.16)]',
     },
     amusement_park: {
         panelClass:
@@ -223,6 +255,12 @@ export const ADVENTURE_CODEX_CHAPTER_UI: Record<
             'border-fuchsia-400/55 bg-fuchsia-500/18 text-fuchsia-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]',
         tabIdleHoverClass: 'hover:border-fuchsia-500/35 hover:text-fuchsia-100/90',
         bulletClass: 'bg-fuchsia-400/80',
+        selectionDialogClass:
+            'border border-fuchsia-400/50 bg-gradient-to-br from-purple-950/92 via-fuchsia-950/88 to-zinc-950 shadow-[0_20px_56px_rgba(0,0,0,0.78),inset_0_1px_0_rgba(240,171,252,0.12)]',
+        frameBorderClass: 'border-fuchsia-400/60',
+        dividerBorderClass: 'border-fuchsia-500/25',
+        attackButtonClass:
+            'border-fuchsia-400/55 bg-gradient-to-b from-fuchsia-500/[0.26] via-fuchsia-700/[0.16] to-zinc-900/80 hover:border-fuchsia-300/70 hover:from-fuchsia-400/[0.32] hover:shadow-[0_14px_36px_rgba(217,70,239,0.16)]',
     },
 };
 

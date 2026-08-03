@@ -272,66 +272,107 @@ html[data-theme="green"] {
   }
 
   /**
-   * DraggableWindow 본문: 좁은 뷰포트·네이티브에서 기본 글자·자간을 키움.
-   * 자식의 text-sm/text-xs는 본문 가독성을 해치지 않도록 한 단계 보정.
+   * DraggableWindow 모바일 본문 — PC rem/Tailwind가 실기기 1×에서 과대해 보이지 않도록 밀집.
+   * (예전: text-sm/xs를 키우는 보정 → 한 화면을 쉽게 넘김. dense-copy가 기본.)
    */
   .sudamr-mobile-modal-body {
-    font-size: 1rem;
-    line-height: 1.55;
+    font-size: 0.8125rem;
+    line-height: 1.4;
     -webkit-font-smoothing: antialiased;
   }
 
   .sudamr-mobile-modal-body .sudamr-modal-message-panel {
-    padding: 1.125rem 1.375rem;
-  }
-
-  .sudamr-mobile-modal-body .text-sm {
-    font-size: 1rem;
-    line-height: 1.55;
+    padding: 0.75rem 0.875rem;
   }
 
   .sudamr-mobile-modal-body .text-xs {
-    font-size: 0.9375rem;
-    line-height: 1.5;
-  }
-
-  /**
-   * 정보 밀집 모달(랭킹전 매칭 설정 등): 모바일 본문 보정을 끄고 Tailwind 기본 단계에 맞춤.
-   * `.sudamr-mobile-modal-body`와 같은 요소에 함께 둔다(특이도로 위 규칙 덮어씀).
-   */
-  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy {
-    font-size: 0.875rem;
-    line-height: 1.45;
-  }
-
-  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-xs {
-    font-size: 0.75rem;
-    line-height: 1.4;
-  }
-
-  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-sm {
-    font-size: 0.875rem;
-    line-height: 1.45;
-  }
-
-  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-base {
-    font-size: 0.875rem;
-    line-height: 1.45;
-  }
-
-  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-lg {
-    font-size: 1rem;
+    font-size: 0.6875rem;
     line-height: 1.35;
   }
 
-  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-xl {
-    font-size: 1.0625rem;
+  .sudamr-mobile-modal-body .text-sm {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .sudamr-mobile-modal-body .text-base {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .sudamr-mobile-modal-body .text-lg {
+    font-size: 0.9375rem;
     line-height: 1.3;
   }
 
-  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-2xl {
-    font-size: 1.125rem;
+  .sudamr-mobile-modal-body .text-xl {
+    font-size: 1rem;
     line-height: 1.25;
+  }
+
+  .sudamr-mobile-modal-body .text-2xl {
+    font-size: 1.0625rem;
+    line-height: 1.2;
+  }
+
+  .sudamr-mobile-modal-body .text-3xl {
+    font-size: 1.1875rem;
+    line-height: 1.2;
+  }
+
+  /**
+   * dense-copy: 기본 모바일 본문과 동일 단계(클래스 유지·특이도 호환).
+   * DraggableWindow는 네이티브/좁은 뷰포트에서 둘 다 붙인다.
+   */
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-xs {
+    font-size: 0.6875rem;
+    line-height: 1.35;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-sm {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-base {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-lg {
+    font-size: 0.9375rem;
+    line-height: 1.3;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-xl {
+    font-size: 1rem;
+    line-height: 1.25;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-2xl {
+    font-size: 1.0625rem;
+    line-height: 1.2;
+  }
+
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy .text-3xl {
+    font-size: 1.1875rem;
+    line-height: 1.2;
+  }
+
+  /**
+   * 아이콘·보상 썸네일 등 object-contain 이미지 상한.
+   * 풀폭 배너(w-full)·전체 채움(h-full+absolute)·명시 opt-out은 제외.
+   */
+  .sudamr-mobile-modal-body img.object-contain:not(.w-full):not([data-sudamr-modal-img-full]),
+  .sudamr-mobile-modal-body.sudamr-mobile-modal-body--dense-copy
+    img.object-contain:not(.w-full):not([data-sudamr-modal-img-full]) {
+    max-height: 3.75rem;
+    max-width: 3.75rem;
   }
 
   .panel-surface,
@@ -414,30 +455,55 @@ html[data-theme="green"] {
   }
 }
 
-/* 고정 오버레이 모달(드래그 창 외): 태블릿·폭 좁은 브라우저 가독성 — @layer 밖(미니파이어 호환) */
+/* 고정 오버레이 모달(드래그 창 외): 좁은 뷰포트는 밀집 타이포(업스케일 금지) */
 @media (max-width: 1024px) {
   .sudamr-modal-overlay {
-    padding: max(0.75rem, env(safe-area-inset-top, 0px)) max(0.75rem, env(safe-area-inset-right, 0px))
-      max(0.75rem, env(safe-area-inset-bottom, 0px)) max(0.75rem, env(safe-area-inset-left, 0px));
+    padding: max(0.5rem, env(safe-area-inset-top, 0px)) max(0.5rem, env(safe-area-inset-right, 0px))
+      max(0.5rem, env(safe-area-inset-bottom, 0px)) max(0.5rem, env(safe-area-inset-left, 0px));
   }
 
   .sudamr-modal-panel {
-    font-size: 1rem;
-    line-height: 1.55;
-  }
-
-  .sudamr-modal-panel .text-sm {
-    font-size: 1rem;
-    line-height: 1.55;
+    font-size: 0.8125rem;
+    line-height: 1.4;
   }
 
   .sudamr-modal-panel .text-xs {
+    font-size: 0.6875rem;
+    line-height: 1.35;
+  }
+
+  .sudamr-modal-panel .text-sm {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .sudamr-modal-panel .text-base {
+    font-size: 0.8125rem;
+    line-height: 1.4;
+  }
+
+  .sudamr-modal-panel .text-lg {
     font-size: 0.9375rem;
-    line-height: 1.5;
+    line-height: 1.3;
+  }
+
+  .sudamr-modal-panel .text-xl {
+    font-size: 1rem;
+    line-height: 1.25;
+  }
+
+  .sudamr-modal-panel .text-2xl {
+    font-size: 1.0625rem;
+    line-height: 1.2;
   }
 
   .sudamr-modal-message-panel {
-    padding: 1.125rem 1.375rem;
+    padding: 0.75rem 0.875rem;
+  }
+
+  .sudamr-modal-panel img.object-contain:not(.w-full):not([data-sudamr-modal-img-full]) {
+    max-height: 3.75rem;
+    max-width: 3.75rem;
   }
 }
 

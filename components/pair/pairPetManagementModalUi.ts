@@ -112,9 +112,9 @@ export const PET_MGMT_HATCHERY_MOBILE_STACK_CLASS = 'flex w-full min-w-0 flex-co
 /** 부화장 모바일 — VIP·일반 슬롯 가로 2열 */
 export const PET_MGMT_HATCHERY_MOBILE_SLOTS_ROW_CLASS = 'grid w-full min-w-0 grid-cols-2 gap-1.5 items-stretch';
 
-/** 부화장 모바일 — 보유 알(종류별 세로 스택) */
+/** 부화장 모바일 — 보유 알(라벨 + 종류별 가로 배치) */
 export const PET_MGMT_HATCHERY_EGG_INVENTORY_MOBILE_CLASS =
-    'flex w-full shrink-0 items-stretch gap-2 rounded-lg border border-white/[0.09] bg-gradient-to-br from-zinc-900/70 via-black/70 to-zinc-950/90 px-2 py-1.5 shadow-md ring-1 ring-black/50';
+    'flex w-full shrink-0 items-center gap-2 rounded-lg border border-white/[0.09] bg-gradient-to-br from-zinc-900/70 via-black/70 to-zinc-950/90 px-2 py-1.5 shadow-md ring-1 ring-black/50';
 
 /** 부화장 PC 슬롯 — 헤더·챔버·액션 3단 고정 */
 export const PET_MGMT_HATCHERY_SLOT_OUTER_CLASS =
@@ -163,13 +163,26 @@ export const PET_MGMT_TR_SLOTS_GRID_CLASS =
 /** 수련 탭 PC — 슬롯·펫 이미지 */
 export const PET_MGMT_TR_PET_IMG_CLASS = 'h-[5rem] w-[5rem] shrink-0 rounded object-contain';
 
-export const PET_MGMT_TR_PET_IMG_MOBILE_CLASS = 'h-[3.25rem] w-[3.25rem] shrink-0 rounded object-contain';
+export const PET_MGMT_TR_PET_IMG_MOBILE_CLASS = 'h-[3rem] w-[3rem] shrink-0 rounded object-contain';
+
+/** 수련 슬롯 — 좌측 이름 레일 + 드롭존 가로 행 */
+export const PET_MGMT_TR_SLOT_ROW_CLASS = 'flex min-w-0 flex-row items-stretch gap-1';
+
+export const PET_MGMT_TR_SLOT_NAME_RAIL_CLASS =
+    'flex w-[3rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch px-0.5 text-center';
+
+export const PET_MGMT_TR_SLOT_NAME_RAIL_MOBILE_CLASS =
+    'flex w-[2.75rem] shrink-0 flex-col items-center justify-center gap-0.5 self-stretch px-0.5 text-center';
+
+export const PET_MGMT_TR_SLOT_NAME_TEXT_CLASS =
+    'w-full break-keep text-center font-semibold leading-tight whitespace-normal';
 
 export const PET_MGMT_TR_SLOT_DROP_CLASS =
-    'flex h-[6.75rem] w-full shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed p-1';
+    'flex h-[6.75rem] w-[6.75rem] shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed p-1';
 
+/** 모바일 수련 드롭존 — 고정 정사각 */
 export const PET_MGMT_TR_SLOT_DROP_MOBILE_CLASS =
-    'flex h-[4.25rem] w-full shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed p-1';
+    'flex h-[4.5rem] w-[4.5rem] shrink-0 flex-col items-center justify-center rounded-lg border-2 border-dashed p-1';
 
 /** 수련 슬롯 PC 보상 아이콘 */
 export const PET_MGMT_TR_ICON_BOX = 'h-[3rem] w-[3rem] shrink-0';
@@ -235,9 +248,11 @@ export const PET_MGMT_TR_REWARD_ROW_CLASS =
 export const PET_MGMT_TR_REWARD_ROW_MOBILE_CLASS =
     'flex min-w-0 flex-nowrap items-center justify-center gap-1';
 
-export const PET_MGMT_TR_SLOT_COL = 'flex w-[7.25rem] shrink-0 min-w-[7.25rem] flex-col items-stretch gap-0.5';
+/** PC: 이름 레일(3rem) + gap + 정사각 드롭(6.75rem) */
+export const PET_MGMT_TR_SLOT_COL = 'flex w-[10rem] shrink-0 min-w-[10rem] flex-col items-stretch gap-0.5';
 
-export const PET_MGMT_TR_SLOT_COL_MOBILE_CLASS = 'flex w-[5.5rem] shrink-0 flex-col items-stretch gap-0.5';
+/** 모바일: 이름 레일(2.75rem) + gap + 정사각 드롭(4.5rem) */
+export const PET_MGMT_TR_SLOT_COL_MOBILE_CLASS = 'flex w-[7.5rem] shrink-0 flex-col items-stretch gap-0.5';
 
 /** 수련 슬롯 카드 — 슬롯·확정보상·확률보상 가로 한 줄 + 가로 스크롤 */
 export const PET_MGMT_TR_SLOT_CARD_CLASS =

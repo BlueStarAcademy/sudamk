@@ -33,7 +33,7 @@ const SLOT_NAME_KEYS: Record<string, string> = {
     stones: 'picker.slots.stones',
 };
 
-const CombineSlotPreview: React.FC<{
+export const CombineSlotPreview: React.FC<{
     item: InventoryItem | null;
     onRemove: () => void;
 }> = ({ item, onRemove }) => {

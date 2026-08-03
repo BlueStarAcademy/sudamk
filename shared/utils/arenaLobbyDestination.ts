@@ -189,6 +189,22 @@ export function pairRoomAllowsFriendlyOpponentAiSeats(room: {
     return false;
 }
 
+/** 팀페어: 방장 teamA 빈 슬롯에 장착 펫을 넣어 인간+펫 vs AI로 경기 */
+export function pairRoomAllowsFriendlyOwnerPetSeats(room: {
+    roomKind: string;
+    lobbyChannel?: string | null;
+    pairMode?: string | null;
+    mode?: string | null;
+    pairAiDuoInviteShell?: boolean;
+}): boolean {
+    const pairMode = room.pairMode ?? room.mode;
+    if (pairMode === 'ai') return false;
+    if (room.pairAiDuoInviteShell) return false;
+    if (room.roomKind !== 'team_pair') return false;
+    const channel = room.lobbyChannel ?? 'pair';
+    return channel === 'friendly' || channel === 'pair';
+}
+
 export const LOBBY_AI_SEAT_ID_PREFIX = 'lobby-ai-b-';
 
 export function lobbyAiSeatParticipantId(index: 0 | 1): string {

@@ -150,6 +150,7 @@ import {
     isPairAiDuoInviteOnlyRoom,
     isPairRoomVisibleInLobbyIntent,
     pairRoomAllowsFriendlyOpponentAiSeats,
+    pairRoomAllowsFriendlyOwnerPetSeats,
     pairRoomRequiresLeaveConfirmation,
     roomKindsForLobbyDestination,
     isRoomKindAllowedForLobby,
@@ -3656,6 +3657,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             ((myRoom?.partnerId && !String(myRoom.partnerId).startsWith('pet-ai-') && myRoom.partnerReady) ||
                 (myRoom?.extraPairMembers ?? []).some((m) => m.ready)),
     );
+    const teamPairOwnerPetPartnerReady = Boolean(
+        isTeamPairRoom && (myRoom?.pairLobbyPetSeatSlots?.teamA?.length ?? 0) > 0,
+    );
     /** 방장 제외 인간 전원 준비 — 팀 스냅샷·슬롯 필드 불일치 시에도 좌석 UI와 동일하게 판정 */
     const pairLobbyHumanGuestsReadyForOwnerActions = (() => {
         const room = myRoom;
@@ -3711,7 +3715,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             !((lobbyChannel === 'playful' || lobbyChannel === 'strategic') && myRoom.roomKind === 'duo_match') &&
             pairLobbyHumanGuestsReadyForOwnerActions &&
             (isArenaStrategicAiRoom ||
-                isTeamPairRoom ||
+                (isTeamPairRoom && (duoPairAiPartnerReady || teamPairOwnerPetPartnerReady)) ||
                 (isPairPetRoom && !petPairOpponent) ||
                 duoPairAiPartnerReady) &&
             !isPairRoomMatching &&
@@ -4894,6 +4898,26 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                               }
                             : undefined
                     }
+                    allowOwnerPetFill={
+                        Boolean(viewerEquippedPairPetInfo.name) &&
+                        pairRoomAllowsFriendlyOwnerPetSeats({
+                            roomKind: myRoom.roomKind,
+                            lobbyChannel: myRoom.lobbyChannel ?? lobbyChannel,
+                            pairMode: myRoom.pairMode,
+                            mode: myRoom.mode,
+                            pairAiDuoInviteShell: myRoom.pairAiDuoInviteShell,
+                        })
+                    }
+                    onSetLobbyPetSeat={
+                        isOwner
+                            ? (team, index, enabled) => {
+                                  void applyAction({
+                                      type: 'PAIR_SET_LOBBY_PET_SEAT',
+                                      payload: { roomId: myRoom.id, team, index, enabled },
+                                  } as ServerAction);
+                              }
+                            : undefined
+                    }
                     roomKind={myRoom.roomKind}
                     ownerId={myRoom.ownerId}
                     ownerName={myRoom.ownerName}
@@ -4914,7 +4938,9 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                     }}
                     onViewOwnerEquippedPetDetail={openViewerEquippedPairPetDetail}
                     onViewOtherSeatPetDetail={
-                        myRoom.roomKind === 'ai_duel' || myRoom.roomKind === 'friendly_2p'
+                        myRoom.roomKind === 'ai_duel' ||
+                        myRoom.roomKind === 'friendly_2p' ||
+                        myRoom.roomKind === 'team_pair'
                             ? openLobbySpectatorPairPetDetail
                             : undefined
                     }
@@ -4930,7 +4956,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                         isOwner &&
                         (myRoom.roomKind === 'duo_match' ||
                             myRoom.roomKind === 'friendly_4p' ||
-                            myRoom.roomKind === 'friendly_2p')
+                            myRoom.roomKind === 'friendly_2p' ||
+                            myRoom.roomKind === 'team_pair')
                             ? (team, index) => {
                                   setPartnerInviteTargetSlot({ team, index });
                                   setPartnerInviteModalOpen(true);

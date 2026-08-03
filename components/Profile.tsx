@@ -23,7 +23,6 @@ import {
     PC_QUICK_RAIL_WRAPPER_CLASS,
 } from '../shared/constants/pcShellLayout.js';
 import { replaceAppHash, APP_HOME_HASH, APP_HOME_ARENA_HASH } from '../utils/appUtils.js';
-import { waitingLobbyPairAlignedMobileTabButtonClass } from './waiting-room/waitingLobbyHomePanelStyles.js';
 import { BADUK_ABILITY_STAT_CAP, BADUK_ABILITY_TOTAL_CAP, CORE_STAT_RADAR_ORDER } from './CoreStatsHexagonChart.js';
 import GameRankingBoard from './GameRankingBoard.js';
 import BadukRankingBoard from './BadukRankingBoard.js';
@@ -727,10 +726,15 @@ const Profile: React.FC<ProfileProps> = () => {
     const profileTab = (currentRoute.params?.tab as 'home' | 'ranking' | 'arena' | undefined) ?? 'home';
     /** 네이티브 홈 셸: 하단 독 대신 프로필/컨텐츠/유저목록 탭 (#/home · #/home/arena) */
     const nativeMobileHomeShell = isNativeMobile && (profileTab === 'home' || profileTab === 'arena');
-    /** 홈 탭: PC와 동일 패널·타이포 */
-    const readableHome = profileTab === 'home';
-    /** 홈: 유저 패널(프로필·길드·능력치·대표펫 한 줄) + 채팅 패널 2단 구성 */
-    const homeLeftColumnMerge = profileTab === 'home';
+    /**
+     * 홈·경기장(#/home/arena) 모두 좌열은 동일 셸.
+     * arena는 중앙 컨텐츠 전환용이라 merge/채팅을 끄면 바둑능력이 분리되고 채팅이 사라짐.
+     */
+    const isHomeShellTab = profileTab === 'home' || profileTab === 'arena';
+    /** 홈 셸: PC와 동일 패널·타이포 */
+    const readableHome = isHomeShellTab;
+    /** 홈 셸: 유저 패널(프로필·길드·능력치·대표펫) + 채팅 패널 2단 구성 */
+    const homeLeftColumnMerge = isHomeShellTab;
     /** 네이티브 앱 홈: PC와 동일 구조, 타이포·썸네일·펫 카드만 축소해 통일 */
     const nativeCompactHome = isNativeMobile && homeLeftColumnMerge;
     type NativeHomePane = 'profile' | 'content' | 'users';
@@ -2494,7 +2498,7 @@ const Profile: React.FC<ProfileProps> = () => {
                 ) : nativeMobileHomeShell ? (
                     <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden px-0.5 pb-0.5 pt-0.5">
                         <div
-                            className="mb-0.5 flex shrink-0 gap-0.5"
+                            className="mb-1 flex shrink-0 gap-1 rounded-xl border border-amber-500/40 bg-zinc-950/95 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.1)]"
                             role="tablist"
                             aria-label={t('tabs.homeAria')}
                         >
@@ -2504,31 +2508,37 @@ const Profile: React.FC<ProfileProps> = () => {
                                     { id: 'content' as const, label: t('tabs.content') },
                                     { id: 'users' as const, label: t('tabs.users') },
                                 ] as const
-                            ).map(({ id, label }) => (
+                            ).map(({ id, label }) => {
+                                const active = nativeHomePane === id;
+                                return (
                                 <button
                                     key={id}
                                     type="button"
                                     role="tab"
-                                    aria-selected={nativeHomePane === id}
+                                    aria-selected={active}
                                     onClick={() => selectNativeHomePane(id)}
-                                    className={`min-h-0 min-w-0 flex-1 ${waitingLobbyPairAlignedMobileTabButtonClass} transition-all ${
-                                        nativeHomePane === id
-                                            ? 'border border-amber-400/55 bg-gradient-to-b from-amber-800/40 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]'
-                                            : 'border border-transparent text-zinc-500 hover:bg-white/[0.06] hover:text-zinc-200'
+                                    className={`min-h-9 min-w-0 flex-1 rounded-lg px-1.5 py-2 text-[0.7rem] font-extrabold leading-tight transition-colors sm:text-xs ${
+                                        active
+                                            ? 'bg-gradient-to-b from-amber-400 to-amber-600 text-zinc-950 shadow-[0_2px_10px_rgba(245,158,11,0.4)] ring-1 ring-amber-200/60'
+                                            : 'border border-zinc-500/70 bg-zinc-800 text-zinc-100 hover:border-zinc-400 hover:bg-zinc-700 hover:text-white'
                                     }`}
                                 >
                                     <span className="block leading-tight">{label}</span>
                                 </button>
-                            ))}
+                                );
+                            })}
                         </div>
-                        <div className="flex min-h-0 flex-1 flex-col overflow-hidden" role="tabpanel">
+                        <div
+                            className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-amber-500/30 bg-black/50 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] backdrop-blur-[2px]"
+                            role="tabpanel"
+                        >
                             {nativeHomePane === 'profile' ? (
-                                <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                                <div className="relative z-[1] flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden p-0.5">
                                     {renderProfileHomeLeftColumn(profileHomeLeftGridClassNative)}
                                 </div>
                             ) : null}
                             {nativeHomePane === 'content' ? (
-                                <div className="flex min-h-0 flex-1 overflow-hidden">
+                                <div className="relative z-[1] flex min-h-0 flex-1 overflow-hidden p-0.5">
                                     <HomeEntranceHub
                                         handlers={homeEntranceHandlers}
                                         cardState={homeEntranceCardState}
@@ -2538,7 +2548,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                 </div>
                             ) : null}
                             {nativeHomePane === 'users' ? (
-                                <div className="flex min-h-0 flex-1 overflow-hidden">
+                                <div className="relative z-[1] flex min-h-0 flex-1 overflow-hidden p-0.5">
                                     <HomeViewerOnlineUsersColumn fill />
                                 </div>
                             ) : null}

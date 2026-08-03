@@ -6200,8 +6200,11 @@
     "viewRewardItem": "보상 아이템: {{name}}",
     "rewardInfoTitle": "보상정보",
     "closePanelAria": "패널 닫기",
+    "openSideMenuAria": "사이드 메뉴 열기",
+    "closeSideMenuAria": "사이드 메뉴 닫기",
+    "sideMenuTitle": "기록 · 랭킹 · 아이템",
     "close": "닫기",
-    "allTimeBest": "역대 최고 층수",
+    "allTimeBest": "역대 최대",
     "currentFloorLabel": "현재 층수",
     "monthlyBest": "이번 달 최고 층",
     "expectedReward": "예상 보상",
@@ -6549,6 +6552,9 @@
       "send": "전송",
       "addAi": "AI 추가",
       "tapInviteOrAi": "초대 또는 AI",
+      "tapInviteOrPet": "초대 또는 펫",
+      "addPet": "펫 추가",
+      "removePet": "펫 제거",
       "inviteShort": "초대",
       "removeAi": "AI 제거"
     },
@@ -6869,10 +6875,10 @@
       "default": "작업 화면 열기"
     },
     "pickHints": {
-      "enhance": "강화할 장비를 모달에서 고른 뒤 선택 완료를 누르면 강화 화면으로 이동합니다.",
-      "combine": "같은 등급 장비 3개를 모달에서 담은 뒤 선택 완료를 누르면 합성 화면으로 이동합니다.",
-      "disassemble": "분해할 장비를 모달에서 고른 뒤 선택 완료를 누르면 분해 화면으로 이동합니다.",
-      "refine": "제련할 장비를 모달에서 고른 뒤 선택 완료를 누르면 제련 화면으로 이동합니다."
+      "enhance": "아래 인벤토리에서 강화할 장비를 탭하면 강화 화면으로 이동합니다.",
+      "combine": "같은 등급 장비 3개를 아래 인벤토리에서 담으면 합성 화면으로 이동합니다.",
+      "disassemble": "아래 인벤토리에서 분해할 장비를 선택한 뒤 선택 완료를 누르세요.",
+      "refine": "아래 인벤토리에서 제련할 장비를 탭하면 제련 화면으로 이동합니다."
     },
     "picker": {
       "selectGear": "장비 선택",

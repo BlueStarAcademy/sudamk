@@ -1421,17 +1421,17 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
         'relative z-[11] border-b border-amber-400/28 bg-gradient-to-b from-zinc-800/98 via-zinc-950 to-zinc-950 text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.09)]';
     const footerVariantClass =
         'relative z-[11] border-t border-amber-400/25 bg-gradient-to-t from-zinc-950 via-zinc-900/96 to-zinc-900/92 text-amber-100/90 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]';
-    /** 좁은 뷰포트·네이티브: 본문 글자·여백을 키워 가독성 확보 */
+    /** 좁은 뷰포트·네이티브: 밀집 본문(업스케일 금지) */
     const isMobileModalShell = effectiveIsCompactViewport || isNativeMobile || useReadableSmallPcViewportPortal;
     const bodyPaddingClass = useMobileMinimalChrome
-        ? bodyPaddingClassName ?? 'p-4 min-[390px]:p-5 max-[360px]:p-3'
+        ? bodyPaddingClassName ?? 'p-2.5 max-[360px]:p-2'
         : bodyPaddingClassName ??
           (uniformLayout
               ? 'p-5'
               : useReadableSmallPcViewportPortal
                 ? 'p-2'
                 : isMobileModalShell
-                  ? 'p-4 min-[390px]:p-5 max-[360px]:p-3'
+                  ? 'p-2.5 max-[360px]:p-2'
                   : 'p-4');
     const viewportMaxWidthCss = '95vw';
     const viewportMaxHeightCss = '80dvh';
@@ -1640,7 +1640,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
                     {headerShowTitle ? (
                         <h2
                             className={`min-w-0 flex-1 pr-2 select-none font-bold leading-tight tracking-tight text-amber-50 drop-shadow-[0_1px_2px_rgba(0,0,0,0.5)] ${
-                                uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-base sm:text-xl' : 'text-lg'
+                                uniformLayout ? 'text-xl' : isMobileModalShell ? 'text-sm' : 'text-lg'
                             }`}
                         >
                             {titleContent ?? title}

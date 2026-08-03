@@ -560,8 +560,8 @@ function ChampionshipLobbyBottomLeft({
     );
 }
 
-/** 우측 상단 참가횟수 / 도전권 */
-function ChampionshipLobbyTopRight({
+/** 우측 하단 참가횟수 / 도전권 */
+function ChampionshipLobbyBottomRight({
     compact,
     children,
 }: {
@@ -569,7 +569,7 @@ function ChampionshipLobbyTopRight({
     children: React.ReactNode;
 }) {
     return (
-        <div className={`absolute z-20 ${compact ? 'right-1.5 top-1.5' : 'right-2 top-2 sm:right-2.5 sm:top-2.5'}`}>
+        <div className={`absolute z-20 ${compact ? 'bottom-1.5 right-1.5' : 'bottom-2 right-2 sm:bottom-2.5 sm:right-2.5'}`}>
             {children}
         </div>
     );
@@ -650,7 +650,7 @@ const ChampionshipVersusLobbyCard: React.FC<{
                 {meta.title}
             </ChampionshipLobbyOverlayTitle>
 
-            <ChampionshipLobbyTopRight compact={compact}>
+            <ChampionshipLobbyBottomRight compact={compact}>
                 <ChampionshipLobbyCountMeter compact={compact}>
                     <img
                         src={meta.ticketImage}
@@ -677,7 +677,7 @@ const ChampionshipVersusLobbyCard: React.FC<{
                         }`}
                     />
                 </ChampionshipLobbyCountMeter>
-            </ChampionshipLobbyTopRight>
+            </ChampionshipLobbyBottomRight>
 
             <ChampionshipLobbyBottomLeft compact={compact}>
                 <ChampionshipLobbyBottomStatPanel compact={compact}>
@@ -862,7 +862,7 @@ const TournamentCard: React.FC<{
                         {definition.name}
                     </ChampionshipLobbyOverlayTitle>
 
-                    <ChampionshipLobbyTopRight compact={mergedInfoPanelCompact}>
+                    <ChampionshipLobbyBottomRight compact={mergedInfoPanelCompact}>
                         <ChampionshipLobbyCountMeter compact={mergedInfoPanelCompact}>
                             <span
                                 className={`shrink-0 font-semibold tracking-[0.04em] text-amber-100/90 ${
@@ -879,7 +879,7 @@ const TournamentCard: React.FC<{
                                 {remainingEntries}/{dailyEntryState.max}
                             </span>
                         </ChampionshipLobbyCountMeter>
-                    </ChampionshipLobbyTopRight>
+                    </ChampionshipLobbyBottomRight>
 
                     <ChampionshipLobbyBottomLeft compact={mergedInfoPanelCompact}>
                         <ChampionshipLobbyBottomStatPanel compact={mergedInfoPanelCompact}>

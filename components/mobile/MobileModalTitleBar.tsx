@@ -44,7 +44,7 @@ const MobileModalTitleBar: React.FC<MobileModalTitleBarProps> = ({
                     className={`z-30 shrink-0 ${SUDAMR_MODAL_CLOSE_BUTTON_CLASS}`}
                     aria-label={t('modal.closeAria', { title })}
                 >
-                    닫기
+                    {t('actions.close')}
                 </button>
             ) : null}
         </div>
