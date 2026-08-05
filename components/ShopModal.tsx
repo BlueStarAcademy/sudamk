@@ -51,8 +51,14 @@ import {
 import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 import i18n from '../shared/i18n/config.js';
 import { useLocalizedShopItem } from '../shared/i18n/shopItemText.js';
+import {
+    SOFT_SHOP_ACTION_POINT_POTION_GOLD_PRICES,
+    SOFT_SHOP_ITEM_PRICES,
+} from '../shared/constants/softShopPrices.js';
+import { CONDITION_POTION_SHOP_GOLD_BY_TYPE } from '../shared/constants/conditionPotion.js';
 
 const shopT = (key: string, opts?: Record<string, unknown>) => i18n.t(`shop:${key}`, opts);
+const softPrice = (itemId: keyof typeof SOFT_SHOP_ITEM_PRICES) => SOFT_SHOP_ITEM_PRICES[itemId]!;
 
 interface ShopModalProps {
     currentUser?: UserWithStatus; // Optional: useAppContext에서 가져올 수 있도록
@@ -1166,27 +1172,27 @@ const ShopModal: React.FC<ShopModalProps> = ({
         ? 'grid grid-cols-2 gap-1.5 min-[390px]:gap-2 items-stretch [&>*]:min-h-0 [&>*]:min-w-0'
         : 'grid grid-cols-3 gap-2 sm:gap-3 items-stretch [&>*]:min-h-0 [&>*]:min-w-0';
     const materialItems = [
-        withShopItemText('material_box_1', { price: { gold: 500 }, image: "/images/Box/ResourceBox1.webp", type: 'material' as const }),
-        withShopItemText('material_box_2', { price: { gold: 1000 }, image: "/images/Box/ResourceBox2.webp", type: 'material' as const }),
-        withShopItemText('material_box_3', { price: { gold: 3000 }, image: "/images/Box/ResourceBox3.webp", type: 'material' as const }),
-        withShopItemText('material_box_4', { price: { gold: 5000 }, image: "/images/Box/ResourceBox4.webp", type: 'material' as const }),
-        withShopItemText('material_box_5', { price: { gold: 10000 }, image: "/images/Box/ResourceBox5.webp", type: 'material' as const }),
-        withShopItemText('material_box_6', { price: { diamonds: 100 }, image: "/images/Box/ResourceBox6.webp", type: 'material' as const }),
+        withShopItemText('material_box_1', { price: softPrice('material_box_1'), image: "/images/Box/ResourceBox1.webp", type: 'material' as const }),
+        withShopItemText('material_box_2', { price: softPrice('material_box_2'), image: "/images/Box/ResourceBox2.webp", type: 'material' as const }),
+        withShopItemText('material_box_3', { price: softPrice('material_box_3'), image: "/images/Box/ResourceBox3.webp", type: 'material' as const }),
+        withShopItemText('material_box_4', { price: softPrice('material_box_4'), image: "/images/Box/ResourceBox4.webp", type: 'material' as const }),
+        withShopItemText('material_box_5', { price: softPrice('material_box_5'), image: "/images/Box/ResourceBox5.webp", type: 'material' as const }),
+        withShopItemText('material_box_6', { price: softPrice('material_box_6'), image: "/images/Box/ResourceBox6.webp", type: 'material' as const }),
         withShopItemText('equipment_unbind_ticket', {
-            price: { diamonds: 50 },
+            price: softPrice('equipment_unbind_ticket'),
             image: '/images/use/belong.webp',
             dailyLimit: 10,
             type: 'material' as const,
         }),
         withShopItemText('refinement_charm', {
-            price: { diamonds: 100 },
+            price: softPrice('refinement_charm'),
             image: '/images/use/refine.webp',
             dailyLimit: 1,
             type: 'material' as const,
         }),
-        withShopItemText('option_type_change_ticket', { price: { gold: 2000 }, image: "/images/use/change1.webp", dailyLimit: 3, type: 'material' as const }),
-        withShopItemText('option_value_change_ticket', { price: { gold: 500 }, image: "/images/use/change2.webp", dailyLimit: 10, type: 'material' as const }),
-        withShopItemText('mythic_option_change_ticket', { price: { gold: 500 }, image: "/images/use/change3.webp", dailyLimit: 10, type: 'material' as const }),
+        withShopItemText('option_type_change_ticket', { price: softPrice('option_type_change_ticket'), image: "/images/use/change1.webp", dailyLimit: 3, type: 'material' as const }),
+        withShopItemText('option_value_change_ticket', { price: softPrice('option_value_change_ticket'), image: "/images/use/change2.webp", dailyLimit: 10, type: 'material' as const }),
+        withShopItemText('mythic_option_change_ticket', { price: softPrice('mythic_option_change_ticket'), image: "/images/use/change3.webp", dailyLimit: 10, type: 'material' as const }),
     ];
     const vipProducts: MiscShopProduct[] = useMemo(() => [
         {
@@ -1518,12 +1524,12 @@ const ShopModal: React.FC<ShopModalProps> = ({
 
     const renderContent = () => {
         const equipmentItems = [
-            withShopItemText('equipment_box_1', { price: { gold: 2000 }, image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const, dailyLimit: 100 }),
-            withShopItemText('equipment_box_2', { price: { gold: 5000 }, image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const, dailyLimit: 50 }),
-            withShopItemText('equipment_box_3', { price: { gold: 10000 }, image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const, dailyLimit: 30 }),
-            withShopItemText('equipment_box_4', { price: { gold: 20000 }, image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const, dailyLimit: 10 }),
-            withShopItemText('equipment_box_5', { price: { diamonds: 150 }, image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const, dailyLimit: 5 }),
-            withShopItemText('equipment_box_6', { price: { diamonds: 500 }, image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const, dailyLimit: 3 }),
+            withShopItemText('equipment_box_1', { price: softPrice('equipment_box_1'), image: "/images/Box/EquipmentBox1.webp", type: 'equipment' as const, dailyLimit: 100 }),
+            withShopItemText('equipment_box_2', { price: softPrice('equipment_box_2'), image: "/images/Box/EquipmentBox2.webp", type: 'equipment' as const, dailyLimit: 50 }),
+            withShopItemText('equipment_box_3', { price: softPrice('equipment_box_3'), image: "/images/Box/EquipmentBox3.webp", type: 'equipment' as const, dailyLimit: 30 }),
+            withShopItemText('equipment_box_4', { price: softPrice('equipment_box_4'), image: "/images/Box/EquipmentBox4.webp", type: 'equipment' as const, dailyLimit: 10 }),
+            withShopItemText('equipment_box_5', { price: softPrice('equipment_box_5'), image: "/images/Box/EquipmentBox5.webp", type: 'equipment' as const, dailyLimit: 5 }),
+            withShopItemText('equipment_box_6', { price: softPrice('equipment_box_6'), image: "/images/Box/EquipmentBox6.webp", type: 'equipment' as const, dailyLimit: 3 }),
         ];
 
         switch (activeTab) {
@@ -1679,15 +1685,15 @@ const ShopModal: React.FC<ShopModalProps> = ({
             case 'consumables':
             default: {
                 const baseConsumableItems = [
-                    withShopItemText('condition_potion_small', { price: { gold: 750 }, image: "/images/use/con1.webp", dailyLimit: 3, type: 'consumable' as const }),
-                    withShopItemText('condition_potion_medium', { price: { gold: 1000 }, image: "/images/use/con2.webp", dailyLimit: 3, type: 'consumable' as const }),
-                    withShopItemText('condition_potion_large', { price: { gold: 1500 }, image: "/images/use/con3.webp", dailyLimit: 3, type: 'consumable' as const }),
+                    withShopItemText('condition_potion_small', { price: { gold: CONDITION_POTION_SHOP_GOLD_BY_TYPE.small }, image: "/images/use/con1.webp", dailyLimit: 3, type: 'consumable' as const }),
+                    withShopItemText('condition_potion_medium', { price: { gold: CONDITION_POTION_SHOP_GOLD_BY_TYPE.medium }, image: "/images/use/con2.webp", dailyLimit: 3, type: 'consumable' as const }),
+                    withShopItemText('condition_potion_large', { price: { gold: CONDITION_POTION_SHOP_GOLD_BY_TYPE.large }, image: "/images/use/con3.webp", dailyLimit: 3, type: 'consumable' as const }),
                 ];
                 // 행동력 회복제: 품목별 일일 1개, 고정 골드가 (ShopItemCard)
                 const ACTION_POINT_ITEMS = [
-                    withShopItemText('action_point_10', { dailyLimit: 1, prices: [2000], badge: '+10' }),
-                    withShopItemText('action_point_20', { dailyLimit: 1, prices: [3000], badge: '+20' }),
-                    withShopItemText('action_point_30', { dailyLimit: 1, prices: [4000], badge: '+30' }),
+                    withShopItemText('action_point_10', { dailyLimit: 1, prices: SOFT_SHOP_ACTION_POINT_POTION_GOLD_PRICES.action_point_10, badge: '+10' }),
+                    withShopItemText('action_point_20', { dailyLimit: 1, prices: SOFT_SHOP_ACTION_POINT_POTION_GOLD_PRICES.action_point_20, badge: '+20' }),
+                    withShopItemText('action_point_30', { dailyLimit: 1, prices: SOFT_SHOP_ACTION_POINT_POTION_GOLD_PRICES.action_point_30, badge: '+30' }),
                 ] as const;
                 const apImageById: Record<string, string> = {
                     action_point_10: CONSUMABLE_ITEMS.find((i) => i.name === '행동력 회복제(+10)')?.image ?? '/images/use/ap_potion_10.webp',

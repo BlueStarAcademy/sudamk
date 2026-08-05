@@ -22,6 +22,7 @@ import {
 } from '../shared/utils/equipmentEnhancementStars.js';
 import { formatSpecialSubItemDisplay } from '../shared/utils/specialStatMilestones.js';
 import { mythicStatPoolForItemGrade } from '../shared/utils/specialOptionGearEffects.js';
+import { SOFT_SHOP_ITEM_PRICES } from '../shared/constants/softShopPrices.js';
 
 const getRandomInt = (min: number, max: number): number => {
     const lo = Math.floor(Number(min));
@@ -369,23 +370,23 @@ const createSingleMaterialItem = (name: string, quantity = 1): InventoryItem => 
 };
 
 export const SHOP_ITEMS: { [key: string]: { type: 'equipment' | 'material'; name: string; description: string; cost: { gold?: number, diamonds?: number }; onPurchase: () => any, image: string, dailyLimit?: number, weeklyLimit?: number } } = {
-    'equipment_box_1': { type: 'equipment', name: '장비 상자 I', description: '일반~희귀 등급 장비 획득', cost: { gold: 2000 }, onPurchase: openEquipmentBox1, image: '/images/Box/EquipmentBox1.webp', dailyLimit: 100 },
-    'equipment_box_2': { type: 'equipment', name: '장비 상자 II', description: '일반~에픽 등급 장비 획득', cost: { gold: 5000 }, onPurchase: openEquipmentBox2, image: '/images/Box/EquipmentBox2.webp', dailyLimit: 50 },
-    'equipment_box_3': { type: 'equipment', name: '장비 상자 III', description: '고급~전설 등급 장비 획득', cost: { gold: 10000 }, onPurchase: openEquipmentBox3, image: '/images/Box/EquipmentBox3.webp', dailyLimit: 30 },
-    'equipment_box_4': { type: 'equipment', name: '장비 상자 IV', description: '희귀~신화 등급 장비 획득', cost: { gold: 20000 }, onPurchase: openEquipmentBox4, image: '/images/Box/EquipmentBox4.webp', dailyLimit: 10 },
-    'equipment_box_5': { type: 'equipment', name: '장비 상자 V', description: '에픽~신화 등급 장비 획득', cost: { diamonds: 150 }, onPurchase: openEquipmentBox5, image: '/images/Box/EquipmentBox5.webp', dailyLimit: 5 },
-    'equipment_box_6': { type: 'equipment', name: '장비 상자 VI', description: '전설~신화 등급 장비 획득', cost: { diamonds: 500 }, onPurchase: openEquipmentBox6, image: '/images/Box/EquipmentBox6.webp', dailyLimit: 3 },
-    'material_box_1': { type: 'material', name: '재료 상자 I', description: '하급 ~ 상급 강화석 5개 획득', cost: { gold: 500 }, onPurchase: () => openMaterialBox('material_box_1', 5), image: '/images/Box/ResourceBox1.webp' },
-    'material_box_2': { type: 'material', name: '재료 상자 II', description: '하급 ~ 상급 강화석 5개 획득', cost: { gold: 1000 }, onPurchase: () => openMaterialBox('material_box_2', 5), image: '/images/Box/ResourceBox2.webp' },
-    'material_box_3': { type: 'material', name: '재료 상자 III', description: '하급 ~ 상급 강화석 5개 획득', cost: { gold: 2000 }, onPurchase: () => openMaterialBox('material_box_3', 5), image: '/images/Box/ResourceBox3.webp' },
-    'material_box_4': { type: 'material', name: '재료 상자 IV', description: '중급 ~ 최상급 강화석 5개 획득', cost: { gold: 3500 }, onPurchase: () => openMaterialBox('material_box_4', 5), image: '/images/Box/ResourceBox4.webp' },
-    'material_box_5': { type: 'material', name: '재료 상자 V', description: '상급 ~ 신비의 강화석 5개 획득', cost: { gold: 5000 }, onPurchase: () => openMaterialBox('material_box_5', 5), image: '/images/Box/ResourceBox5.webp' },
-    'material_box_6': { type: 'material', name: '재료 상자 VI', description: '상급 ~ 신비의 강화석 5개 획득', cost: { diamonds: 100 }, onPurchase: () => openMaterialBox('material_box_6', 5), image: '/images/Box/ResourceBox6.webp' },
+    'equipment_box_1': { type: 'equipment', name: '장비 상자 I', description: '일반~희귀 등급 장비 획득', cost: SOFT_SHOP_ITEM_PRICES.equipment_box_1, onPurchase: openEquipmentBox1, image: '/images/Box/EquipmentBox1.webp', dailyLimit: 100 },
+    'equipment_box_2': { type: 'equipment', name: '장비 상자 II', description: '일반~에픽 등급 장비 획득', cost: SOFT_SHOP_ITEM_PRICES.equipment_box_2, onPurchase: openEquipmentBox2, image: '/images/Box/EquipmentBox2.webp', dailyLimit: 50 },
+    'equipment_box_3': { type: 'equipment', name: '장비 상자 III', description: '고급~전설 등급 장비 획득', cost: SOFT_SHOP_ITEM_PRICES.equipment_box_3, onPurchase: openEquipmentBox3, image: '/images/Box/EquipmentBox3.webp', dailyLimit: 30 },
+    'equipment_box_4': { type: 'equipment', name: '장비 상자 IV', description: '희귀~신화 등급 장비 획득', cost: SOFT_SHOP_ITEM_PRICES.equipment_box_4, onPurchase: openEquipmentBox4, image: '/images/Box/EquipmentBox4.webp', dailyLimit: 10 },
+    'equipment_box_5': { type: 'equipment', name: '장비 상자 V', description: '에픽~신화 등급 장비 획득', cost: SOFT_SHOP_ITEM_PRICES.equipment_box_5, onPurchase: openEquipmentBox5, image: '/images/Box/EquipmentBox5.webp', dailyLimit: 5 },
+    'equipment_box_6': { type: 'equipment', name: '장비 상자 VI', description: '전설~신화 등급 장비 획득', cost: SOFT_SHOP_ITEM_PRICES.equipment_box_6, onPurchase: openEquipmentBox6, image: '/images/Box/EquipmentBox6.webp', dailyLimit: 3 },
+    'material_box_1': { type: 'material', name: '재료 상자 I', description: '하급 ~ 상급 강화석 5개 획득', cost: SOFT_SHOP_ITEM_PRICES.material_box_1, onPurchase: () => openMaterialBox('material_box_1', 5), image: '/images/Box/ResourceBox1.webp' },
+    'material_box_2': { type: 'material', name: '재료 상자 II', description: '하급 ~ 상급 강화석 5개 획득', cost: SOFT_SHOP_ITEM_PRICES.material_box_2, onPurchase: () => openMaterialBox('material_box_2', 5), image: '/images/Box/ResourceBox2.webp' },
+    'material_box_3': { type: 'material', name: '재료 상자 III', description: '하급 ~ 상급 강화석 5개 획득', cost: SOFT_SHOP_ITEM_PRICES.material_box_3, onPurchase: () => openMaterialBox('material_box_3', 5), image: '/images/Box/ResourceBox3.webp' },
+    'material_box_4': { type: 'material', name: '재료 상자 IV', description: '중급 ~ 최상급 강화석 5개 획득', cost: SOFT_SHOP_ITEM_PRICES.material_box_4, onPurchase: () => openMaterialBox('material_box_4', 5), image: '/images/Box/ResourceBox4.webp' },
+    'material_box_5': { type: 'material', name: '재료 상자 V', description: '상급 ~ 신비의 강화석 5개 획득', cost: SOFT_SHOP_ITEM_PRICES.material_box_5, onPurchase: () => openMaterialBox('material_box_5', 5), image: '/images/Box/ResourceBox5.webp' },
+    'material_box_6': { type: 'material', name: '재료 상자 VI', description: '상급 ~ 신비의 강화석 5개 획득', cost: SOFT_SHOP_ITEM_PRICES.material_box_6, onPurchase: () => openMaterialBox('material_box_6', 5), image: '/images/Box/ResourceBox6.webp' },
     'equipment_unbind_ticket': {
         type: 'material',
         name: '귀속 해제권',
         description: '귀속된 장비를 거래가능 상태로 변경. 사용처 : [가방]-[장비선택]-[귀속해제].',
-        cost: { diamonds: 50 },
+        cost: SOFT_SHOP_ITEM_PRICES.equipment_unbind_ticket,
         onPurchase: () => createSingleMaterialItem('귀속 해제권'),
         image: '/images/use/belong.webp',
         dailyLimit: 10,
@@ -394,7 +395,7 @@ export const SHOP_ITEMS: { [key: string]: { type: 'equipment' | 'material'; name
         type: 'material',
         name: '제련의 부적',
         description: '제련이 불가능한 장비의 제련가능 횟수를 1추가. 사용처 : [대장간]-[장비제련] 제련불가 장비 선택.',
-        cost: { diamonds: 100 },
+        cost: SOFT_SHOP_ITEM_PRICES.refinement_charm,
         onPurchase: () => createSingleMaterialItem('제련의 부적'),
         image: '/images/use/refine.webp',
         dailyLimit: 1,

@@ -45,6 +45,11 @@ import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/const
 import { ItemGrade } from '../../shared/types/enums.js';
 import { getChampionshipShopProductById } from '../../shared/constants/championshipShop.js';
 import { openChampionshipEquipmentBox } from '../shop.js';
+import {
+    SOFT_SHOP_ACTION_POINT_POTION_GOLD_PRICES,
+    SOFT_SHOP_ITEM_PRICES,
+} from '../../shared/constants/softShopPrices.js';
+import { TOWER_SHOP_ITEMS } from '../../shared/constants/towerShopItems.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -673,16 +678,50 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 return { error: '유효하지 않은 요청입니다.' };
             }
 
-            // 변경권·행동력 회복제 아이템 정의 (행동력 회복제는 품목별 일일 1개, 고정 골드가)
+            // 변경권·행동력 회복제 — 단가는 SOFT_SHOP_* 공유 카탈로그
             const consumableItems: Record<string, { name: string; price?: number; dailyLimit: number; prices?: number[]; currency?: 'gold' | 'diamonds' }> = {
-                'option_type_change_ticket': { name: '옵션 종류 변경권', price: 2000, dailyLimit: 3 },
-                'option_value_change_ticket': { name: '옵션 수치 변경권', price: 500, dailyLimit: 10 },
-                'mythic_option_change_ticket': { name: '스페셜 옵션 변경권', price: 500, dailyLimit: 10 },
-                'equipment_unbind_ticket': { name: '귀속 해제권', price: 50, dailyLimit: 10, currency: 'diamonds' },
-                'refinement_charm': { name: '제련의 부적', price: 100, dailyLimit: 1, currency: 'diamonds' },
-                'action_point_10': { name: '행동력 회복제(+10)', dailyLimit: 1, prices: [2000] },
-                'action_point_20': { name: '행동력 회복제(+20)', dailyLimit: 1, prices: [3000] },
-                'action_point_30': { name: '행동력 회복제(+30)', dailyLimit: 1, prices: [4000] },
+                'option_type_change_ticket': {
+                    name: '옵션 종류 변경권',
+                    price: SOFT_SHOP_ITEM_PRICES.option_type_change_ticket.gold,
+                    dailyLimit: 3,
+                },
+                'option_value_change_ticket': {
+                    name: '옵션 수치 변경권',
+                    price: SOFT_SHOP_ITEM_PRICES.option_value_change_ticket.gold,
+                    dailyLimit: 10,
+                },
+                'mythic_option_change_ticket': {
+                    name: '스페셜 옵션 변경권',
+                    price: SOFT_SHOP_ITEM_PRICES.mythic_option_change_ticket.gold,
+                    dailyLimit: 10,
+                },
+                'equipment_unbind_ticket': {
+                    name: '귀속 해제권',
+                    price: SOFT_SHOP_ITEM_PRICES.equipment_unbind_ticket.diamonds,
+                    dailyLimit: 10,
+                    currency: 'diamonds',
+                },
+                'refinement_charm': {
+                    name: '제련의 부적',
+                    price: SOFT_SHOP_ITEM_PRICES.refinement_charm.diamonds,
+                    dailyLimit: 1,
+                    currency: 'diamonds',
+                },
+                'action_point_10': {
+                    name: '행동력 회복제(+10)',
+                    dailyLimit: 1,
+                    prices: SOFT_SHOP_ACTION_POINT_POTION_GOLD_PRICES.action_point_10,
+                },
+                'action_point_20': {
+                    name: '행동력 회복제(+20)',
+                    dailyLimit: 1,
+                    prices: SOFT_SHOP_ACTION_POINT_POTION_GOLD_PRICES.action_point_20,
+                },
+                'action_point_30': {
+                    name: '행동력 회복제(+30)',
+                    dailyLimit: 1,
+                    prices: SOFT_SHOP_ACTION_POINT_POTION_GOLD_PRICES.action_point_30,
+                },
             };
 
             const itemInfo = consumableItems[itemId];
@@ -1047,17 +1086,8 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
                 return { error: '유효하지 않은 요청입니다.' };
             }
 
-            // 도전의 탑 아이템 정의
-            const towerItems: Record<string, { name: string; price: { gold?: number; diamonds?: number }; maxOwned: number; dailyLimit: number }> = {
-                '턴 추가': { name: '턴 추가', price: { gold: 300 }, maxOwned: 3, dailyLimit: 3 },
-                '미사일': { name: '미사일', price: { gold: 300 }, maxOwned: 2, dailyLimit: 2 },
-                '히든': { name: '히든', price: { gold: 500 }, maxOwned: 2, dailyLimit: 2 },
-                '스캔': { name: '스캔', price: { gold: 400 }, maxOwned: 2, dailyLimit: 2 },
-                '배치변경': { name: '배치변경', price: { gold: 100 }, maxOwned: 5, dailyLimit: 5 }
-            };
-
-            const itemInfo = towerItems[itemId];
-            if (!itemInfo) {
+            const towerDef = TOWER_SHOP_ITEMS.find((i) => i.itemId === itemId);
+            if (!towerDef) {
                 return { error: '유효하지 않은 아이템입니다.' };
             }
 
@@ -1065,11 +1095,11 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             
             // 현재 보유 개수: 대기실과 동일 (source === 'tower' 또는 구 스택 source 없음)
             const { countTowerLobbyInventoryQty } = await import('../modes/towerPlayerHidden.js');
-            const currentOwned = countTowerLobbyInventoryQty(user.inventory, [itemInfo.name, itemId]);
+            const currentOwned = countTowerLobbyInventoryQty(user.inventory, [towerDef.name, itemId]);
 
             // 보유 제한 확인
-            if (!user.isAdmin && currentOwned + quantity > itemInfo.maxOwned) {
-                return { error: `최대 보유 개수(${itemInfo.maxOwned}개)를 초과할 수 없습니다.` };
+            if (!user.isAdmin && currentOwned + quantity > towerDef.maxOwned) {
+                return { error: `최대 보유 개수(${towerDef.maxOwned}개)를 초과할 수 없습니다.` };
             }
 
             // 하루 구매 제한 확인
@@ -1077,13 +1107,13 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             const purchaseRecord = user.dailyShopPurchases[itemId];
             const todayPurchased = (purchaseRecord && isSameDayKST(purchaseRecord.date, now)) ? purchaseRecord.quantity : 0;
 
-            if (!user.isAdmin && todayPurchased + quantity > itemInfo.dailyLimit) {
-                return { error: `하루 구매 한도(${itemInfo.dailyLimit}개)를 초과했습니다.` };
+            if (!user.isAdmin && todayPurchased + quantity > towerDef.dailyPurchaseLimit) {
+                return { error: `하루 구매 한도(${towerDef.dailyPurchaseLimit}개)를 초과했습니다.` };
             }
 
             // 가격 확인
-            const totalGoldCost = (itemInfo.price.gold || 0) * quantity;
-            const totalDiamondCost = (itemInfo.price.diamonds || 0) * quantity;
+            const totalGoldCost = (towerDef.price.gold || 0) * quantity;
+            const totalDiamondCost = (towerDef.price.diamonds || 0) * quantity;
 
             if (!user.isAdmin) {
                 if (user.gold < totalGoldCost || user.diamonds < totalDiamondCost) {
@@ -1092,7 +1122,7 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
             }
 
             // 아이템 템플릿 찾기
-            const template = CONSUMABLE_ITEMS.find(item => item.name === itemInfo.name);
+            const template = CONSUMABLE_ITEMS.find(item => item.name === towerDef.name);
             if (!template) {
                 return { error: '아이템 템플릿을 찾을 수 없습니다.' };
             }
