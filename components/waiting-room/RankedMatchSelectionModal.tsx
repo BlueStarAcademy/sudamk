@@ -8,6 +8,11 @@ import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 import { RANKED_GAME_SETTINGS } from '../../constants/rankedGameSettings.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { effectiveStrategicRankedQueueApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
+import {
+    getFriendlyModeCompletions,
+    isRankedModeUnlockedForUser,
+    RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
+} from '../../shared/utils/contentProgressionGates.js';
 
 interface RankedMatchSelectionModalProps {
     onClose: () => void;
@@ -20,7 +25,10 @@ const GameCard: React.FC<{
     name: string,
     onToggle: (mode: GameMode) => void,
     isSelected: boolean,
-}> = ({ mode, image, name, onToggle, isSelected }) => {
+    locked?: boolean,
+    lockHint?: string,
+    lockTitle?: string,
+}> = ({ mode, image, name, onToggle, isSelected, locked, lockHint, lockTitle }) => {
     const { t } = useTranslation('lobby');
     const [imgError, setImgError] = useState(false);
 
@@ -28,24 +36,37 @@ const GameCard: React.FC<{
         <button
             type="button"
             data-lobby-mode-card
-            className={`bg-panel text-on-panel touch-manipulation flex w-full flex-col items-center rounded-lg text-center appearance-none border-0 outline-none transition-all transform cursor-pointer relative active:scale-[0.98] ${
-                isSelected
-                    ? 'ring-2 ring-green-500 hover:-translate-y-1 shadow-lg bg-green-900/20'
-                    : 'hover:-translate-y-1 shadow-lg'
+            disabled={locked}
+            title={locked ? lockTitle : undefined}
+            className={`bg-panel text-on-panel touch-manipulation flex w-full flex-col items-center rounded-lg text-center appearance-none border-0 outline-none transition-all transform relative ${
+                locked
+                    ? 'cursor-not-allowed opacity-55'
+                    : isSelected
+                      ? 'ring-2 ring-green-500 hover:-translate-y-1 shadow-lg bg-green-900/20 cursor-pointer active:scale-[0.98]'
+                      : 'hover:-translate-y-1 shadow-lg cursor-pointer active:scale-[0.98]'
             }`}
             style={{ padding: '8px', gap: '4px' }}
-            onClick={() => onToggle(mode)}
+            onClick={() => {
+                if (locked) return;
+                onToggle(mode);
+            }}
         >
-            <div className="absolute top-1 right-1 z-10 bg-green-600 rounded-full p-1 shadow-lg">
-                <input
-                    type="checkbox"
-                    checked={isSelected}
-                    onChange={() => onToggle(mode)}
-                    className="w-5 h-5 cursor-pointer accent-green-500"
-                    onClick={(e) => e.stopPropagation()}
-                />
-            </div>
-            {isSelected && (
+            {locked ? (
+                <div className="absolute top-1 right-1 z-10 rounded-full border border-amber-400/50 bg-black/80 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-200 shadow-lg">
+                    {lockHint}
+                </div>
+            ) : (
+                <div className="absolute top-1 right-1 z-10 bg-green-600 rounded-full p-1 shadow-lg">
+                    <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => onToggle(mode)}
+                        className="w-5 h-5 cursor-pointer accent-green-500"
+                        onClick={(e) => e.stopPropagation()}
+                    />
+                </div>
+            )}
+            {isSelected && !locked && (
                 <div className="absolute top-1 left-1 z-10 bg-green-600 text-white text-xs font-bold px-2 py-0.5 rounded-full shadow-lg">
                     {t('ranked.selectedBadge')}
                 </div>
@@ -67,7 +88,7 @@ const GameCard: React.FC<{
             </div>
             <h3
                 className={`w-full shrink-0 font-bold leading-tight ${
-                    isSelected ? 'text-green-300' : 'text-primary'
+                    locked ? 'text-amber-200/90' : isSelected ? 'text-green-300' : 'text-primary'
                 }`}
                 style={{ fontSize: '11px' }}
             >
@@ -136,6 +157,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
     }, [availableGameDefinitions, selectedMode]);
 
     const handleModeToggle = (mode: GameMode) => {
+        if (!isRankedModeUnlockedForUser(currentUser, mode)) return;
         setSelectedModes(prev => 
             prev.includes(mode) 
                 ? prev.filter(m => m !== mode)
@@ -152,6 +174,15 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
     const handleStartMatching = () => {
         if (selectedModes.length === 0) {
             alert(t('ranked.selectModesMin'));
+            return;
+        }
+        const locked = selectedModes.filter((m) => !isRankedModeUnlockedForUser(currentUser, m));
+        if (locked.length > 0) {
+            alert(
+                t('ranked.friendlyUnlockTitle', {
+                    need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
+                }),
+            );
             return;
         }
         onStartMatching(selectedModes);
@@ -257,6 +288,8 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                     <div className="grid flex-1 grid-cols-2 items-start gap-2 overflow-y-auto pr-2">
                         {availableGameDefinitions.map((game) => {
                             const isSelected = selectedModes.includes(game.mode);
+                            const unlocked = isRankedModeUnlockedForUser(currentUser, game.mode);
+                            const completions = getFriendlyModeCompletions(currentUser, game.mode);
                             return (
                                 <div key={game.mode} className="relative">
                                     <GameCard
@@ -265,6 +298,14 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                                         name={game.name}
                                         onToggle={handleModeToggle}
                                         isSelected={isSelected}
+                                        locked={!unlocked}
+                                        lockHint={t('ranked.friendlyUnlockHint', {
+                                            current: Math.min(completions, RANKED_MODE_FRIENDLY_UNLOCK_GAMES),
+                                            need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
+                                        })}
+                                        lockTitle={t('ranked.friendlyUnlockTitle', {
+                                            need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
+                                        })}
                                     />
                                 </div>
                             );

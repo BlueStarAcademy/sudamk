@@ -848,6 +848,8 @@
       "adGoldDoubleHint": "Complete the ad to receive double gold for this match.",
       "adGoldDoubleFailed": "Failed to grant double gold. Please try again shortly.",
       "gameContent": "Match details",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards",
       "resultSection": "Game result",
       "rewardsSection": "Rewards & records",
       "noScoreInfo": "No score information.",
@@ -2342,6 +2344,20 @@
       "tutorialScanHint": "Use Scan to find the opponent's hidden stone.",
       "tutorialScanFoundFlash": "Scan success!",
       "tutorialScanFoundHint": "The scanned hidden stone appears translucent.",
+      "tutorialBaseShowHint": "Check the pre-placed base stones and their marks.",
+      "tutorialBaseChooseHint": "Tap the glowing Black stone",
+      "tutorialBaseDiffFlash": "Different colors · start with 0.5 komi!",
+      "tutorialBaseDiffHint": "If you pick different colors, the game starts right away with 0.5 komi.",
+      "tutorialBaseSameHint": "If you pick the same color, you bid komi to claim it.",
+      "tutorialBaseBidHint": "The higher komi bid plays that color.",
+      "tutorialBaseBidWinFlash": "Higher bid · play as Black!",
+      "tutorialBaseBidWinHint": "Your higher komi bid lets you play as Black.",
+      "tutorialBaseBidSubmit": "Submit komi",
+      "tutorialBaseBlack": "Black",
+      "tutorialBaseWhite": "White",
+      "tutorialBaseYou": "You",
+      "tutorialBaseOpponent": "Opponent",
+      "tutorialBaseContested": "Claim {{color}} · komi bid",
       "tutorialSpeedYou": "You",
       "tutorialSpeedOpponent": "Opponent",
       "tutorialSpeedScore": "Score",
@@ -2383,7 +2399,7 @@
         },
         "sp_base": {
           "title": "Base Go",
-          "body": "Read the pre-placed base stones, set komi, then start the game."
+          "body": "Read the base stones, then pick Black or White. Different colors start with 0.5 komi; the same color goes to a komi bid — higher bid gets that color."
         }
       }
     }

@@ -24,7 +24,10 @@ const GAME_MODE_SLUG: Record<GameMode, string> = {
 };
 
 /** Non-React i18n lookup — use for constants, alerts, shared utilities. */
-export function tx(key: string, options?: Record<string, unknown>): string {
+export function tx(key: string, options?: Record<string, unknown> | string): string {
+    if (typeof options === 'string') {
+        return i18n.t(key, { defaultValue: options });
+    }
     return i18n.t(key, options ?? {});
 }
 

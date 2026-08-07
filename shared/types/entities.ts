@@ -670,7 +670,15 @@ export type User = {
   mannerScore: number;
   mail: Mail[];
   quests: QuestLog;
-  stats?: Record<string, { wins?: number; losses?: number; rankingScore?: number; aiWins?: number; aiLosses?: number }>;
+  stats?: Record<string, {
+    wins?: number;
+    losses?: number;
+    rankingScore?: number;
+    aiWins?: number;
+    aiLosses?: number;
+    /** 친선전(유저·AI) 해당 모드 완료 판수 — 랭킹전 모드 해금용 */
+    friendlyCompletions?: number;
+  }>;
   chatBanUntil?: number | null;
   connectionBanUntil?: number | null;
   chatBanReason?: string | null;
@@ -1059,6 +1067,11 @@ export type GameSettings = {
   timeLimit: number; // in minutes
   byoyomiTime: number; // in seconds
   byoyomiCount: number;
+  /**
+   * 친선전(홈 친선 로비)에서 시작한 대국 — 모드별 `friendlyCompletions` 집계용.
+   * pairGame.lobbyChannel === 'friendly' 인 경우에도 동일하게 취급한다.
+   */
+  friendlyLobbyMatch?: boolean;
   pairGame?: {
     /** 대기 방이 속한 경기장 — 인게임 배경(페어 전용 이미지 vs 전략/놀이 CSS) 구분 */
     lobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly';

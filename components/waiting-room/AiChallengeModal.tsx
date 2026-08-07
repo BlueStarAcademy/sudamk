@@ -99,8 +99,13 @@ export type AiLobbyPreferredGameSettingsBucket =
     | 'pair_room_create_friendly_4p'
     | 'pair_room_create_friendly_2p'
     | 'pair_room_create_duo_match'
+    | 'pair_room_create_team_pair'
     | 'pair_room_create_ai_duel'
-    | 'pair_room_create_arena_ai';
+    | 'pair_room_create_arena_ai'
+    | 'friendly_ai_duo_match'
+    | 'friendly_ai_friendly_2p'
+    | 'friendly_ai_team_pair'
+    | 'friendly_ai_friendly_4p';
 
 interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';

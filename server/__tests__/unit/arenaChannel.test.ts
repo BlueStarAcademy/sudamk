@@ -207,10 +207,10 @@ describe('arena channel utilities', () => {
             false,
         );
         expect(pairRoomAllowsFriendlyOpponentAiSeats({ roomKind: 'duo_match', lobbyChannel: 'friendly' })).toBe(
-            true,
+            false,
         );
         expect(pairRoomAllowsFriendlyOpponentAiSeats({ roomKind: 'team_pair', lobbyChannel: 'friendly' })).toBe(
-            true,
+            false,
         );
     });
 });

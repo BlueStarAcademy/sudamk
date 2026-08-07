@@ -439,7 +439,14 @@ export type ServerAction =
     | { type: 'PAIR_ACK_DUO_RANKED_MATCH', payload: { accept: boolean } }
     | { type: 'PAIR_CANCEL_DUO_RANKED_LOBBY_PROPOSAL', payload?: never }
     | { type: 'PAIR_RESPOND_PAIR_PET_RANKED_MATCH', payload: { proposalId: string; accept: boolean } }
-    | { type: 'PAIR_START_AI_MATCH'; payload?: { mode?: GameMode; settings?: GameSettings; roomId?: string } }
+    | { type: 'PAIR_START_AI_MATCH'; payload?: {
+          mode?: GameMode;
+          settings?: GameSettings;
+          roomId?: string;
+          /** 방 없이 즉시 시작 시 경기 종류 */
+          ephemeralRoomKind?: 'ai_duel' | 'friendly_2p' | 'team_pair' | 'friendly_4p';
+          lobbyChannel?: ArenaChannel;
+      } }
     | { type: 'PAIR_SYNC', payload?: never }
     | {
           type: 'PAIR_LOBBY_ROOM_GRID_SLICE';

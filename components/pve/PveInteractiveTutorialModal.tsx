@@ -14,6 +14,7 @@ import {
     type PveTutorialId,
     type PveTutorialStone,
 } from '../../shared/constants/pveTutorials.js';
+import { BLACK_BASE_STONE_IMG } from '../../assets.js';
 import PveTutorialMiniBoard from './PveTutorialMiniBoard.js';
 
 type Phase = 'demo' | 'practice' | 'done';
@@ -36,6 +37,17 @@ type HiddenStep =
     | 'scanned'
     | 'done';
 
+/** 베이스: 보드 확인 → 다른 색(0.5덤) → 같은 색 입찰 */
+type BaseStep =
+    | 'showBoard'
+    | 'chooseDiff'
+    | 'revealDiff'
+    | 'chooseSame'
+    | 'revealSame'
+    | 'bid'
+    | 'bidWin'
+    | 'done';
+
 type Props = {
     tutorialId: PveTutorialId;
     onComplete: () => void;
@@ -48,18 +60,20 @@ const PVE_FOOTER_BTN =
 const PVE_FOOTER_BTN_SECONDARY = `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} ${PVE_FOOTER_BTN}`;
 const PVE_FOOTER_BTN_ACCENT = `${PRE_GAME_MODAL_ACCENT_BTN_CLASS} ${PVE_FOOTER_BTN}`;
 
-const DEMO_STEP_MS = 1000;
-const DEMO_HOLD_MS = 650;
-const DEMO_SCORING_HOLD_MS = 1550;
-const MISSILE_DEMO_STEP_MS = 1200;
-const MISSILE_FLIGHT_MS = 850;
-const MISSILE_CAPTURE_MS = 1000;
-const HIDDEN_DEMO_STEP_MS = 1300;
-const HIDDEN_CAPTURE_MS = 1450;
-const HIDDEN_SCAN_MS = 1200;
+const DEMO_STEP_MS = 1400;
+const DEMO_HOLD_MS = 900;
+const DEMO_SCORING_HOLD_MS = 2000;
+const MISSILE_DEMO_STEP_MS = 1600;
+const MISSILE_FLIGHT_MS = 1100;
+const MISSILE_CAPTURE_MS = 1300;
+const HIDDEN_DEMO_STEP_MS = 1700;
+const HIDDEN_CAPTURE_MS = 1900;
+const HIDDEN_SCAN_MS = 1600;
+const BASE_DEMO_STEP_MS = 1700;
+const BASE_RESULT_MS = 2100;
 /** 튜토리얼용 가속 틱 — 실제 1초보다 짧게 10→0 연출 */
-const SPEED_TICK_MS = 600;
-const SPEED_SCORE_HOLD_MS = 1600;
+const SPEED_TICK_MS = 750;
+const SPEED_SCORE_HOLD_MS = 2000;
 const SPEED_MAX_SEC = 10;
 
 const EMPTY_TUTORIAL_STONES: PveTutorialStone[] = [];
@@ -123,6 +137,27 @@ const nextHiddenDemoStep = (s: HiddenStep): HiddenStep => {
     }
 };
 
+const nextBaseDemoStep = (s: BaseStep): BaseStep => {
+    switch (s) {
+        case 'showBoard':
+            return 'chooseDiff';
+        case 'chooseDiff':
+            return 'revealDiff';
+        case 'revealDiff':
+            return 'chooseSame';
+        case 'chooseSame':
+            return 'revealSame';
+        case 'revealSame':
+            return 'bid';
+        case 'bid':
+            return 'bidWin';
+        case 'bidWin':
+            return 'done';
+        default:
+            return 'done';
+    }
+};
+
 const dirButtonClass = (active: boolean, clickable: boolean) =>
     `flex h-9 w-9 items-center justify-center rounded-lg border text-lg font-black transition ${
         active
@@ -136,8 +171,10 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
     const lesson = PVE_TUTORIAL_LESSONS[tutorialId];
     const missileDemo = lesson?.missileDemo;
     const hiddenDemo = lesson?.hiddenDemo;
+    const baseDemo = lesson?.baseDemo;
     const isMissile = Boolean(missileDemo);
     const isHidden = Boolean(hiddenDemo);
+    const isBase = Boolean(baseDemo);
     const isSpeed = Boolean(lesson?.speedDemo);
     const skipPractice = Boolean(lesson?.skipPractice) || isSpeed;
 
@@ -151,6 +188,8 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
     const [hiddenStep, setHiddenStep] = useState<HiddenStep>('item');
     const [hiddenItemArmed, setHiddenItemArmed] = useState(false);
     const [scanItemArmed, setScanItemArmed] = useState(false);
+    const [baseStep, setBaseStep] = useState<BaseStep>('showBoard');
+    const [baseBidValue, setBaseBidValue] = useState(0);
     const [speedSec, setSpeedSec] = useState(SPEED_MAX_SEC);
     const [oppScore, setOppScore] = useState(0);
     const [speedPenaltyFlash, setSpeedPenaltyFlash] = useState(false);
@@ -174,6 +213,8 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
         setHiddenStep('item');
         setHiddenItemArmed(false);
         setScanItemArmed(false);
+        setBaseStep('showBoard');
+        setBaseBidValue(0);
         setSpeedSec(SPEED_MAX_SEC);
         setOppScore(0);
         setSpeedPenaltyFlash(false);
@@ -191,6 +232,8 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
         setHiddenStep('item');
         setHiddenItemArmed(false);
         setScanItemArmed(false);
+        setBaseStep('showBoard');
+        setBaseBidValue(0);
         setSpeedSec(SPEED_MAX_SEC);
         setOppScore(0);
         setSpeedPenaltyFlash(false);
@@ -199,7 +242,7 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
     }, [tutorialId, clearTimer]);
 
     useEffect(() => {
-        if (isMissile || isHidden || isSpeed || phase !== 'demo' || !demoPlaying || !lesson) return;
+        if (isMissile || isHidden || isBase || isSpeed || phase !== 'demo' || !demoPlaying || !lesson) return;
         clearTimer();
         const total = lesson.demoPlacements.length;
         if (demoIndex >= total) {
@@ -214,7 +257,7 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
             setDemoIndex((i) => i + 1);
         }, DEMO_STEP_MS);
         return () => clearTimer();
-    }, [isMissile, isHidden, isSpeed, phase, demoPlaying, demoIndex, demoEpoch, lesson, clearTimer]);
+    }, [isMissile, isHidden, isBase, isSpeed, phase, demoPlaying, demoIndex, demoEpoch, lesson, clearTimer]);
 
     useEffect(() => {
         if (!isMissile || phase !== 'demo' || !demoPlaying || !missileDemo) return;
@@ -259,6 +302,29 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
         }, delay);
         return () => clearTimer();
     }, [isHidden, phase, demoPlaying, hiddenStep, demoEpoch, hiddenDemo, skipPractice, clearTimer]);
+
+    useEffect(() => {
+        if (!isBase || phase !== 'demo' || !demoPlaying || !baseDemo) return;
+        clearTimer();
+        if (baseStep === 'done') {
+            timerRef.current = setTimeout(() => {
+                setDemoPlaying(false);
+                if (skipPractice) setPhase('done');
+            }, DEMO_HOLD_MS);
+            return () => clearTimer();
+        }
+        if (baseStep === 'bid') {
+            setBaseBidValue(baseDemo.winBid);
+        }
+        const delay =
+            baseStep === 'revealDiff' || baseStep === 'revealSame' || baseStep === 'bidWin'
+                ? BASE_RESULT_MS
+                : BASE_DEMO_STEP_MS;
+        timerRef.current = setTimeout(() => {
+            setBaseStep((s) => nextBaseDemoStep(s));
+        }, delay);
+        return () => clearTimer();
+    }, [isBase, phase, demoPlaying, baseStep, demoEpoch, baseDemo, skipPractice, clearTimer]);
 
     // 스피드: 막대 10→0 후 상대 +1점, 따라놓기 없이 완료
     useEffect(() => {
@@ -396,19 +462,21 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
         if (!lesson) return EMPTY_TUTORIAL_STONES;
         if (missileDemo) return applyMissileBoard(lesson.initialStones, 'done');
         if (hiddenDemo) return applyHiddenBoard(lesson.initialStones, 'done');
+        if (baseDemo) return lesson.initialStones;
         let stones = [...(lesson.practiceInitialStones ?? lesson.initialStones), ...practiceSequence];
         if (lesson.demoCaptureRemovals?.length) {
             const rem = new Set(lesson.demoCaptureRemovals.map((p) => `${p.x},${p.y}`));
             stones = stones.filter((s) => !rem.has(`${s.x},${s.y}`));
         }
         return stones;
-    }, [lesson, practiceSequence, missileDemo, applyMissileBoard, hiddenDemo, applyHiddenBoard]);
+    }, [lesson, practiceSequence, missileDemo, applyMissileBoard, hiddenDemo, applyHiddenBoard, baseDemo]);
 
     const practiceBase = lesson?.practiceInitialStones ?? lesson?.initialStones ?? EMPTY_TUTORIAL_STONES;
     const practiceStones: PveTutorialStone[] = useMemo(() => {
         if (!lesson) return [];
         if (missileDemo) return applyMissileBoard(lesson.initialStones, missileStep);
         if (hiddenDemo) return applyHiddenBoard(lesson.initialStones, hiddenStep);
+        if (baseDemo) return lesson.initialStones;
         const placed = practiceSequence.slice(0, practiceIndex);
         let stones: PveTutorialStone[] = [...practiceBase, ...placed];
         if (practiceIndex >= practiceSequence.length && lesson.demoCaptureRemovals?.length) {
@@ -427,6 +495,7 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
         hiddenDemo,
         hiddenStep,
         applyHiddenBoard,
+        baseDemo,
     ]);
 
     if (!lesson) return null;
@@ -465,7 +534,7 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
               : demoIndex;
 
     const visibleTerritory: PveTutorialStone[] | null = (() => {
-        if (isMissile || isSpeed || isHidden) return null;
+        if (isMissile || isSpeed || isHidden || isBase) return null;
         const steps = lesson.scoringTerritorySteps;
         if (steps?.length) {
             if (placedForTerritory <= 0) return null;
@@ -600,6 +669,40 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
         setHiddenStep('item');
         setHiddenItemArmed(false);
         setScanItemArmed(false);
+        setBaseStep('chooseDiff');
+        setBaseBidValue(0);
+    };
+
+    const handleBaseColorPick = (color: 'B' | 'W') => {
+        if (phase !== 'practice' || !baseDemo) return;
+        if (color !== 'B') return;
+        if (baseStep === 'chooseDiff') {
+            setBaseStep('revealDiff');
+            clearTimer();
+            timerRef.current = setTimeout(() => {
+                setBaseStep('chooseSame');
+            }, BASE_RESULT_MS);
+            return;
+        }
+        if (baseStep === 'chooseSame') {
+            setBaseStep('revealSame');
+            clearTimer();
+            timerRef.current = setTimeout(() => {
+                setBaseBidValue(0);
+                setBaseStep('bid');
+            }, BASE_RESULT_MS);
+        }
+    };
+
+    const handleBaseBidSubmit = () => {
+        if (phase !== 'practice' || !baseDemo || baseStep !== 'bid') return;
+        if (baseBidValue < baseDemo.winBid) return;
+        clearTimer();
+        setBaseStep('bidWin');
+        timerRef.current = setTimeout(() => {
+            setBaseStep('done');
+            setPhase('done');
+        }, BASE_RESULT_MS);
     };
 
     const dirClickable = phase === 'practice' && missileStep === 'direction';
@@ -683,6 +786,16 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
                     hiddenStep === 'done')));
 
     const practiceHintKey = (() => {
+        if (isBase && phase === 'practice') {
+            if (baseStep === 'chooseDiff' || baseStep === 'chooseSame') {
+                return 'pveBrief.tutorialBaseChooseHint';
+            }
+            if (baseStep === 'revealDiff') return 'pveBrief.tutorialBaseDiffHint';
+            if (baseStep === 'revealSame') return 'pveBrief.tutorialBaseSameHint';
+            if (baseStep === 'bid') return 'pveBrief.tutorialBaseBidHint';
+            if (baseStep === 'bidWin') return 'pveBrief.tutorialBaseBidWinHint';
+            return 'pveBrief.tutorialBaseChooseHint';
+        }
         if (isHidden && phase === 'practice') {
             if (hiddenStep === 'item') return 'pveBrief.tutorialHiddenItemHint';
             if (hiddenStep === 'placeHidden') return 'pveBrief.tutorialHiddenPlaceHint';
@@ -713,6 +826,35 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
     const showScanFlash = isHidden && (hiddenStep === 'scanned' || (phase === 'done' && isHidden));
     const showOpponentHiddenFlash =
         isHidden && (hiddenStep === 'opponentItem' || hiddenStep === 'opponentPlace');
+    const showBaseDiffFlash = isBase && baseStep === 'revealDiff';
+    const showBaseBidWinFlash = isBase && baseStep === 'bidWin';
+    const showBaseColorUi =
+        isBase &&
+        (baseStep === 'chooseDiff' ||
+            baseStep === 'revealDiff' ||
+            baseStep === 'chooseSame' ||
+            baseStep === 'revealSame');
+    const showBaseBidUi = isBase && (baseStep === 'bid' || baseStep === 'bidWin' || baseStep === 'done');
+    const baseColorClickable =
+        phase === 'practice' && (baseStep === 'chooseDiff' || baseStep === 'chooseSame');
+    const baseBlackPulse =
+        (phase === 'demo' && demoPlaying && (baseStep === 'chooseDiff' || baseStep === 'chooseSame')) ||
+        baseColorClickable;
+    const baseMyPickedBlack =
+        baseStep === 'revealDiff' ||
+        baseStep === 'revealSame' ||
+        baseStep === 'bid' ||
+        baseStep === 'bidWin' ||
+        baseStep === 'done';
+    const baseOppIsWhite = baseStep === 'revealDiff';
+    const baseBidDisplay =
+        phase === 'demo' && (baseStep === 'bid' || baseStep === 'bidWin' || baseStep === 'done')
+            ? (baseDemo?.winBid ?? 0)
+            : baseBidValue;
+    const baseOppBidDisplay = baseDemo?.oppBid ?? 0;
+    const baseBidCanSubmit =
+        phase === 'practice' && baseStep === 'bid' && Boolean(baseDemo) && baseBidValue >= baseDemo!.winBid;
+    const pulseBaseMarks = isBase && phase === 'demo' && demoPlaying && baseStep === 'showBoard';
 
     const capturePts = lesson.captureScorePoints;
     const showPatternScore = typeof capturePts === 'number' && capturePts > 0;
@@ -777,7 +919,7 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
                             cooldownMs={0}
                         >
                             {t(
-                                isMissile || isHidden
+                                isMissile || isHidden || isBase
                                     ? 'pveBrief.tutorialMissilePractice'
                                     : 'pveBrief.tutorialPractice',
                             )}
@@ -805,7 +947,7 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
                         cooldownMs={0}
                     >
                         {t(
-                            isMissile || isHidden
+                            isMissile || isHidden || isBase
                                 ? 'pveBrief.tutorialMissilePractice'
                                 : 'pveBrief.tutorialPractice',
                         )}
@@ -983,6 +1125,122 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
                     </div>
                 ) : null}
 
+                {isBase && showBaseColorUi ? (
+                    <div className="space-y-2 rounded-xl border border-amber-400/25 bg-black/45 px-3 py-3">
+                        <div className="grid grid-cols-2 gap-2">
+                            <button
+                                type="button"
+                                disabled={!baseColorClickable}
+                                onClick={() => handleBaseColorPick('B')}
+                                className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-2.5 transition ${
+                                    baseBlackPulse
+                                        ? 'animate-pulse border-amber-300 bg-amber-400/20 shadow-[0_0_16px_rgba(251,191,36,0.4)]'
+                                        : baseMyPickedBlack
+                                          ? 'border-emerald-400/70 bg-emerald-500/15'
+                                          : 'border-white/15 bg-zinc-900/80'
+                                } ${baseColorClickable ? 'cursor-pointer' : 'cursor-default'}`}
+                                aria-label="pick black"
+                            >
+                                <span className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-zinc-700 to-black shadow-md">
+                                    <img
+                                        src={BLACK_BASE_STONE_IMG}
+                                        alt=""
+                                        className="absolute h-[70%] w-[70%] object-contain"
+                                        draggable={false}
+                                    />
+                                </span>
+                                <span className="text-[11px] font-black text-white">{t('pveBrief.tutorialBaseBlack')}</span>
+                            </button>
+                            <button
+                                type="button"
+                                disabled
+                                className={`flex flex-col items-center gap-1.5 rounded-xl border-2 px-2 py-2.5 cursor-default ${
+                                    baseOppIsWhite
+                                        ? 'border-sky-300/70 bg-sky-500/15'
+                                        : 'border-white/15 bg-zinc-900/80 opacity-70'
+                                }`}
+                                aria-label="white"
+                            >
+                                <span className="relative flex h-11 w-11 items-center justify-center overflow-hidden rounded-full bg-gradient-to-br from-white to-zinc-200 shadow-md">
+                                    <img
+                                        src={BLACK_BASE_STONE_IMG}
+                                        alt=""
+                                        className="absolute h-[70%] w-[70%] object-contain"
+                                        draggable={false}
+                                    />
+                                </span>
+                                <span className="text-[11px] font-black text-white">{t('pveBrief.tutorialBaseWhite')}</span>
+                            </button>
+                        </div>
+                        {baseStep === 'revealDiff' || baseStep === 'revealSame' ? (
+                            <div className="grid grid-cols-2 gap-2 text-center text-[10px] font-bold">
+                                <p className="text-emerald-200/90">
+                                    {t('pveBrief.tutorialBaseYou')}: {t('pveBrief.tutorialBaseBlack')}
+                                </p>
+                                <p className={baseOppIsWhite ? 'text-sky-200/90' : 'text-amber-200/90'}>
+                                    {t('pveBrief.tutorialBaseOpponent')}:{' '}
+                                    {baseOppIsWhite
+                                        ? t('pveBrief.tutorialBaseWhite')
+                                        : t('pveBrief.tutorialBaseBlack')}
+                                </p>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
+                {isBase && showBaseBidUi && baseDemo ? (
+                    <div className="space-y-2.5 rounded-xl border border-amber-400/25 bg-black/45 px-3 py-3">
+                        <p className="text-center text-[11px] font-bold text-amber-100/90">
+                            {t('pveBrief.tutorialBaseContested', { color: t('pveBrief.tutorialBaseBlack') })}
+                        </p>
+                        <div className="grid grid-cols-2 gap-2">
+                            <div className="rounded-lg border border-white/10 bg-zinc-900/80 p-2 text-center">
+                                <p className="text-[10px] font-bold text-white/60">{t('pveBrief.tutorialBaseYou')}</p>
+                                <p className="mt-1 text-2xl font-black tabular-nums text-amber-200">{baseBidDisplay}</p>
+                            </div>
+                            <div className="rounded-lg border border-white/10 bg-zinc-900/80 p-2 text-center">
+                                <p className="text-[10px] font-bold text-white/60">
+                                    {t('pveBrief.tutorialBaseOpponent')}
+                                </p>
+                                <p className="mt-1 text-2xl font-black tabular-nums text-sky-200">{baseOppBidDisplay}</p>
+                            </div>
+                        </div>
+                        {phase === 'practice' && baseStep === 'bid' ? (
+                            <div className="flex items-center justify-center gap-2">
+                                <button
+                                    type="button"
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-black/50 text-lg font-black text-white"
+                                    onClick={() => setBaseBidValue((v) => Math.max(0, v - 1))}
+                                    aria-label="decrease bid"
+                                >
+                                    −
+                                </button>
+                                <button
+                                    type="button"
+                                    className="flex h-9 w-9 items-center justify-center rounded-lg border border-white/20 bg-black/50 text-lg font-black text-white"
+                                    onClick={() => setBaseBidValue((v) => Math.min(20, v + 1))}
+                                    aria-label="increase bid"
+                                >
+                                    +
+                                </button>
+                                <Button
+                                    type="button"
+                                    colorScheme="none"
+                                    bare
+                                    className={`${PVE_FOOTER_BTN_ACCENT} !min-h-9 !px-3 ${
+                                        baseBidCanSubmit ? 'animate-pulse' : 'opacity-50'
+                                    }`}
+                                    disabled={!baseBidCanSubmit}
+                                    onClick={handleBaseBidSubmit}
+                                    cooldownMs={0}
+                                >
+                                    {t('pveBrief.tutorialBaseBidSubmit')}
+                                </Button>
+                            </div>
+                        ) : null}
+                    </div>
+                ) : null}
+
                 {isSpeed ? (
                     <div className="relative space-y-3 rounded-xl bg-black px-2.5 py-3 sm:px-3 sm:py-3.5">
                         <div className="grid grid-cols-2 gap-2">
@@ -1082,8 +1340,9 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
                             stones={boardStones}
                             highlight={highlight}
                             territory={visibleTerritory}
-                            interactive={phase === 'practice'}
+                            interactive={phase === 'practice' && !isBase}
                             allowSelectOccupied={isMissile && missileStep === 'stone'}
+                            pulseBaseMarks={pulseBaseMarks}
                             onCellClick={handlePracticeClick}
                         />
                         {showScoringOverlay ? (
@@ -1130,6 +1389,26 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
                                 </span>
                             </div>
                         ) : null}
+                        {showBaseDiffFlash ? (
+                            <div
+                                className="pointer-events-none absolute inset-x-3 top-3 z-[2] flex justify-center sm:inset-x-4 sm:top-3.5"
+                                aria-live="polite"
+                            >
+                                <span className="rounded-full border border-amber-300/50 bg-black/75 px-3 py-1 text-[11px] font-black tracking-wide text-amber-100 shadow-lg sm:text-xs">
+                                    {t('pveBrief.tutorialBaseDiffFlash')}
+                                </span>
+                            </div>
+                        ) : null}
+                        {showBaseBidWinFlash && !showBaseDiffFlash ? (
+                            <div
+                                className="pointer-events-none absolute inset-x-3 top-3 z-[2] flex justify-center sm:inset-x-4 sm:top-3.5"
+                                aria-live="polite"
+                            >
+                                <span className="rounded-full border border-emerald-300/50 bg-black/75 px-3 py-1 text-[11px] font-black tracking-wide text-emerald-100 shadow-lg sm:text-xs">
+                                    {t('pveBrief.tutorialBaseBidWinFlash')}
+                                </span>
+                            </div>
+                        ) : null}
                     </div>
                 )}
 
@@ -1137,6 +1416,18 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
 
                 {phase === 'practice' ? (
                     <p className="text-center text-xs font-bold text-emerald-200/90">{t(practiceHintKey)}</p>
+                ) : isBase && phase === 'demo' && baseStep === 'showBoard' ? (
+                    <p className="text-center text-xs font-bold text-amber-100/90">{t('pveBrief.tutorialBaseShowHint')}</p>
+                ) : isBase && phase === 'demo' && (baseStep === 'chooseDiff' || baseStep === 'chooseSame') ? (
+                    <p className="text-center text-xs font-bold text-amber-100/90">{t('pveBrief.tutorialBaseChooseHint')}</p>
+                ) : isBase && phase === 'demo' && baseStep === 'revealDiff' ? (
+                    <p className="text-center text-xs font-bold text-amber-100/90">{t('pveBrief.tutorialBaseDiffHint')}</p>
+                ) : isBase && phase === 'demo' && baseStep === 'revealSame' ? (
+                    <p className="text-center text-xs font-bold text-amber-100/90">{t('pveBrief.tutorialBaseSameHint')}</p>
+                ) : isBase && phase === 'demo' && baseStep === 'bid' ? (
+                    <p className="text-center text-xs font-bold text-amber-100/90">{t('pveBrief.tutorialBaseBidHint')}</p>
+                ) : isBase && phase === 'demo' && baseStep === 'bidWin' ? (
+                    <p className="text-center text-xs font-bold text-emerald-100/90">{t('pveBrief.tutorialBaseBidWinHint')}</p>
                 ) : showScoringOverlay && phase === 'demo' ? (
                     <p className="text-center text-xs font-bold text-amber-100/90">{t('pveBrief.tutorialScoringHint')}</p>
                 ) : isHidden && phase === 'demo' && hiddenStep === 'captureReveal' ? (

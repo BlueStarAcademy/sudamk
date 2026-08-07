@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
-import { CoreStat } from '../../../shared/types/enums.js';
+import { CoreStat, GameMode } from '../../../shared/types/enums.js';
 import {
     ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID,
     applyUserProgressionArenaLocks,
     getBadukAbilitySnapshotFromStats,
+    getFriendlyModeCompletions,
     isAdventureUnlockedByProgression,
+    isRankedModeUnlockedForUser,
     isTowerUnlockedByProgression,
     PVP_LOBBIES_MIN_COMBINED_LEVEL,
+    RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
     TOWER_ENTRANCE_ADVENTURE_STAGE_ID,
 } from '../../../shared/utils/contentProgressionGates.js';
 import { ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS } from '../../../constants/adventureConstants.js';
@@ -149,5 +152,19 @@ describe('adventure chapter unlock', () => {
                 },
             }),
         ).toBe(true);
+    });
+
+    it('unlocks Uniform/Castle/Chess in ranked after 5 friendly completions', () => {
+        expect(RANKED_MODE_FRIENDLY_UNLOCK_GAMES).toBe(5);
+        const locked = baseUser({ stats: { [GameMode.Uniform]: { wins: 0, losses: 0, friendlyCompletions: 4 } } });
+        expect(getFriendlyModeCompletions(locked, GameMode.Uniform)).toBe(4);
+        expect(isRankedModeUnlockedForUser(locked, GameMode.Uniform)).toBe(false);
+        expect(isRankedModeUnlockedForUser(locked, GameMode.Standard)).toBe(true);
+
+        const unlocked = baseUser({ stats: { [GameMode.Castle]: { wins: 1, losses: 0, friendlyCompletions: 5 } } });
+        expect(isRankedModeUnlockedForUser(unlocked, GameMode.Castle)).toBe(true);
+
+        const admin = baseUser({ isAdmin: true, stats: {} });
+        expect(isRankedModeUnlockedForUser(admin, GameMode.Chess)).toBe(true);
     });
 });

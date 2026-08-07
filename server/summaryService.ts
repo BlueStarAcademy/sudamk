@@ -1916,12 +1916,22 @@ const processPlayerSummary = async (
         rankingScore?: number;
         aiWins?: number;
         aiLosses?: number;
+        friendlyCompletions?: number;
     };
-    const gameStats = {
+    const gameStats: {
+        wins: number;
+        losses: number;
+        aiWins?: number;
+        aiLosses?: number;
+        friendlyCompletions?: number;
+    } = {
         wins: gameStatsRest.wins ?? 0,
         losses: gameStatsRest.losses ?? 0,
         ...(gameStatsRest.aiWins !== undefined ? { aiWins: gameStatsRest.aiWins } : {}),
         ...(gameStatsRest.aiLosses !== undefined ? { aiLosses: gameStatsRest.aiLosses } : {}),
+        ...(gameStatsRest.friendlyCompletions !== undefined
+            ? { friendlyCompletions: gameStatsRest.friendlyCompletions }
+            : {}),
     };
 
     const strategicBefore = readStrategicRankedBlock(updatedPlayer.stats as Record<string, unknown>);
@@ -2014,6 +2024,14 @@ const processPlayerSummary = async (
         } else {
             if (isWinner) gameStats.wins++;
             else if (!isDraw) gameStats.losses++;
+        }
+        const isFriendlyLobbyCompletion =
+            game.settings?.friendlyLobbyMatch === true ||
+            game.settings?.pairGame?.lobbyChannel === 'friendly';
+        if (isFriendlyLobbyCompletion) {
+            const prevFc = Number(gameStats.friendlyCompletions ?? 0);
+            gameStats.friendlyCompletions =
+                (Number.isFinite(prevFc) && prevFc > 0 ? Math.floor(prevFc) : 0) + 1;
         }
     }
 

@@ -17,6 +17,10 @@ import {
     formatActionPointCostWithPetDiscount,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
 import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
+import {
+    isRankedModeUnlockedForUser,
+    RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
+} from '../../shared/utils/contentProgressionGates.js';
 import { buildRankedStrategicMatchLobbySettingRows } from '../../shared/utils/pairLobbyGameSettingRows.js';
 import {
     LOBBY_DENSE_SETTINGS_GRID_CONTAINER_CLASS,
@@ -307,6 +311,30 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
 
     const queueCountUnitLabel = t('rankedMatch.queueUnitTeam');
 
+    const selectRankedMode = (mode: GameMode) => {
+        if (variant === 'strategic_arena' || variant === 'duo_arena') {
+            if (!isRankedModeUnlockedForUser(currentUser, mode)) {
+                window.alert(
+                    tLobby('ranked.friendlyUnlockTitle', { need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES }),
+                );
+                return;
+            }
+        }
+        setSelected(mode);
+    };
+
+    const queueSelectedRankedMode = () => {
+        if (variant === 'strategic_arena' || variant === 'duo_arena') {
+            if (!isRankedModeUnlockedForUser(currentUser, selected)) {
+                window.alert(
+                    tLobby('ranked.friendlyUnlockTitle', { need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES }),
+                );
+                return;
+            }
+        }
+        void onQueue(selected);
+    };
+
     /** 모바일: 모드 피커와 정보 열을 세로 2단계로 분리(AI 대전 모달과 동일 흐름). 파트너 동의 등 `hideModePicker`일 때는 단일 열 유지 */
     const handheldModePickerStacked = isHandheld && !hideModePicker;
 
@@ -454,7 +482,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 compact={isHandheld}
                                 scrollStripItem={isHandheld}
                                 hideQueueCount={hideQueueCount}
-                                onSelect={() => setSelected(def.mode)}
+                                onSelect={() => selectRankedMode(def.mode)}
                             />
                         </div>
                     ))}
@@ -471,7 +499,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 compact={isHandheld}
                                 scrollStripItem={isHandheld}
                                 hideQueueCount={hideQueueCount}
-                                onSelect={() => setSelected(def.mode)}
+                                onSelect={() => selectRankedMode(def.mode)}
                             />
                         </div>
                     ))}
@@ -534,7 +562,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     type="button"
                     bare
                     disabled={isBusy}
-                    onClick={() => void onQueue(selected)}
+                    onClick={() => queueSelectedRankedMode()}
                     className={`rounded-xl border border-amber-400/60 bg-gradient-to-b from-amber-600/90 to-amber-950/95 font-semibold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:py-3 sm:text-base ${
                         isHandheld ? 'py-2.5 text-sm' : 'py-3 text-base'
                     }`}
@@ -568,7 +596,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                             isSelected={selected === def.mode}
                                             disabled={isBusy}
                                             compact
-                                            onSelect={() => setSelected(def.mode)}
+                                            onSelect={() => selectRankedMode(def.mode)}
                                         />
                                     </div>
                                 ))}
@@ -615,7 +643,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                 type="button"
                                 bare
                                 disabled={isBusy}
-                                onClick={() => void onQueue(selected)}
+                                onClick={() => queueSelectedRankedMode()}
                                 className={`inline-flex !min-h-[2.58rem] min-w-0 items-center justify-center !rounded-xl border border-amber-400/48 bg-gradient-to-b from-amber-600/88 to-amber-950/95 px-3 text-[12.5px] font-extrabold tracking-wide text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.11)] ring-1 ring-amber-400/18 transition-all hover:brightness-[1.06] active:scale-[0.99] disabled:!cursor-not-allowed disabled:!opacity-45 ${
                                     presentation === 'embedded' ? '!w-full flex-1' : '!w-auto flex-[1.22]'
                                 }`}
@@ -727,7 +755,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                     compact
                                     scrollStripItem
                                     hideQueueCount={hideQueueCount}
-                                    onSelect={() => setSelected(def.mode)}
+                                    onSelect={() => selectRankedMode(def.mode)}
                                 />
                             </div>
                         ))}
@@ -817,7 +845,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                                     type="button"
                                     bare
                                     disabled={isBusy || !selectedDef}
-                                    onClick={() => void onQueue(selected)}
+                                    onClick={() => queueSelectedRankedMode()}
                                     className="min-w-[min(100%,14rem)] rounded-xl border border-amber-400/60 bg-gradient-to-b from-amber-600/90 to-amber-950/95 px-4 py-2.5 text-sm font-extrabold text-amber-50 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] sm:min-w-[16rem] sm:py-3 sm:text-base"
                                 >
                                     <ActionPointLabelWithCost label={t('rankedMatch.matchQueue')} cost={displayedQueueApCost} />

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { PveTutorialStone } from '../../shared/constants/pveTutorials.js';
-import { BLACK_HIDDEN_STONE_IMG } from '../../assets.js';
+import { BLACK_BASE_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../../assets.js';
 
 type Props = {
     boardSize: number;
@@ -11,6 +11,8 @@ type Props = {
     interactive?: boolean;
     /** true면 하이라이트된 돌(점유 칸)도 클릭 가능 — 미사일 돌 선택 */
     allowSelectOccupied?: boolean;
+    /** 베이스돌 전체를 펄스(보드 확인 단계) */
+    pulseBaseMarks?: boolean;
     onCellClick?: (x: number, y: number) => void;
     className?: string;
 };
@@ -23,6 +25,7 @@ const PveTutorialMiniBoard: React.FC<Props> = ({
     territory = null,
     interactive = false,
     allowSelectOccupied = false,
+    pulseBaseMarks = false,
     onCellClick,
     className = '',
 }) => {
@@ -91,6 +94,8 @@ const PveTutorialMiniBoard: React.FC<Props> = ({
                     const canClick =
                         interactive && isHi && (!color || (allowSelectOccupied && Boolean(color)));
                     const showHiddenMark = Boolean(stone?.hiddenMark || stone?.hiddenMine || stone?.scanned);
+                    const showBaseMark = Boolean(stone?.baseMark);
+                    const pulseBase = Boolean(pulseBaseMarks && showBaseMark);
                     const patternSrc =
                         stone?.pattern && color
                             ? color === 'B'
@@ -127,7 +132,7 @@ const PveTutorialMiniBoard: React.FC<Props> = ({
                                         color === 'B'
                                             ? 'bg-gradient-to-br from-zinc-700 to-black'
                                             : 'bg-gradient-to-br from-white to-zinc-200'
-                                    } ${isHi ? 'scale-105 animate-pulse ring-2 ring-amber-300' : ''} ${
+                                    } ${isHi || pulseBase ? 'scale-105 animate-pulse ring-2 ring-amber-300' : ''} ${
                                         stone?.pattern ? 'ring-2 ring-cyan-300/90' : ''
                                     } ${stone?.hiddenMine ? 'opacity-55' : ''} ${
                                         stone?.scanned ? 'opacity-55' : ''
@@ -144,6 +149,14 @@ const PveTutorialMiniBoard: React.FC<Props> = ({
                                     {showHiddenMark ? (
                                         <img
                                             src={BLACK_HIDDEN_STONE_IMG}
+                                            alt=""
+                                            className="pointer-events-none absolute h-[70%] w-[70%] object-contain"
+                                            draggable={false}
+                                        />
+                                    ) : null}
+                                    {showBaseMark ? (
+                                        <img
+                                            src={BLACK_BASE_STONE_IMG}
                                             alt=""
                                             className="pointer-events-none absolute h-[70%] w-[70%] object-contain"
                                             draggable={false}

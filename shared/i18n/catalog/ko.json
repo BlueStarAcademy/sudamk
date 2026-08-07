@@ -843,6 +843,8 @@
       "adGoldDoubleHint": "광고 시청을 완료하면 이번 경기 골드를 2배로 받을 수 있습니다.",
       "adGoldDoubleFailed": "광고 골드 2배 지급에 실패했습니다. 잠시 후 다시 시도해 주세요.",
       "gameContent": "경기 내용",
+      "detailResultTab": "상세결과",
+      "rewardsTab": "보상",
       "resultSection": "대국 결과",
       "rewardsSection": "보상·기록",
       "noScoreInfo": "점수 정보가 없습니다.",
@@ -2371,6 +2373,20 @@
       "tutorialScanHint": "스캔으로 상대 히든 위치를 찾아보세요.",
       "tutorialScanFoundFlash": "스캔 성공!",
       "tutorialScanFoundHint": "스캔한 히든 돌이 반투명으로 보입니다.",
+      "tutorialBaseShowHint": "미리 놓인 베이스 돌의 문양과 위치를 확인하세요.",
+      "tutorialBaseChooseHint": "빛나는 흑을 선택하세요",
+      "tutorialBaseDiffFlash": "다른 색 · 덤 0.5로 시작!",
+      "tutorialBaseDiffHint": "서로 다른 색을 고르면 덤 0.5로 바로 대국이 시작됩니다.",
+      "tutorialBaseSameHint": "같은 색을 고르면 덤을 제시해 그 색을 겨룹니다.",
+      "tutorialBaseBidHint": "상대보다 높은 덤을 제시한 쪽이 해당 색으로 둡니다.",
+      "tutorialBaseBidWinFlash": "높은 덤 · 흑으로 진행!",
+      "tutorialBaseBidWinHint": "더 높은 덤을 제시해 흑으로 대국을 시작합니다.",
+      "tutorialBaseBidSubmit": "덤 제시",
+      "tutorialBaseBlack": "흑",
+      "tutorialBaseWhite": "백",
+      "tutorialBaseYou": "나",
+      "tutorialBaseOpponent": "상대",
+      "tutorialBaseContested": "{{color}} 쟁탈 · 덤 입찰",
       "tutorialSpeedYou": "나",
       "tutorialSpeedOpponent": "상대",
       "tutorialSpeedScore": "점수",
@@ -2412,7 +2428,7 @@
         },
         "sp_base": {
           "title": "베이스 바둑",
-          "body": "미리 놓인 베이스 돌을 보고 덤을 정한 뒤 대국을 시작합니다."
+          "body": "베이스 돌을 보고 흑·백을 고릅니다. 색이 다르면 덤 0.5로 바로 시작하고, 같으면 더 높은 덤을 제시한 쪽이 그 색으로 둡니다."
         }
       }
     }

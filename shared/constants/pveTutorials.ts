@@ -22,6 +22,8 @@ export type PveTutorialStone = {
     scanned?: boolean;
     /** 히든 문양 오버레이(공개·스캔 포함, 인게임 Hidden.webp) */
     hiddenMark?: boolean;
+    /** 베이스 문양 오버레이(인게임 Base.webp) */
+    baseMark?: boolean;
 };
 
 export type PveTutorialId =
@@ -71,6 +73,17 @@ export type PveHiddenTutorialDemo = {
     opponentHiddenPlace: { x: number; y: number };
 };
 
+/**
+ * 베이스 튜토리얼:
+ * 베이스돌 확인 → 흑/백 선택 → 다른 색이면 0.5덤 즉시 시작
+ * → 같은 색이면 덤 입찰 → 높은 쪽 해당 색
+ */
+export type PveBaseTutorialDemo = {
+    /** 따라하기에서 이겨야 하는 내 덤(상대보다 높음) */
+    winBid: number;
+    oppBid: number;
+};
+
 export type PveTutorialLesson = {
     id: PveTutorialId;
     guideId: PveTutorialGuideId;
@@ -101,6 +114,8 @@ export type PveTutorialLesson = {
     missileDemo?: PveMissileTutorialDemo;
     /** 있으면 히든·스캔 연출을 쓴다 */
     hiddenDemo?: PveHiddenTutorialDemo;
+    /** 있으면 베이스 색 선택·덤 입찰 연출을 쓴다 */
+    baseDemo?: PveBaseTutorialDemo;
     /** 스피드 막대(10→0)와 상대 +1점 연출 */
     speedDemo?: boolean;
     /** true면 따라놓기 없이 데모 후 완료 */
@@ -362,14 +377,19 @@ export const PVE_TUTORIAL_LESSONS: Record<PveTutorialId, PveTutorialLesson> = {
         titleKey: 'pveBrief.tutorials.sp_base.title',
         bodyKey: 'pveBrief.tutorials.sp_base.body',
         boardSize: 5,
+        // 코너에 미리 놓인 베이스돌 — 형세를 읽고 색·덤을 정한다
         initialStones: [
-            { x: 0, y: 0, color: 'B' },
-            { x: 4, y: 4, color: 'W' },
-            { x: 0, y: 4, color: 'B' },
-            { x: 4, y: 0, color: 'W' },
+            { x: 0, y: 0, color: 'B', baseMark: true },
+            { x: 4, y: 4, color: 'W', baseMark: true },
+            { x: 0, y: 4, color: 'B', baseMark: true },
+            { x: 4, y: 0, color: 'W', baseMark: true },
         ],
-        demoPlacements: [{ x: 2, y: 2, color: 'B' }],
-        practiceTargets: [{ x: 2, y: 2 }],
+        demoPlacements: [],
+        practiceTargets: [],
+        baseDemo: {
+            winBid: 3,
+            oppBid: 1,
+        },
     },
 };
 
