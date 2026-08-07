@@ -1938,7 +1938,7 @@ export type GuildMessage = {
   authorId: string;
   content: string;
   createdAt: number;
-  user?: { id: string; nickname: string };
+  user?: { id: string; nickname: string; avatarId?: string; borderId?: string };
   system?: boolean;
   timestamp?: number;
   text?: string;

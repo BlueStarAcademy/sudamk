@@ -880,7 +880,9 @@
       "goldBundleSpaced": "pachet de aur",
       "goldBundleCompact": "Pachet de aur",
       "noRewardInfo": "Nu există informații despre compensație disponibile.",
-      "noRewardsEmpty": "Nu există compensație."
+      "noRewardsEmpty": "Nu există compensație.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Informații de potrivire",

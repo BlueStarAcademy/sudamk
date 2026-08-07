@@ -7069,6 +7069,8 @@ async function buildRankedMatchProposalPayload(
             winChange: isNormal ? 0 : calculateEloChange(player1Rating, player2Rating, 'win'),
             lossChange: isNormal ? 0 : calculateEloChange(player1Rating, player2Rating, 'loss'),
             accepted: prop.acceptUser1,
+            avatarId: player1.avatarId,
+            borderId: player1.borderId,
         },
         player2: {
             id: player2.id,
@@ -7077,6 +7079,8 @@ async function buildRankedMatchProposalPayload(
             winChange: isNormal ? 0 : calculateEloChange(player2Rating, player1Rating, 'win'),
             lossChange: isNormal ? 0 : calculateEloChange(player2Rating, player1Rating, 'loss'),
             accepted: prop.acceptUser2,
+            avatarId: player2.avatarId,
+            borderId: player2.borderId,
         },
     };
 }

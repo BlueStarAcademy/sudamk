@@ -880,7 +880,9 @@
       "goldBundleSpaced": "guldpaket",
       "goldBundleCompact": "Guldpaket",
       "noRewardInfo": "Ingen ersättningsinformation tillgänglig.",
-      "noRewardsEmpty": "Det finns ingen ersättning."
+      "noRewardsEmpty": "Det finns ingen ersättning.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Matchinformation",

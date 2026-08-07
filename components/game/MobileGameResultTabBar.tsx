@@ -1,5 +1,5 @@
 import React, { type ReactNode } from 'react';
-import { tx } from '../../shared/i18n/runtimeText.js';
+import { useTranslation } from 'react-i18next';
 
 /** 결과 모달 공통: 상세결과 ↔ 보상 */
 export type MobileGameResultTab = 'detail' | 'rewards';
@@ -86,20 +86,24 @@ type MobileGameResultTabBarProps = {
 export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
     active,
     onChange,
-    detailLabel = tx('game:summary.detailResultTab'),
-    rewardsLabel = tx('game:summary.rewardsTab'),
+    detailLabel,
+    rewardsLabel,
     className = '',
     comfortable = false,
 }) => {
+    const { t } = useTranslation('game');
+    const resolvedDetailLabel = detailLabel ?? t('summary.detailResultTab', { defaultValue: '상세결과' });
+    const resolvedRewardsLabel = rewardsLabel ?? t('summary.rewardsTab', { defaultValue: '보상' });
+
     const tabBtnBase = comfortable
         ? 'min-h-[2.35rem] flex-1 rounded-md px-2 py-1.5 text-center text-xs font-bold tracking-[0.06em] transition-colors'
-        : 'min-h-[2rem] flex-1 rounded-md px-1.5 py-1 text-center text-[10px] font-bold uppercase tracking-[0.08em] transition-colors sm:text-xs';
+        : 'min-h-[2rem] flex-1 rounded-md px-1.5 py-1 text-center text-[10px] font-bold tracking-[0.04em] transition-colors sm:text-xs';
 
     return (
         <div
             className={`flex w-full shrink-0 gap-0.5 rounded-lg border border-amber-500/35 bg-slate-950/80 p-0.5 ring-1 ring-inset ring-amber-500/12 ${className}`}
             role="tablist"
-            aria-label={tx('game:mobileResultTab.aria')}
+            aria-label={t('mobileResultTab.aria', { defaultValue: '결과 탭' })}
         >
             <button
                 type="button"
@@ -112,7 +116,7 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
                 }`}
                 onClick={() => onChange('detail')}
             >
-                {detailLabel}
+                {resolvedDetailLabel}
             </button>
             <button
                 type="button"
@@ -125,7 +129,7 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
                 }`}
                 onClick={() => onChange('rewards')}
             >
-                {rewardsLabel}
+                {resolvedRewardsLabel}
             </button>
         </div>
     );

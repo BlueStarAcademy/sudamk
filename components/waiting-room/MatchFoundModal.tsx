@@ -12,6 +12,8 @@ export type RankedMatchProposalPlayer = {
     winChange: number;
     lossChange: number;
     accepted: boolean;
+    avatarId?: string;
+    borderId?: string;
 };
 
 export type RankedMatchProposalClient = {
@@ -138,7 +140,13 @@ const MatchFoundModal: React.FC<MatchFoundModalProps> = ({
 
                 <div className="flex items-center justify-center gap-6 sm:gap-8">
                     <div className="flex flex-1 flex-col items-center gap-3">
-                        <Avatar userId={myInfo.id} userName={myInfo.nickname} size={72} />
+                        <Avatar
+                            userId={myInfo.id}
+                            userName={myInfo.nickname}
+                            avatarId={myInfo.avatarId}
+                            borderId={myInfo.borderId}
+                            size={72}
+                        />
                         <div className="text-center">
                             <p className="text-base font-bold text-white">{myInfo.nickname}</p>
                             {!isNormal ? (

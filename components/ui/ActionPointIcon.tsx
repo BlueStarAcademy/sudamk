@@ -14,7 +14,10 @@ const SIZE_CLASS: Record<ActionPointIconSize, string> = {
 export type ActionPointIconProps = {
     size?: ActionPointIconSize;
     className?: string;
-    /** Prefer crisp SVG for tiny inline UI; raster for larger hero slots */
+    /**
+     * `auto`/`raster`: webp (모바일·헤더에서 SVG 필터/img 조합이 빈 칸으로 나오는 경우 회피)
+     * `svg`: 선명 SVG (데스크톱 인라인 등 명시적 요청 시)
+     */
     variant?: 'auto' | 'svg' | 'raster';
     alt?: string;
     title?: string;
@@ -30,8 +33,8 @@ const ActionPointIcon: React.FC<ActionPointIconProps> = ({
     alt = '',
     title,
 }) => {
-    const useSvg =
-        variant === 'svg' || (variant === 'auto' && (size === 'xs' || size === 'sm' || size === 'md'));
+    // 기본은 래스터: 헤더/비용 표기 등 작은 UI가 모바일에서도 골드·다이아와 동일하게 보이게
+    const useSvg = variant === 'svg';
     const src = useSvg ? resourceIcons.actionPointSvg : resourceIcons.actionPoint;
     return (
         <img
@@ -40,8 +43,9 @@ const ActionPointIcon: React.FC<ActionPointIconProps> = ({
             title={title}
             aria-hidden={alt ? undefined : true}
             className={`inline-block shrink-0 object-contain drop-shadow-[0_0_6px_rgba(34,211,238,0.35)] ${SIZE_CLASS[size]} ${className}`}
-            loading="lazy"
+            loading="eager"
             decoding="async"
+            fetchPriority="high"
         />
     );
 };

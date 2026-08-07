@@ -880,7 +880,9 @@
       "goldBundleSpaced": "pacchetto oro",
       "goldBundleCompact": "Pacchetto oro",
       "noRewardInfo": "Nessuna informazione disponibile sulla compensazione.",
-      "noRewardsEmpty": "Non è previsto alcun compenso."
+      "noRewardsEmpty": "Non è previsto alcun compenso.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Informazioni sulla corrispondenza",

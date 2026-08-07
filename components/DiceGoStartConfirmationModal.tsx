@@ -77,13 +77,25 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
                 {p1Roll !== null && p2Roll !== null && (
                      <div className="flex justify-around items-center my-4 bg-gray-900/50 p-3 rounded-lg">
                         <div className="flex flex-col items-center gap-2">
-                            <Avatar userId={player1.id} userName={player1.nickname} size={48} />
+                            <Avatar
+                                userId={player1.id}
+                                userName={player1.nickname}
+                                avatarId={player1.avatarId}
+                                borderId={player1.borderId}
+                                size={48}
+                            />
                             <span className="font-semibold text-sm">{player1.nickname}</span>
                             <Dice value={p1Roll} isRolling={false} size={48} />
                         </div>
                         <span className="text-2xl font-bold">VS</span>
                          <div className="flex flex-col items-center gap-2">
-                            <Avatar userId={player2.id} userName={player2.nickname} size={48} />
+                            <Avatar
+                                userId={player2.id}
+                                userName={player2.nickname}
+                                avatarId={player2.avatarId}
+                                borderId={player2.borderId}
+                                size={48}
+                            />
                             <span className="font-semibold text-sm">{player2.nickname}</span>
                             <Dice value={p2Roll} isRolling={false} size={48} />
                         </div>

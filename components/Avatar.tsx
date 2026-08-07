@@ -1,10 +1,17 @@
 import React from 'react';
+import {
+    DEFAULT_AVATAR_URL,
+    resolveUserPortraitUrls,
+} from '../shared/utils/userPortrait.js';
 
 interface AvatarProps {
   userId: string;
   userName: string;
   avatarUrl?: string | null;
   borderUrl?: string | null;
+  /** URL 미전달 시 `AVATAR_POOL`에서 해석 */
+  avatarId?: string | null;
+  borderId?: string | null;
   size?: number;
   className?: string;
   /** @deprecated 이미지 테두리는 항상 `size` 고정 프레임을 사용합니다. */
@@ -18,24 +25,29 @@ const Avatar: React.FC<AvatarProps> = ({
   userName,
   avatarUrl,
   borderUrl,
+  avatarId,
+  borderId,
   size = 40,
   className = '',
   bottomOverlay,
 }) => {
+  const fromIds = resolveUserPortraitUrls({ avatarId, borderId });
+  const resolvedAvatarUrl = avatarUrl || fromIds.avatarUrl || DEFAULT_AVATAR_URL;
+  const resolvedBorderUrl = borderUrl || fromIds.borderUrl || null;
+
   const remSize = size / 16;
-  const isColorBorder = borderUrl && (borderUrl.startsWith('#') || borderUrl.startsWith('conic-gradient'));
-  const isImageBorder = borderUrl && !isColorBorder;
-  const finalAvatarUrl = avatarUrl || '/images/profiles/profile1.webp';
+  const isColorBorder = resolvedBorderUrl && (resolvedBorderUrl.startsWith('#') || resolvedBorderUrl.startsWith('conic-gradient'));
+  const isImageBorder = resolvedBorderUrl && !isColorBorder;
   /** 테두리 종류와 무관하게 얼굴 원 크기·위치를 고정 (색/이미지 테두리 공통) */
   const faceRemSize = remSize * 0.82;
 
   // Case 1: Image Border — 외곽·얼굴은 고정, 장식 링만 테두리 에셋에 맞게 스케일
   if (isImageBorder) {
     /** 프리미엄1·2, 챌린저잡기, VIP 링 — 장식이 바깥으로 나가 보이도록 프레임을 키움 */
-    const isLargeOrnateRing = /Ring[5-8]\.(webp|png)/i.test(borderUrl);
+    const isLargeOrnateRing = /Ring[5-8]\.(webp|png)/i.test(resolvedBorderUrl);
 
     let borderRemSize = remSize * 1.4;
-    if (/Ring/i.test(borderUrl)) {
+    if (/Ring/i.test(resolvedBorderUrl)) {
         borderRemSize = remSize * (isLargeOrnateRing ? 1.74 : 1.52);
     }
 
@@ -52,11 +64,11 @@ const Avatar: React.FC<AvatarProps> = ({
             className="overflow-hidden rounded-full bg-gray-700"
             style={{ width: `${faceRemSize}rem`, height: `${faceRemSize}rem` }}
           >
-            <img src={finalAvatarUrl} alt={userName} className="h-full w-full object-cover" decoding="async" />
+            <img src={resolvedAvatarUrl} alt={userName} className="h-full w-full object-cover" decoding="async" />
           </div>
         </div>
         <img
-          src={borderUrl}
+          src={resolvedBorderUrl}
           alt=""
           className="pointer-events-none absolute left-1/2 top-1/2 z-[1] -translate-x-1/2 -translate-y-1/2 object-contain"
           style={{ width: `${borderRemSize}rem`, height: `${borderRemSize}rem` }}
@@ -74,10 +86,10 @@ const Avatar: React.FC<AvatarProps> = ({
   
   // Case 2: Color Border — metal rim + inset highlight for a more desirable frame
   if (isColorBorder) {
-    const isGradient = borderUrl.startsWith('conic-gradient');
+    const isGradient = resolvedBorderUrl.startsWith('conic-gradient');
     const rimBackground = isGradient
-      ? borderUrl
-      : `linear-gradient(145deg, rgba(255,255,255,0.55) 0%, ${borderUrl} 38%, ${borderUrl} 62%, rgba(0,0,0,0.35) 100%)`;
+      ? resolvedBorderUrl
+      : `linear-gradient(145deg, rgba(255,255,255,0.55) 0%, ${resolvedBorderUrl} 38%, ${resolvedBorderUrl} 62%, rgba(0,0,0,0.35) 100%)`;
     return (
       <div
         className={`relative flex items-center justify-center rounded-full flex-shrink-0 ${className}`}
@@ -98,7 +110,7 @@ const Avatar: React.FC<AvatarProps> = ({
             boxShadow: 'inset 0 0 0 1.5px rgba(0,0,0,0.35)',
           }}
         >
-          <img src={finalAvatarUrl} alt={userName} className="w-full h-full object-cover" decoding="async" />
+          <img src={resolvedAvatarUrl} alt={userName} className="w-full h-full object-cover" decoding="async" />
         </div>
         {bottomOverlay ? (
           <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex justify-center">
@@ -115,7 +127,7 @@ const Avatar: React.FC<AvatarProps> = ({
       className={`relative rounded-full overflow-hidden bg-gray-700 flex-shrink-0 ${className}`}
       style={{ width: `${remSize}rem`, height: `${remSize}rem` }}
     >
-      <img src={finalAvatarUrl} alt={userName} className="w-full h-full object-cover" />
+      <img src={resolvedAvatarUrl} alt={userName} className="w-full h-full object-cover" />
       {bottomOverlay ? (
         <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] flex justify-center">
           {bottomOverlay}

@@ -889,7 +889,9 @@
       "goldBundleSpaced": "pacote de ouro",
       "goldBundleCompact": "Pacote ouro",
       "noRewardInfo": "Nenhuma informação de remuneração disponível.",
-      "noRewardsEmpty": "Não há compensação."
+      "noRewardsEmpty": "Não há compensação.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Informações da partida",

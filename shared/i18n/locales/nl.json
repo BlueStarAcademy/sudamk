@@ -880,7 +880,9 @@
       "goldBundleSpaced": "gouden pakket",
       "goldBundleCompact": "Gouden pakket",
       "noRewardInfo": "Er zijn geen compensatiegegevens beschikbaar.",
-      "noRewardsEmpty": "Er is geen compensatie."
+      "noRewardsEmpty": "Er is geen compensatie.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Wedstrijdinformatie",

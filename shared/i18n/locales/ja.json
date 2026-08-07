@@ -889,7 +889,9 @@
       "goldBundleSpaced": "ゴールドパッケージ",
       "goldBundleCompact": "ゴールドパッケージ",
       "noRewardInfo": "報酬情報はありません。",
-      "noRewardsEmpty": "報酬はありません。"
+      "noRewardsEmpty": "報酬はありません。",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "対局情報",

@@ -880,7 +880,9 @@
       "goldBundleSpaced": "zlatý balíček",
       "goldBundleCompact": "Zlatý balíček",
       "noRewardInfo": "Nejsou k dispozici žádné informace o kompenzaci.",
-      "noRewardsEmpty": "Neexistuje žádná kompenzace."
+      "noRewardsEmpty": "Neexistuje žádná kompenzace.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Informace o utkání",
