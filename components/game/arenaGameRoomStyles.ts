@@ -215,7 +215,7 @@ export function arenaGameRoomSidebarLeaveBtnClass(isNoContest: boolean): string 
     if (isNoContest) {
         return `${base} !border-amber-600/38 hover:!border-amber-500/48 !from-amber-950/55 !via-zinc-900 !to-zinc-950 !text-amber-50`;
     }
-    return `${base} !border-rose-800/42 hover:!border-rose-600/48 !from-rose-950/45 !via-zinc-900 !to-zinc-950 !text-rose-50`;
+    return base;
 }
 
 /** 사이드바 하단: 일시정지 / 재개 */

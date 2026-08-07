@@ -40,7 +40,7 @@ import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { formatSinglePlayerStageShortName } from '../../utils/singlePlayerStageDisplayName.js';
-import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { resolveArenaSessionPolicy, isAdventureSessionLike } from '../../shared/utils/liveSessionArenaKind.js';
 import { CHESS_GO_BOARD_SIZE } from '../../shared/utils/chessGoRules.js';
 import {
     arenaGameRoomAdminStripClass,
@@ -812,7 +812,8 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
     const { gameStatus } = session;
 
     const isGameEnded = ['ended', 'no_contest', 'rematch_pending'].includes(gameStatus);
-    const isAdventureGame = session.gameCategory === 'adventure';
+    const isAdventureGame =
+        resolveArenaSessionPolicy(session).kind === 'adventure' || isAdventureSessionLike(session);
     const isPausableAiGame = session.isAiGame && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
     const isPauseButtonDisabled = (isPaused && resumeCountdown > 0) || (!isPaused && pauseButtonCooldown > 0) || pauseDisabledBecauseAiTurn;
 
@@ -825,6 +826,9 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
           : isSpectator
             ? t('controls.endSpectating')
             : t('controls.resignTitle');
+
+    const showPostGameAdventureLeave = isGameEnded && isAdventureGame && !!onLeaveOrResign;
+    const showInGameLeaveOrResign = !isGameEnded;
 
     return (
         <div className={`${arenaGameRoomSidebarShell} gap-2`}>
@@ -878,9 +882,9 @@ const Sidebar: React.FC<SidebarProps> = (props) => {
                     </div>
                 </div>
             )}
-            {!isGameEnded && (
+            {(showInGameLeaveOrResign || showPostGameAdventureLeave) && (
                 <div className="flex-shrink-0 flex flex-col gap-1.5 pt-2">
-                    {isPausableAiGame && !isSpectator && onTogglePause ? (
+                    {showInGameLeaveOrResign && isPausableAiGame && !isSpectator && onTogglePause ? (
                         <Button
                             bare
                             onClick={onTogglePause}

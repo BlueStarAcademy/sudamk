@@ -7,8 +7,8 @@ export const PAIR_TRAINING_SLOT_COUNT = 6;
 /** 기능 VIP 전용 수련 슬롯 인덱스 (0부터, 6번째 칸) */
 export const PAIR_TRAINING_VIP_SLOT_INDEX = 5;
 
-/** 슬롯별 페어 승리 누적 필요 (해금). VIP 슬롯(5)은 승리 조건 미사용(0) */
-export const PAIR_TRAINING_UNLOCK_WINS = [1, 10, 50, 100, 250, 0] as const;
+/** 슬롯별 페어 승리 누적 필요 (해금). 슬롯0(기술수련)=0승, VIP 슬롯(5)은 승리 조건 미사용(0) */
+export const PAIR_TRAINING_UNLOCK_WINS = [0, 10, 50, 100, 250, 0] as const;
 
 /** 슬롯별 참여 가능 최소 펫 레벨 (1번·VIP는 사실상 제한 없음) */
 export const PAIR_TRAINING_MIN_PET_LEVEL = [1, 5, 10, 15, 20, 1] as const;

@@ -144,5 +144,8 @@ export const resolveSinglePlayerSpeedTimeMode = (stage: SinglePlayerStageInfo): 
         return resolveSinglePlayerMixedModes(stage).includes(GameMode.Speed);
     }
     if (p && p !== 'auto') return false;
+    // auto/레거시: GameMode.Speed(자동계가 추론 등)이면 피셔 유무와 무관하게 수당 10초·시간 압박 시계를 켠다.
+    // (KV가 byoyomi로 덮여도 모드는 Speed인데 시계만 꺼지던 버그 방지)
+    if (resolveSinglePlayerStrategicGameMode(stage) === GameMode.Speed) return true;
     return stage.timeControl?.type === 'fischer';
 };

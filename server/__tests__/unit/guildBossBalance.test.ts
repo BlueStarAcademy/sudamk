@@ -11,7 +11,11 @@ import {
     GUILD_BOSS_BOSS_HP_PERCENT_CAP,
 } from '../../../shared/constants/guildBossBalance.js';
 import { GUILD_BOSSES } from '../../../shared/constants/guildConstants.js';
-import { scaleGuildBossForStage } from '../../../utils/guildBossStageUtils.js';
+import {
+    GUILD_BOSS_MAX_DIFFICULTY_STAGE,
+    clampGuildBossStage,
+    guildBossStatMultiplier,
+} from '../../../utils/guildBossStageUtils.js';
 import { runGuildBossBattle } from '../../../utils/guildBossSimulator.js';
 import type { Guild, User } from '../../../types/index.js';
 
@@ -68,20 +72,22 @@ function runMonteCarlo(
     bossId: string,
     stage: number,
     runs: number,
-): { medianDamage: number; medianTurns: number; p10Damage: number } {
+): { medianDamage: number; medianTurns: number; p10Damage: number; medianPhasesCleared: number } {
     const template = GUILD_BOSSES.find((b) => b.id === bossId) ?? GUILD_BOSSES[0]!;
-    const boss = scaleGuildBossForStage({ ...template, hp: template.maxHp }, stage);
     const damages: number[] = [];
     const turns: number[] = [];
+    const phases: number[] = [];
     for (let i = 0; i < runs; i++) {
-        const result = runGuildBossBattle(user, guild, boss, stage);
+        const result = runGuildBossBattle(user, guild, template, stage);
         damages.push(result.damageDealt);
         turns.push(result.turnsSurvived);
+        phases.push(result.phasesCleared ?? 0);
     }
     return {
         medianDamage: median(damages),
         medianTurns: median(turns),
         p10Damage: percentile(damages, 0.1),
+        medianPhasesCleared: median(phases),
     };
 }
 
@@ -106,6 +112,16 @@ describe('guildBossBalance constants', () => {
     it('stage damage multiplier scales +5% per level', () => {
         expect(guildBossUserDamageStageMultiplier(1)).toBe(1);
         expect(guildBossUserDamageStageMultiplier(3)).toBeCloseTo(1.1);
+        expect(guildBossUserDamageStageMultiplier(30)).toBeCloseTo(1 + 0.05 * 29);
+    });
+
+    it('boss difficulty stage clamps to 1..30 and stats scale +10% per stage', () => {
+        expect(GUILD_BOSS_MAX_DIFFICULTY_STAGE).toBe(30);
+        expect(clampGuildBossStage(0)).toBe(1);
+        expect(clampGuildBossStage(99)).toBe(30);
+        expect(guildBossStatMultiplier(1)).toBe(1);
+        expect(guildBossStatMultiplier(2)).toBeCloseTo(1.1);
+        expect(guildBossStatMultiplier(3)).toBeCloseTo(1.21);
     });
 
     it('research damage percent: L1=0% then +5% per level up to L10=45%', () => {
@@ -130,15 +146,32 @@ describe('guildBossBalance constants', () => {
     });
 });
 
+describe('guildBoss multi-phase continuation', () => {
+    it('continues past first boss kill and can clear phases when startHp is tiny', () => {
+        const user = makeUser(1000);
+        const guild = makeGuild({
+            [GuildResearchId.boss_hp_increase]: { level: 10 },
+            [GuildResearchId.boss_skill_ignite]: { level: 7 },
+            [GuildResearchId.boss_damage_increase]: { level: 10 },
+        });
+        const template = GUILD_BOSSES[0]!;
+        const result = runGuildBossBattle(user, guild, template, 1, { startHp: 1 });
+        expect(result.damageDealt).toBeGreaterThan(1);
+        expect(result.phasesCleared ?? 0).toBeGreaterThanOrEqual(1);
+        expect(result.finalStage ?? 1).toBeGreaterThanOrEqual(2);
+        expect(result.turnsSurvived).toBeGreaterThanOrEqual(1);
+        expect(result.sharedPoolDamage ?? 0).toBeLessThanOrEqual(1);
+    });
+});
+
 describe('guildBossBalance Monte Carlo', () => {
     it('early build: improved vs low stat floor, survives longer than before', () => {
         const user = makeUser(300);
         const guild = makeGuild();
         const { medianDamage, medianTurns, p10Damage } = runMonteCarlo(user, guild, 'boss_1', 1, 200);
         expect(medianDamage).toBeGreaterThanOrEqual(45_000);
-        expect(medianDamage).toBeLessThanOrEqual(120_000);
         expect(medianTurns).toBeGreaterThanOrEqual(8);
-        expect(medianTurns).toBeLessThanOrEqual(22);
+        expect(medianTurns).toBeLessThanOrEqual(30);
         expect(p10Damage).toBeGreaterThanOrEqual(30_000);
     });
 

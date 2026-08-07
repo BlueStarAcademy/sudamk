@@ -11,11 +11,14 @@ export const SCREEN_GUIDE_IDS = [
     'adventure',
     'petManagement',
     'sp_tutorial_capture_basics',
+    'sp_tutorial_pattern',
     'sp_tutorial_survival',
     'sp_tutorial_auto_scoring',
+    'sp_tutorial_speed',
     'sp_tutorial_missile',
     'sp_tutorial_hidden',
     'sp_tutorial_base',
+    'sp_tutorial_pet_hint',
 ] as const;
 
 export type ScreenGuideId = (typeof SCREEN_GUIDE_IDS)[number];

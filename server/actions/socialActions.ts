@@ -5888,11 +5888,20 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 } else {
                     reconcileEquippedPairPetInventoryItem(user);
                 }
+                if (user.equippedPairPetTemplateId) {
+                    const { markPairPetOnboardingEquipped } = await import('../../shared/utils/pairPetOnboarding.js');
+                    markPairPetOnboardingEquipped(user);
+                }
             }
             const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_SET_EQUIPPED', { includeAll: true });
             await db.updateUser(user);
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['inventory', 'equippedPairPetTemplateId', 'equippedPairPetInventoryItemId']);
+            broadcastUserUpdate(user, [
+                'inventory',
+                'equippedPairPetTemplateId',
+                'equippedPairPetInventoryItemId',
+                'pairPetOnboarding',
+            ]);
             return { clientResponse: { updatedUser } };
         }
         case 'PAIR_PET_HATCH_EGG': {
@@ -6336,10 +6345,14 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 startedAt: Date.now(),
                 precomputedRewards: precomputed,
             };
+            if (slotIndex === 0) {
+                const { markPairPetOnboardingTrainingStarted } = await import('../../shared/utils/pairPetOnboarding.js');
+                markPairPetOnboardingTrainingStarted(user);
+            }
             const updatedUser = getSelectiveUserUpdate(user, 'PAIR_PET_START_TRAINING');
             await db.updateUser(user);
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['pairPetTrainingSlots']);
+            broadcastUserUpdate(user, ['pairPetTrainingSlots', 'pairPetOnboarding']);
             return { clientResponse: { updatedUser } };
         }
 

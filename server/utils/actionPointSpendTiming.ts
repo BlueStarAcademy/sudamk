@@ -11,6 +11,7 @@ import {
     effectivePairRankedApCostForUser,
     effectivePvpEntryApCostForUser,
     effectiveStrategicRankedQueueApCostForUser,
+    effectiveAdventureAttackApCostForUser,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
 import { getPairHumanParticipantIds } from '../../shared/utils/pairGameTurn.js';
 import { applyPassiveActionPointRegenToUser, recordActionPointSpend } from '../effectService.js';
@@ -57,7 +58,8 @@ export function resolveInGameActionPointCost(user: User, game: LiveGameSession):
         const stage = getAdventureStageById(game.adventureStageId ?? '');
         const stageIndex = stage?.stageIndex ?? 1;
         const codexId = game.adventureMonsterCodexId ?? '';
-        return getAdventureMonsterAttackActionPointCost(stageIndex, codexId);
+        const base = getAdventureMonsterAttackActionPointCost(stageIndex, codexId);
+        return effectiveAdventureAttackApCostForUser(user, base);
     }
 
     if (game.isAiGame && arenaPolicy.isPairGame && game.settings?.pairGame) {

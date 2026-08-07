@@ -35,6 +35,8 @@ import {
 import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOptionGearEffects.js';
 import { normalizePairPetLobbyInventorySort } from '../../shared/constants/petLobby.js';
 import { isScreenGuideId, normalizeDismissedScreenGuides } from '../../shared/constants/screenGuideDismiss.js';
+import { effectiveAdventureAttackApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
+import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { GameMode, UserStatus } from '../../types/enums.js';
 import { broadcast } from '../socket.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
@@ -341,6 +343,17 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 if (refErr) {
                     return { error: refErr };
                 }
+                if (!user.isAdmin && stageId) {
+                    const { isAdventureStageUnlocked } = await import('../../utils/adventureChapterUnlock.js');
+                    const chapterUnlocked = isAdventureStageUnlocked(stageId, {
+                        strategyLevel: Math.max(0, Math.floor(Number(user.userLevel) || 0)),
+                        isAdmin: false,
+                        understandingXpByStage: user.adventureProfile?.understandingXpByStage,
+                    });
+                    if (!chapterUnlocked) {
+                        return { error: '아직 해금되지 않은 탐험 챕터입니다.' };
+                    }
+                }
                 const monsterLevel = parseAdventureMonsterLevel(rawLevel);
                 if (monsterLevel == null) {
                     return { error: '잘못된 몬스터 레벨입니다.' };
@@ -365,7 +378,10 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 }
 
                 const mode = adventureBattleModeToGameMode(battleMode as AdventureMonsterBattleMode);
-                const cost = getAdventureMonsterAttackActionPointCost(advStage?.stageIndex ?? 1, codexId!);
+                const cost = effectiveAdventureAttackApCostForUser(
+                    user,
+                    getAdventureMonsterAttackActionPointCost(advStage?.stageIndex ?? 1, codexId!),
+                );
                 await effectService.applyPassiveActionPointRegenToUser(user);
                 if (user.actionPoints.current < cost && !user.isAdmin) {
                     return { error: `액션 포인트가 부족합니다. (필요: ${cost})` };
@@ -414,12 +430,19 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 const game = await initializeGame(negotiation);
                 const encMult = getRegionalAdventureEncounterDurationMultiplier(user.adventureProfile, stageId!);
                 (game as any).adventureEncounterDurationMultiplier = encMult;
+                const { resolveAdventureCompanionSnapshot } = await import('../../shared/utils/adventureCompanion.js');
+                const companion = resolveAdventureCompanionSnapshot(user);
+                if (companion) {
+                    game.adventureCompanionPetTemplateId = companion.templateId;
+                    game.adventureCompanionPetInventoryItemId = companion.inventoryItemId;
+                }
                 let flatScore = 0;
                 if (mode === GameMode.Standard || mode === GameMode.Speed) {
                     flatScore = getRegionalClassicOrStandardHeadStartPoints(user.adventureProfile, stageId!);
                 } else if (mode === GameMode.Base) {
                     flatScore = getRegionalBaseHeadStartPoints(user.adventureProfile, stageId!);
                 }
+                if (companion) flatScore += companion.flatScoreBonus;
                 if (flatScore > 0) (game as any).adventureRegionalHumanFlatScoreBonus = flatScore;
                 await db.saveGame(game);
 
@@ -893,6 +916,10 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             const prev = normalizeDismissedScreenGuides(user.dismissedScreenGuides);
             if (!prev.includes(guideId)) {
                 user.dismissedScreenGuides = [...prev, guideId];
+            }
+            if (guideId === 'sp_tutorial_pet_hint') {
+                const { markPairPetOnboardingPetHintPlaced } = await import('../../shared/utils/pairPetOnboarding.js');
+                markPairPetOnboardingPetHintPlaced(user);
             }
             const updatedUser = getSelectiveUserUpdate(user, 'DISMISS_SCREEN_GUIDE');
             db.updateUser(user).catch((err) => {

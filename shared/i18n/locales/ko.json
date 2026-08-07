@@ -379,11 +379,11 @@
         "adventure": "탐험이 일시적으로 닫혀 있습니다."
       },
       "progressionBlocked": {
-        "tower": "도전의 탑은 모험 새싹의 숲 10관문을 클리어하면 입장할 수 있습니다.",
+        "tower": "도전의 탑은 탐험 「동네뒷산」 이해도가 편함 이상이 되면 입장할 수 있습니다.",
         "strategicLobby": "전략 바둑 대기실은 유저 Lv.{{level}}부터 입장할 수 있습니다.",
         "playfulLobby": "놀이 바둑 대기실은 유저 Lv.{{level}}부터 입장할 수 있습니다.",
         "championship": "챔피언십은 바둑 능력치 합 {{ability}} 이상에서 입장할 수 있습니다.",
-        "adventure": "탐험은 모험 새싹의 숲 20관문을 클리어하면 입장할 수 있습니다."
+        "adventure": "탐험은 모험 새싹의 숲 5관문을 클리어하고 대표펫을 장착하면 입장할 수 있습니다."
       },
       "contentClosed": {
         "adventure": "탐험이 일시적으로 닫혀 있습니다."
@@ -626,7 +626,7 @@
       "viewResult": "결과 보기",
       "returnToLobby": "대기실로",
       "endSpectating": "관전종료",
-      "goToMap": "맵으로 이동",
+      "goToMap": "맵으로",
       "saveRecord": "기보 저장",
       "savingRecord": "저장 중...",
       "recordAlreadySaved": "이미 저장됨",
@@ -670,6 +670,9 @@
       "petHintPhaseRemaining": "{{phase}} {{count}}수 남음 — {{body}}",
       "petHintAria": "펫 힌트 {{label}}",
       "petHintAriaNoPet": "펫 힌트 {{label}} (대표 펫 미장착)",
+      "petHintTutorialPress": "대표펫 힌트 버튼을 눌러 추천 자리를 받아 보세요.",
+      "petHintTutorialPlace": "보드에 표시된 힌트 자리에 착점해 보세요!",
+      "petHintTutorialSkip": "나중에 하기",
       "slowTitle": "슬로우 : 힘조절 그래프의 속도를 줄여줍니다. 남은 개수: {{count}}",
       "aimTitle": "조준선 : 조준선의 길이가 길어집니다. 남은 개수: {{count}}",
       "noContestLeave": "무효처리",
@@ -841,8 +844,6 @@
       "adGoldDoubleFailed": "광고 골드 2배 지급에 실패했습니다. 잠시 후 다시 시도해 주세요.",
       "gameContent": "경기 내용",
       "resultSection": "대국 결과",
-      "detailResultTab": "상세결과",
-      "rewardsTab": "보상",
       "rewardsSection": "보상·기록",
       "noScoreInfo": "점수 정보가 없습니다.",
       "territory": "영토",
@@ -1730,7 +1731,7 @@
       "regionAria": "획득 아이템"
     },
     "mobileResultTab": {
-      "aria": "상세결과와 보상"
+      "aria": "결과 탭"
     },
     "speedPressure": {
       "aria": "수당 시간 {{sec}}초",
@@ -2148,57 +2149,6 @@
         }
       }
     },
-    "pveBrief": {
-      "badgeAcademy": "모험",
-      "badgeTower": "도전의 탑",
-      "badgeAdventure": "탐험",
-      "headlineCaptureVs": "{{my}}개 vs {{opp}}개 따내기",
-      "headlineCaptureSolo": "{{count}}개 따내기",
-      "headlineSurvival": "{{turns}}턴 동안 {{count}}개 잡히지 않고 버티기",
-      "headlineAutoScoring": "{{turns}}턴까지 상대보다 많은 영토 만들기",
-      "headlineTerritory": "계가에서 상대보다 많은 영토 만들기",
-      "itemMissile": "미사일 {{count}}개",
-      "itemHidden": "히든 {{count}}개",
-      "itemScan": "스캔 {{count}}회",
-      "itemBase": "베이스 돌 {{count}}개",
-      "itemHintLabel": "사용 아이템",
-      "exit": "나가기",
-      "start": "시작하기",
-      "confirm": "확인",
-      "replayTutorial": "튜토리얼",
-      "tutorialSkip": "닫기",
-      "tutorialNext": "다음",
-      "tutorialPractice": "따라 놓기",
-      "tutorialDone": "완료",
-      "tutorialReplayDemo": "다시 보기",
-      "tutorialPlaceHint": "빛나는 곳에 돌을 놓으세요",
-      "tutorials": {
-        "sp_capture_basics": {
-          "title": "돌 따내기 기초",
-          "body": "상대 돌을 사방에서 에워싸면 따낼 수 있습니다. 짧은 연출을 본 뒤, 같은 수를 따라 놓아 보세요."
-        },
-        "sp_survival": {
-          "title": "살리기 바둑",
-          "body": "정해진 턴 동안 상대가 목표 개수를 따내지 못하게 막으면 승리합니다."
-        },
-        "sp_auto_scoring": {
-          "title": "영토와 계가",
-          "body": "정해진 턴이 지나면 계가가 진행됩니다. 상대보다 넓은 집을 만드세요."
-        },
-        "sp_missile": {
-          "title": "미사일 아이템",
-          "body": "내 차례에 미사일로 돌을 밀어 형세를 바꿀 수 있습니다. 연출을 보고 착점을 따라 해 보세요."
-        },
-        "sp_hidden": {
-          "title": "히든·스캔",
-          "body": "히든으로 보이지 않는 수를 두고, 스캔으로 상대 히든을 찾을 수 있습니다."
-        },
-        "sp_base": {
-          "title": "베이스 바둑",
-          "body": "미리 놓인 베이스 돌을 보고 덤을 정한 뒤 대국을 시작합니다."
-        }
-      }
-    },
     "towerShop": {
       "closeAria": "탑전용 아이템 구매 닫기",
       "selectQty": "수량 선택",
@@ -2376,6 +2326,82 @@
       "timeoutFoulAutoTurn": "시간 초과로 차례가 넘어갑니다.",
       "timeoutFoulLoseStone": "시간 초과로 돌을 잃었습니다.",
       "timeoutFoulPassTurn": "시간 초과로 패스됩니다."
+    },
+    "pveBrief": {
+      "badgeAcademy": "모험",
+      "badgeTower": "도전의 탑",
+      "badgeAdventure": "탐험",
+      "headlineCaptureVs": "{{my}}개 vs {{opp}}개 따내기",
+      "headlineCaptureSolo": "{{count}}개 따내기",
+      "headlineSurvival": "{{turns}}턴 동안 {{count}}개 잡히지 않고 버티기",
+      "headlineAutoScoring": "{{turns}}턴까지 상대보다 많은 영토 만들기",
+      "headlineTerritory": "계가에서 상대보다 많은 영토 만들기",
+      "itemMissile": "미사일 {{count}}개",
+      "itemHidden": "히든 {{count}}개",
+      "itemScan": "스캔 {{count}}회",
+      "itemBase": "베이스 돌 {{count}}개",
+      "itemHintLabel": "사용 아이템",
+      "exit": "나가기",
+      "start": "시작하기",
+      "confirm": "확인",
+      "replayTutorial": "튜토리얼",
+      "tutorialSkip": "닫기",
+      "tutorialNext": "다음",
+      "tutorialPractice": "따라 놓기",
+      "tutorialDone": "완료",
+      "tutorialReplayDemo": "다시 보기",
+      "tutorialPlaceHint": "빛나는 곳에 돌을 놓으세요",
+      "tutorialMissilePractice": "따라 하기",
+      "tutorialMissileItemHint": "빛나는 미사일 아이템을 누르세요",
+      "tutorialMissileStoneHint": "빛나는 내 돌을 선택하세요",
+      "tutorialMissileDirHint": "빛나는 방향으로 발사하세요",
+      "tutorialMissileFireHint": "발사 중…",
+      "tutorialMissileCaptureFlash": "따냄!",
+      "tutorialMissileCaptureHint": "마지막 활로를 막아 상대 돌을 따냈습니다.",
+      "tutorialSpeedYou": "나",
+      "tutorialSpeedOpponent": "상대",
+      "tutorialSpeedScore": "점수",
+      "tutorialSpeedPenaltyFlash": "상대 +1점",
+      "tutorialSpeedHint": "막대가 0이 되면 상대 점수가 올라갑니다.",
+      "tutorialPatternLookHint": "문양이 새겨진 돌을 보세요",
+      "tutorialPatternScoreFlash": "+{{points}}점",
+      "tutorialPatternCaptureHint": "문양돌을 따내 {{points}}점을 획득했습니다.",
+      "tutorialScoringFlash": "계가 — 영토 확정",
+      "tutorialScoringHint": "마주보던 빈 자리를 막아 집이 확정되고 계가가 시작됩니다.",
+      "tutorials": {
+        "sp_capture_basics": {
+          "title": "돌 따내기 기초",
+          "body": "상대 돌을 사방에서 에워싸면 따낼 수 있습니다. 짧은 연출을 본 뒤, 같은 수를 따라 놓아 보세요."
+        },
+        "sp_pattern": {
+          "title": "문양돌",
+          "body": "문양이 새겨진 돌을 따내면 2점을 얻습니다. 연출을 본 뒤, 같은 수를 따라 놓아 보세요."
+        },
+        "sp_survival": {
+          "title": "살리기 바둑",
+          "body": "정해진 턴 동안 상대가 목표 개수를 따내지 못하게 막으면 승리합니다."
+        },
+        "sp_auto_scoring": {
+          "title": "영토와 계가",
+          "body": "흑과 백이 마주 본 형세에서, 사이에 남은 공배에 돌을 두면 양쪽 영토가 확정되고 계가가 진행됩니다."
+        },
+        "sp_speed": {
+          "title": "스피드 바둑",
+          "body": "수마다 10초 막대가 줄어듭니다. 0초가 되면 상대 점수가 +1점 올라갑니다. 10초 안에 두세요."
+        },
+        "sp_missile": {
+          "title": "미사일 바둑",
+          "body": "미사일 아이템을 누른 뒤 내 돌을 고르고 방향으로 발사하세요. 상대 돌의 마지막 활로를 막아 따낼 수 있습니다."
+        },
+        "sp_hidden": {
+          "title": "히든·스캔",
+          "body": "히든으로 보이지 않는 수를 두고, 스캔으로 상대 히든을 찾을 수 있습니다."
+        },
+        "sp_base": {
+          "title": "베이스 바둑",
+          "body": "미리 놓인 베이스 돌을 보고 덤을 정한 뒤 대국을 시작합니다."
+        }
+      }
     }
   },
   "settings": {
@@ -2466,6 +2492,34 @@
         "withdrawConfirm": "정말 회원탈퇴를 하시겠습니까?\n\n회원탈퇴 시 모든 데이터가 삭제되며, 동일한 이메일로는 1주일간 재가입이 불가능합니다.",
         "withdrawComplete": "회원탈퇴가 완료되었습니다.\n동일한 이메일로는 1주일간 재가입이 불가능합니다."
       }
+    },
+    "languageOptions": {
+      "ko": "한국어",
+      "en": "English",
+      "ja": "日本語",
+      "zh-CN": "简体中文",
+      "zh-TW": "繁體中文",
+      "es": "Español",
+      "fr": "Français",
+      "de": "Deutsch",
+      "pt": "Português",
+      "ru": "Русский",
+      "vi": "Tiếng Việt",
+      "th": "ไทย",
+      "id": "Bahasa Indonesia",
+      "ar": "العربية",
+      "hi": "हिन्दी",
+      "tr": "Türkçe",
+      "it": "Italiano",
+      "pl": "Polski",
+      "nl": "Nederlands",
+      "ms": "Bahasa Melayu",
+      "uk": "Українська",
+      "sv": "Svenska",
+      "cs": "Čeština",
+      "ro": "Română",
+      "he": "עברית",
+      "fil": "Filipino"
     }
   },
   "lobby": {
@@ -2883,8 +2937,17 @@
       "loadError": "랭킹을 불러오는데 실패했습니다.",
       "loading": "랭킹을 불러오는 중..."
     },
+    "petOnboarding": {
+      "equipBody": "특알을 부화하고 대표펫으로 장착해 모험을 시작하세요.",
+      "hintBody": "모험 대국에서 펫 힌트를 눌러 추천 자리에 착점해 보세요.",
+      "hatchSecondBody": "두 번째 알을 부화한 뒤 기술수련에 보내 보세요.",
+      "trainingBody": "비대표 펫을 기술수련(수련장)에 보내 보세요.",
+      "openPet": "펫 관리",
+      "openAcademy": "모험 가기"
+    },
     "adventure": {
       "title": "탐험",
+      "companionPet": "동행 펫",
       "chapter": "챕터",
       "chapterEnterAria": "챕터 입장",
       "chapterMapEnterAria": "{{title}} 맵으로 입장",
@@ -3263,8 +3326,11 @@
     "maintenance": "점검중",
     "combinedLevelRequired": "통합 Lv.{{current}}/{{required}}",
     "abilityRequired": "능력치 합 {{total}}+",
+    "intro5Required": "새싹의 숲 5관문 클리어 필요",
     "intro10Required": "새싹의 숲 10관문 클리어 필요",
     "intro20Required": "새싹의 숲 20관문 클리어 필요",
+    "equipPairPetRequired": "대표펫 장착 필요",
+    "towerAdventureUnderstandingRequired": "탐험 「동네뒷산」 이해도 편함 이상 필요",
     "goSchool": "모험",
     "challengeTower": "도전의 탑",
     "pvpArena": "PVP 경기장",
@@ -3992,10 +4058,10 @@
     },
     "contentUnlock": {
       "towerTitle": "도전의 탑 오픈",
-      "towerSubtitle": "모험 새싹의 숲 10관문 클리어로\n도전의 탑이 해금되었습니다.",
+      "towerSubtitle": "탐험 「동네뒷산」 이해도가 편함에 도달해\n도전의 탑이 해금되었습니다.",
       "towerHint": "홈 화면에서 도전의 탑으로 바로 입장할 수 있습니다.",
       "adventureTitle": "탐험 오픈",
-      "adventureSubtitle": "모험 새싹의 숲 20관문 클리어로\n탐험 콘텐츠가 해금되었습니다.",
+      "adventureSubtitle": "모험 새싹의 숲 5관문 클리어와 대표펫 장착으로\n탐험 콘텐츠가 해금되었습니다.",
       "adventureHint": "홈 화면에서 탐험으로 바로 입장할 수 있습니다."
     },
     "levelUp": {

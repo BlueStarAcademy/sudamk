@@ -257,7 +257,9 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
                     currentUser={currentUser}
                     onConfirm={onCloseResults}
                     onLeaveToAdventureMap={
-                        session.gameCategory === 'adventure' && !isSpectator ? onAdventureLeaveToMap : undefined
+                        resolveArenaSessionPolicy(session).kind === 'adventure' && !isSpectator
+                            ? onAdventureLeaveToMap
+                            : undefined
                     }
                     onAction={onAction}
                     onOpenGameRecordList={onOpenGameRecordList}

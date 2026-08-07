@@ -111,6 +111,33 @@ export function getAdventureStageById(id: string | null | undefined) {
     return ADVENTURE_STAGES.find((s) => s.id === id);
 }
 
+/**
+ * 종료 후 `#/adventure/<stageId>` 복귀용.
+ * `adventureStageId`가 슬림 패킷에서 빠져도 도감 id로 챕터를 복구한다.
+ */
+export function resolveAdventureStageIdForMapReturn(session: {
+    adventureStageId?: string | null;
+    adventureMonsterCodexId?: string | null;
+} | null | undefined): string | null {
+    if (!session) return null;
+    const direct = String(session.adventureStageId ?? '').trim();
+    if (direct && getAdventureStageById(direct)) return direct;
+    const codexId = String(session.adventureMonsterCodexId ?? '').trim();
+    if (!codexId) return null;
+    for (const stage of ADVENTURE_STAGES) {
+        if (stage.monsters.some((m) => m.codexId === codexId)) return stage.id;
+    }
+    return null;
+}
+
+export function adventurePostGameMapHash(session: {
+    adventureStageId?: string | null;
+    adventureMonsterCodexId?: string | null;
+} | null | undefined): string {
+    const stageId = resolveAdventureStageIdForMapReturn(session);
+    return stageId ? `#/adventure/${stageId}` : '#/adventure';
+}
+
 /** 인게임 `gameCategory === 'adventure'` + `adventureStageId` 배경용 */
 export function getAdventureMapWebpPath(stageId: string | null | undefined): string | null {
     const s = getAdventureStageById(stageId ?? undefined);

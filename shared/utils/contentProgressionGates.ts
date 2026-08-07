@@ -1,11 +1,26 @@
 import type { User } from '../types/index.js';
 import { CoreStat } from '../types/enums.js';
 import type { ArenaEntranceKey } from '../../constants/arenaEntrance.js';
+import {
+    getAdventureUnderstandingTierFromXp,
+    type AdventureUnderstandingTierIndex,
+} from '../../constants/adventureConstants.js';
+import { getEquippedPairPetInventoryRow } from './pairEquippedPet.js';
 
-/** 도전의 탑 입장: 모험 새싹의 숲 10관문 최초 클리어 필요 */
+/** 탐험(어드벤처 맵) 1챕터 stageId — 탑 해금·챕터 진행 기준 */
+export const TOWER_ENTRANCE_ADVENTURE_STAGE_ID = 'neighborhood_hill';
+/** 도전의 탑: 탐험 1챕터 이해도 티어(편함=1) 이상 */
+export const TOWER_ENTRANCE_MIN_UNDERSTANDING_TIER: AdventureUnderstandingTierIndex = 1;
+
+/**
+ * @deprecated 탑은 탐험 이해도로 해금. 레거시 스테이지 클리어 참조용 별칭.
+ * 신규 코드는 `TOWER_ENTRANCE_ADVENTURE_STAGE_ID` / `isTowerUnlockedByProgression` 사용.
+ */
 export const TOWER_ENTRANCE_REQUIRED_STAGE_ID = '입문-10';
-/** 탐험 입장: 모험 새싹의 숲 20관문 최초 클리어 필요 */
-export const ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID = '입문-20';
+
+/** 탐험 입장: 모험 새싹의 숲 5관문 최초 클리어 + 대표펫 장착 */
+export const ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID = '입문-5';
+
 /** PVP/AI 경기장: 1레벨부터 이용 가능 */
 export const PVP_LOBBIES_MIN_COMBINED_LEVEL = 1;
 /** 챔피언십: 6개 바둑 능력치 합(장비 반영 `calculateTotalStats` 기준) */
@@ -24,6 +39,10 @@ export type BadukAbilitySnapshot = {
     playfulLevel: number;
     badukAbilityTotal: number;
     clearedSinglePlayerStages: string[];
+    /** 대표펫 장착 여부 */
+    hasEquippedPairPet: boolean;
+    /** 탐험 지역별 이해도 XP */
+    adventureUnderstandingXpByStage: Partial<Record<string, number>>;
 };
 
 export function sumCoreStatsTotal(total: Record<CoreStat, number>): number {
@@ -34,14 +53,35 @@ export function sumCoreStatsTotal(total: Record<CoreStat, number>): number {
     return s;
 }
 
+export function userHasEquippedPairPet(user: Pick<User, 'inventory' | 'equippedPairPetTemplateId' | 'equippedPairPetInventoryItemId' | 'pairPetTrainingSlots'>): boolean {
+    return getEquippedPairPetInventoryRow(user) != null;
+}
+
+export function isTowerUnlockedByProgression(
+    snap: Pick<BadukAbilitySnapshot, 'adventureUnderstandingXpByStage'>,
+): boolean {
+    const xp = snap.adventureUnderstandingXpByStage?.[TOWER_ENTRANCE_ADVENTURE_STAGE_ID] ?? 0;
+    return getAdventureUnderstandingTierFromXp(xp) >= TOWER_ENTRANCE_MIN_UNDERSTANDING_TIER;
+}
+
+export function isAdventureUnlockedByProgression(
+    snap: Pick<BadukAbilitySnapshot, 'clearedSinglePlayerStages' | 'hasEquippedPairPet'>,
+): boolean {
+    const cleared = new Set(snap.clearedSinglePlayerStages);
+    return cleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID) && snap.hasEquippedPairPet;
+}
+
 export function getBadukAbilitySnapshotFromStats(user: User, totalStats: Record<CoreStat, number>): BadukAbilitySnapshot {
     const ul = Math.max(1, Number(user.userLevel) || 1);
+    const understanding = user.adventureProfile?.understandingXpByStage ?? {};
     return {
         userLevel: ul,
         strategyLevel: ul,
         playfulLevel: ul,
         badukAbilityTotal: sumCoreStatsTotal(totalStats),
         clearedSinglePlayerStages: Array.isArray(user.clearedSinglePlayerStages) ? user.clearedSinglePlayerStages : [],
+        hasEquippedPairPet: userHasEquippedPairPet(user),
+        adventureUnderstandingXpByStage: { ...understanding },
     };
 }
 
@@ -51,11 +91,10 @@ export function applyUserProgressionArenaLocks(
     snap: BadukAbilitySnapshot,
 ): Record<ArenaEntranceKey, boolean> {
     const out: Record<ArenaEntranceKey, boolean> = { ...merged };
-    const clearedStageSet = new Set(snap.clearedSinglePlayerStages);
-    if (!clearedStageSet.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID)) {
+    if (!isTowerUnlockedByProgression(snap)) {
         out.tower = false;
     }
-    if (!clearedStageSet.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID)) {
+    if (!isAdventureUnlockedByProgression(snap)) {
         out.adventure = false;
     }
     if (snap.userLevel < PVP_LOBBIES_MIN_COMBINED_LEVEL) {
@@ -81,13 +120,13 @@ export function isBlacksmithQuickUnlocked(snap: Pick<BadukAbilitySnapshot, 'badu
 }
 
 export const USER_PROGRESSION_ARENA_BLOCK_MESSAGE: Partial<Record<ArenaEntranceKey, string>> = {
-    tower: `도전의 탑은 모험 새싹의 숲 10관문을 클리어하면 입장할 수 있습니다.`,
+    tower: `도전의 탑은 탐험 「동네뒷산」 이해도가 편함 이상이 되면 입장할 수 있습니다.`,
     strategicLobby: `랭킹전은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
     normalLobby: `일반전은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
     friendlyLobby: `친선전은 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
     playfulLobby: `놀이터는 유저 Lv.${PVP_LOBBIES_MIN_COMBINED_LEVEL}부터 입장할 수 있습니다.`,
     championship: `챔피언십은 바둑 능력치 합 ${CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL} 이상에서 입장할 수 있습니다.`,
-    adventure: `탐험은 모험 새싹의 숲 20관문을 클리어하면 입장할 수 있습니다.`,
+    adventure: `탐험은 모험 새싹의 숲 5관문을 클리어하고 대표펫을 장착하면 입장할 수 있습니다.`,
 };
 
 export const USER_PROGRESSION_QUEST_BLOCK_MESSAGE = `퀘스트는 유저 Lv.${QUEST_MIN_STRATEGY_LEVEL} 이상에서 이용할 수 있습니다.`;

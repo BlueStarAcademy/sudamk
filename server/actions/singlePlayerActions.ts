@@ -324,7 +324,10 @@ const applyLatestPendingSinglePlayerStage = async (
     const mixModes = gameMode === GameMode.Mix ? resolveSinglePlayerMixedModes(stage) : [];
     const ruleFlags = getSinglePlayerRuleFlags(gameMode, mixModes);
     const isCaptureGoalMode = gameMode === GameMode.Capture || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Capture));
-    const isSpeedMode = resolveSinglePlayerSpeedTimeMode(stage);
+    const isSpeedMode =
+        resolveSinglePlayerSpeedTimeMode(stage) ||
+        gameMode === GameMode.Speed ||
+        (gameMode === GameMode.Mix && mixModes.includes(GameMode.Speed));
     const isSurvivalMode = resolveSinglePlayerSurvivalMode(stage);
     const survivalTurnsResolved = isSurvivalMode ? resolveSinglePlayerSurvivalTurnCount(stage) : undefined;
     const hasAutoScoring = resolveSinglePlayerHasAutoScoringTurns(stage);
@@ -534,7 +537,10 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             const mixModes = gameMode === GameMode.Mix ? resolveSinglePlayerMixedModes(stage) : [];
             const ruleFlags = getSinglePlayerRuleFlags(gameMode, mixModes);
             const isCaptureGoalMode = gameMode === GameMode.Capture || (gameMode === GameMode.Mix && mixModes.includes(GameMode.Capture));
-            const isSpeedMode = resolveSinglePlayerSpeedTimeMode(stage);
+            const isSpeedMode =
+                resolveSinglePlayerSpeedTimeMode(stage) ||
+                gameMode === GameMode.Speed ||
+                (gameMode === GameMode.Mix && mixModes.includes(GameMode.Speed));
 
             // 싱글플레이용 AI: 표시 프로필은 반별 1~5, 실제 Kata는 관리자 스테이지 `kataServerLevel` (매 턴 스테이지 표에서 재산출)
             const kataProfileStep = getSinglePlayerKataProfileStep(stage.level);

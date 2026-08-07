@@ -102,6 +102,15 @@ describe('arena policy', () => {
         expect(getAdventureDesignScoringTurnLimit(13)).toBe(80);
     });
 
+    it('prefers adventure markers over a stale normal gameCategory', () => {
+        const g = session({
+            gameCategory: GameCategory.Normal,
+            adventureStageId: 'lake_park',
+            isAiGame: true,
+        });
+        expect(resolveArenaKind(g)).toBe('adventure');
+    });
+
     it('counts PASS only for normal human strategic PvP', () => {
         const moves = [
             { x: 1, y: 1, player: Player.Black },

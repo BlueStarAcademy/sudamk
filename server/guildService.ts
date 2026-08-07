@@ -240,7 +240,7 @@ export const resetWeeklyGuildMissions = async (guild: Guild, now: number) => {
         (guild as any).lastWeeklyContributionReset = now;
     }
     
-    // 길드 보스 주간 리셋: 새로운 보스 선택 및 HP 초기화 (전주 격파 시 해당 보스 id 단계 상승, 최대 10)
+    // 길드 보스 주간 리셋: 새로운 보스 선택 및 HP 초기화 (전주 격파 시 해당 보스 id 단계 상승, 최대 30)
     if (guild.guildBossState) {
         const currentBossId = guild.guildBossState.currentBossId ?? guild.guildBossState.bossId;
         const prevHp = guild.guildBossState.currentBossHp ?? guild.guildBossState.hp;

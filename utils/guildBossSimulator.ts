@@ -28,7 +28,13 @@ import {
     GUILD_BOSS_IGNITE_BASE_HP_RATIO,
     GUILD_BOSS_REGEN_STABILITY_FACTOR,
 } from '../shared/constants/guildBossBalance.js';
-import { calculateGuildBossBattleRewards, clampGuildBossStage, guildBossStatMultiplier } from './guildBossStageUtils.js';
+import {
+    calculateGuildBossBattleRewards,
+    clampGuildBossStage,
+    guildBossStatMultiplier,
+    scaleGuildBossForStage,
+    GUILD_BOSS_MAX_DIFFICULTY_STAGE,
+} from './guildBossStageUtils.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
 import { CONSUMABLE_ITEMS, EQUIPMENT_POOL } from '../constants/index.js';
@@ -61,10 +67,27 @@ const resolveDuelOutcome = (
     return 'fail';
 };
 
-export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo, stage: number = 1): GuildBossBattleResult => {
-    const st = clampGuildBossStage(stage);
-    const statMult = guildBossStatMultiplier(st);
-    const stageDmgMult = guildBossUserDamageStageMultiplier(st);
+export type RunGuildBossBattleOptions = {
+    /** 첫 페이즈 시작 HP. 미지정·0 이하면 해당 단계 maxHp로 시작(공유 HP 고갈 후에도 돌파 전투 가능). */
+    startHp?: number;
+};
+
+/**
+ * @param bossTemplate GUILD_BOSSES 기본(1단계) 템플릿 — 단계 스케일은 시뮬레이터가 적용
+ * @param stage 현재 등장 단계(1~30)
+ */
+export const runGuildBossBattle = (
+    user: User,
+    guild: Guild,
+    bossTemplate: GuildBossInfo,
+    stage: number = 1,
+    options?: RunGuildBossBattleOptions,
+): GuildBossBattleResult => {
+    const startStage = clampGuildBossStage(stage);
+    let activeStage = startStage;
+    let boss = scaleGuildBossForStage(bossTemplate, activeStage);
+    let statMult = guildBossStatMultiplier(activeStage);
+    let stageDmgMult = guildBossUserDamageStageMultiplier(activeStage);
     const totalStats = calculateTotalStats(user, guild, 'guildBoss');
     const gear = aggregateSpecialOptionGearFromUser(user);
     const gearDamageMult = 1 + gear.guildBossDamagePercent / 100;
@@ -84,6 +107,17 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
     let userHp = computeGuildBossUserMaxHp(totalStats, guild);
     const maxUserHp = userHp;
 
+    let phaseHp =
+        typeof options?.startHp === 'number' && options.startHp > 0
+            ? Math.min(Math.floor(options.startHp), boss.maxHp)
+            : boss.maxHp;
+    if (phaseHp <= 0) phaseHp = boss.maxHp;
+
+    const bossHpBefore = phaseHp;
+    const firstPhaseMaxHp = boss.maxHp;
+    let firstPhaseActive = true;
+    let sharedPoolDamage = 0;
+    let phasesCleared = 0;
     let totalDamageDealt = 0;
     let turnsSurvived = 0;
     const battleLog: BattleLogEntry[] = [];
@@ -116,7 +150,61 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
         };
     };
 
-    const runUserTurn = (isExtra: boolean = false): boolean => {
+    const spawnNextPhase = () => {
+        phasesCleared += 1;
+        if (activeStage < GUILD_BOSS_MAX_DIFFICULTY_STAGE) {
+            activeStage += 1;
+        }
+        firstPhaseActive = false;
+        boss = scaleGuildBossForStage(bossTemplate, activeStage);
+        phaseHp = boss.maxHp;
+        statMult = guildBossStatMultiplier(activeStage);
+        stageDmgMult = guildBossUserDamageStageMultiplier(activeStage);
+        battleLog.push({
+            turn: turnsSurvived,
+            message: `[${boss.name}] ${activeStage}단계가 등장합니다! (HP ${phaseHp.toLocaleString()})`,
+            isUserAction: false,
+        });
+    };
+
+    /** 피해 적용. 페이즈 처치 시 다음 단계 스폰(전투는 유저 HP 0까지 계속). 오버킬은 다음 페이즈로 이월. */
+    const dealDamageToBoss = (rawDamage: number): number => {
+        let remaining = Math.max(0, Math.round(rawDamage));
+        let appliedTotal = 0;
+        let safety = 0;
+        while (remaining > 0 && safety < GUILD_BOSS_MAX_DIFFICULTY_STAGE + 2) {
+            safety += 1;
+            const actual = Math.min(remaining, phaseHp);
+            phaseHp -= actual;
+            remaining -= actual;
+            appliedTotal += actual;
+            totalDamageDealt += actual;
+            if (firstPhaseActive) sharedPoolDamage += actual;
+            if (phaseHp > 0) break;
+            battleLog.push({
+                turn: turnsSurvived,
+                message: `[${boss.name}] ${activeStage}단계를 처치했습니다!`,
+                isUserAction: false,
+            });
+            spawnNextPhase();
+        }
+        return appliedTotal;
+    };
+
+    const healBoss = (rawHeal: number): number => {
+        const heal = Math.max(0, Math.round(rawHeal));
+        if (heal <= 0) return 0;
+        const room = Math.max(0, boss.maxHp - phaseHp);
+        const actual = Math.min(heal, room);
+        phaseHp += actual;
+        totalDamageDealt = Math.max(0, totalDamageDealt - actual);
+        if (firstPhaseActive) {
+            sharedPoolDamage = Math.max(0, sharedPoolDamage - actual);
+        }
+        return actual;
+    };
+
+    const runUserTurn = (isExtra: boolean = false): void => {
         let userDamage = computeGuildBossUserBaseTurnDamage(totalStats);
         userDamage *= 1 + (Math.random() * 0.2 - 0.1);
         const critChance = GUILD_BOSS_CRIT_BASE_CHANCE + totalStats[CoreStat.Judgment] * 0.03;
@@ -133,10 +221,6 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
 
         userDamage *= stageDmgMult * gearDamageMult * researchDamageMult;
         userDamage = Math.round(userDamage);
-        totalDamageDealt += userDamage;
-        const overflow = totalDamageDealt - boss.hp;
-        const actualThisTurn = overflow > 0 ? Math.max(0, userDamage - overflow) : userDamage;
-        if (boss.hp - totalDamageDealt <= 0) totalDamageDealt = boss.hp;
 
         const commentary = isCrit
             ? criticalAttackCommentaries[Math.floor(Math.random() * criticalAttackCommentaries.length)]
@@ -146,30 +230,17 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
         battleLog.push({
             turn: turnsSurvived,
             icon: GUILD_ATTACK_ICON,
-            message: `[${user.nickname}] ${commentary}${extraTurnText} | 보스 HP -${actualThisTurn.toLocaleString()}${isCrit ? ' (크리티컬!)' : ''}`,
+            message: `[${user.nickname}] ${commentary}${extraTurnText} | 보스 HP -${userDamage.toLocaleString()}${isCrit ? ' (크리티컬!)' : ''}`,
             isUserAction: true,
             isCrit,
             fxKind: 'slash',
             researchId: damageBuffActive ? GuildResearchId.boss_damage_increase : undefined,
         });
-
-        if (boss.hp - totalDamageDealt <= 0) {
-            battleLog.push({
-                turn: turnsSurvived,
-                icon: GUILD_ATTACK_ICON,
-                message: `[${user.nickname}]의 마지막 일격!`,
-                isUserAction: true,
-                fxKind: 'slash',
-            });
-            battleLog.push({ turn: turnsSurvived, message: `[${boss.name}]이 돌을 거두었습니다.`, isUserAction: false });
-            return true;
-        }
-        return false;
+        dealDamageToBoss(userDamage);
     };
 
-    const runUserFullTurn = (): boolean => {
-        let bossDefeated = runUserTurn(false);
-        if (bossDefeated) return true;
+    const runUserFullTurn = (): void => {
+        runUserTurn(false);
 
         const extraTurnChance = totalStats[CoreStat.ThinkingSpeed] * GUILD_BOSS_EXTRA_TURN_COEF;
         if (Math.random() * 100 < extraTurnChance) {
@@ -181,8 +252,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 isCrit: false,
                 fxKind: 'extra_turn',
             });
-            bossDefeated = runUserTurn(true);
-            if (bossDefeated) return true;
+            runUserTurn(true);
         }
 
         const igniteLevel = researchLevels?.[GuildResearchId.boss_skill_ignite]?.level || 0;
@@ -196,26 +266,15 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                 igniteDamage *= 1 + igniteDamageIncreasePercent / 100;
                 igniteDamage = Math.round(igniteDamage * stageDmgMult * gearDamageMult * researchDamageMult);
 
-                totalDamageDealt += igniteDamage;
-                const igniteOverflow = totalDamageDealt - boss.hp;
-                const actualIgniteThisTurn = igniteOverflow > 0 ? Math.max(0, igniteDamage - igniteOverflow) : igniteDamage;
-                if (boss.hp - totalDamageDealt <= 0) totalDamageDealt = boss.hp;
                 battleLog.push({
                     turn: turnsSurvived,
                     icon: GUILD_RESEARCH_IGNITE_IMG,
-                    message: `[연구-점화] 발동! 보스 HP -${actualIgniteThisTurn.toLocaleString()}`,
+                    message: `[연구-점화] 발동! 보스 HP -${igniteDamage.toLocaleString()}`,
                     isUserAction: true,
                     fxKind: 'research_ignite',
                     researchId: GuildResearchId.boss_skill_ignite,
                 });
-                if (totalDamageDealt >= boss.hp) {
-                    battleLog.push({
-                        turn: turnsSurvived,
-                        message: `[연구-점화]의 피해로 [${boss.name}]이 돌을 거두었습니다.`,
-                        isUserAction: false,
-                    });
-                    return true;
-                }
+                dealDamageToBoss(igniteDamage);
             }
         }
 
@@ -242,7 +301,7 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
             }
         }
 
-        return false;
+        return;
     };
 
     const runBossFullTurn = (): boolean => {
@@ -348,8 +407,8 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
             if (researchEvaded) logMessage += ` | 회피!`;
             else if (finalBossDamage > 0) logMessage += ` | 유저 HP -${finalBossDamage.toLocaleString()}`;
             if (turnBossHeal > 0) {
-                totalDamageDealt -= turnBossHeal;
-                logMessage += ` | 보스 HP +${turnBossHeal.toLocaleString()}`;
+                const actualHeal = healBoss(turnBossHeal);
+                if (actualHeal > 0) logMessage += ` | 보스 HP +${actualHeal.toLocaleString()}`;
             }
 
             let skillFx: GuildBossFxKind = skillIdToFxKind(bossSkill.id, boss.id, {
@@ -479,16 +538,18 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
                         }
 
                         if (passiveHeal > 0) {
-                            totalDamageDealt -= passiveHeal;
-                            battleLog.push({
-                                turn: turnsSurvived,
-                                icon: pSkill.image,
-                                message: `[${boss.name}]의 ${pSkill.name} 발동! | 보스 HP +${passiveHeal.toLocaleString()}`,
-                                isUserAction: false,
-                                bossHealingDone: passiveHeal,
-                                fxKind: 'heal',
-                                skillId: pSkill.id,
-                            });
+                            const actualHeal = healBoss(passiveHeal);
+                            if (actualHeal > 0) {
+                                battleLog.push({
+                                    turn: turnsSurvived,
+                                    icon: pSkill.image,
+                                    message: `[${boss.name}]의 ${pSkill.name} 발동! | 보스 HP +${actualHeal.toLocaleString()}`,
+                                    isUserAction: false,
+                                    bossHealingDone: actualHeal,
+                                    fxKind: 'heal',
+                                    skillId: pSkill.id,
+                                });
+                            }
                         }
                         break;
                     }
@@ -521,14 +582,14 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
 
     for (let turn = 1; turn <= BATTLE_TURNS; turn++) {
         turnsSurvived = turn;
-        if (runUserFullTurn()) break;
+        runUserFullTurn();
         if (userHp <= 0) break;
         if (runBossFullTurn()) break;
         if (userHp <= 0) break;
     }
 
     const finalDamage = Math.max(0, Math.round(totalDamageDealt));
-    const calculatedRewards = calculateGuildBossBattleRewards(finalDamage, st, {
+    const calculatedRewards = calculateGuildBossBattleRewards(finalDamage, startStage, {
         rewardTierShift: gear.guildBossRewardTierShift,
         duplicateRewardCount: gear.guildBossDuplicateRewardCount,
     });
@@ -557,6 +618,10 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
     return {
         damageDealt: finalDamage,
         turnsSurvived,
+        startStage,
+        finalStage: activeStage,
+        phasesCleared,
+        sharedPoolDamage: Math.max(0, Math.round(sharedPoolDamage)),
         vipPlayRewardSlot: {
             locked: !isRewardVipActive(user),
             ...(vipSimGranted ? { grantedItem: vipSimGranted } : {}),
@@ -574,9 +639,9 @@ export const runGuildBossBattle = (user: User, guild: Guild, boss: GuildBossInfo
             materialBox: calculatedRewards.materialBox,
         },
         battleLog,
-        bossHpBefore: boss.hp,
-        bossHpAfter: Math.max(0, Math.round(boss.hp - Math.max(0, totalDamageDealt))),
-        bossMaxHp: boss.maxHp,
+        bossHpBefore,
+        bossHpAfter: Math.max(0, Math.round(phaseHp)),
+        bossMaxHp: firstPhaseMaxHp,
         userHp: Math.max(0, userHp),
         maxUserHp,
     };

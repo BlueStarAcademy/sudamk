@@ -39,9 +39,9 @@ import { randomUUID } from 'crypto';
 import { updateQuestProgress } from '../questService.js';
 import {
     calculateGuildBossBattleRewards,
+    clampGuildBossStage,
     getCurrentGuildBossStage,
     getScaledGuildBossMaxHp,
-    scaleGuildBossForStage,
 } from '../../utils/guildBossStageUtils.js';
 import { runGuildBossBattle } from '../../utils/guildBossSimulator.js';
 import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOptionGearEffects.js';
@@ -3774,35 +3774,48 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             const preBattleHpRaw = gbState.currentBossHp;
             const preBattleHp = typeof preBattleHpRaw === 'number' ? preBattleHpRaw : scaledBossMaxHp;
 
-            const scaledBossForBattle = scaleGuildBossForStage(bossTemplateForBattle, bossDifficultyStage);
-            const battleStartHp = preBattleHp <= 0 ? scaledBossMaxHp : preBattleHp;
+            // 공유 HP가 0이어도 다음 단계 돌파 전투는 풀 HP로 시뮬 (보상은 전체 피해 기준)
+            const simStartHp = preBattleHp > 0 ? preBattleHp : scaledBossMaxHp;
             const simResult = runGuildBossBattle(
                 freshUser,
                 guild,
-                { ...scaledBossForBattle, hp: battleStartHp },
+                bossTemplateForBattle,
                 bossDifficultyStage,
+                { startHp: simStartHp },
             );
             const result: GuildBossBattleResult = { ...simResult };
 
             const gearBoss = aggregateSpecialOptionGearFromUser(freshUser);
-            const reportedDamage = Math.max(0, Math.floor(result.damageDealt || 0));
-            const cappedDamage = preBattleHp <= 0 ? 0 : Math.min(reportedDamage, preBattleHp);
-            result.damageDealt = cappedDamage;
+            const fullDamage = Math.max(0, Math.floor(result.damageDealt || 0));
+            result.damageDealt = fullDamage;
 
-            result.rewards = calculateGuildBossBattleRewards(cappedDamage, bossDifficultyStage, {
+            result.rewards = calculateGuildBossBattleRewards(fullDamage, bossDifficultyStage, {
                 rewardTierShift: gearBoss.guildBossRewardTierShift,
                 duplicateRewardCount: gearBoss.guildBossDuplicateRewardCount,
             });
 
-            const nextBossHp = preBattleHp <= 0 ? 0 : Math.max(0, preBattleHp - cappedDamage);
+            const sharedHit = Math.max(
+                0,
+                Math.floor(result.sharedPoolDamage ?? Math.min(fullDamage, Math.max(0, preBattleHp))),
+            );
+            const sharedApplied = preBattleHp <= 0 ? 0 : Math.min(sharedHit, preBattleHp);
+            const nextBossHp = preBattleHp <= 0 ? 0 : Math.max(0, preBattleHp - sharedApplied);
             gbState.currentBossHp = nextBossHp;
             gbState.hp = nextBossHp;
+
+            const phasesCleared = Math.max(0, Math.floor(result.phasesCleared ?? 0));
+            if (phasesCleared > 0) {
+                const nextStage = clampGuildBossStage(bossDifficultyStage + phasesCleared);
+                gbState.bossStageByBossId![curBossId] = nextStage;
+                gbState.currentBossStage = nextStage;
+                gbState.maxHp = getScaledGuildBossMaxHp(bossTemplateForBattle.maxHp, nextStage);
+            }
 
             result.bossHpAfter = nextBossHp;
             result.bossMaxHp = scaledBossMaxHp;
             result.bossHpBefore = preBattleHp <= 0 ? scaledBossMaxHp : preBattleHp;
             if (!gbState.totalDamageLog) gbState.totalDamageLog = {};
-            gbState.totalDamageLog[effectiveUserId] = (gbState.totalDamageLog[effectiveUserId] || 0) + cappedDamage;
+            gbState.totalDamageLog[effectiveUserId] = (gbState.totalDamageLog[effectiveUserId] || 0) + fullDamage;
             // 역대 최고 기록 (이번 주 누적 데미지 중 최대값 유지)
             if (!gbState.maxDamageLog) gbState.maxDamageLog = {};
             const currentTotal = gbState.totalDamageLog[effectiveUserId] || 0;
@@ -3823,7 +3836,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
 
             // 딜량 등급별 기여도 계산 (1~5등급)
             let bossContribution = 5;
-            const damage = cappedDamage;
+            const damage = fullDamage;
             const tiers = GUILD_BOSS_DAMAGE_TIERS;
             if (damage >= (tiers[5]?.min ?? 200000)) bossContribution = GUILD_BOSS_CONTRIBUTION_BY_TIER[5];
             else if (damage >= (tiers[4]?.min ?? 100000)) bossContribution = GUILD_BOSS_CONTRIBUTION_BY_TIER[4];

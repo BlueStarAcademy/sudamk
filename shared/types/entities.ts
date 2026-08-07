@@ -820,6 +820,12 @@ export type User = {
   equippedPairPetTemplateId?: string | null;
   /** 동종 펫이 여러 마리일 때 대표로 쓸 정확한 인벤 행 (`inventory[].id`) */
   equippedPairPetInventoryItemId?: string | null;
+  /** 펫 온보딩 단계 시각(장착 / 힌트 착점 / 수련 파견) */
+  pairPetOnboarding?: {
+    equippedAt?: number | null;
+    petHintPlacedAt?: number | null;
+    trainingStartedAt?: number | null;
+  };
   /** 페어 경기장 펫 탭 로비 인벤 슬롯 수(기본 10, 최대 50, 확장 시 +5) */
   pairPetLobbyPetSlotCount?: number;
   /** 페어 경기장 알 탭 로비 인벤 슬롯 수(기본 10, 최대 50, 확장 시 +5) */
@@ -1685,6 +1691,9 @@ export type LiveGameSession = {
   adventureEncounterFrozenHumanMsRemaining?: number;
   adventureEncounterDurationMultiplier?: number;
   adventureRegionalHumanFlatScoreBonus?: number;
+  /** 탐험 시작 시 스냅샷한 동행 대표펫 */
+  adventureCompanionPetTemplateId?: string | null;
+  adventureCompanionPetInventoryItemId?: string | null;
   stageId?: string;
   /** 싱글: 서버가 적용한 최신 스테이지(KV). 두루마리·모드 표시에 번들 상수보다 우선 */
   singlePlayerStageDisplay?: SinglePlayerStageInfo;
@@ -1877,7 +1886,7 @@ export type Guild = {
     lastResetAt: number;
     currentBossId?: string;
     currentBossHp?: number;
-    /** 현재 출현 보스 난이도 단계 (1~10) */
+    /** 현재 출현 보스 난이도 단계 (1~30) */
     currentBossStage?: number;
     /** 보스 id별 누적 난이도 (다음 출현 시 적용) */
     bossStageByBossId?: Record<string, number>;
@@ -2114,6 +2123,14 @@ export type BattleLogEntry = {
 export type GuildBossBattleResult = {
     damageDealt: number;
     turnsSurvived: number;
+    /** 전투 시작 단계 */
+    startStage?: number;
+    /** 전투 종료 시점 보스 단계 */
+    finalStage?: number;
+    /** 처치한 보스 페이즈 수 (다음 등장 단계 = startStage + phasesCleared) */
+    phasesCleared?: number;
+    /** 공유 보스 HP 풀에 반영할 피해(첫 페이즈에서만) */
+    sharedPoolDamage?: number;
     /** 길드 보스 전투 결과에 항상 포함되는 VIP 슬롯 표시용 */
     vipPlayRewardSlot?: {
         locked: boolean;

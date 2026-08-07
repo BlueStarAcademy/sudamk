@@ -34,6 +34,8 @@ import DisconnectionModal from './components/DisconnectionModal.js';
 import TimeoutFoulModal from './components/TimeoutFoulModal.js';
 import AiChallengeModal from './components/waiting-room/AiChallengeModal.js';
 import SinglePlayerControls from './components/game/SinglePlayerControls.js';
+import PetHintTutorialCoach from './components/game/PetHintTutorialCoach.js';
+import { hasCompletedPetHintStep } from './shared/utils/pairPetOnboarding.js';
 import SinglePlayerInfoPanel from './components/game/SinglePlayerInfoPanel.js';
 import PveBriefStartModal from './components/pve/PveBriefStartModal.js';
 import PveInteractiveTutorialModal from './components/pve/PveInteractiveTutorialModal.js';
@@ -41,6 +43,7 @@ import {
     resolveTutorialForStage,
     pveTutorialGuideId,
     isPveTutorialKindDismissed,
+    ALL_PVE_TUTORIAL_IDS,
     type PveTutorialId,
 } from './shared/constants/pveTutorials.js';
 import { dismissScreenGuide, isScreenGuideDismissed } from './utils/screenGuideDismiss.js';
@@ -106,7 +109,7 @@ import { consumeSkipGameHashLeaveInterceptOnce, replaceAppHash } from './utils/a
 import { getTowerInGameBackgroundUrl, getTowerSessionFloor } from './utils/towerPreGameDisplay.js';
 import { getSinglePlayerInGameBackgroundUrl } from './utils/singlePlayerPreGameDisplay.js';
 import { resolveLiveSessionSinglePlayerStageRow } from './shared/utils/liveSessionSinglePlayerStage.js';
-import { getAdventureMapWebpPath } from './constants/adventureConstants.js';
+import { getAdventureMapWebpPath, adventurePostGameMapHash } from './constants/adventureConstants.js';
 import { TOWER_STAGES } from './constants/towerConstants.js';
 import { InGameModalLayoutProvider } from './contexts/InGameModalLayoutContext.js';
 import { tx } from './shared/i18n/runtimeText.js';
@@ -1204,6 +1207,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isSinglePlayer = sessionPolicy.kind === 'singleplayer';
     const isTower = sessionPolicy.kind === 'tower';
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
+    const isStrategicPetHintMode = SPECIAL_GAME_MODES.some((m) => m.mode === mode);
+    const showPetHintTutorialCoach =
+        isSinglePlayer &&
+        isStrategicPetHintMode &&
+        gameStatus === 'playing' &&
+        !!getEquippedPairPetInventoryRow(currentUser) &&
+        !hasCompletedPetHintStep(currentUser);
+    const petHintTutorialPhase: 'pressHint' | 'placeHint' | null = !showPetHintTutorialCoach
+        ? null
+        : strategicPetHintBoardOverlay
+          ? 'placeHint'
+          : 'pressHint';
+    const skipPetHintTutorial = useCallback(() => {
+        dismissScreenGuide('sp_tutorial_pet_hint', currentUser.id);
+        void handlers.handleAction({ type: 'DISMISS_SCREEN_GUIDE', payload: { guideId: 'sp_tutorial_pet_hint' } });
+    }, [currentUser.id, handlers]);
     /**
      * 모험·길드전(waitSummary), 학원/탑(waitScoringOverlay), 전략 instantEnd(PVP·대기실 AI)는
      * summary(보상·XP)가 붙은 뒤에만 결과 모달을 연다.
@@ -4505,8 +4524,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             } else if (sessionPolicy.kind === 'tower') {
                 sessionStorage.setItem('postGameRedirect', '#/tower');
             } else if (sessionPolicy.kind === 'adventure') {
-                const stageId = session.adventureStageId;
-                sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
+                sessionStorage.setItem('postGameRedirect', adventurePostGameMapHash(session));
             } else if (session.settings?.pairGame) {
                 // 친선·AI·놀이터 등 홈 입장 모드는 전용 로비가 아닌 홈으로
                 sessionStorage.setItem('postGameRedirect', arenaLobbyHashFromSession(session));
@@ -4545,6 +4563,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         isSinglePlayer,
         sessionPolicy.kind,
         session.adventureStageId,
+        session.adventureMonsterCodexId,
         session.mode,
         session.settings?.pairGame,
         session.settings?.pairGame?.lobbyChannel,
@@ -5410,13 +5429,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     );
     
     const handleAdventureLeaveToMap = useCallback(() => {
-        if (!gameId || session.gameCategory !== 'adventure') return;
+        if (!gameId || sessionPolicy.kind !== 'adventure') return;
         setPostGameSummaryAcknowledged(true);
         setShowResultModal(false);
-        const stageId = session.adventureStageId;
-        sessionStorage.setItem('postGameRedirect', stageId ? `#/adventure/${stageId}` : '#/adventure');
+        sessionStorage.setItem('postGameRedirect', adventurePostGameMapHash(session));
         handlers.handleAction({ type: 'LEAVE_AI_GAME', payload: { gameId } });
-    }, [gameId, session.gameCategory, session.adventureStageId, handlers.handleAction]);
+    }, [gameId, sessionPolicy.kind, session.adventureStageId, session.adventureMonsterCodexId, handlers.handleAction]);
 
     const handleCloseResults = useCallback(() => {
         setPostGameSummaryAcknowledged(true);
@@ -5468,7 +5486,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional narrow deps
         [isSinglePlayer, academyStageId, singlePlayerStagesListRevision],
     );
-    /** 스테이지별 튜토리얼 종류 — 자동 노출은 종류 dismiss 후 억제, 「튜토리얼」로 강제 재생 가능 */
+    /** 스테이지별 튜토리얼 종류 — 자동 노출은 종류 dismiss 후 억제. 미해금/이미 본 종류는 버튼도 숨김 */
     const pendingTutorialId = useMemo((): PveTutorialId | null => {
         if (!showGameDescription || !academyStageForBrief) return null;
         return resolveTutorialForStage(session, academyStageForBrief);
@@ -5486,21 +5504,45 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     ]);
     const [forcedTutorialId, setForcedTutorialId] = useState<PveTutorialId | null>(null);
     const [tutorialDismissedForSession, setTutorialDismissedForSession] = useState<string | null>(null);
+    /** 이번 SPA 세션에서 이미 본 튜토리얼 종류 — 스테이지가 바뀌어도 같은 종류는 자동 재노출하지 않음 */
+    const dismissedTutorialKindsRef = useRef<Set<PveTutorialId>>(new Set());
+    const [dismissedTutorialKindsRev, setDismissedTutorialKindsRev] = useState(0);
     useEffect(() => {
         // 새 세션에서는 세션 내 닫기 플래그만 리셋. 종류별 dismiss는 유지.
         setForcedTutorialId(null);
         setTutorialDismissedForSession(null);
     }, [session.id]);
     const dismissedScreenGuides = currentUserWithStatus.dismissedScreenGuides;
+    useEffect(() => {
+        let changed = false;
+        for (const id of ALL_PVE_TUTORIAL_IDS) {
+            if (dismissedTutorialKindsRef.current.has(id)) continue;
+            const guideId = pveTutorialGuideId(id);
+            if (
+                isScreenGuideDismissed(guideId, currentUserWithStatus.id) ||
+                isPveTutorialKindDismissed(id, dismissedScreenGuides)
+            ) {
+                dismissedTutorialKindsRef.current.add(id);
+                changed = true;
+            }
+        }
+        if (changed) setDismissedTutorialKindsRev((n) => n + 1);
+    }, [dismissedScreenGuides, currentUserWithStatus.id]);
+    const isPendingTutorialKindDismissed = useMemo(() => {
+        if (!pendingTutorialId) return true;
+        if (dismissedTutorialKindsRef.current.has(pendingTutorialId)) return true;
+        const guideId = pveTutorialGuideId(pendingTutorialId);
+        return (
+            isScreenGuideDismissed(guideId, currentUserWithStatus.id) ||
+            isPveTutorialKindDismissed(pendingTutorialId, dismissedScreenGuides)
+        );
+    }, [pendingTutorialId, currentUserWithStatus.id, dismissedScreenGuides, dismissedTutorialKindsRev]);
     const activeTutorialId: PveTutorialId | null = useMemo(() => {
         if (forcedTutorialId) return forcedTutorialId;
         if (!pendingTutorialId || !showGameDescription) return null;
         if (tutorialDismissedForSession === session.id) return null;
-        const guideId = pveTutorialGuideId(pendingTutorialId);
-        if (
-            isScreenGuideDismissed(guideId, currentUserWithStatus.id) ||
-            isPveTutorialKindDismissed(pendingTutorialId, dismissedScreenGuides)
-        ) {
+        if (isPendingTutorialKindDismissed) {
+            dismissedTutorialKindsRef.current.add(pendingTutorialId);
             return null;
         }
         return pendingTutorialId;
@@ -5510,12 +5552,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         showGameDescription,
         tutorialDismissedForSession,
         session.id,
-        currentUserWithStatus.id,
-        dismissedScreenGuides,
+        isPendingTutorialKindDismissed,
     ]);
-    const finishAcademyTutorial = useCallback(
+    const canReplayAcademyTutorial = Boolean(pendingTutorialId) && !isPendingTutorialKindDismissed;    const finishAcademyTutorial = useCallback(
         (tutorialId: PveTutorialId) => {
             const guideId = pveTutorialGuideId(tutorialId);
+            dismissedTutorialKindsRef.current.add(tutorialId);
+            setDismissedTutorialKindsRev((n) => n + 1);
             dismissScreenGuide(guideId, currentUserWithStatus.id);
             void handlers.handleAction({ type: 'DISMISS_SCREEN_GUIDE', payload: { guideId } });
             setForcedTutorialId(null);
@@ -5882,7 +5925,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         currentUser={currentUserWithStatus}
                         onAction={handlers.handleAction}
                         onReplayTutorial={
-                            pendingTutorialId
+                            canReplayAcademyTutorial && pendingTutorialId
                                 ? () => {
                                       setTutorialDismissedForSession(null);
                                       setForcedTutorialId(pendingTutorialId);
@@ -5907,6 +5950,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 </div>
                             </div>
                             <div className="relative min-h-0 w-full min-w-0 flex-1 overflow-hidden">
+                                <PetHintTutorialCoach phase={petHintTutorialPhase} onSkip={skipPetHintTutorial} />
                                 <div className="absolute inset-0">
                                     <GameArena 
                                         {...gameProps}

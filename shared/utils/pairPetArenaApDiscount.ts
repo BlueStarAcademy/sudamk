@@ -41,6 +41,11 @@ export function resolveEquippedPairPetSpecialization(user: Pick<User, 'inventory
     return resolvePairPetMetaFromInventoryRow(row).specialization;
 }
 
+/** 탐험 몬스터 공격 AP — 전략 경기장 AP −1 특성 적용 */
+export function effectiveAdventureAttackApCostForUser(user: Pick<User, 'inventory' | 'equippedPairPetTemplateId' | 'equippedPairPetInventoryItemId'>, baseCost: number): number {
+    return apCostAfterPairPetArenaDiscount(baseCost, 'strategic', resolveEquippedPairPetSpecialization(user));
+}
+
 /** 대기실 협상·일반 PVP: 모드에 따른 기본 행동력 (전략/놀이 구간) */
 export function basePvpActionPointCostForMode(mode: GameMode): number {
     if (SPECIAL_GAME_MODES.some((m) => m.mode === mode)) return STRATEGIC_ACTION_POINT_COST;

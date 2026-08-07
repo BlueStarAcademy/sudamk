@@ -132,6 +132,27 @@ describe('single-player stage stability', () => {
         expect(totalRandomStones).toBeLessThanOrEqual(48);
     });
 
+    it('preserves 초급-11 missile/mix defaults when KV row omits newer fields', () => {
+        const codeDefault = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.id === '초급-11');
+        expect(codeDefault?.missileCount).toBe(2);
+        expect(codeDefault?.strategicRulePreset).toBe('mix');
+        expect(codeDefault?.mixedStrategicModes).toEqual([GameMode.Speed, GameMode.Missile]);
+
+        // 옛 KV 스냅샷: 미사일 도입 전 필드만 있는 행 (missileCount/mix 키 없음)
+        const { missileCount: _m, strategicRulePreset: _p, mixedStrategicModes: _mix, ...staleRow } = {
+            ...codeDefault!,
+        };
+        void _m;
+        void _p;
+        void _mix;
+        const normalized = normalizeSinglePlayerStagesOverride([staleRow]);
+        const stage = normalized.find((s) => s.id === '초급-11')!;
+
+        expect(stage.missileCount).toBe(2);
+        expect(stage.strategicRulePreset).toBe('mix');
+        expect(stage.mixedStrategicModes).toEqual([GameMode.Speed, GameMode.Missile]);
+    });
+
     it('does not revive default rule fields after admin editor saves a clean mix stage', () => {
         const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.hiddenCount != null && s.autoScoringTurns != null) ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
         const normalized = normalizeSinglePlayerStagesOverride([

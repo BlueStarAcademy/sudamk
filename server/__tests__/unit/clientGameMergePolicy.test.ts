@@ -935,6 +935,9 @@ describe('buildOptimisticPveStartConfirmSession', () => {
         expect(optimistic?.currentPlayer).toBe(Player.Black);
         expect(optimistic?.startTime).toBe(2_000);
         expect(optimistic?.gameStartTime).toBe(2_000);
+        expect(optimistic?.turnDeadline).toBe(2_000 + 10_000);
+        expect(Number(optimistic?.settings?.timeLimit ?? 0)).toBeGreaterThan(0);
+        expect(Number(optimistic?.blackTimeLeft ?? 0)).toBeGreaterThan(0);
     });
 
     it('uses base_stone_color_choice for tower base stages (automatic PVE placement)', () => {

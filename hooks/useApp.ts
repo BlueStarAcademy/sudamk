@@ -45,6 +45,7 @@ import type { MobileViewportEntry } from '../shared/types/mobileViewportStack.js
 import { getAppRouteNavigationKey } from '../shared/types/navigation.js';
 import { getQuickUtilityKindFromStack } from '../shared/utils/mobileViewportStackUtils.js';
 import { syncDismissedScreenGuidesFromUser } from '../utils/screenGuideDismiss.js';
+import { normalizeDismissedScreenGuides } from '../shared/constants/screenGuideDismiss.js';
 import {
     useIsHandheldDevice,
     useViewportHeightBelow,
@@ -160,9 +161,10 @@ function isChampionshipCompleteDungeonInventoryFullError(action: ServerAction, e
 import {
     applyUserProgressionArenaLocks,
     getBadukAbilitySnapshotFromStats,
-    TOWER_ENTRANCE_REQUIRED_STAGE_ID,
     ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID,
+    isTowerUnlockedByProgression,
 } from '../shared/utils/contentProgressionGates.js';
+import { resolvePairPetOnboardingStep } from '../shared/utils/pairPetOnboarding.js';
 import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { processMoveClient } from '../client/goLogicClient.js';
@@ -1681,7 +1683,24 @@ const OVERLAY_PRESERVE_GAME_STATUSES = new Set([
     'scanning_animating',
     'hidden_reveal_animating',
     'hidden_final_reveal',
+    'ended',
+    'no_contest',
+    'rematch_pending',
 ]);
+
+function hasAdventureIdentity(session: LiveGameSession | undefined | null): boolean {
+    if (!session) return false;
+    return (
+        String(session.gameCategory ?? '') === 'adventure' ||
+        (typeof session.adventureStageId === 'string' && session.adventureStageId.length > 0) ||
+        (typeof session.adventureMonsterCodexId === 'string' && session.adventureMonsterCodexId.length > 0) ||
+        typeof (session as any).adventureEncounterDeadlineMs === 'number' ||
+        (typeof (session as any).adventureMonsterBattleMode === 'string' &&
+            (session as any).adventureMonsterBattleMode.length > 0) ||
+        typeof (session as any).adventureBoardSize === 'number' ||
+        typeof (session as any).adventureMonsterLevel === 'number'
+    );
+}
 
 function lastMoveHistoryIndexAt(
     hist: NonNullable<LiveGameSession['moveHistory']>,
@@ -1795,6 +1814,7 @@ function sanitizeSessionBoardOverlayMarkers(merged: LiveGameSession): LiveGameSe
 /**
  * GAME_UPDATE 슬림 패킷에서 히든·베이스·문양 등 오버레이 키가 빠질 때 기존 세션 값을 보존한 뒤,
  * 판/수순과 맞지 않는 마커(따낸 뒤 재착수 등)는 sanitize로 정리한다.
+ * 모험 식별 필드(gameCategory·stageId 등)는 ended 포함 전 상태에서 생략되면 보존한다.
  */
 function preserveStrategicSessionOverlaysIfIncomingOmitted(
     merged: LiveGameSession,
@@ -1802,6 +1822,42 @@ function preserveStrategicSessionOverlaysIfIncomingOmitted(
     existing: LiveGameSession | undefined
 ): LiveGameSession {
     let next: LiveGameSession = { ...merged };
+    if (existing) {
+        const identityKeys = [
+            'gameCategory',
+            'adventureStageId',
+            'adventureMonsterCodexId',
+            'adventureMonsterLevel',
+            'adventureMonsterBattleMode',
+            'adventureBoardSize',
+            'adventureEncounterDeadlineMs',
+            'adventureEncounterFrozenHumanMsRemaining',
+            'adventureEncounterDurationMultiplier',
+            'adventureRegionalHumanFlatScoreBonus',
+        ] as const;
+        for (const key of identityKeys) {
+            if (!Object.prototype.hasOwnProperty.call(incoming, key)) {
+                const prev = (existing as any)[key];
+                if (prev !== undefined && prev !== null && (next as any)[key] == null) {
+                    (next as any)[key] = prev;
+                }
+            } else if (
+                key === 'gameCategory' &&
+                String((incoming as any).gameCategory ?? '') !== 'adventure' &&
+                String(existing.gameCategory ?? '') === 'adventure'
+            ) {
+                // 모험 대국이 슬림 패킷에서 normal 등으로 덮이지 않게 유지
+                next = { ...next, gameCategory: existing.gameCategory };
+            }
+        }
+        if (
+            String(next.gameCategory ?? '') !== 'adventure' &&
+            (hasAdventureIdentity(existing) || hasAdventureIdentity(next))
+        ) {
+            next = { ...next, gameCategory: 'adventure' as LiveGameSession['gameCategory'] };
+        }
+    }
+
     const st = next.gameStatus;
     const shouldPreserve = !!st && OVERLAY_PRESERVE_GAME_STATUSES.has(st) && !!existing;
 
@@ -2257,6 +2313,14 @@ export const useApp = () => {
                           patch.championshipVersusConditionSnapshot,
                       )
                     : base.championshipVersusConditionSnapshot,
+            // 화면 안내·PVE 튜토리얼: 부분 패치/낡은 스냅샷이 목록을 줄이지 못하게 합집합
+            dismissedScreenGuides:
+                patch.dismissedScreenGuides !== undefined || base.dismissedScreenGuides !== undefined
+                    ? normalizeDismissedScreenGuides([
+                          ...(Array.isArray(base.dismissedScreenGuides) ? base.dismissedScreenGuides : []),
+                          ...(Array.isArray(patch.dismissedScreenGuides) ? patch.dismissedScreenGuides : []),
+                      ])
+                    : base.dismissedScreenGuides,
             // 챔피언십: WS/HTTP 패치에 기보가 빠지면 클라 실대국이 50초 시뮬로 추락하므로 동일 슬롯에서는 베이스 기보를 보존
             lastNeighborhoodTournament:
                 patch.lastNeighborhoodTournament !== undefined
@@ -2515,10 +2579,22 @@ export const useApp = () => {
             const prevCleared = new Set(Array.isArray(prevUser.clearedSinglePlayerStages) ? prevUser.clearedSinglePlayerStages : []);
             const nextCleared = new Set(Array.isArray(mergedUser.clearedSinglePlayerStages) ? mergedUser.clearedSinglePlayerStages : []);
             const unlockedNow: ContentUnlockType[] = [];
-            if (!prevCleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID) && nextCleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID)) {
+            const prevTowerOpen = isTowerUnlockedByProgression({
+                adventureUnderstandingXpByStage: prevUser.adventureProfile?.understandingXpByStage ?? {},
+            });
+            const nextTowerOpen = isTowerUnlockedByProgression({
+                adventureUnderstandingXpByStage: mergedUser.adventureProfile?.understandingXpByStage ?? {},
+            });
+            if (!prevTowerOpen && nextTowerOpen) {
                 unlockedNow.push('tower');
             }
-            if (!prevCleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID) && nextCleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID)) {
+            const prevHadAdventureStage = prevCleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID);
+            const nextHasAdventureStage = nextCleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID);
+            const nextHasPet = !!(mergedUser.equippedPairPetTemplateId);
+            const prevHadPet = !!(prevUser.equippedPairPetTemplateId);
+            const prevAdventureOpen = prevHadAdventureStage && prevHadPet;
+            const nextAdventureOpen = nextHasAdventureStage && nextHasPet;
+            if (!prevAdventureOpen && nextAdventureOpen) {
                 unlockedNow.push('adventure');
             }
             if (unlockedNow.length > 0) {
@@ -3166,6 +3242,17 @@ export const useApp = () => {
             setActiveQuickUtilityPanel('singleplayer');
         }
     }, [openQuickUtilityViewport]);
+
+    const petOnboardingAutoOpenedRef = useRef(false);
+    useEffect(() => {
+        if (!currentUser || petOnboardingAutoOpenedRef.current) return;
+        if (resolvePairPetOnboardingStep(currentUser) !== 'equip') return;
+        petOnboardingAutoOpenedRef.current = true;
+        const t = window.setTimeout(() => {
+            setIsPetManagementModalOpen(true);
+        }, 600);
+        return () => window.clearTimeout(t);
+    }, [currentUser]);
 
     const openTowerLobby = useCallback(() => {
         if (!openQuickUtilityViewport('tower')) {

@@ -54,16 +54,16 @@ export const HOME_ENTRANCE_SECTIONS: HomeEntranceSectionDef[] = [
                 imageSrc: SINGLE_PLAYER_LOBBY_IMG,
             },
             {
-                id: 'tower',
-                titleKey: 'challengeTower',
-                accent: 'emerald',
-                imageSrc: TOWER_CHALLENGE_LOBBY_IMG,
-            },
-            {
                 id: 'adventure',
                 titleKey: 'adventure',
                 accent: 'emerald',
                 imageSrc: '/images/forest.webp',
+            },
+            {
+                id: 'tower',
+                titleKey: 'challengeTower',
+                accent: 'emerald',
+                imageSrc: TOWER_CHALLENGE_LOBBY_IMG,
             },
         ],
     },

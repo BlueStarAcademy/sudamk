@@ -20,6 +20,7 @@ import {
 } from '../shared/constants/pairPetModal.js';
 import type { ServerAction } from '../types.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
+import { resolvePairPetOnboardingStep } from '../shared/utils/pairPetOnboarding.js';
 
 interface PetManagementModalProps {
     onClose: () => void;
@@ -53,6 +54,10 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
 
     if (!currentUserWithStatus) return null;
 
+    const onboardingStep = resolvePairPetOnboardingStep(currentUserWithStatus);
+    const initialAiTab =
+        onboardingStep === 'equip' ? 'hatchery' : onboardingStep === 'training' ? 'training' : undefined;
+
     const petBody = (
             <div
                 className={`${waitingLobbyPcPanelShellClass('pair')} flex h-full min-h-0 w-full flex-1 flex-col overflow-hidden p-1.5`}
@@ -62,6 +67,7 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
                         currentUserId={currentUserWithStatus.id}
                         isBusy={petModalBusy}
                         applyPetAction={applyPetAction}
+                        initialAiTab={initialAiTab}
                     />
             </div>
     );

@@ -384,11 +384,11 @@
         "adventure": "Exploration is temporarily closed."
       },
       "progressionBlocked": {
-        "tower": "Clear Adventure Sproutwood Gate 10 to enter Challenge Tower.",
+        "tower": "Reach Comfort understanding in Neighborhood Hill to enter Challenge Tower.",
         "strategicLobby": "Strategy lobby unlocks at user Lv.{{level}}.",
         "playfulLobby": "Casual lobby unlocks at user Lv.{{level}}.",
         "championship": "Championship unlocks at {{ability}}+ total Go ability.",
-        "adventure": "Clear Adventure Sproutwood Gate 20 to enter Exploration."
+        "adventure": "Clear Sproutwood Gate 5 and equip a pet to enter Exploration."
       },
       "contentClosed": {
         "adventure": "Exploration is temporarily closed."
@@ -631,7 +631,7 @@
       "viewResult": "View result",
       "returnToLobby": "Back to lobby",
       "endSpectating": "Stop spectating",
-      "goToMap": "Go to map",
+      "goToMap": "To map",
       "saveRecord": "Save record",
       "savingRecord": "Saving…",
       "recordAlreadySaved": "Already saved",
@@ -675,6 +675,9 @@
       "petHintPhaseRemaining": "{{phase}} {{count}} moves left — {{body}}",
       "petHintAria": "Pet hint {{label}}",
       "petHintAriaNoPet": "Pet hint {{label}} (no main pet equipped)",
+      "petHintTutorialPress": "Tap your pet hint button to get a recommended move.",
+      "petHintTutorialPlace": "Play on the highlighted hint intersection!",
+      "petHintTutorialSkip": "Skip for now",
       "slowTitle": "Slow: slows the power gauge. Remaining: {{count}}",
       "aimTitle": "Aim line: extends the aiming line. Remaining: {{count}}",
       "noContestLeave": "No contest",
@@ -2319,10 +2322,31 @@
       "tutorialDone": "Done",
       "tutorialReplayDemo": "Replay",
       "tutorialPlaceHint": "Place a stone on the glowing point",
+      "tutorialMissilePractice": "Try it",
+      "tutorialMissileItemHint": "Tap the glowing missile item",
+      "tutorialMissileStoneHint": "Select your glowing stone",
+      "tutorialMissileDirHint": "Fire in the glowing direction",
+      "tutorialMissileFireHint": "Firing…",
+      "tutorialMissileCaptureFlash": "Captured!",
+      "tutorialMissileCaptureHint": "You blocked the last liberty and captured the stone.",
+      "tutorialSpeedYou": "You",
+      "tutorialSpeedOpponent": "Opponent",
+      "tutorialSpeedScore": "Score",
+      "tutorialSpeedPenaltyFlash": "Opponent +1",
+      "tutorialSpeedHint": "When the bar hits 0, the opponent gains a point.",
+      "tutorialPatternLookHint": "Look at the engraved pattern stone",
+      "tutorialPatternScoreFlash": "+{{points}} pts",
+      "tutorialPatternCaptureHint": "You captured a pattern stone for {{points}} points.",
+      "tutorialScoringFlash": "Scoring — territory set",
+      "tutorialScoringHint": "Fill the last facing empty point to lock in territory and begin scoring.",
       "tutorials": {
         "sp_capture_basics": {
           "title": "Capture basics",
           "body": "Surround an opponent stone on all sides to capture it. Watch the demo, then place the same moves."
+        },
+        "sp_pattern": {
+          "title": "Pattern stones",
+          "body": "Capturing a stone with a pattern engraving awards 2 points. Watch, then try the same move."
         },
         "sp_survival": {
           "title": "Survival Go",
@@ -2330,11 +2354,15 @@
         },
         "sp_auto_scoring": {
           "title": "Territory & scoring",
-          "body": "After the turn limit, scoring begins. Make more territory than your opponent."
+          "body": "In this facing shape, filling the neutral points between Black and White finalizes each side's territory and begins scoring."
+        },
+        "sp_speed": {
+          "title": "Speed Go",
+          "body": "Each move has a 10-second bar. When it hits 0, the opponent gains +1 point. Play within 10 seconds."
         },
         "sp_missile": {
-          "title": "Missile item",
-          "body": "On your turn, use a missile to push a stone and change the shape. Watch, then practice."
+          "title": "Missile Go",
+          "body": "Tap the missile item, select your stone, then fire a direction. Block the opponent's last liberty to capture."
         },
         "sp_hidden": {
           "title": "Hidden & scan",
@@ -2965,8 +2993,17 @@
       "mapZoomOut": "Zoom out",
       "unlockRequiredLevel": "Unlocks at Lv.{{level}}"
     },
+    "petOnboarding": {
+      "equipBody": "Hatch the special egg and equip it as your main pet to begin.",
+      "hintBody": "In Adventure, tap the pet hint and play on the recommended intersection.",
+      "hatchSecondBody": "Hatch a second egg, then send that pet to Skill Training.",
+      "trainingBody": "Send a non-main pet to Skill Training.",
+      "openPet": "Pet management",
+      "openAcademy": "Go to Academy"
+    },
     "adventure": {
       "title": "Exploration",
+      "companionPet": "Companion pet",
       "chapter": "Chapter",
       "chapterEnterAria": "Enter chapter",
       "chapterMapEnterAria": "Enter {{title}} map",
@@ -3232,8 +3269,11 @@
     "maintenance": "Maintenance",
     "combinedLevelRequired": "Combined Lv.{{current}}/{{required}}",
     "abilityRequired": "Ability total {{total}}+",
+    "intro5Required": "Clear Sproutwood Gate 5",
     "intro10Required": "Clear Sproutwood Gate 10",
     "intro20Required": "Clear Sproutwood Gate 20",
+    "equipPairPetRequired": "Equip a representative pet",
+    "towerAdventureUnderstandingRequired": "Reach Comfort understanding in Neighborhood Hill",
     "goSchool": "Adventure",
     "challengeTower": "Challenge Tower",
     "pvpArena": "PVP Arena",
@@ -3961,10 +4001,10 @@
     },
     "contentUnlock": {
       "towerTitle": "Tower unlocked",
-      "towerSubtitle": "Clear Adventure Sproutwood Gate 10 to\nunlock Challenge Tower.",
+      "towerSubtitle": "Neighborhood Hill understanding reached Comfort.\nChallenge Tower is now open.",
       "towerHint": "Enter Tower from the home screen.",
       "adventureTitle": "Exploration unlocked",
-      "adventureSubtitle": "Clear Adventure Sproutwood Gate 20 to\nunlock Exploration.",
+      "adventureSubtitle": "Clear Sproutwood Gate 5 and equip a pet\nto unlock Exploration.",
       "adventureHint": "Enter Exploration from the home screen."
     },
     "levelUp": {

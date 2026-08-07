@@ -8,6 +8,7 @@ import type { GameConfirmModalType } from './GameModals.js';
 import { aiUserId } from '../../constants/auth.js';
 import { canSaveStrategicPvpGameRecord, GAME_RECORD_SLOT_FULL_MESSAGE } from '../../utils/strategicPvpGameRecord.js';
 import { getSinglePlayerStages } from '../../constants/singlePlayerConstants.js';
+import { adventurePostGameMapHash } from '../../constants/adventureConstants.js';
 import Button from '../Button.js';
 import Dice from '../Dice.js';
 import { audioService } from '../../services/audioService.js';
@@ -47,7 +48,7 @@ import {
     isPairCooperativeTwoHumansVsAi,
     pairSeatMatchesViewerUser,
 } from '../../shared/utils/pairGameTurn.js';
-import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { resolveArenaSessionPolicy, isAdventureSessionLike } from '../../shared/utils/liveSessionArenaKind.js';
 import { countUnrevealedOpponentHiddenStones } from '../../shared/utils/opponentUnrevealedHiddenCount.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import {
@@ -1953,6 +1954,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                 redirectHash = '#/guildwar';
             } else if (session.gameCategory === 'tower') {
                 redirectHash = '#/tower';
+            } else if (session.gameCategory === 'adventure' || isAdventureSessionLike(session)) {
+                redirectHash = adventurePostGameMapHash(session);
             } else if (session.settings?.pairGame) {
                 // 친선·AI·놀이터 등 홈 입장 모드는 전용 로비가 아닌 홈으로
                 redirectHash = arenaLobbyHashFromSession(session);
@@ -2050,7 +2053,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                             </Button>
                         )}
                         <Button bare onClick={handleCloseResults} colorScheme="none" className={endedIngameLobbyLeaveRowBtn()} disabled={blockPostGameFooter}>
-                            대기실로
+                            {session.gameCategory === 'adventure' || isAdventureSessionLike(session)
+                                ? t('controls.goToMap')
+                                : t('controls.returnToLobby')}
                         </Button>
                         </div>
                     </div>
@@ -2253,7 +2258,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
         );
     }
 
-    const isAdventureGame = session.gameCategory === 'adventure';
+    const isAdventureGame =
+        resolveArenaSessionPolicy(session as LiveGameSession).kind === 'adventure' ||
+        isAdventureSessionLike(session);
 
     const dockMoveConfirmFooter = !isGameEnded && showMoveConfirmFooter && !isSpectator && !!onMobileConfirmToggle;
     /** 계가·대기 등에서 슬롯 UI는 숨기되, 진행 중과 동일한 중앙 폭을 유지해 바둑판 가로 배분이 변하지 않게 함 */

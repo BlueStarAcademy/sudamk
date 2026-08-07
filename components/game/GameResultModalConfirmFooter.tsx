@@ -15,6 +15,8 @@ type GameResultModalConfirmFooterProps = {
      * null이면 확인만 한 줄에 표시.
      */
     leadingAction?: React.ReactNode;
+    /** 확인 버튼 클래스 오버라이드(예: 모험 「맵으로」 붉은 퇴장) */
+    confirmButtonClassName?: string;
 };
 
 /**
@@ -28,6 +30,7 @@ export const GameResultModalConfirmFooter: React.FC<GameResultModalConfirmFooter
     disabled = false,
     className = '',
     leadingAction = null,
+    confirmButtonClassName,
 }) => (
     <div
         className={`${SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS} flex shrink-0 justify-center border-t border-amber-500/25 bg-gradient-to-t from-[#0c0a10] via-[#14111c]/95 to-transparent px-3 pb-[max(0.5rem,env(safe-area-inset-bottom,0px))] pt-2 sm:px-4 sm:pb-3 sm:pt-2.5 ${className}`}
@@ -40,9 +43,9 @@ export const GameResultModalConfirmFooter: React.FC<GameResultModalConfirmFooter
                 type="button"
                 disabled={disabled}
                 onClick={onConfirm}
-                className={`min-w-0 flex-1 px-4 ${PRE_GAME_MODAL_ACCENT_BTN_CLASS} ${
-                    isMobile ? '!min-h-[2.75rem] !text-[13px] !font-bold' : ''
-                }`}
+                className={`min-w-0 flex-1 px-4 ${
+                    confirmButtonClassName ?? PRE_GAME_MODAL_ACCENT_BTN_CLASS
+                } ${isMobile ? '!min-h-[2.75rem] !text-[13px] !font-bold' : ''}`}
             >
                 {label}
             </Button>

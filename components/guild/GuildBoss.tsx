@@ -387,7 +387,7 @@ interface BossPanelProps {
     boss: GuildBossInfo;
     hp: number;
     maxHp: number;
-    /** 길드 보스 난이도 단계(1~10), 체력 게이지 아래에 이름과 함께 표시 */
+    /** 길드 보스 난이도 단계(1~30), 체력 게이지 아래에 이름과 함께 표시 */
     difficultyStage: number;
     damageNumbers: { id: number; text: string; color: string; isHeal: boolean; isCrit?: boolean }[];
     compact?: boolean;

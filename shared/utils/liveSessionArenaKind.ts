@@ -99,11 +99,19 @@ export function modeIncludesBaseCaptureMix(mode: unknown, settings: Pick<GameSet
 export function isAdventureSessionLike(session: SessionLike | null | undefined): boolean {
     if (!session) return false;
     const gc = String(session.gameCategory ?? '');
+    const anySession = session as SessionLike & {
+        adventureMonsterBattleMode?: string;
+        adventureBoardSize?: number;
+        adventureMonsterLevel?: number;
+    };
     return (
         gc === GameCategory.Adventure ||
         hasNonEmptyString(session.adventureStageId) ||
         hasNonEmptyString(session.adventureMonsterCodexId) ||
-        typeof session.adventureEncounterDeadlineMs === 'number'
+        typeof session.adventureEncounterDeadlineMs === 'number' ||
+        hasNonEmptyString(anySession.adventureMonsterBattleMode) ||
+        typeof anySession.adventureBoardSize === 'number' ||
+        typeof anySession.adventureMonsterLevel === 'number'
     );
 }
 
@@ -120,6 +128,10 @@ export function isPairSessionLike(session: SessionLike | null | undefined): bool
 export function resolveArenaKind(session: SessionLike | null | undefined): ArenaKind {
     if (!session) return GameCategory.Normal;
 
+    // 슬림 패킷이 gameCategory를 normal/빈 값으로 덮어도 모험·길드전 마커가 있으면 우선한다.
+    if (isAdventureSessionLike(session)) return GameCategory.Adventure;
+    if (isGuildWarSessionLike(session)) return GameCategory.GuildWar;
+
     const gc = String(session.gameCategory ?? '');
     if (
         gc === GameCategory.Normal ||
@@ -131,8 +143,6 @@ export function resolveArenaKind(session: SessionLike | null | undefined): Arena
         return gc as ArenaKind;
     }
 
-    if (isAdventureSessionLike(session)) return GameCategory.Adventure;
-    if (isGuildWarSessionLike(session)) return GameCategory.GuildWar;
     if (session.isSinglePlayer || String(session.id ?? '').startsWith('sp-game-')) return GameCategory.SinglePlayer;
     if (session.towerFloor != null || (gc === '' && hasNonEmptyString(session.stageId) && String(session.id ?? '').startsWith('tower-'))) {
         return GameCategory.Tower;

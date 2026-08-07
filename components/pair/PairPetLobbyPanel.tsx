@@ -669,9 +669,17 @@ export interface PairPetLobbyPanelProps {
     currentUserId: string;
     isBusy: boolean;
     applyPetAction: (action: ServerAction) => Promise<unknown>;
+    /** 온보딩 등에서 초기 탭 강제 */
+    initialAiTab?: 'info' | 'training' | 'hatchery' | 'shop';
 }
 
-const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, currentUserId, isBusy, applyPetAction }) => {
+const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
+    currentUser,
+    currentUserId,
+    isBusy,
+    applyPetAction,
+    initialAiTab,
+}) => {
     const { t } = useTranslation(['pair', 'common']);
     const { t: tCommon } = useTranslation('common');
     const { localizePetName, localizeTrainingSlot, localizeHatcheryUpgradeTier } = useLocalizedPairPetText();
@@ -681,7 +689,10 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({ currentUser, curr
     const useTapTrainingFlow = isNativeMobile || (isNarrowViewport && !pcLikeMobileLayout);
     /** 모바일 전용 레이아웃(부화장 스택·인벤 축소 등) — PC 뷰포트 폭과 분리 */
     const petMgmtMobileShell = useTapTrainingFlow;
-    const [aiTab, setAiTab] = useState<AiTab>(() => (petMgmtMobileShell ? 'info' : 'training'));
+    const [aiTab, setAiTab] = useState<AiTab>(() => {
+        if (initialAiTab) return initialAiTab;
+        return petMgmtMobileShell ? 'info' : 'training';
+    });
     const [shopSkuTab, setShopSkuTab] = useState<ShopSkuTab>('egg');
     const [shopDescSkuId, setShopDescSkuId] = useState<string | null>(null);
     const [pairShopPurchaseSku, setPairShopPurchaseSku] = useState<PairPetShopSku | null>(null);

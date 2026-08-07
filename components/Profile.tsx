@@ -48,8 +48,10 @@ import {
 import {
     USER_PROGRESSION_ARENA_BLOCK_MESSAGE,
     PVP_LOBBIES_MIN_COMBINED_LEVEL,
-    TOWER_ENTRANCE_REQUIRED_STAGE_ID,
     ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID,
+    isAdventureUnlockedByProgression,
+    isTowerUnlockedByProgression,
+    userHasEquippedPairPet,
     CHAMPIONSHIP_MIN_BADUK_ABILITY_TOTAL,
 } from '../shared/utils/contentProgressionGates.js';
 import {
@@ -1172,11 +1174,34 @@ const Profile: React.FC<ProfileProps> = () => {
                 ? new Set(currentUserWithStatus.clearedSinglePlayerStages)
                 : new Set<string>();
             if (key === 'tower') {
-                return cleared.has(TOWER_ENTRANCE_REQUIRED_STAGE_ID) ? null : t('intro10Required');
+                return isTowerUnlockedByProgression({
+                    adventureUnderstandingXpByStage:
+                        currentUserWithStatus.adventureProfile?.understandingXpByStage ?? {},
+                })
+                    ? null
+                    : t('towerAdventureUnderstandingRequired');
             }
-            return cleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID) ? null : t('intro20Required');
+            const adventureSnap = {
+                clearedSinglePlayerStages: Array.from(cleared),
+                hasEquippedPairPet: userHasEquippedPairPet(currentUserWithStatus),
+            };
+            if (!isAdventureUnlockedByProgression(adventureSnap)) {
+                if (!cleared.has(ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID)) {
+                    return t('intro5Required');
+                }
+                if (!adventureSnap.hasEquippedPairPet) {
+                    return t('equipPairPetRequired');
+                }
+            }
+            return null;
         },
-        [arenaAdminBypass, mergedArena, serverArena, currentUserWithStatus.clearedSinglePlayerStages, t],
+        [
+            arenaAdminBypass,
+            mergedArena,
+            serverArena,
+            currentUserWithStatus,
+            t,
+        ],
     );
 
     const onSelectMatchArena = () => {

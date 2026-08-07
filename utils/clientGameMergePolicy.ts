@@ -30,6 +30,36 @@ import {
     resolveStrategicPlayingBoardAndMoveHistory,
     replayStrategicBoardFromMoveHistory,
 } from './deferredWsBoardSnapshot.js';
+import {
+    applySpeedNextTurnClockStart,
+    isSessionSpeedTimePressureMode,
+} from '../shared/utils/speedTimePressureSessionSync.js';
+
+/** 낙관적 playing 전환 시 스피드 수당 10초 시계·메인 시간을 즉시 켠다(HTTP 왕복 전 막대/점수 UI용). */
+function applyOptimisticSpeedClocksIfNeeded(session: LiveGameSession, now: number): LiveGameSession {
+    if (!isSessionSpeedTimePressureMode(session)) return session;
+    const prevLimit = Math.max(0, Number(session.settings?.timeLimit ?? 0));
+    const timeLimit = prevLimit > 0 ? prevLimit : 5;
+    const initialSec = timeLimit * 60;
+    const blackLeft = Math.max(0, Number(session.blackTimeLeft ?? 0));
+    const whiteLeft = Math.max(0, Number(session.whiteTimeLeft ?? 0));
+    const next: LiveGameSession = {
+        ...session,
+        settings: {
+            ...session.settings,
+            timeLimit,
+            byoyomiTime: Math.max(0, Number(session.settings?.byoyomiTime ?? 0)) || 10,
+            byoyomiCount: 0,
+            timeIncrement: 0,
+        },
+        blackTimeLeft: blackLeft > 0 ? blackLeft : initialSec,
+        whiteTimeLeft: whiteLeft > 0 ? whiteLeft : initialSec,
+        blackInitialTimeLeft: initialSec,
+        whiteInitialTimeLeft: initialSec,
+    };
+    applySpeedNextTurnClockStart(next, now);
+    return next;
+}
 
 /**
  * 베이스 세션 본경기 단계의 좌석 잠금 보호:
@@ -605,29 +635,35 @@ export function buildOptimisticPveStartConfirmSession(
         const whiteTarget =
             eff?.[Player.White] ??
             (typeof st.captureTargetWhite === 'number' ? st.captureTargetWhite : (st.captureTarget ?? 20));
-        return {
+        return applyOptimisticSpeedClocksIfNeeded(
+            {
+                ...session,
+                gameStatus: 'playing',
+                currentPlayer: Player.Black,
+                startTime: now,
+                gameStartTime: now,
+                turnStartTime: now,
+                effectiveCaptureTargets: {
+                    [Player.None]: 0,
+                    [Player.Black]: blackTarget,
+                    [Player.White]: whiteTarget,
+                },
+            },
+            now,
+        );
+    }
+
+    return applyOptimisticSpeedClocksIfNeeded(
+        {
             ...session,
             gameStatus: 'playing',
             currentPlayer: Player.Black,
             startTime: now,
             gameStartTime: now,
             turnStartTime: now,
-            effectiveCaptureTargets: {
-                [Player.None]: 0,
-                [Player.Black]: blackTarget,
-                [Player.White]: whiteTarget,
-            },
-        };
-    }
-
-    return {
-        ...session,
-        gameStatus: 'playing',
-        currentPlayer: Player.Black,
-        startTime: now,
-        gameStartTime: now,
-        turnStartTime: now,
-    };
+        },
+        now,
+    );
 }
 
 /** CONFIRM 직후 낙관 playing/사전단계인데 늦은 pending WS/HTTP가 덮는 것 방지 (로비 AI) */

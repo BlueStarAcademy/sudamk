@@ -47,10 +47,10 @@ const UNIFIED_POST_GAME_SURFACE =
     'border-zinc-600/38 bg-gradient-to-b from-zinc-700/48 via-zinc-800/92 to-zinc-950 text-zinc-100/95 ' +
     'hover:border-zinc-500/48 hover:from-zinc-600/55 hover:via-zinc-800/94';
 
-/** 대기실 퇴장·경고성 액션 (인게임 푸터·사이드바 나가기 등) */
+/** 대기실 퇴장·경고성 액션 (인게임 푸터·사이드바 나가기 등) — 붉은색 강조 */
 const DANGER_POST_GAME_SURFACE =
-    'border-rose-800/42 bg-gradient-to-b from-rose-950/50 via-zinc-900 to-zinc-950 text-rose-50/95 ' +
-    'hover:border-rose-600/48 hover:from-rose-900/58 hover:via-zinc-900 hover:to-zinc-950';
+    'border-red-500/55 bg-gradient-to-b from-red-700/75 via-red-950/90 to-zinc-950 text-red-50 ' +
+    'hover:border-red-400/65 hover:from-red-600/80 hover:via-red-900/95 hover:to-zinc-950';
 
 const VARIANT: Record<ArenaPostGameActionVariant, string> = {
     result: UNIFIED_POST_GAME_SURFACE,

@@ -373,8 +373,17 @@ export async function handleStrategicPetHintBonusClaim(
     const petLevel = Math.max(1, Math.floor(Number(petRow.level ?? 1) || 1));
     const reward = pending.bonusReward ?? rollStrategicPetHintBonus(petLevel);
     clearPendingHint(game, user.id);
+    const { markPairPetOnboardingPetHintPlaced } = await import('../shared/utils/pairPetOnboarding.js');
+    markPairPetOnboardingPetHintPlaced(freshUser);
+    const guides = Array.isArray(freshUser.dismissedScreenGuides) ? freshUser.dismissedScreenGuides : [];
+    if (!guides.includes('sp_tutorial_pet_hint')) {
+        freshUser.dismissedScreenGuides = [...guides, 'sp_tutorial_pet_hint'];
+    }
     void grantStrategicPetHintBonus(freshUser, reward).catch((err) => {
         console.error('[strategicPetHint] grantStrategicPetHintBonus failed:', err);
+    });
+    void db.updateUser(freshUser).catch((err) => {
+        console.error('[strategicPetHint] failed to persist pet hint onboarding:', err);
     });
 
     return {

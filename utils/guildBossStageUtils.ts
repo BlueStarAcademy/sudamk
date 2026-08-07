@@ -1,4 +1,4 @@
-// 길드 보스 난이도 단계(1~10): 체력/능력치/보상/등급 컷 스케일
+// 길드 보스 난이도 단계(1~30): 체력/능력치/보상/등급 컷 스케일
 import type { GuildBossInfo } from '../types/index.js';
 import { CoreStat, ItemGrade } from '../types/enums.js';
 import {
@@ -9,7 +9,7 @@ import {
     GUILD_BOSS_SSS_LOTTO_POOL,
 } from '../constants/index.js';
 
-export const GUILD_BOSS_MAX_DIFFICULTY_STAGE = 10;
+export const GUILD_BOSS_MAX_DIFFICULTY_STAGE = 30;
 
 const getRandom = (min: number, max: number) => Math.floor(Math.random() * (max - min + 1)) + min;
 
@@ -22,9 +22,9 @@ export function guildBossHpMultiplier(stage: number): number {
     return Math.pow(1.4, clampGuildBossStage(stage) - 1);
 }
 
-/** 보스 스킬·대결용 능력 배율 (단계당 1.15배) */
+/** 보스 스킬·대결용 능력 배율 (단계당 +10% = 1.10배) */
 export function guildBossStatMultiplier(stage: number): number {
-    return Math.pow(1.15, clampGuildBossStage(stage) - 1);
+    return Math.pow(1.1, clampGuildBossStage(stage) - 1);
 }
 
 /** 골드·재화 등 보상 배율 (단계당 1.5배) */
@@ -87,7 +87,7 @@ export function getGuildBossSwapMailMemberRewards(args: {
 /**
  * 월요일 0시(KST) 주간 길드 보스 리셋 시 길드에 자동 적립되는 보상.
  * 1단계 기준: 격파(남은 0%) → 길드 XP 5000 + 연구 3000, 잔여 체력 50% 이하 → 3000 + 2000.
- * 난이도 단계가 1 올라갈 때마다 배율 1.2배 (`guildBossStatMultiplier`와 동일).
+ * 난이도 단계가 1 올라갈 때마다 배율 1.1배 (`guildBossStatMultiplier`와 동일).
  */
 export function getWeeklyGuildBossSettlementGuildRewards(args: {
     stage: number;

@@ -7,10 +7,10 @@ import {
 } from '../constants/adventureConstants.js';
 
 /**
- * 직전 챕터 지역 탐험도 요구: 티어 인덱스 1 이상(편함~).
+ * 직전 챕터 지역 탐험도 요구: 티어 인덱스 2 이상(익숙함~).
  * (0 낯섬, 1 편함, 2 익숙함, 3 친숙함, 4 정복)
  */
-export const ADVENTURE_CHAPTER_PRIOR_MIN_TIER_INDEX: AdventureUnderstandingTierIndex = 1;
+export const ADVENTURE_CHAPTER_PRIOR_MIN_TIER_INDEX: AdventureUnderstandingTierIndex = 2;
 
 export type AdventureChapterUnlockContext = {
     strategyLevel: number;
@@ -23,10 +23,10 @@ const CHAPTER_RULES: readonly {
     minStrategyLevel: number;
     prerequisiteStageId: AdventureStageId | null;
 }[] = [
-    { stageIndex: 1, minStrategyLevel: 2, prerequisiteStageId: null },
-    { stageIndex: 2, minStrategyLevel: 5, prerequisiteStageId: 'neighborhood_hill' },
-    { stageIndex: 3, minStrategyLevel: 7, prerequisiteStageId: 'lake_park' },
-    { stageIndex: 4, minStrategyLevel: 10, prerequisiteStageId: 'aquarium' },
+    { stageIndex: 1, minStrategyLevel: 1, prerequisiteStageId: null },
+    { stageIndex: 2, minStrategyLevel: 4, prerequisiteStageId: 'neighborhood_hill' },
+    { stageIndex: 3, minStrategyLevel: 6, prerequisiteStageId: 'lake_park' },
+    { stageIndex: 4, minStrategyLevel: 9, prerequisiteStageId: 'aquarium' },
     { stageIndex: 5, minStrategyLevel: 12, prerequisiteStageId: 'zoo' },
 ];
 
@@ -35,7 +35,7 @@ function ruleForStageIndex(stageIndex: number) {
 }
 
 /**
- * 전략 레벨이 `fromLevel` 초과 `toLevel` 이하로 오를 때 새로 만족하는 모험 챕터(전략 LV 조건) 안내.
+ * 유저 레벨이 `fromLevel` 초과 `toLevel` 이하로 오를 때 새로 만족하는 탐험 챕터(레벨 조건) 안내.
  * 레벨업 모달 등에서 사용.
  */
 export function getAdventureChapterStrategyUnlockHintsBetweenLevels(fromLevel: number, toLevel: number): string[] {
@@ -47,7 +47,7 @@ export function getAdventureChapterStrategyUnlockHintsBetweenLevels(fromLevel: n
         const need = rule.minStrategyLevel;
         if (need <= from || need > to) continue;
         const stage = ADVENTURE_STAGES.find((s) => s.stageIndex === rule.stageIndex);
-        out.push(`모험 「${stage?.title ?? '챕터'}」 전략 레벨 조건 달성`);
+        out.push(`탐험 「${stage?.title ?? '챕터'}」 유저 레벨 조건 달성`);
     }
     return out;
 }
@@ -92,7 +92,7 @@ export function getAdventureChapterUnlockConditionLines(
 
     lines.push({
         key: 'strategy',
-        text: `전략바둑 ${rule.minStrategyLevel}레벨`,
+        text: `유저 ${rule.minStrategyLevel}레벨`,
         satisfied: strat >= rule.minStrategyLevel,
     });
 
@@ -120,7 +120,7 @@ export function getAdventureChapterUnlockBlockers(stageIndex: number, ctx: Adven
     const out: string[] = [];
     const strat = Math.max(0, Math.floor(Number(ctx.strategyLevel) || 0));
     if (strat < rule.minStrategyLevel) {
-        out.push(`전략 바둑 레벨 ${rule.minStrategyLevel} 이상 필요 (현재 ${strat})`);
+        out.push(`유저 레벨 ${rule.minStrategyLevel} 이상 필요 (현재 ${strat})`);
     }
     if (rule.prerequisiteStageId != null) {
         const xp = ctx.understandingXpByStage?.[rule.prerequisiteStageId] ?? 0;

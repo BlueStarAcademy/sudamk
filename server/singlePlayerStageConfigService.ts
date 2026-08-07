@@ -87,6 +87,17 @@ const normalizeOptionalPositiveIntFromRow = (
     return n > 0 ? n : undefined;
 };
 
+/** row에 키가 없으면 코드 기본(fallback)을 유지 — KV 옛 스냅샷이 신규 필드(missileCount 등)를 지우는 것 방지 */
+const normalizeOptionalPositiveIntWithFallback = (
+    row: Record<string, unknown>,
+    key: string,
+    max: number,
+    fallbackValue: number | undefined
+): number | undefined => {
+    if (!hasOwn(row, key)) return fallbackValue;
+    return normalizeOptionalPositiveIntFromRow(row, key, max);
+};
+
 const normalizeSinglePlayerAiBaseKomiBid = (value: unknown): SinglePlayerAiBaseKomiBid | undefined => {
     if (!value || typeof value !== 'object') return undefined;
     const row = value as Record<string, unknown>;
@@ -475,18 +486,18 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
         },
         placements: normalizedPlacements,
         timeControl: normalizeTimeControl(row.timeControl, fallback.timeControl),
-        blackTurnLimit: normalizeOptionalPositiveIntFromRow(row, 'blackTurnLimit', 999),
-        survivalTurns: normalizeOptionalPositiveIntFromRow(row, 'survivalTurns', 999),
-        hiddenCount: normalizeOptionalPositiveIntFromRow(row, 'hiddenCount', 99),
-        scanCount: normalizeOptionalPositiveIntFromRow(row, 'scanCount', 99),
+        blackTurnLimit: normalizeOptionalPositiveIntWithFallback(row, 'blackTurnLimit', 999, fallback.blackTurnLimit),
+        survivalTurns: normalizeOptionalPositiveIntWithFallback(row, 'survivalTurns', 999, fallback.survivalTurns),
+        hiddenCount: normalizeOptionalPositiveIntWithFallback(row, 'hiddenCount', 99, fallback.hiddenCount),
+        scanCount: normalizeOptionalPositiveIntWithFallback(row, 'scanCount', 99, fallback.scanCount),
         aiHiddenItemTurns: normalizeOptionalPositiveIntList(row.aiHiddenItemTurns, 99, 12),
         aiHiddenItemUseWithinTurn: normalizeOptionalPositiveIntFromRow(row, 'aiHiddenItemUseWithinTurn', 99),
         aiHiddenItemUseCount: normalizeOptionalPositiveIntFromRow(row, 'aiHiddenItemUseCount', 12),
         aiHiddenItemPlacements: aiHiddenItemPlacements.length > 0 ? aiHiddenItemPlacements : undefined,
         disableAiHiddenItemUsage: row.disableAiHiddenItemUsage === true ? true : undefined,
         forceAiResponsesOnHiddenTurnsOnly: row.forceAiResponsesOnHiddenTurnsOnly === true ? true : undefined,
-        missileCount: normalizeOptionalPositiveIntFromRow(row, 'missileCount', 99),
-        autoScoringTurns: normalizeOptionalPositiveIntFromRow(row, 'autoScoringTurns', 999),
+        missileCount: normalizeOptionalPositiveIntWithFallback(row, 'missileCount', 99, fallback.missileCount),
+        autoScoringTurns: normalizeOptionalPositiveIntWithFallback(row, 'autoScoringTurns', 999, fallback.autoScoringTurns),
         rewards: (() => {
             const canonical = CANONICAL_SINGLE_PLAYER_REWARDS_BY_ID.get(fallback.id) ?? fallback.rewards;
             const rowRewards =
@@ -520,7 +531,7 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
                 repeatClear: normalizeCell(rowRewards?.repeatClear, canonical.repeatClear),
             };
         })(),
-        baseStones: normalizeOptionalPositiveIntFromRow(row, 'baseStones', 20),
+        baseStones: normalizeOptionalPositiveIntWithFallback(row, 'baseStones', 20, fallback.baseStones),
         singlePlayerAiBaseKomiBid: normalizeSinglePlayerAiBaseKomiBid((row as Record<string, unknown>).singlePlayerAiBaseKomiBid),
         fixedOpening: fixedOpening?.length ? fixedOpening : undefined,
         mergeRandomPlacementsWithFixed: Boolean(row.mergeRandomPlacementsWithFixed),
@@ -536,6 +547,8 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
     const presetRaw = (row as Record<string, unknown>).strategicRulePreset;
     if (typeof presetRaw === 'string' && (RULE_PRESETS as readonly string[]).includes(presetRaw)) {
         out.strategicRulePreset = presetRaw as SinglePlayerStrategicRulePreset;
+    } else if (!hasOwn(row, 'strategicRulePreset') && fallback.strategicRulePreset) {
+        out.strategicRulePreset = fallback.strategicRulePreset;
     } else {
         delete (out as { strategicRulePreset?: SinglePlayerStrategicRulePreset }).strategicRulePreset;
     }
@@ -547,9 +560,13 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
             .filter((m): m is GameMode => m != null);
         if (cleaned.length >= 2) {
             out.mixedStrategicModes = ensureMixModesMinTwoAfterBaseCaptureSanitize(cleaned).slice(0, 5);
+        } else if (!hasOwn(row, 'mixedStrategicModes') && fallback.mixedStrategicModes?.length) {
+            out.mixedStrategicModes = [...fallback.mixedStrategicModes];
         } else {
             delete (out as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
         }
+    } else if (!hasOwn(row, 'mixedStrategicModes') && fallback.mixedStrategicModes?.length) {
+        out.mixedStrategicModes = [...fallback.mixedStrategicModes];
     } else {
         delete (out as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
     }

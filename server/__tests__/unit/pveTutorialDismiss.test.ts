@@ -16,4 +16,10 @@ describe('isPveTutorialKindDismissed', () => {
         expect(isPveTutorialKindDismissed('sp_survival', [guide])).toBe(false);
         expect(isPveTutorialKindDismissed('sp_missile', ['sp_tutorial_missile'])).toBe(true);
     });
+
+    it('does not reopen the same kind after dismiss (stage progression)', () => {
+        const seen = [pveTutorialGuideId('sp_speed')];
+        expect(isPveTutorialKindDismissed('sp_speed', seen)).toBe(true);
+        expect(isPveTutorialKindDismissed('sp_auto_scoring', seen)).toBe(false);
+    });
 });

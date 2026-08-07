@@ -1546,7 +1546,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             : null;
     /** 서버 `syncSpeedTimePressureCaptures` 틱 사이에도 (서버 기준 초수당) 상대 집(+1)이 바로 보이도록 */
     const liveSpeedTimePressureCaptureBonusDelta = (playerEnum: Player): number => {
-        if (!isSpeedLiveBonusUi || !session.isAiGame || isScoreMode) return 0;
+        if (!isSpeedLiveBonusUi || isScoreMode) return 0;
+        // 싱글/탑 등 PVE 스피드: isAiGame 누락 시에도 상대(AI) 점수 라이브 반영
+        if (!session.isAiGame && !isPveLikeSpeedSession) return 0;
         const aiEnum =
             session.blackPlayerId === aiUserId
                 ? Player.Black
@@ -1883,13 +1885,15 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
           : mode === GameMode.Curling && isMobile
             ? 'min-h-[5.5rem] max-h-[7rem]'
             : isSpeedLikeMode && sessionHasStrategicClock
-              ? 'h-[5.5rem] min-h-[5.5rem] max-h-[5.5rem]'
+              ? 'h-[6.25rem] min-h-[6.25rem] max-h-[6.25rem]'
               : 'h-[5rem] min-h-[5rem] max-h-[5rem]';
 
-    /** 컴팩트 바 외(데스크톱 등): 아바타+닉+레벨+시계가 들어가도록 고정 높이(초과 시 시계가 잘림) */
+    /** 컴팩트 바 외(데스크톱 등): 아바타+닉+레벨+시계(+스피드 막대)가 들어가도록 고정 높이 */
     const playerColClass = compactPlayerBar
         ? 'flex min-h-0 min-w-0 flex-1 items-stretch'
-        : 'flex h-[5.75rem] min-h-[5.75rem] max-h-[5.75rem] min-w-0 flex-1 overflow-hidden';
+        : isSpeedLikeMode && sessionHasStrategicClock
+          ? 'flex h-[7.5rem] min-h-[7.5rem] max-h-[7.5rem] min-w-0 flex-1 overflow-hidden'
+          : 'flex h-[5.75rem] min-h-[5.75rem] max-h-[5.75rem] min-w-0 flex-1 overflow-hidden';
     const compactBarRowClass = compactPlayerBar
         ? `${compactBarFixedHeightClass} items-stretch justify-between gap-1.5 overflow-hidden`
         : 'h-full items-stretch gap-2 min-[1025px]:gap-1.5';

@@ -3,8 +3,9 @@ import { CoreStat, LeagueTier } from '../types/enums.js';
 import { createDefaultUser } from './initialData.ts';
 import {
     ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID,
-    TOWER_ENTRANCE_REQUIRED_STAGE_ID,
+    TOWER_ENTRANCE_ADVENTURE_STAGE_ID,
 } from '../shared/utils/contentProgressionGates.js';
+import { ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS } from '../constants/adventureConstants.js';
 import { MAX_PLAYER_DIAMONDS, MAX_PLAYER_GOLD } from '../shared/constants/numericLimits.js';
 import { DIAMOND_PACKAGE_DURATION_DAYS } from '../shared/constants/cashShopPackages.js';
 import {
@@ -54,13 +55,27 @@ export function applyPgTestUserProfile(user: User): User {
     user.lastActionPointPurchaseDate = 0;
     user.dailyShopPurchases = {};
 
-    user.clearedSinglePlayerStages = [
-        TOWER_ENTRANCE_REQUIRED_STAGE_ID,
-        ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID,
-    ];
+    user.clearedSinglePlayerStages = [ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID, '입문-10', '입문-20'];
     user.singlePlayerProgress = 100;
     user.towerFloor = 100;
     user.monthlyTowerFloor = 100;
+
+    if (!user.adventureProfile) {
+        user.adventureProfile = {};
+    }
+    user.adventureProfile = {
+        ...user.adventureProfile,
+        understandingXpByStage: {
+            ...(user.adventureProfile.understandingXpByStage ?? {}),
+            [TOWER_ENTRANCE_ADVENTURE_STAGE_ID]: ADVENTURE_UNDERSTANDING_TIER_THRESHOLDS[1],
+        },
+    };
+
+    const demoPet = (user.inventory ?? []).find((it) => it.templateId?.startsWith('pair-pet-'));
+    if (demoPet) {
+        user.equippedPairPetTemplateId = demoPet.templateId ?? null;
+        user.equippedPairPetInventoryItemId = demoPet.id;
+    }
 
     user.rewardVipExpiresAt = far;
     user.functionVipExpiresAt = far;

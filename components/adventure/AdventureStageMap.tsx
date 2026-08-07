@@ -23,6 +23,10 @@ import AdventureMonsterPortrait from './AdventureMonsterPortrait.js';
 import AdventureMapMonsterLabel from './AdventureMapMonsterLabel.js';
 import AdventureMapBackdrop from './AdventureMapBackdrop.js';
 import AdventureMapMonsterMarker from './AdventureMapMonsterMarker.js';
+import AdventureMapCompanionMarker from './AdventureMapCompanionMarker.js';
+import { effectiveAdventureAttackApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
+import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
+import { PAIR_PET_CATALOG } from '../../shared/constants/petLobby.js';
 import { replaceAppHash } from '../../utils/appUtils.js';
 import {
     getAdventureChapterUnlockBlockers,
@@ -88,7 +92,11 @@ type AdventureMapMonsterPanelDetails = {
     isBoss: boolean;
 };
 
-function buildAdventureMapMonsterDetails(stage: AdventureStageDef, m: MapMonster): AdventureMapMonsterPanelDetails {
+function buildAdventureMapMonsterDetails(
+    stage: AdventureStageDef,
+    m: AdventureMapMonsterInstance,
+    user?: Parameters<typeof effectiveAdventureAttackApCostForUser>[0] | null,
+): AdventureMapMonsterPanelDetails {
     const { min, max } = getAdventureStageLevelRange(stage.stageIndex);
     const boardSize = resolveAdventureBoardSize(stage.id, m.codexId, m.id, {
         monsterLevel: m.level,
@@ -97,7 +105,8 @@ function buildAdventureMapMonsterDetails(stage: AdventureStageDef, m: MapMonster
     });
     const gameMode = adventureBattleModeToGameMode(m.mode);
     const quickLines = formatAdventureBattleQuickLines(boardSize, gameMode);
-    const apCost = getAdventureMonsterAttackActionPointCost(stage.stageIndex, m.codexId);
+    const baseAp = getAdventureMonsterAttackActionPointCost(stage.stageIndex, m.codexId);
+    const apCost = user ? effectiveAdventureAttackApCostForUser(user, baseAp) : baseAp;
     const codexRow = stage.monsters.find((e) => e.codexId === m.codexId);
     const chapterUi = ADVENTURE_CODEX_CHAPTER_UI[stage.id as AdventureStageId];
     const isBoss = isAdventureChapterBossCodexId(m.codexId);
@@ -429,7 +438,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
 
     const selectionDetails = useMemo(() => {
         if (!selectedMonster || !stage) return null;
-        return buildAdventureMapMonsterDetails(stage, selectedMonster);
+        return buildAdventureMapMonsterDetails(stage, selectedMonster, currentUserWithStatus);
     }, [selectedMonster, stage]);
 
     const treasureRewardSections = useMemo(() => {
@@ -469,7 +478,7 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
 
     const rosterModalInstanceDetails = useMemo(() => {
         if (!rosterModalInstance || !stage) return null;
-        return buildAdventureMapMonsterDetails(stage, rosterModalInstance);
+        return buildAdventureMapMonsterDetails(stage, rosterModalInstance, currentUserWithStatus);
     }, [rosterModalInstance, stage]);
     const rosterModalCodexWins = Math.max(
         0,
@@ -793,6 +802,19 @@ const AdventureStageMap: React.FC<Props> = ({ stageId }) => {
                                     mapWebp={stage.mapWebp}
                                     animated
                                 />
+                                {(() => {
+                                    const row = currentUserWithStatus
+                                        ? getEquippedPairPetInventoryRow(currentUserWithStatus)
+                                        : null;
+                                    if (!row?.templateId) return null;
+                                    const def = PAIR_PET_CATALOG.find((p) => p.templateId === row.templateId);
+                                    return (
+                                        <AdventureMapCompanionMarker
+                                            templateId={row.templateId}
+                                            displayName={def?.displayName}
+                                        />
+                                    );
+                                })()}
                                 {monsters.map((m) => (
                                     <AdventureMapMonsterMarker
                                         key={m.id}

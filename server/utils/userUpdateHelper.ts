@@ -79,7 +79,7 @@ export function getSelectiveUserUpdate(
         'UPDATE_MBTI': ['mbti', 'isMbtiPublic', 'diamonds'],
         'UPDATE_PAIR_PET_LOBBY_INVENTORY_SORT': ['pairPetLobbyInventorySort'],
         'SET_BLOCK_ARENA_PARTNER_INVITES': ['blockArenaPartnerInvites'],
-        'DISMISS_SCREEN_GUIDE': ['dismissedScreenGuides'],
+        'DISMISS_SCREEN_GUIDE': ['dismissedScreenGuides', 'pairPetOnboarding'],
         'MANNER_ACTION': ['mannerScore', 'mannerMasteryApplied', 'actionPoints', 'quests'],
         'RESET_STAT_POINTS': ['spentStatPoints', 'gold', 'lastStatResetDate', 'statResetCountToday'],
         'RESET_SINGLE_STAT': ['diamonds', 'stats'],
@@ -175,7 +175,7 @@ export function getSelectiveUserUpdate(
         
         // 소셜 관련
         'LOGOUT': [], // 로그아웃은 사용자 데이터 반환 불필요
-        'PAIR_PET_START_TRAINING': ['pairPetTrainingSlots'],
+        'PAIR_PET_START_TRAINING': ['pairPetTrainingSlots', 'pairPetOnboarding'],
         'PAIR_PET_CANCEL_TRAINING': ['pairPetTrainingSlots'],
         'PAIR_PET_CLAIM_TRAINING': ['inventory', 'gold', 'pairPetTrainingSlots', 'quests'],
         'PAIR_PET_CLAIM_TRAINING_AD_DOUBLE': ['inventory', 'gold', 'quests'],

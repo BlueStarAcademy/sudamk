@@ -49,7 +49,7 @@ export const GUILD_BOSS_RESEARCH_EVASION_PER_LEVEL_PERCENT = 3;
 export const GUILD_BOSS_RESEARCH_HIT_DAMAGE_REDUCTION_PER_LEVEL_PERCENT = 5;
 
 export function guildBossUserDamageStageMultiplier(stage: number): number {
-    const st = Math.min(10, Math.max(1, Math.floor(stage) || 1));
+    const st = Math.min(30, Math.max(1, Math.floor(stage) || 1));
     return 1 + GUILD_BOSS_USER_DAMAGE_STAGE_BONUS_PER_LEVEL * (st - 1);
 }
 

@@ -5,6 +5,7 @@ import HomeEntranceCard, {
     type HomeEntranceGuildInfo,
 } from './HomeEntranceCard.js';
 import { WaitingLobbyAnnouncementBoard } from '../waiting-room/WaitingLobbyAnnouncementBoard.js';
+import PetOnboardingHomeBanner from './PetOnboardingHomeBanner.js';
 import {
     HOME_ENTRANCE_SECTIONS,
     type HomeEntranceCardId,
@@ -116,6 +117,7 @@ const HomeEntranceHub: React.FC<HomeEntranceHubProps> = ({
                 </div>
             ) : null}
             <div className="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto overscroll-y-contain pb-2 [scrollbar-gutter:stable] sm:gap-4">
+                <PetOnboardingHomeBanner />
                 {HOME_ENTRANCE_SECTIONS.map((section, index) => renderSection(section, index))}
             </div>
         </div>

@@ -35,6 +35,7 @@ import {
     resultModalFontPx,
 } from './game/resultModalScoreTypography.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { resolveArenaSessionPolicy, isAdventureSessionLike } from '../shared/utils/liveSessionArenaKind.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../shared/constants/vipPlayReward.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
@@ -43,6 +44,7 @@ import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import ResultAdGoldDoubleButton from './game/ResultAdGoldDoubleButton.js';
 import GameResultModalConfirmFooter from './game/GameResultModalConfirmFooter.js';
+import { arenaPostGameButtonClass } from './game/arenaPostGameButtonStyles.js';
 import {
     MobileGameResultTabBar,
     MobileResultTabPanelStack,
@@ -1706,7 +1708,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     );
     /** 등급 강화 필요 시 결과 모달에서 펫 XP 바·배지 대신 안내 */
     const showPetXpBarAside = showPetXpAside && !showPetGradeUpgradeInsteadOfXp;
-    const isAdventureGame = session.gameCategory === 'adventure';
+    const isAdventureGame =
+        resolveArenaSessionPolicy(session).kind === 'adventure' || isAdventureSessionLike(session);
     const sessionShowsVipPlayRewardSlot = useMemo(() => {
         if (isSpectator) return false;
         const cat = session.gameCategory as string | undefined;
@@ -3223,9 +3226,18 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             </div>
             </div>
             <GameResultModalConfirmFooter
-                label={confirmLabel || t('summary.confirm')}
-                onConfirm={onConfirm}
+                label={
+                    adventureResultChrome
+                        ? t('controls.goToMap')
+                        : confirmLabel || t('summary.confirm')
+                }
+                onConfirm={adventureResultChrome ? onLeaveToAdventureMap! : onConfirm}
                 isMobile={isMobile}
+                confirmButtonClassName={
+                    adventureResultChrome
+                        ? arenaPostGameButtonClass('danger', isMobile, 'modal')
+                        : undefined
+                }
                 leadingAction={
                     !isSpectator && mySummary ? (
                         <ResultAdGoldDoubleButton
