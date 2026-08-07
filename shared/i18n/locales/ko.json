@@ -2358,6 +2358,19 @@
       "tutorialMissileFireHint": "발사 중…",
       "tutorialMissileCaptureFlash": "따냄!",
       "tutorialMissileCaptureHint": "마지막 활로를 막아 상대 돌을 따냈습니다.",
+      "tutorialHiddenItemHint": "빛나는 히든 아이템을 누르세요",
+      "tutorialHiddenPlaceHint": "단수가 되도록 빛나는 곳에 히든 돌을 놓으세요",
+      "tutorialHiddenWhiteHint": "백이 다른 곳에 두는 수를 따라 놓으세요",
+      "tutorialHiddenCaptureHint": "마지막 활로를 막아 따내세요 — 히든 돌이 공개됩니다",
+      "tutorialHiddenRevealFlash": "따냄 · 히든 공개!",
+      "tutorialHiddenRevealHint": "단수였던 돌을 따내며 히든 돌이 드러납니다.",
+      "tutorialHiddenOpponentFlash": "상대 히든 사용",
+      "tutorialHiddenOpponentHint": "상대가 히든으로 보이지 않는 수를 둡니다.",
+      "tutorialScanItemHint": "빛나는 스캔 아이템을 누르세요",
+      "tutorialScanClickHint": "상대 히든이 있을 것 같은 곳을 스캔하세요",
+      "tutorialScanHint": "스캔으로 상대 히든 위치를 찾아보세요.",
+      "tutorialScanFoundFlash": "스캔 성공!",
+      "tutorialScanFoundHint": "스캔한 히든 돌이 반투명으로 보입니다.",
       "tutorialSpeedYou": "나",
       "tutorialSpeedOpponent": "상대",
       "tutorialSpeedScore": "점수",
@@ -2395,7 +2408,7 @@
         },
         "sp_hidden": {
           "title": "히든·스캔",
-          "body": "히든으로 보이지 않는 수를 두고, 스캔으로 상대 히든을 찾을 수 있습니다."
+          "body": "히든으로 단수를 노리고, 따낼 때 공개됩니다. 이어 상대 히든을 스캔으로 찾아보세요."
         },
         "sp_base": {
           "title": "베이스 바둑",

@@ -2329,6 +2329,19 @@
       "tutorialMissileFireHint": "Firing…",
       "tutorialMissileCaptureFlash": "Captured!",
       "tutorialMissileCaptureHint": "You blocked the last liberty and captured the stone.",
+      "tutorialHiddenItemHint": "Tap the glowing Hidden item",
+      "tutorialHiddenPlaceHint": "Place a hidden stone on the glowing point to put White in atari",
+      "tutorialHiddenWhiteHint": "Play White's move elsewhere on the glowing point",
+      "tutorialHiddenCaptureHint": "Fill the last liberty to capture — your hidden stone is revealed",
+      "tutorialHiddenRevealFlash": "Capture · Hidden revealed!",
+      "tutorialHiddenRevealHint": "Capturing the ataried stone reveals your hidden stone.",
+      "tutorialHiddenOpponentFlash": "Opponent uses Hidden",
+      "tutorialHiddenOpponentHint": "The opponent plays a hidden move you cannot see.",
+      "tutorialScanItemHint": "Tap the glowing Scan item",
+      "tutorialScanClickHint": "Scan the glowing point to find the hidden stone",
+      "tutorialScanHint": "Use Scan to find the opponent's hidden stone.",
+      "tutorialScanFoundFlash": "Scan success!",
+      "tutorialScanFoundHint": "The scanned hidden stone appears translucent.",
       "tutorialSpeedYou": "You",
       "tutorialSpeedOpponent": "Opponent",
       "tutorialSpeedScore": "Score",
@@ -2366,7 +2379,7 @@
         },
         "sp_hidden": {
           "title": "Hidden & scan",
-          "body": "Play hidden moves the opponent cannot see, and use scan to find theirs."
+          "body": "Use Hidden to threaten atari, reveal on capture, then Scan to find the opponent's hidden stone."
         },
         "sp_base": {
           "title": "Base Go",

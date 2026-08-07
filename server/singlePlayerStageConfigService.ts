@@ -600,7 +600,63 @@ const normalizeStage = (raw: unknown, fallback: StageRow): SinglePlayerStageInfo
     }
     pruneStageFieldsForExplicitRulePreset(out);
 
+    // 첫 미사일 입문 스테이지(초급-11): KV/에디터가 speed-only로 덮어써도 코드 기본 미사일 믹스를 복구.
+    // 그렇지 않으면 이미 본 sp_speed로만 잡혀 미사일 튜토리얼이 영구히 안 뜬다.
+    pinFirstMissileIntroStageFromCodeDefault(out, fallback);
+    // 첫 히든 입문 스테이지(중급-6): KV가 미사일-only로 남아 있어도 히든 룰을 복구.
+    pinFirstHiddenIntroStageFromCodeDefault(out, fallback);
+
     return out;
+};
+
+/** 모험 미사일 튜토리얼 최초 노출 스테이지 — 코드 기본의 Speed+Missile 믹스를 권위로 둔다. */
+const FIRST_MISSILE_INTRO_STAGE_ID = '초급-11';
+/** 모험 히든 튜토리얼 최초 노출 스테이지 — 코드 기본의 히든 룰을 권위로 둔다. */
+const FIRST_HIDDEN_INTRO_STAGE_ID = '중급-6';
+
+const pinFirstMissileIntroStageFromCodeDefault = (
+    out: SinglePlayerStageInfo,
+    fallback: SinglePlayerStageInfo,
+): void => {
+    if (fallback.id !== FIRST_MISSILE_INTRO_STAGE_ID) return;
+    if ((fallback.missileCount ?? 0) <= 0) return;
+    const fallbackMix = fallback.mixedStrategicModes;
+    const fallbackHasMissileMix =
+        fallback.strategicRulePreset === 'mix' &&
+        Array.isArray(fallbackMix) &&
+        fallbackMix.includes(GameMode.Missile);
+    if (!fallbackHasMissileMix && fallback.strategicRulePreset !== 'missile') return;
+
+    out.missileCount = fallback.missileCount;
+    if (fallbackHasMissileMix && fallbackMix) {
+        out.strategicRulePreset = 'mix';
+        out.mixedStrategicModes = [...fallbackMix];
+    } else {
+        out.strategicRulePreset = 'missile';
+        delete (out as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
+    }
+    pruneStageFieldsForExplicitRulePreset(out);
+};
+
+const pinFirstHiddenIntroStageFromCodeDefault = (
+    out: SinglePlayerStageInfo,
+    fallback: SinglePlayerStageInfo,
+): void => {
+    if (fallback.id !== FIRST_HIDDEN_INTRO_STAGE_ID) return;
+    if ((fallback.hiddenCount ?? 0) <= 0) return;
+    if (fallback.strategicRulePreset !== 'hidden' && fallback.strategicRulePreset !== 'mix') return;
+
+    out.hiddenCount = fallback.hiddenCount;
+    out.scanCount = fallback.scanCount ?? 2;
+    if (fallback.strategicRulePreset === 'mix' && fallback.mixedStrategicModes?.length) {
+        out.strategicRulePreset = 'mix';
+        out.mixedStrategicModes = [...fallback.mixedStrategicModes];
+    } else {
+        out.strategicRulePreset = 'hidden';
+        delete (out as { mixedStrategicModes?: GameMode[] }).mixedStrategicModes;
+        delete (out as { missileCount?: number }).missileCount;
+    }
+    pruneStageFieldsForExplicitRulePreset(out);
 };
 
 /** 전체 스테이지 배열이 기본 ID 집합과 1:1 대응하는 순열이면 true (관리자 순서 편집 저장) */

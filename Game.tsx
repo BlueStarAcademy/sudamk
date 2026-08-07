@@ -5480,13 +5480,27 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         towerValidMoveCount === 0;
 
     const academyStageId = isSinglePlayer ? session.stageId ?? null : null;
+    const academyStageDisplayId = (session as { singlePlayerStageDisplay?: { id?: string } })
+        .singlePlayerStageDisplay?.id;
+    const academyStageDisplayMissile = (session as { singlePlayerStageDisplay?: { missileCount?: number } })
+        .singlePlayerStageDisplay?.missileCount;
+    const academyStageDisplayPreset = (
+        session as { singlePlayerStageDisplay?: { strategicRulePreset?: string } }
+    ).singlePlayerStageDisplay?.strategicRulePreset;
     const academyStageForBrief = useMemo(
         () => (isSinglePlayer ? resolveLiveSessionSinglePlayerStageRow(session) : null),
-        // session 전체 대신 stage 식별자·리비전만 — 매 렌더 새 session 참조로 인한 연쇄 갱신 방지
+        // session 전체 대신 stage 식별자·스냅샷 룰 필드·목록 리비전만 — 매 렌더 새 session 참조로 인한 연쇄 갱신 방지
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional narrow deps
-        [isSinglePlayer, academyStageId, singlePlayerStagesListRevision],
+        [
+            isSinglePlayer,
+            academyStageId,
+            academyStageDisplayId,
+            academyStageDisplayMissile,
+            academyStageDisplayPreset,
+            singlePlayerStagesListRevision,
+        ],
     );
-    /** 스테이지별 튜토리얼 종류 — 자동 노출은 종류 dismiss 후 억제. 미해금/이미 본 종류는 버튼도 숨김 */
+    /** 스테이지별 튜토리얼 종류 — 자동 노출은 종류 dismiss 후 억제. 미해금 스테이지는 버튼도 숨김 */
     const pendingTutorialId = useMemo((): PveTutorialId | null => {
         if (!showGameDescription || !academyStageForBrief) return null;
         return resolveTutorialForStage(session, academyStageForBrief);
@@ -5497,6 +5511,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         academyStageId,
         session.mode,
         session.settings?.missileCount,
+        session.settings?.mixedModes,
         session.settings?.hiddenStoneCount,
         session.settings?.baseStones,
         session.settings?.isSurvivalMode,
@@ -5554,7 +5569,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.id,
         isPendingTutorialKindDismissed,
     ]);
-    const canReplayAcademyTutorial = Boolean(pendingTutorialId) && !isPendingTutorialKindDismissed;    const finishAcademyTutorial = useCallback(
+    /** 이미 본 종류여도 시작 모달「튜토리얼」로 다시보기 가능 */
+    const canReplayAcademyTutorial = Boolean(pendingTutorialId);
+    const finishAcademyTutorial = useCallback(
         (tutorialId: PveTutorialId) => {
             const guideId = pveTutorialGuideId(tutorialId);
             dismissedTutorialKindsRef.current.add(tutorialId);
