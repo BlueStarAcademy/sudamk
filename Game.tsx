@@ -39,8 +39,11 @@ import PveBriefStartModal from './components/pve/PveBriefStartModal.js';
 import PveInteractiveTutorialModal from './components/pve/PveInteractiveTutorialModal.js';
 import {
     resolveTutorialForStage,
+    pveTutorialGuideId,
+    isPveTutorialKindDismissed,
     type PveTutorialId,
 } from './shared/constants/pveTutorials.js';
+import { dismissScreenGuide, isScreenGuideDismissed } from './utils/screenGuideDismiss.js';
 import SinglePlayerSidebar from './components/game/SinglePlayerSidebar.js';
 import TowerControls from './components/game/TowerControls.js';
 import TowerSidebar from './components/game/TowerSidebar.js';
@@ -5465,7 +5468,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional narrow deps
         [isSinglePlayer, academyStageId, singlePlayerStagesListRevision],
     );
-    /** 스테이지 재입장마다 튜토리얼 노출 — 같은 세션에서 닫은 뒤에만 brief로 전환 */
+    /** 스테이지별 튜토리얼 종류 — 자동 노출은 종류 dismiss 후 억제, 「튜토리얼」로 강제 재생 가능 */
     const pendingTutorialId = useMemo((): PveTutorialId | null => {
         if (!showGameDescription || !academyStageForBrief) return null;
         return resolveTutorialForStage(session, academyStageForBrief);
@@ -5484,14 +5487,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const [forcedTutorialId, setForcedTutorialId] = useState<PveTutorialId | null>(null);
     const [tutorialDismissedForSession, setTutorialDismissedForSession] = useState<string | null>(null);
     useEffect(() => {
-        // 새 세션(스테이지 재입장)마다 튜토리얼을 다시 보여 준다.
+        // 새 세션에서는 세션 내 닫기 플래그만 리셋. 종류별 dismiss는 유지.
         setForcedTutorialId(null);
         setTutorialDismissedForSession(null);
     }, [session.id]);
+    const dismissedScreenGuides = currentUserWithStatus.dismissedScreenGuides;
     const activeTutorialId: PveTutorialId | null = useMemo(() => {
         if (forcedTutorialId) return forcedTutorialId;
         if (!pendingTutorialId || !showGameDescription) return null;
         if (tutorialDismissedForSession === session.id) return null;
+        const guideId = pveTutorialGuideId(pendingTutorialId);
+        if (
+            isScreenGuideDismissed(guideId, currentUserWithStatus.id) ||
+            isPveTutorialKindDismissed(pendingTutorialId, dismissedScreenGuides)
+        ) {
+            return null;
+        }
         return pendingTutorialId;
     }, [
         forcedTutorialId,
@@ -5499,13 +5510,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         showGameDescription,
         tutorialDismissedForSession,
         session.id,
+        currentUserWithStatus.id,
+        dismissedScreenGuides,
     ]);
     const finishAcademyTutorial = useCallback(
-        (_tutorialId: PveTutorialId) => {
+        (tutorialId: PveTutorialId) => {
+            const guideId = pveTutorialGuideId(tutorialId);
+            dismissScreenGuide(guideId, currentUserWithStatus.id);
+            void handlers.handleAction({ type: 'DISMISS_SCREEN_GUIDE', payload: { guideId } });
             setForcedTutorialId(null);
             setTutorialDismissedForSession(session.id);
         },
-        [session.id],
+        [session.id, currentUserWithStatus.id, handlers],
     );
 
     /** 새로고침 직후 INITIAL_STATE/rejoin 전에 격자·돌이 맞지 않으면 안내 레이어(착점은 handleBoardClick에서도 차단) */

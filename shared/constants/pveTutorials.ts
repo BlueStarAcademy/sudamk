@@ -165,7 +165,8 @@ export function pveTutorialGuideId(id: PveTutorialId): PveTutorialGuideId {
 /**
  * 모험(싱글) 스테이지에 대해 보여줄 튜토리얼 id.
  * 우선순위: 살리기 → 미사일 → 히든 → 베이스 → 계가 → 따내기(기본)
- * 스테이지 재입장마다 다시 노출한다(세션 내 닫기만 스킵).
+ * 자동 노출은 종류별 `dismissedScreenGuides`로 억제 — 다른 종류가 나올 때까지 재표시하지 않음.
+ * (시작하기 모달의 「튜토리얼」로 강제 다시보기는 가능)
  */
 export function resolveTutorialForStage(
     session: LiveGameSession,
@@ -199,6 +200,15 @@ export function resolveTutorialForStage(
         return 'sp_auto_scoring';
     }
     return 'sp_capture_basics';
+}
+
+/** 해당 튜토리얼 종류를 이미 봤는지 (서버/로컬 dismissedScreenGuides) */
+export function isPveTutorialKindDismissed(
+    tutorialId: PveTutorialId,
+    dismissedGuides: readonly string[] | null | undefined,
+): boolean {
+    const guideId = pveTutorialGuideId(tutorialId);
+    return Array.isArray(dismissedGuides) && dismissedGuides.includes(guideId);
 }
 
 /** 모든 모험 튜토리얼 id */

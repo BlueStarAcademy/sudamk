@@ -26,9 +26,10 @@ import i18n from '../../shared/i18n/config.js';
 export type PveBriefMode = 'academy' | 'tower' | 'adventure';
 
 const PVE_BRIEF_FOOTER_BTN =
-    '!min-h-[2.65rem] !min-w-0 !px-1.5 !py-1.5 !text-[10px] !font-bold !leading-tight !tracking-tight !whitespace-normal sm:!px-3 sm:!text-sm sm:!leading-snug';
+    '!min-h-[2.65rem] !min-w-0 !px-1.5 !py-1.5 !text-[10px] !font-bold !leading-tight !tracking-tight !whitespace-nowrap sm:!px-3 sm:!text-sm sm:!leading-snug';
 const PVE_BRIEF_FOOTER_SECONDARY = `${PRE_GAME_MODAL_SECONDARY_BTN_CLASS} ${PVE_BRIEF_FOOTER_BTN}`;
 const PVE_BRIEF_FOOTER_ACCENT = `${PRE_GAME_MODAL_ACCENT_BTN_CLASS} ${PVE_BRIEF_FOOTER_BTN}`;
+const PVE_BRIEF_FOOTER_TUTORIAL = `${PVE_BRIEF_FOOTER_SECONDARY} !shrink-0 !min-w-max`;
 
 type Props = {
     session: LiveGameSession;
@@ -120,7 +121,7 @@ const PveBriefStartModal: React.FC<Props> = ({
                             type="button"
                             colorScheme="none"
                             bare
-                            className={`${PVE_BRIEF_FOOTER_SECONDARY} flex-1`}
+                            className={`${PVE_BRIEF_FOOTER_TUTORIAL} flex-1`}
                             onClick={onReplayTutorial}
                             cooldownMs={0}
                         >
@@ -155,7 +156,7 @@ const PveBriefStartModal: React.FC<Props> = ({
                             type="button"
                             colorScheme="none"
                             bare
-                            className={`${PVE_BRIEF_FOOTER_SECONDARY} min-w-0 flex-[0.95]`}
+                            className={`${PVE_BRIEF_FOOTER_TUTORIAL} flex-[0.95]`}
                             onClick={onReplayTutorial}
                             cooldownMs={0}
                         >

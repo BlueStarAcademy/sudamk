@@ -2165,8 +2165,11 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const { category } = payload as { category: 'equipment' | 'consumable' | 'material' };
             if (!category) return { error: '확장할 인벤토리 탭을 지정해야 합니다.' };
 
-            const BASE_SLOTS_PER_CATEGORY = 30;
-            const EXPANSION_AMOUNT = 10;
+            const {
+                BASE_SLOTS_PER_CATEGORY,
+                EXPANSION_AMOUNT,
+                inventoryCategoryExpandDiamondCost,
+            } = await import('../../shared/constants/items.js');
             const MAX_INVENTORY_SIZE = 100;
 
             const currentCategorySlots = user.inventorySlots[category] || BASE_SLOTS_PER_CATEGORY;
@@ -2175,8 +2178,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 return { error: '이미 최대치까지 확장했습니다.' };
             }
 
-            const expansionsMade = Math.max(0, (currentCategorySlots - BASE_SLOTS_PER_CATEGORY) / EXPANSION_AMOUNT);
-            const expansionCost = 100 + (expansionsMade * 20);
+            const expansionCost = inventoryCategoryExpandDiamondCost(currentCategorySlots);
 
             if (user.diamonds < expansionCost) {
                 return { error: '다이아가 부족합니다.' };

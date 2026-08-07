@@ -493,28 +493,31 @@ export const handleShopAction = async (volatileState: VolatileState, action: Ser
         }
         case 'EXPAND_INVENTORY': {
             const { category } = payload as { category: keyof User['inventorySlots'] };
-            const EXPANSION_COST_DIAMONDS = 100;
-            const EXPANSION_AMOUNT = 10;
+            const { BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, inventoryCategoryExpandDiamondCost } = await import('../../shared/constants/items.js');
             const MAX_INVENTORY_SIZE = 100;
+
+            const currentCategorySlots = user.inventorySlots[category] || BASE_SLOTS_PER_CATEGORY;
             
-            if (user.inventorySlots[category] >= MAX_INVENTORY_SIZE) {
+            if (currentCategorySlots >= MAX_INVENTORY_SIZE) {
                 return { error: '가방을 더 이상 확장할 수 없습니다.' };
             }
 
+            const expansionCost = inventoryCategoryExpandDiamondCost(currentCategorySlots);
+
             if (!user.isAdmin) {
-                if (user.diamonds < EXPANSION_COST_DIAMONDS) {
+                if (user.diamonds < expansionCost) {
                     return { error: '다이아가 부족합니다.' };
                 }
-                user.diamonds -= EXPANSION_COST_DIAMONDS;
+                user.diamonds -= expansionCost;
                 
                 // Update Guild Mission Progress for diamonds spent
                 if (user.guildId) {
                     const guilds = await db.getKV<Record<string, any>>('guilds') || {};
-                    await guildService.updateGuildMissionProgress(user.guildId, 'diamondsSpent', EXPANSION_COST_DIAMONDS, guilds);
+                    await guildService.updateGuildMissionProgress(user.guildId, 'diamondsSpent', expansionCost, guilds);
                 }
             }
             
-            user.inventorySlots[category] = Math.min(MAX_INVENTORY_SIZE, user.inventorySlots[category] + EXPANSION_AMOUNT);
+            user.inventorySlots[category] = Math.min(MAX_INVENTORY_SIZE, currentCategorySlots + EXPANSION_AMOUNT);
             
             const updatedUser = getSelectiveUserUpdate(user, 'EXPAND_INVENTORY');
             

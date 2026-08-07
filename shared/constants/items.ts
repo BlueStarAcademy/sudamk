@@ -608,6 +608,24 @@ export const CONSUMABLE_SELL_PRICES: Record<string, number> = {
 export const BASE_SLOTS_PER_CATEGORY = 30;
 export const EXPANSION_AMOUNT = 10;
 
+/** 가방 카테고리 확장 기본 다이아 / 회차당 가산 */
+export const INVENTORY_EXPAND_BASE_DIAMONDS = 100;
+export const INVENTORY_EXPAND_DIAMONDS_PER_STEP = 20;
+
+/** 이미 완료한 가방 카테고리 확장 횟수 (기본 30슬롯 = 0) */
+export function inventoryCategoryExpansionCount(currentCategorySlots: number): number {
+    const slots = Number.isFinite(currentCategorySlots) ? currentCategorySlots : BASE_SLOTS_PER_CATEGORY;
+    return Math.max(0, (slots - BASE_SLOTS_PER_CATEGORY) / EXPANSION_AMOUNT);
+}
+
+/**
+ * 다음 가방 슬롯 확장 1회 다이아 비용.
+ * `100 + (이미 완료한 확장 횟수) * 20` — UI·EXPAND_INVENTORY 서버 차감 공통.
+ */
+export function inventoryCategoryExpandDiamondCost(currentCategorySlots: number): number {
+    return INVENTORY_EXPAND_BASE_DIAMONDS + inventoryCategoryExpansionCount(currentCategorySlots) * INVENTORY_EXPAND_DIAMONDS_PER_STEP;
+}
+
 export const MAX_EQUIPMENT_SLOTS = 100;
 export const MAX_CONSUMABLE_SLOTS = 50;
 export const MAX_MATERIAL_SLOTS = 50;

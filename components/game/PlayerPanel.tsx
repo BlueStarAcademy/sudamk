@@ -540,9 +540,9 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                         isMobile={isMobile}
                         lightSurface={panelType === 'white'}
                     />
-                    <div className={`mt-0.5 flex ${justifyClass}`}>
+                    <div className={`mt-0.5 flex overflow-visible ${justifyClass}`}>
                         <span
-                            className={`font-mono text-xs font-semibold tabular-nums tracking-wide ${
+                            className={`font-mono text-xs font-semibold tabular-nums tracking-wide leading-tight py-px ${
                                 panelType === 'white' ? 'text-slate-800' : 'text-stone-200'
                             }`}
                         >
@@ -566,15 +566,21 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                 />
             )}
             {(!useAdventureMatchCountdown && (showElapsedOnly ? isCurrentUser : true)) && (
-                <div className={`flex flex-wrap items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-x-1 gap-y-0.5`}>
+                <div
+                    className={`flex flex-wrap items-center ${isMobile ? 'mt-0' : 'mt-0.5'} ${justifyClass} gap-x-1 gap-y-0.5 overflow-visible`}
+                >
                     {showElapsedOnly ? (
                         <>
-                            <span className={`font-mono font-bold ${timeTextClasses} ${displayTimeTextSize}`}>{formatTime(timeLeft)}</span>
+                            <span
+                                className={`font-mono font-bold tabular-nums leading-tight py-px ${timeTextClasses} ${displayTimeTextSize}`}
+                            >
+                                {formatTime(timeLeft)}
+                            </span>
                         </>
                     ) : (
                         <>
                             <span
-                                className={`min-w-0 font-mono font-bold ${
+                                className={`min-w-0 font-mono font-bold tabular-nums leading-tight py-px ${
                                     isInByoyomi || (isFoulMode && timeLeft < 10)
                                         ? panelType === 'white'
                                             ? 'text-red-800'
@@ -1878,12 +1884,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             ? 'min-h-[5.5rem] max-h-[7rem]'
             : isSpeedLikeMode && sessionHasStrategicClock
               ? 'h-[5.5rem] min-h-[5.5rem] max-h-[5.5rem]'
-              : 'h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem]';
+              : 'h-[5rem] min-h-[5rem] max-h-[5rem]';
 
-    /** 컴팩트 바 외(데스크톱 등): min만 두면 승패·시계 UI 유무로 높이가 변해 바둑판이 출렁인다 */
+    /** 컴팩트 바 외(데스크톱 등): 아바타+닉+레벨+시계가 들어가도록 고정 높이(초과 시 시계가 잘림) */
     const playerColClass = compactPlayerBar
         ? 'flex min-h-0 min-w-0 flex-1 items-stretch'
-        : 'flex h-[5.5rem] min-h-[5.5rem] max-h-[5.5rem] min-w-0 flex-1 overflow-hidden sm:h-[4.5rem] sm:min-h-[4.5rem] sm:max-h-[4.5rem]';
+        : 'flex h-[5.75rem] min-h-[5.75rem] max-h-[5.75rem] min-w-0 flex-1 overflow-hidden';
     const compactBarRowClass = compactPlayerBar
         ? `${compactBarFixedHeightClass} items-stretch justify-between gap-1.5 overflow-hidden`
         : 'h-full items-stretch gap-2 min-[1025px]:gap-1.5';

@@ -6,7 +6,7 @@ import { UserWithStatus, InventoryItem, ServerAction, InventoryItemType, ItemGra
 import DraggableWindow from './DraggableWindow.js';
 import Button from './Button.js';
 import ResourceActionButton from './ui/ResourceActionButton.js';
-import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial, normalizeRefinementTicketInventoryName } from '../constants/items';
+import { emptySlotImages, GRADE_LEVEL_REQUIREMENTS, formatEquipLevelRequirement, ITEM_SELL_PRICES, MATERIAL_SELL_PRICES, gradeBackgrounds, gradeStyles, BASE_SLOTS_PER_CATEGORY, EXPANSION_AMOUNT, MAX_EQUIPMENT_SLOTS, MAX_CONSUMABLE_SLOTS, MAX_MATERIAL_SLOTS, ENHANCEMENT_COSTS, CONSUMABLE_ITEMS, MATERIAL_ITEMS, isConditionPotionConsumable, isTowerOnlyConsumable, isRefinementTicketMaterial, normalizeRefinementTicketInventoryName, inventoryCategoryExpandDiamondCost } from '../constants/items';
 import { isPairArenaExclusiveBagItem, isPairPetMaterial } from '../shared/constants/petLobby.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
 
@@ -78,10 +78,8 @@ const MOBILE_EQUIPPED_MODAL_DESIGN_WIDTH = 350;
 /** 모바일 장착 장비 3×3 그리드 최대 너비(슬롯당 ~72px) */
 const MOBILE_EQUIPPED_GRID_MAX_WIDTH_PX = 216;
 
-const calculateExpansionCost = (currentCategorySlots: number): number => {
-    const expansionsMade = Math.max(0, (currentCategorySlots - BASE_SLOTS_PER_CATEGORY) / EXPANSION_AMOUNT);
-    return 100 + (expansionsMade * 20);
-};
+const calculateExpansionCost = (currentCategorySlots: number): number =>
+    inventoryCategoryExpandDiamondCost(currentCategorySlots);
 
 const gradeOrder: Record<ItemGrade, number> = {
     normal: 0,
