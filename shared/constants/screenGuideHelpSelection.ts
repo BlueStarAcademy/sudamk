@@ -69,4 +69,40 @@ export const SCREEN_GUIDE_HELP_CONFIG: Record<ScreenGuideId, ScreenGuideHelpConf
         categoryFilter: ['pet-management'],
         modalTitle: '펫 관리 안내',
     },
+    sp_tutorial_capture_basics: {
+        categoryId: 'pve-academy',
+        subId: 'pve-singleplayer',
+        categoryFilter: ['pve-academy'],
+        modalTitle: '따내기 튜토리얼',
+    },
+    sp_tutorial_survival: {
+        categoryId: 'pve-academy',
+        subId: 'pve-singleplayer',
+        categoryFilter: ['pve-academy'],
+        modalTitle: '살리기 튜토리얼',
+    },
+    sp_tutorial_auto_scoring: {
+        categoryId: 'pve-academy',
+        subId: 'pve-singleplayer',
+        categoryFilter: ['pve-academy'],
+        modalTitle: '계가 튜토리얼',
+    },
+    sp_tutorial_missile: {
+        categoryId: 'pve-academy',
+        subId: 'pve-singleplayer',
+        categoryFilter: ['pve-academy'],
+        modalTitle: '미사일 튜토리얼',
+    },
+    sp_tutorial_hidden: {
+        categoryId: 'pve-academy',
+        subId: 'pve-singleplayer',
+        categoryFilter: ['pve-academy'],
+        modalTitle: '히든 튜토리얼',
+    },
+    sp_tutorial_base: {
+        categoryId: 'pve-academy',
+        subId: 'pve-singleplayer',
+        categoryFilter: ['pve-academy'],
+        modalTitle: '베이스 튜토리얼',
+    },
 };

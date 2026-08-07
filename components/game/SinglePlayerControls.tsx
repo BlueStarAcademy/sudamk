@@ -15,8 +15,8 @@ import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
     arenaPostGameButtonClass,
     arenaPostGameButtonInRowModifier,
+    arenaPostGameIngameEndedPanelShellClass,
     arenaPostGameIngameEndedRowClass,
-    arenaPostGamePanelShellClass,
     formatArenaRetryLabel,
     formatSinglePlayerNextFooterLabel,
 } from './arenaPostGameButtonStyles.js';
@@ -417,9 +417,9 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
 
         return (
             <footer
-                className={`responsive-controls flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-2 p-2 ${pveIngameFooterReservedHeightClass(isMobile)} ${arenaGameRoomIngameBottomBarShellClass}`}
+                className={`responsive-controls flex w-full flex-shrink-0 flex-col items-stretch justify-center p-1.5 sm:p-2 ${pveIngameFooterReservedHeightClass(isMobile)} ${arenaGameRoomIngameBottomBarShellClass}`}
             >
-                <div className={arenaPostGamePanelShellClass}>
+                <div className={arenaPostGameIngameEndedPanelShellClass}>
                     <div className={arenaPostGameIngameEndedRowClass}>
                     <Button
                         bare
@@ -690,10 +690,10 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
 
     return (
         <div
-            className={`${arenaGameRoomIngameBottomBarShellClass} w-full ${
+            className={`${arenaGameRoomIngameBottomBarShellClass} w-full ${pveIngameFooterReservedHeightClass(isMobile)} ${
                 isMobile
-                    ? 'flex min-h-[124px] w-full min-w-0 flex-row items-stretch gap-1.5 p-1'
-                    : 'flex min-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
+                    ? 'flex w-full min-w-0 flex-row items-stretch gap-1.5 p-1'
+                    : 'flex flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
             }`}
         >
             {isMobile ? (

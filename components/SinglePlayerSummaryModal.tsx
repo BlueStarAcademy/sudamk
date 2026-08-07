@@ -14,7 +14,6 @@ import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
 import {
     PRE_GAME_MODAL_LAYER_CLASS,
 } from './game/PreGameDescriptionLayout.js';
-import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -32,6 +31,11 @@ import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
 import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 import ResultAdGoldDoubleButton from './game/ResultAdGoldDoubleButton.js';
 import GameResultModalConfirmFooter from './game/GameResultModalConfirmFooter.js';
+import {
+    MobileGameResultTabBar,
+    MobileResultTabPanelStack,
+    type MobileGameResultTab,
+} from './game/MobileGameResultTabBar.js';
 /** 게임 설명 모달과 동일한 패널 박스 */
 const SP_SUMMARY_PANEL_CLASS =
     'relative overflow-hidden rounded-xl border border-amber-500/28 bg-gradient-to-br from-[#252032] via-[#16131f] to-[#0c0a10] shadow-[0_14px_44px_-18px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-amber-400/12';
@@ -124,9 +128,11 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
     const renderableScoreDetails = hasRenderableScoreDetails(analysisResult);
     const summary = session.summary?.[currentUser.id];
     const [localAdGoldBonus, setLocalAdGoldBonus] = useState(0);
+    const [resultTab, setResultTab] = useState<MobileGameResultTab>('detail');
 
     useEffect(() => {
         setLocalAdGoldBonus(0);
+        setResultTab('detail');
     }, [session.id]);
 
     const stagesList = getSinglePlayerStages();
@@ -435,16 +441,27 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
 
     const desktopCompactRewards = !isMobile;
 
+    /** 탭 라벨과 중복되므로 보상 섹션 헤더("획득 보상")는 생략. 경험치 증가 표시는 보상 탭에 둔다. */
     const spRewardsSection = (
         <div
-            className={`flex flex-col gap-0.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-1.5 sm:p-2 ${isMobile ? 'sm:gap-1' : ''}`}
+            className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-1.5 sm:p-2 ${isMobile ? 'sm:gap-1' : ''}`}
         >
-            <h2
-                className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-1 text-center sm:mb-2 sm:pb-1.5`}
-                style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` : undefined }}
-            >
-                획득 보상
-            </h2>
+            <SpResultRecordSideBySidePanel
+                currentUser={currentUser}
+                avatarUrl={avatarUrl ?? ''}
+                borderUrl={borderUrl ?? ''}
+                displaySummary={displaySummary}
+                previousXpPercent={previousXpPercent}
+                xpPercent={xpPercent}
+                xpChange={xpChange}
+                clampedXp={clampedXp}
+                xpRequirement={xpRequirement}
+                petRecordRowIdentity={petRecordRowIdentity}
+                petXpBarPercents={petXpBarPercents}
+                showPetGradeUpgradeInsteadOfXp={showPetGradeUpgradeInsteadOfXp}
+                isMobile={isMobile}
+                mobileTextScale={mobileTextScale}
+            />
             <div
                 className={
                     isMobile
@@ -457,14 +474,14 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                         className="px-2 text-center font-medium text-zinc-200"
                         style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` : '14px' }}
                     >
-                        {isScoring ? t('towerSummary.scoring') : t('towerSummary.noRewardInfo')}
+                        {isScoring ? t('towerSummary.scoring') : t('summary.noRewardInfo')}
                     </p>
                 ) : !hasRewardSlots ? (
                     <p
                         className="px-2 text-center font-medium text-zinc-200"
                         style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` : '14px' }}
                     >
-                        보상이 없습니다.
+                        {t('summary.noRewardsEmpty')}
                     </p>
                 ) : (
                     <>
@@ -475,32 +492,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                                 dimmed={!summary}
                             />
                         )}
-                        {displaySummary.xp && displaySummary.xp.change > 0 && (
-                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
-                                <ResultModalXpRewardBadge
-                                    variant="strategy"
-                                    amount={displaySummary.xp.change}
-                                    density={desktopCompactRewards || isMobile ? 'compact' : 'comfortable'}
-                                />
-                            </div>
-                        )}
-                        {displaySummary.pairPetXp && displaySummary.pairPetXp.change > 0 && (
-                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
-                                <ResultModalXpRewardBadge
-                                    variant="pet"
-                                    amount={displaySummary.pairPetXp.change}
-                                    density={desktopCompactRewards || isMobile ? 'compact' : 'comfortable'}
-                                />
-                            </div>
-                        )}
-                        {displaySummary.pairPetXp &&
-                            showPetGradeUpgradeInsteadOfXp && (
-                                <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
-                                    <ResultModalPetGradeUpgradeNeededSlot
-                                        density={desktopCompactRewards || isMobile ? 'compact' : 'comfortable'}
-                                    />
-                                </div>
-                            )}
+                        {/* 전략/펫 EXP는 상단 경험치 바에서 표시 — 슬롯 배지 중복 제거 */}
                         {displaySummary.items &&
                             displaySummary.items.length > 0 &&
                             displaySummary.items.slice(0, 2).map((item, idx) => (
@@ -530,9 +522,104 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                     className="text-center text-zinc-500"
                     style={{ fontSize: isMobile ? `${9 * mobileTextScale}px` : '13px' }}
                 >
-                    외 {displaySummary.items.length - 2}개 아이템
+                    {t('singlePlayerSummary.moreItems', { count: displaySummary.items.length - 2 })}
                 </p>
             )}
+        </div>
+    );
+
+    const spDetailPanel = (
+        <div className={`flex flex-col overflow-x-hidden ${isMobile ? 'gap-1.5' : 'min-h-0 gap-2'}`}>
+            <div
+                className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 sp-summary-left-panel ${
+                    isMobile ? 'overflow-x-hidden p-1.5' : 'overflow-visible p-2 sm:p-2.5'
+                }`}
+            >
+                <h2
+                    className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}
+                    style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` : undefined }}
+                >
+                    {t('towerSummary.matchResult')}
+                </h2>
+                <div className={`flex flex-col gap-1.5 ${isMobile ? 'overflow-x-hidden' : 'overflow-visible'}`}>
+                    {(analysisResult || (isEnded && session.winner !== null)) && (
+                        <div
+                            className={`${SP_SUMMARY_INSET_CLASS} flex-shrink-0 ${
+                                isMobile ? 'space-y-1 p-1.5 text-center' : 'space-y-0.5 p-2'
+                            }`}
+                        >
+                            {isMobile ? (
+                                <div
+                                    className="flex flex-col items-center gap-0.5"
+                                    style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
+                                >
+                                    <span className="text-amber-200/65">{t('towerSummary.totalElapsed').replace(':', '')}</span>
+                                    <span className="font-semibold tabular-nums text-zinc-100">{gameDuration}</span>
+                                </div>
+                            ) : (
+                                <div className="flex items-center justify-between" style={{ fontSize: '15px' }}>
+                                    <span className="text-amber-200/65">{t('towerSummary.totalElapsed')}</span>
+                                    <span className="font-semibold text-zinc-100">{gameDuration}</span>
+                                </div>
+                            )}
+                            {(winReasonText || failureReason) && (
+                                <p
+                                    className={`leading-snug ${isWinner ? 'text-emerald-300' : 'text-red-400'} ${
+                                        isMobile ? '' : 'text-[15px] font-semibold'
+                                    }`}
+                                    style={{
+                                        fontSize: isMobile
+                                            ? `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px`
+                                            : undefined,
+                                    }}
+                                >
+                                    {winReasonText || failureReason}
+                                </p>
+                            )}
+                            {survivalModeInfo && (
+                                <div
+                                    className="mt-0.5 flex items-center justify-between border-t border-amber-500/15 pt-0.5"
+                                    style={{
+                                        fontSize: isMobile
+                                            ? `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px`
+                                            : '15px',
+                                    }}
+                                >
+                                    <span className="text-amber-200/65">{t('singlePlayerSummary.whiteTargetScore')}</span>
+                                    <span
+                                        className={`font-semibold ${
+                                            survivalModeInfo.captured < survivalModeInfo.target
+                                                ? 'text-green-400'
+                                                : 'text-red-400'
+                                        }`}
+                                    >
+                                        {survivalModeInfo.captured}/{survivalModeInfo.target}
+                                    </span>
+                                </div>
+                            )}
+                        </div>
+                    )}
+                    {isScoring && !renderableScoreDetails && (
+                        <div
+                            className={`flex flex-col items-center justify-center ${
+                                isMobile ? 'min-h-[100px] flex-shrink-0' : 'min-h-[200px] flex-1'
+                            }`}
+                        >
+                            <ScoringOverlay variant="inline" />
+                        </div>
+                    )}
+                    {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
+                        <ScoreDetailsComponent
+                            analysis={analysisResult!}
+                            session={session}
+                            isMobile={isMobile}
+                            mobileTextScale={mobileTextScale}
+                        />
+                    ) : !isScoring && !isEnded ? (
+                        <p className="text-center text-zinc-500">{t('towerSummary.noScoringResult')}</p>
+                    ) : null}
+                </div>
+            </div>
         </div>
     );
 
@@ -559,7 +646,7 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 } ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
                 style={!isMobile ? { fontSize: `${14 * desktopTextScale}px` } : undefined}
             >
-                {/* Title */}
+                {/* Title — outside tabs */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
                     <div className={`${isMobile ? 'mb-1.5 p-2' : 'mb-2 p-3 sm:p-3.5'} flex-shrink-0 rounded-xl border-2 border-amber-400/45 bg-gradient-to-br from-amber-950/50 via-slate-900/90 to-slate-950/95 shadow-[0_0_32px_-12px_rgba(251,191,36,0.28)]`}>
                         <div className={`${SP_SUMMARY_SECTION_LABEL} text-center`}>{t("singlePlayerSummary.result")}</div>
@@ -573,170 +660,31 @@ const SinglePlayerSummaryModal: React.FC<SinglePlayerSummaryModalProps> = ({ ses
                 )}
                 {!isMobile && !isScoring && !isEnded && !analysisResult && session.winner === null && (
                     <h1 className={`text-2xl min-[1024px]:text-3xl font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 text-amber-100/90`}>
-                        게임 결과
+                        {t('towerSummary.gameResult')}
                     </h1>
                 )}
-                
+
+                <MobileGameResultTabBar
+                    active={resultTab}
+                    onChange={setResultTab}
+                    className="mb-1.5 shrink-0"
+                />
+
                 {isMobile ? (
                     <GameResultModalFitContent className="flex-1 basis-0" enabled={false}>
-                    <div className="flex flex-col gap-1.5 overflow-x-hidden">
-                        <div
-                            className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-x-hidden p-1.5 sp-summary-left-panel`}
-                        >
-                            <h2
-                                className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}
-                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
-                            >
-                                경기 결과
-                            </h2>
-                            <div className="flex flex-col gap-1.5 overflow-x-hidden">
-                                {(analysisResult || (isEnded && session.winner !== null)) && (
-                                    <div className={`space-y-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-1.5 text-center`}>
-                                        <div
-                                            className="flex flex-col items-center gap-0.5"
-                                            style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
-                                        >
-                                            <span className="text-amber-200/65">{t("towerSummary.totalElapsed").replace(":", "")}</span>
-                                            <span className="font-semibold tabular-nums text-zinc-100">{gameDuration}</span>
-                                        </div>
-                                        {(winReasonText || failureReason) && (
-                                            <p
-                                                className={`leading-snug ${isWinner ? 'text-emerald-300' : 'text-red-400'}`}
-                                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
-                                            >
-                                                {winReasonText || failureReason}
-                                            </p>
-                                        )}
-                                        {survivalModeInfo && (
-                                            <div
-                                                className="mt-0.5 flex items-center justify-between border-t border-amber-500/15 pt-0.5"
-                                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
-                                            >
-                                                <span className="text-amber-200/65">{t("singlePlayerSummary.whiteTargetScore")}</span>
-                                                <span
-                                                    className={`font-semibold ${survivalModeInfo.captured < survivalModeInfo.target ? 'text-green-400' : 'text-red-400'}`}
-                                                >
-                                                    {survivalModeInfo.captured}/{survivalModeInfo.target}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                {isScoring && !renderableScoreDetails && (
-                                    <div className="flex min-h-[100px] flex-shrink-0 flex-col items-center justify-center">
-                                        <ScoringOverlay variant="inline" />
-                                    </div>
-                                )}
-                                {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
-                                    <ScoreDetailsComponent
-                                        analysis={analysisResult!}
-                                        session={session}
-                                        isMobile={isMobile}
-                                        mobileTextScale={mobileTextScale}
-                                    />
-                                ) : !isScoring && !isEnded ? (
-                                    <p className="text-center text-zinc-500">{t("towerSummary.noScoringResult")}</p>
-                                ) : null}
-                            </div>
-                        </div>
-                        <div className={`flex flex-col gap-1 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-1.5`}>
-                            <h2
-                                className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-1 text-center`}
-                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
-                            >
-                                기록
-                            </h2>
-                            <SpResultRecordSideBySidePanel
-                                currentUser={currentUser}
-                                avatarUrl={avatarUrl}
-                                borderUrl={borderUrl}
-                                displaySummary={displaySummary}
-                                previousXpPercent={previousXpPercent}
-                                xpPercent={xpPercent}
-                                xpChange={xpChange}
-                                clampedXp={clampedXp}
-                                xpRequirement={xpRequirement}
-                                petRecordRowIdentity={petRecordRowIdentity}
-                                petXpBarPercents={petXpBarPercents}
-                                showPetGradeUpgradeInsteadOfXp={showPetGradeUpgradeInsteadOfXp}
-                                isMobile={isMobile}
-                                mobileTextScale={mobileTextScale}
-                            />
-                        </div>
-                        {spRewardsSection}
-                    </div>
+                        <MobileResultTabPanelStack
+                            active={resultTab}
+                            detailPanel={spDetailPanel}
+                            rewardsPanel={spRewardsSection}
+                        />
                     </GameResultModalFitContent>
                 ) : (
                     <GameResultModalFitContent className="min-h-0 flex-1">
-                    <div className="flex min-h-0 flex-col gap-2 overflow-x-hidden">
-                        <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-visible p-2 sm:p-2.5 sp-summary-left-panel`}>
-                            <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-2 border-b border-amber-500/25 pb-1.5 text-center`}>
-                                경기 결과
-                            </h2>
-                            <div className="flex flex-col gap-1.5 overflow-visible">
-                                {(analysisResult || (isEnded && session.winner !== null)) && (
-                                    <div className={`space-y-0.5 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 p-2`}>
-                                        <div className="flex items-center justify-between" style={{ fontSize: '15px' }}>
-                                            <span className="text-amber-200/65">{t("towerSummary.totalElapsed")}</span>
-                                            <span className="font-semibold text-zinc-100">{gameDuration}</span>
-                                        </div>
-                                        {(winReasonText || failureReason) && (
-                                            <p className={`text-[15px] font-semibold leading-snug ${isWinner ? 'text-emerald-300' : 'text-red-400'}`}>
-                                                {winReasonText || failureReason}
-                                            </p>
-                                        )}
-                                        {survivalModeInfo && (
-                                            <div className="mt-0.5 flex items-center justify-between border-t border-amber-500/15 pt-0.5" style={{ fontSize: '15px' }}>
-                                                <span className="text-amber-200/65">{t("singlePlayerSummary.whiteTargetScore")}</span>
-                                                <span
-                                                    className={`font-semibold ${survivalModeInfo.captured < survivalModeInfo.target ? 'text-green-400' : 'text-red-400'}`}
-                                                >
-                                                    {survivalModeInfo.captured}/{survivalModeInfo.target}
-                                                </span>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
-                                {isScoring && !renderableScoreDetails && (
-                                    <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center">
-                                        <ScoringOverlay variant="inline" />
-                                    </div>
-                                )}
-                                {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
-                                    <ScoreDetailsComponent
-                                        analysis={analysisResult!}
-                                        session={session}
-                                        isMobile={false}
-                                        mobileTextScale={mobileTextScale}
-                                    />
-                                ) : !isScoring && !isEnded ? (
-                                    <p className="text-center text-zinc-500">{t("towerSummary.noScoringResult")}</p>
-                                ) : null}
-                            </div>
-                        </div>
-                        <div className={`flex flex-col gap-1 ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-visible p-2 sm:p-2.5`}>
-                            <h2 className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-1 text-center`}>
-                                기록
-                            </h2>
-                            <SpResultRecordSideBySidePanel
-                                currentUser={currentUser}
-                                avatarUrl={avatarUrl}
-                                borderUrl={borderUrl}
-                                displaySummary={displaySummary}
-                                previousXpPercent={previousXpPercent}
-                                xpPercent={xpPercent}
-                                xpChange={xpChange}
-                                clampedXp={clampedXp}
-                                xpRequirement={xpRequirement}
-                                petRecordRowIdentity={petRecordRowIdentity}
-                                petXpBarPercents={petXpBarPercents}
-                                showPetGradeUpgradeInsteadOfXp={showPetGradeUpgradeInsteadOfXp}
-                                isMobile={isMobile}
-                                mobileTextScale={mobileTextScale}
-                            />
-                        </div>
-                        {spRewardsSection}
-                    </div>
+                        <MobileResultTabPanelStack
+                            active={resultTab}
+                            detailPanel={spDetailPanel}
+                            rewardsPanel={spRewardsSection}
+                        />
                     </GameResultModalFitContent>
                 )}
             </div>

@@ -81,18 +81,26 @@ export function syncDismissedScreenGuidesFromUser(
 export function isScreenGuideDismissed(id: ScreenGuideId, userId?: string | null): boolean {
     const key = storageKeyForUser(userId);
     if (key && readDismissedSetForKey(key).has(id)) return true;
-    if (!userId) {
-        return readDismissedSetForKey(LEGACY_GLOBAL_STORAGE_KEY).has(id);
-    }
+    // 로그인 전이거나 user 키에 없을 때 레거시·공통 키도 확인
+    if (readDismissedSetForKey(LEGACY_GLOBAL_STORAGE_KEY).has(id)) return true;
     return false;
 }
 
 export function dismissScreenGuide(id: ScreenGuideId, userId?: string | null): void {
-    const key = storageKeyForUser(userId) ?? LEGACY_GLOBAL_STORAGE_KEY;
-    const set = readDismissedSetForKey(key);
-    if (set.has(id)) return;
-    set.add(id);
-    writeDismissedSetForKey(key, set);
+    const userKey = storageKeyForUser(userId);
+    if (userKey) {
+        const set = readDismissedSetForKey(userKey);
+        if (!set.has(id)) {
+            set.add(id);
+            writeDismissedSetForKey(userKey, set);
+        }
+    }
+    // 항상 레거시 키에도 기록 — 스테이지 전환·재입장 시 누락 방지
+    const legacy = readDismissedSetForKey(LEGACY_GLOBAL_STORAGE_KEY);
+    if (!legacy.has(id)) {
+        legacy.add(id);
+        writeDismissedSetForKey(LEGACY_GLOBAL_STORAGE_KEY, legacy);
+    }
 }
 
 /** 개발·QA용 — 필요 시 콘솔에서 호출 */

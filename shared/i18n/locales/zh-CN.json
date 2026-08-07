@@ -845,6 +845,8 @@
       "adGoldDoubleFailed": "Failed to grant double gold. Please try again shortly.",
       "gameContent": "Match details",
       "resultSection": "Game result",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards",
       "rewardsSection": "Rewards & records",
       "noScoreInfo": "No score information.",
       "territory": "Territory",

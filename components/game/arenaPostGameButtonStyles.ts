@@ -113,6 +113,10 @@ export const arenaPostGameSingleModalConfirmButtonClass =
 export const arenaPostGamePanelShellClass =
     'min-w-0 rounded-xl border border-slate-600/40 bg-gradient-to-b from-slate-900/95 via-[#0f1218] to-[#06080c] px-2 py-3 sm:px-4 sm:py-3.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-white/[0.03]';
 
+/** 인게임 종료 푸터용 — 진행 중 124px 고정 높이에 맞춰 패딩을 낮춤 */
+export const arenaPostGameIngameEndedPanelShellClass =
+    'min-w-0 flex min-h-0 flex-1 flex-col justify-center rounded-xl border border-slate-600/40 bg-gradient-to-b from-slate-900/95 via-[#0f1218] to-[#06080c] px-1.5 py-1.5 sm:px-3 sm:py-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] ring-1 ring-inset ring-white/[0.03]';
+
 /** 싱글플레이 종료 패널 — `다음 단계(맵이름 N)` + 소모 행동력 */
 export function formatSinglePlayerNextFooterLabel(
     nextStage: Pick<SinglePlayerStageInfo, 'id' | 'level' | 'name'> | undefined,

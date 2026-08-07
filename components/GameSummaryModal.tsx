@@ -19,7 +19,6 @@ import {
     getGuildWarStarScoreTier3MinDiff,
 } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
-import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -44,6 +43,11 @@ import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
 import ResultAdGoldDoubleButton from './game/ResultAdGoldDoubleButton.js';
 import GameResultModalConfirmFooter from './game/GameResultModalConfirmFooter.js';
+import {
+    MobileGameResultTabBar,
+    MobileResultTabPanelStack,
+    type MobileGameResultTab,
+} from './game/MobileGameResultTabBar.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../shared/constants/petLobby.js';
 import {
@@ -1727,12 +1731,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     const [vipUnlockRouletteActive, setVipUnlockRouletteActive] = useState(false);
     const [vipUnlockGranted, setVipUnlockGranted] = useState(false);
     const [localAdGoldBonus, setLocalAdGoldBonus] = useState(0);
+    const [resultTab, setResultTab] = useState<MobileGameResultTab>('detail');
     const prevVipLockedRef = useRef<boolean | null>(null);
 
     useEffect(() => {
         setVipUnlockRouletteActive(false);
         setVipUnlockGranted(false);
         setLocalAdGoldBonus(0);
+        setResultTab('detail');
         prevVipLockedRef.current = null;
     }, [session.id]);
 
@@ -1819,6 +1825,8 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     }, [mySummary?.adventureRewardSlots, optimisticAdGoldBonus]);
     const isGuildWar = isGuildWarLiveSession(session as any);
     const isChampionshipVersusSummary = typeof session.description === 'string' && isChampionshipVersusKataSummaryDescription(session.description);
+    /** 챔피언십 대련은 탭 없이 기존 세로 스택 유지 */
+    const useResultTabs = !isChampionshipVersusSummary;
     const showMannerPostGameStats = !isChampionshipVersusSummary;
     /** 랭킹·매너 등 실제 정산이 있는 대국에서만 통계 카드 표시 (친선·AI 등에서는 숨김) */
     const showPostGameRatingMannerStats = useMemo(() => {
@@ -1833,6 +1841,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     /** 랭킹·매너 통계 그리드용 — TS가 JSX 삼항 안에서 mySummary를 좁히도록 */
     const postGameStatsSummary: GameSummary | undefined =
         mySummary && showPostGameRatingMannerStats ? mySummary : undefined;
+    /** 경험치 패널은 보상 쪽 — 상세결과 카드는 도감·길드전·랭킹 등 남은 내용이 있을 때만 */
+    const hasDetailResultExtras =
+        isGuildWar ||
+        Boolean(postGameStatsSummary) ||
+        Boolean(isAdventureGame && mySummary?.adventureCodexDelta);
     const guildWarStars = mySummary?.guildWarStars ?? 0;
     const guildWarHouseScore = useMemo(() => {
         if (!isGuildWar) return undefined;
@@ -2370,18 +2383,22 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         <div
             className={`relative z-10 flex-shrink-0 space-y-1 rounded-xl border border-amber-500/20 bg-gradient-to-b from-[#1a1510]/95 via-[#12100c] to-[#0a0908] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.05)] ring-1 ring-inset ring-amber-500/10 sm:p-2.5 ${isMobile ? '!p-2' : ''}`}
         >
-            <h2
-                className={`mb-0 border-b border-amber-500/25 pb-1 text-center font-bold uppercase tracking-[0.12em] text-amber-100 ${
-                    isMobile ? 'text-xs' : 'text-[0.7rem] sm:text-[0.75rem]'
-                }`}
-                style={
-                    isMobile
-                        ? mobileSectionTitleStyle
-                        : { fontSize: resultModalFontPx(11.5, desktopTextScale) }
-                }
-            >
-                {isGuildWar ? gs("guildWarRewards") : gs("rewardsEarned")}
-            </h2>
+            {!useResultTabs ? (
+                <h2
+                    className={`mb-0 border-b border-amber-500/25 pb-1 text-center font-bold uppercase tracking-[0.12em] text-amber-100 ${
+                        isMobile ? 'text-xs' : 'text-[0.7rem] sm:text-[0.75rem]'
+                    }`}
+                    style={
+                        isMobile
+                            ? mobileSectionTitleStyle
+                            : { fontSize: resultModalFontPx(11.5, desktopTextScale) }
+                    }
+                >
+                    {isGuildWar ? gs('guildWarRewards') : gs('rewardsEarned')}
+                </h2>
+            ) : null}
+            {/* 경험치 증가(바)는 보상 탭/섹션에서 표시 */}
+            <div className="min-w-0">{renderRecordIdentityPanels()}</div>
             <div
                 className={
                     isMobile
@@ -2430,36 +2447,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 understandingBonus={mySummary.adventureGoldUnderstandingBonus}
                             />
                         )}
-                        {!isPlayful && (mySummary.xp?.change ?? 0) > 0 && (
-                            <div className="flex shrink-0 flex-col items-center justify-center">
-                                <ResultModalXpRewardBadge
-                                    variant="strategy"
-                                    amount={mySummary.xp!.change}
-                                    density={useCompactRewardSlots ? 'compact' : 'comfortable'}
-                                />
-                            </div>
-                        )}
-                        {mySummary.pairPetXp != null && (
-                            <div className="flex shrink-0 flex-col items-center justify-center">
-                                {showPetGradeUpgradeInsteadOfXp ? (
-                                    <ResultModalPetGradeUpgradeNeededSlot
-                                        density={useCompactRewardSlots ? 'compact' : 'comfortable'}
-                                    />
-                                ) : (
-                                    <ResultModalXpRewardBadge
-                                        variant="pet"
-                                        amount={mySummary.pairPetXp.change}
-                                        density={useCompactRewardSlots ? 'compact' : 'comfortable'}
-                                        title={
-                                            mySummary.pairPetXp.change > 0
-                                                ? `EXP +${mySummary.pairPetXp.change.toLocaleString()}`
-                                                : gs("noChange")
-                                        }
-                                        allowZeroDisplay={isPairGoSession}
-                                    />
-                                )}
-                            </div>
-                        )}
+                        {/* 전략/펫 EXP는 상단 경험치 바에서 표시 — 슬롯 배지 중복 제거 */}
                         {mySummary.items &&
                             mySummary.items.length > 0 &&
                             mySummary.items.slice(0, 3).map((item: InventoryItem, idx: number) => {
@@ -2591,328 +2579,645 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                         </h1>
                     </div>
                 ) : null}
+                {useResultTabs ? (
+                    <MobileGameResultTabBar
+                        active={resultTab}
+                        onChange={setResultTab}
+                        comfortable={isPlayful}
+                        className="mb-1.5 shrink-0"
+                    />
+                ) : null}
                 {isMobile ? (
                     <GameResultModalFitContent className="flex-1 basis-0" enabled={false}>
-                    <div className="flex flex-col gap-2 overflow-x-hidden min-[390px]:gap-2.5">
-                                    <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 min-[390px]:p-2.5">
-                                        <h2
-                                            className="mb-0 w-full flex-shrink-0 border-b border-amber-500/25 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-200/85"
-                                            style={mobileSectionTitleStyle}
-                            >
-                                {t('summary.gameContent')}
-                            </h2>
-                            {!isChampionshipVersusSummary ? (
-                                <>
-                                    <p
-                                        className="mb-1.5 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90 min-[1024px]:text-xs"
-                                        style={desktopSectionHeadStyle}
-                                    >
-                                        {translateGameMode(session.mode)}
-                                    </p>
-                                    <p
-                                        className="mb-1 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90"
-                                        style={mobileSectionTitleStyle}
-                                    >
-                                        {translateGameMode(session.mode)}
-                                    </p>
-                                </>
-                            ) : null}
-                                        {isGuildWar ? (
-                                            <div
-                                                className="mb-1 mt-1 flex flex-shrink-0 flex-col items-center gap-0.5"
-                                                aria-label={t('summary.starsEarnedAria', { count: guildWarStars })}
+                        {useResultTabs ? (
+                            <MobileResultTabPanelStack
+                                active={resultTab}
+                                detailPanel={
+                                    <div className="flex flex-col gap-2 overflow-x-hidden min-[390px]:gap-2.5">
+                                        <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 min-[390px]:p-2.5">
+                                            <h2
+                                                className="mb-0 w-full flex-shrink-0 border-b border-amber-500/25 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-200/85"
+                                                style={mobileSectionTitleStyle}
                                             >
-                                                <div className="flex items-center justify-center gap-0.5">
-                                                    <span
-                                                        className="text-[0.58rem] font-semibold uppercase tracking-wider text-slate-400"
-                                                        style={{ fontSize: `${8 * mobileTextScale}px` }}
-                                                    >
-                                                        {t('summary.starsEarned')}
-                                                    </span>
-                                                    {[0, 1, 2].map((i) => (
-                                                        <img
-                                                            key={i}
-                                                            src={
-                                                                i < guildWarStars
-                                                                    ? '/images/guild/guildwar/clearstar.webp'
-                                                                    : '/images/guild/guildwar/emptystar.webp'
-                                                            }
-                                                            alt=""
-                                                            className="h-5 w-5 object-contain drop-shadow sm:h-6 sm:w-6"
-                                                        />
-                                                    ))}
-                                                    <span
-                                                        className="text-xs font-bold tabular-nums text-amber-100/95"
-                                                        style={{ fontSize: `${10 * mobileTextScale}px` }}
-                                                    >
-                                                        {guildWarStars}/3
-                                                    </span>
+                                                {t('summary.gameContent')}
+                                            </h2>
+                                            <p
+                                                className="mb-1 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90"
+                                                style={mobileSectionTitleStyle}
+                                            >
+                                                {translateGameMode(session.mode)}
+                                            </p>
+                                            {isGuildWar ? (
+                                                <div
+                                                    className="mb-1 mt-1 flex flex-shrink-0 flex-col items-center gap-0.5"
+                                                    aria-label={t('summary.starsEarnedAria', { count: guildWarStars })}
+                                                >
+                                                    <div className="flex items-center justify-center gap-0.5">
+                                                        <span
+                                                            className="text-[0.58rem] font-semibold uppercase tracking-wider text-slate-400"
+                                                            style={{ fontSize: `${8 * mobileTextScale}px` }}
+                                                        >
+                                                            {t('summary.starsEarned')}
+                                                        </span>
+                                                        {[0, 1, 2].map((i) => (
+                                                            <img
+                                                                key={i}
+                                                                src={
+                                                                    i < guildWarStars
+                                                                        ? '/images/guild/guildwar/clearstar.webp'
+                                                                        : '/images/guild/guildwar/emptystar.webp'
+                                                                }
+                                                                alt=""
+                                                                className="h-5 w-5 object-contain drop-shadow sm:h-6 sm:w-6"
+                                                            />
+                                                        ))}
+                                                        <span
+                                                            className="text-xs font-bold tabular-nums text-amber-100/95"
+                                                            style={{ fontSize: `${10 * mobileTextScale}px` }}
+                                                        >
+                                                            {guildWarStars}/3
+                                                        </span>
+                                                    </div>
                                                 </div>
+                                            ) : null}
+                                            <MatchPlayersRoster
+                                                session={session}
+                                                blackPlayer={blackPlayer}
+                                                whitePlayer={whitePlayer}
+                                                isPlayful={isPlayful}
+                                                isMobile={isMobile}
+                                                mobileTextScale={mobileTextScale}
+                                                mobileImageScale={mobileImageScale}
+                                                mobileCompactRoster
+                                            />
+                                            <div className="mt-2 flex w-full flex-col items-center overflow-x-hidden overflow-y-visible">
+                                                {renderGameContent()}
                                             </div>
-                                        ) : null}
-                                        <MatchPlayersRoster
-                                            session={session}
-                                            blackPlayer={blackPlayer}
-                                            whitePlayer={whitePlayer}
-                                            isPlayful={isPlayful}
-                                            isMobile={isMobile}
-                                            mobileTextScale={mobileTextScale}
-                                            mobileImageScale={mobileImageScale}
-                                            mobileCompactRoster
-                                        />
-                                        <div className="mt-2 flex w-full flex-col items-center overflow-x-hidden overflow-y-visible">
-                                            {renderGameContent()}
+                                        </div>
+                                        <div className={`flex min-w-0 flex-col gap-2 rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 min-[390px]:p-2.5 ${hasDetailResultExtras ? '' : 'hidden'}`}>
+                                            <h2
+                                                className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-100 sm:text-sm"
+                                                style={mobileSectionTitleStyle}
+                                            >
+                                                {t('summary.resultSection')}
+                                            </h2>
+                                            {isAdventureGame && mySummary?.adventureCodexDelta ? (
+                                                <AdventureResultCodexCard
+                                                    codexDelta={mySummary.adventureCodexDelta}
+                                                    understandingDelta={mySummary.adventureUnderstandingDelta}
+                                                    compact={isMobile}
+                                                    mobileTextScale={mobileTextScale}
+                                                />
+                                            ) : null}
+                                            {isGuildWar ? (
+                                                renderGuildWarStarConditions()
+                                            ) : postGameStatsSummary ? (
+                                                <div className="min-w-0 overflow-x-hidden overflow-y-visible">
+                                                    <div className="grid grid-cols-2 gap-1.5">
+                                                        <div className={`${statCardClass} text-center`}>
+                                                            <p className={statLabelClass}>{t('summary.rankingScore')}</p>
+                                                            <div className={statCardBodyClass}>
+                                                                <span className={statValueMainClass}>{postGameStatsSummary.rating.final}</span>
+                                                                <span
+                                                                    className={`rounded-full border px-1.5 py-px text-[0.6rem] font-bold tabular-nums leading-none min-[1024px]:text-[0.65rem] ${
+                                                                        postGameStatsSummary.rating.change >= 0
+                                                                            ? 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
+                                                                            : 'border-rose-400/35 bg-rose-500/15 text-rose-200'
+                                                                    }`}
+                                                                >
+                                                                    {postGameStatsSummary.rating.change > 0 ? '+' : ''}
+                                                                    {postGameStatsSummary.rating.change}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {showMannerPostGameStats ? (
+                                                            <div className={`${statCardClass} text-center`}>
+                                                                <p className={statLabelClass}>{t('summary.mannerScore')}</p>
+                                                                <div className={statCardBodyClass}>
+                                                                    <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
+                                                                    {postGameStatsSummary.manner.change === 0 ? (
+                                                                        <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">
+                                                                            {t('summary.noChange')}
+                                                                        </span>
+                                                                    ) : (
+                                                                        <span
+                                                                            className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
+                                                                                postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
+                                                                            }`}
+                                                                        >
+                                                                            <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
+                                                                            <span>
+                                                                                {postGameStatsSummary.manner.change > 0
+                                                                                    ? postGameStatsSummary.manner.change
+                                                                                    : Math.abs(postGameStatsSummary.manner.change)}
+                                                                                {t('summary.pointsDelta')}
+                                                                            </span>
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ) : null}
+                                                        <div className={`${statCardClass} text-center`}>
+                                                            <p className={statLabelClass}>{t('summary.overallRecord')}</p>
+                                                            <div className={statCardBodyClass}>
+                                                                {postGameStatsSummary.overallRecord != null ? (
+                                                                    <span className={statOverallClass}>
+                                                                        <span className="text-amber-200">{postGameStatsSummary.overallRecord.wins}</span>
+                                                                        <span className="text-[0.7rem] font-bold text-slate-300">{t('summary.winShort')}</span>
+                                                                        <span className="text-slate-100">{postGameStatsSummary.overallRecord.losses}</span>
+                                                                        <span className="text-[0.7rem] font-bold text-slate-300">{t('summary.loseShort')}</span>
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-sm font-bold text-slate-500">-</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {showMannerPostGameStats ? (
+                                                            <div className={`${statCardClass} text-center`}>
+                                                                <p className={statLabelClass}>{t('summary.mannerRank')}</p>
+                                                                <div className={statCardBodyClass}>
+                                                                    <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
+                                                                        <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
+                                                                        <span className="text-slate-500">→</span>
+                                                                        <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                            ) : null}
                                         </div>
                                     </div>
-                                    <div className="flex min-w-0 flex-col gap-2 rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 min-[390px]:p-2.5">
+                                }
+                                rewardsPanel={pvpRewardsSection}
+                            />
+                        ) : (
+                            <div className="flex flex-col gap-2 overflow-x-hidden min-[390px]:gap-2.5">
+                                <div className="flex flex-col items-center rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 min-[390px]:p-2.5">
+                                    <h2
+                                        className="mb-0 w-full flex-shrink-0 border-b border-amber-500/25 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-200/85"
+                                        style={mobileSectionTitleStyle}
+                                    >
+                                        {t('summary.gameContent')}
+                                    </h2>
+                                    {!isChampionshipVersusSummary ? (
+                                        <p
+                                            className="mb-1 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90"
+                                            style={mobileSectionTitleStyle}
+                                        >
+                                            {translateGameMode(session.mode)}
+                                        </p>
+                                    ) : null}
+                                    {isGuildWar ? (
+                                        <div
+                                            className="mb-1 mt-1 flex flex-shrink-0 flex-col items-center gap-0.5"
+                                            aria-label={t('summary.starsEarnedAria', { count: guildWarStars })}
+                                        >
+                                            <div className="flex items-center justify-center gap-0.5">
+                                                <span
+                                                    className="text-[0.58rem] font-semibold uppercase tracking-wider text-slate-400"
+                                                    style={{ fontSize: `${8 * mobileTextScale}px` }}
+                                                >
+                                                    {t('summary.starsEarned')}
+                                                </span>
+                                                {[0, 1, 2].map((i) => (
+                                                    <img
+                                                        key={i}
+                                                        src={
+                                                            i < guildWarStars
+                                                                ? '/images/guild/guildwar/clearstar.webp'
+                                                                : '/images/guild/guildwar/emptystar.webp'
+                                                        }
+                                                        alt=""
+                                                        className="h-5 w-5 object-contain drop-shadow sm:h-6 sm:w-6"
+                                                    />
+                                                ))}
+                                                <span
+                                                    className="text-xs font-bold tabular-nums text-amber-100/95"
+                                                    style={{ fontSize: `${10 * mobileTextScale}px` }}
+                                                >
+                                                    {guildWarStars}/3
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    <MatchPlayersRoster
+                                        session={session}
+                                        blackPlayer={blackPlayer}
+                                        whitePlayer={whitePlayer}
+                                        isPlayful={isPlayful}
+                                        isMobile={isMobile}
+                                        mobileTextScale={mobileTextScale}
+                                        mobileImageScale={mobileImageScale}
+                                        mobileCompactRoster
+                                    />
+                                    <div className="mt-2 flex w-full flex-col items-center overflow-x-hidden overflow-y-visible">
+                                        {renderGameContent()}
+                                    </div>
+                                </div>
+                                    <div className={`flex min-w-0 flex-col gap-2 rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 min-[390px]:p-2.5 ${hasDetailResultExtras ? '' : 'hidden'}`}>
                                         <h2
                                             className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-1.5 text-center text-xs font-bold uppercase tracking-[0.12em] text-amber-100 sm:text-sm"
                                             style={mobileSectionTitleStyle}
                                         >
                                             {isGuildWar ? t('summary.rewardsSection') : t('summary.resultSection')}
                                         </h2>
-                                        {renderRecordIdentityPanels()}
-                                        {isAdventureGame && mySummary?.adventureCodexDelta ? (
-                                            <AdventureResultCodexCard
-                                                codexDelta={mySummary.adventureCodexDelta}
-                                                understandingDelta={mySummary.adventureUnderstandingDelta}
-                                                compact={isMobile}
-                                                mobileTextScale={mobileTextScale}
-                                            />
-                                        ) : null}
-                                        {isGuildWar ? (
-                                            renderGuildWarStarConditions()
-                                        ) : postGameStatsSummary ? (
-                                            <div className="min-w-0 overflow-x-hidden overflow-y-visible">
-                                                <div className="grid grid-cols-2 gap-1.5">
-                                                    <div className={`${statCardClass} text-center`}>
-                                                        <p className={statLabelClass}>{t('summary.rankingScore')}</p>
-                                                        <div className={statCardBodyClass}>
-                                                            <span className={statValueMainClass}>{postGameStatsSummary.rating.final}</span>
-                                                            <span
-                                                                className={`rounded-full border px-1.5 py-px text-[0.6rem] font-bold tabular-nums leading-none min-[1024px]:text-[0.65rem] ${
-                                                                    postGameStatsSummary.rating.change >= 0
-                                                                        ? 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
-                                                                        : 'border-rose-400/35 bg-rose-500/15 text-rose-200'
-                                                                }`}
-                                                            >
-                                                                {postGameStatsSummary.rating.change > 0 ? '+' : ''}
-                                                                {postGameStatsSummary.rating.change}
-                                                            </span>
-                                                        </div>
+                                    {isAdventureGame && mySummary?.adventureCodexDelta ? (
+                                        <AdventureResultCodexCard
+                                            codexDelta={mySummary.adventureCodexDelta}
+                                            understandingDelta={mySummary.adventureUnderstandingDelta}
+                                            compact={isMobile}
+                                            mobileTextScale={mobileTextScale}
+                                        />
+                                    ) : null}
+                                    {isGuildWar ? (
+                                        renderGuildWarStarConditions()
+                                    ) : postGameStatsSummary ? (
+                                        <div className="min-w-0 overflow-x-hidden overflow-y-visible">
+                                            <div className="grid grid-cols-2 gap-1.5">
+                                                <div className={`${statCardClass} text-center`}>
+                                                    <p className={statLabelClass}>{t('summary.rankingScore')}</p>
+                                                    <div className={statCardBodyClass}>
+                                                        <span className={statValueMainClass}>{postGameStatsSummary.rating.final}</span>
+                                                        <span
+                                                            className={`rounded-full border px-1.5 py-px text-[0.6rem] font-bold tabular-nums leading-none min-[1024px]:text-[0.65rem] ${
+                                                                postGameStatsSummary.rating.change >= 0
+                                                                    ? 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
+                                                                    : 'border-rose-400/35 bg-rose-500/15 text-rose-200'
+                                                            }`}
+                                                        >
+                                                            {postGameStatsSummary.rating.change > 0 ? '+' : ''}
+                                                            {postGameStatsSummary.rating.change}
+                                                        </span>
                                                     </div>
-                                                    {showMannerPostGameStats ? (
-                                                        <div className={`${statCardClass} text-center`}>
-                                                            <p className={statLabelClass}>{t('summary.mannerScore')}</p>
-                                                            <div className={statCardBodyClass}>
-                                                                <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
-                                                                {postGameStatsSummary.manner.change === 0 ? (
-                                                                    <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">
-                                                                        {t('summary.noChange')}
-                                                                    </span>
-                                                                ) : (
-                                                                    <span
-                                                                        className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
-                                                                            postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
-                                                                        }`}
-                                                                    >
-                                                                        <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
-                                                                        <span>
-                                                                            {postGameStatsSummary.manner.change > 0
-                                                                                ? postGameStatsSummary.manner.change
-                                                                                : Math.abs(postGameStatsSummary.manner.change)}
-                                                                            {t('summary.pointsDelta')}
-                                                                        </span>
-                                                                    </span>
-                                                                )}
-                                                            </div>
-                                                        </div>
-                                                    ) : null}
+                                                </div>
+                                                {showMannerPostGameStats ? (
                                                     <div className={`${statCardClass} text-center`}>
-                                                        <p className={statLabelClass}>{t('summary.overallRecord')}</p>
+                                                        <p className={statLabelClass}>{t('summary.mannerScore')}</p>
                                                         <div className={statCardBodyClass}>
-                                                            {postGameStatsSummary.overallRecord != null ? (
-                                                                <span className={statOverallClass}>
-                                                                    <span className="text-amber-200">{postGameStatsSummary.overallRecord.wins}</span>
-                                                                    <span className="text-[0.7rem] font-bold text-slate-300">{t('summary.winShort')}</span>
-                                                                    <span className="text-slate-100">{postGameStatsSummary.overallRecord.losses}</span>
-                                                                    <span className="text-[0.7rem] font-bold text-slate-300">{t('summary.loseShort')}</span>
+                                                            <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
+                                                            {postGameStatsSummary.manner.change === 0 ? (
+                                                                <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">
+                                                                    {t('summary.noChange')}
                                                                 </span>
                                                             ) : (
-                                                                <span className="text-sm font-bold text-slate-500">-</span>
+                                                                <span
+                                                                    className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
+                                                                        postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
+                                                                    }`}
+                                                                >
+                                                                    <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
+                                                                    <span>
+                                                                        {postGameStatsSummary.manner.change > 0
+                                                                            ? postGameStatsSummary.manner.change
+                                                                            : Math.abs(postGameStatsSummary.manner.change)}
+                                                                        {t('summary.pointsDelta')}
+                                                                    </span>
+                                                                </span>
                                                             )}
                                                         </div>
                                                     </div>
-                                                    {showMannerPostGameStats ? (
-                                                        <div className={`${statCardClass} text-center`}>
-                                                            <p className={statLabelClass}>{t('summary.mannerRank')}</p>
-                                                            <div className={statCardBodyClass}>
-                                                                <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
-                                                                    <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
-                                                                    <span className="text-slate-500">→</span>
-                                                                    <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
-                                                                </span>
-                                                            </div>
-                                                        </div>
-                                                    ) : null}
-                                                </div>
-                                            </div>
-                                        ) : null}
-                                    </div>
-                        {pvpRewardsSection}
-                    </div>
-                    </GameResultModalFitContent>
-                ) : (
-                    <GameResultModalFitContent className="min-h-0 flex-1">
-                    <div className="flex min-h-0 flex-col gap-2 overflow-x-hidden sm:gap-2.5">
-                        <div className="flex shrink-0 flex-col items-center overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
-                            <h2
-                                className="mb-0 w-full flex-shrink-0 border-b border-amber-500/20 pb-1 text-center font-bold uppercase tracking-[0.12em] text-amber-200/85"
-                                style={desktopSectionHeadStyle}
-                            >
-                                {t('summary.gameContent')}
-                            </h2>
-                            {!isChampionshipVersusSummary ? (
-                                <p
-                                    className="mb-1.5 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90 min-[1024px]:text-xs"
-                                    style={desktopSectionHeadStyle}
-                                >
-                                    {translateGameMode(session.mode)}
-                                </p>
-                            ) : null}
-                            {isGuildWar ? (
-                                <div className="mb-2 mt-1.5 flex flex-shrink-0 flex-col items-center gap-0.5" aria-label={t('summary.starsEarnedAria', { count: guildWarStars })}>
-                                    <div className="flex items-center justify-center gap-1.5">
-                                        <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400 min-[1024px]:text-xs">
-                                            {t('summary.starsEarned')}
-                                        </span>
-                                        {[0, 1, 2].map((i) => (
-                                            <img
-                                                key={i}
-                                                src={
-                                                    i < guildWarStars
-                                                        ? '/images/guild/guildwar/clearstar.webp'
-                                                        : '/images/guild/guildwar/emptystar.webp'
-                                                }
-                                                alt=""
-                                                className="h-7 w-7 object-contain drop-shadow min-[1024px]:h-8 min-[1024px]:w-8"
-                                            />
-                                        ))}
-                                        <span className="text-sm font-bold tabular-nums text-amber-100/95 min-[1024px]:text-base">
-                                            {guildWarStars}/3
-                                        </span>
-                                    </div>
-                                </div>
-                            ) : null}
-                            <MatchPlayersRoster
-                                session={session}
-                                blackPlayer={blackPlayer}
-                                whitePlayer={whitePlayer}
-                                isPlayful={isPlayful}
-                                isMobile={false}
-                                mobileTextScale={mobileTextScale}
-                                mobileImageScale={mobileImageScale}
-                                desktopTextScale={desktopTextScale}
-                            />
-                            <div className="flex w-full min-h-0 flex-col items-center overflow-x-hidden overflow-y-visible pr-0.5">
-                                {renderGameContent()}
-                            </div>
-                        </div>
-                        <div className="flex min-h-0 min-w-0 shrink-0 flex-col gap-2 overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
-                                <h2
-                                    className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-1 text-center font-bold uppercase tracking-[0.12em] text-violet-200/85"
-                                    style={desktopSectionHeadStyle}
-                                >
-                                    {isGuildWar ? t('summary.rewardsSection') : t('summary.resultSection')}
-                                </h2>
-                                {renderRecordIdentityPanels()}
-                                {isAdventureGame && mySummary?.adventureCodexDelta ? (
-                                    <AdventureResultCodexCard
-                                        codexDelta={mySummary.adventureCodexDelta}
-                                        understandingDelta={mySummary.adventureUnderstandingDelta}
-                                        compact={false}
-                                        mobileTextScale={mobileTextScale}
-                                    />
-                                ) : null}
-                                {isGuildWar ? (
-                                    renderGuildWarStarConditions()
-                                ) : postGameStatsSummary ? (
-                                    <div className={`${isAdventureGame ? 'min-h-0' : 'min-h-0'} min-w-0 flex-1 overflow-x-hidden overflow-y-visible`}>
-                                        <div className="grid grid-cols-2 gap-0.5 sm:gap-1">
-                                            <div className={`${statCardClass} text-center`}>
-                                                <p className={statLabelClass}>{gs('rankingScore')}</p>
-                                                <div className={statCardBodyClass}>
-                                                    <span className={statValueMainClass}>{postGameStatsSummary.rating.final}</span>
-                                                    <span
-                                                        className={`rounded-full border px-1.5 py-px text-[0.6rem] font-bold tabular-nums leading-none min-[1024px]:text-[0.65rem] ${
-                                                            postGameStatsSummary.rating.change >= 0
-                                                                ? 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
-                                                                : 'border-rose-400/35 bg-rose-500/15 text-rose-200'
-                                                        }`}
-                                                    >
-                                                        {postGameStatsSummary.rating.change > 0 ? '+' : ''}
-                                                        {postGameStatsSummary.rating.change}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                            {showMannerPostGameStats ? (
+                                                ) : null}
                                                 <div className={`${statCardClass} text-center`}>
-                                                    <p className={statLabelClass}>{gs('mannerScore')}</p>
+                                                    <p className={statLabelClass}>{t('summary.overallRecord')}</p>
                                                     <div className={statCardBodyClass}>
-                                                        <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
-                                                        {postGameStatsSummary.manner.change === 0 ? (
-                                                            <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">{gs("noChange")}</span>
-                                                        ) : (
-                                                            <span
-                                                                className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
-                                                                    postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
-                                                                }`}
-                                                            >
-                                                                <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
-                                                                <span>
-                                                                    {postGameStatsSummary.manner.change > 0
-                                                                        ? postGameStatsSummary.manner.change
-                                                                        : Math.abs(postGameStatsSummary.manner.change)}
-                                                                    {gs('pointsDelta')}
-                                                                </span>
+                                                        {postGameStatsSummary.overallRecord != null ? (
+                                                            <span className={statOverallClass}>
+                                                                <span className="text-amber-200">{postGameStatsSummary.overallRecord.wins}</span>
+                                                                <span className="text-[0.7rem] font-bold text-slate-300">{t('summary.winShort')}</span>
+                                                                <span className="text-slate-100">{postGameStatsSummary.overallRecord.losses}</span>
+                                                                <span className="text-[0.7rem] font-bold text-slate-300">{t('summary.loseShort')}</span>
                                                             </span>
+                                                        ) : (
+                                                            <span className="text-sm font-bold text-slate-500">-</span>
                                                         )}
                                                     </div>
                                                 </div>
-                                            ) : null}
-                                            <div className={`${statCardClass} text-center`}>
-                                                <p className={statLabelClass}>{gs('overallRecord')}</p>
-                                                <div className={statCardBodyClass}>
-                                                    {postGameStatsSummary.overallRecord != null ? (
-                                                        <span className={statOverallClass}>
-                                                            <span className="text-amber-200">{postGameStatsSummary.overallRecord.wins}</span>
-                                                            <span className="text-[0.65rem] font-bold text-slate-500">{gs("winShort")}</span>
-                                                            <span className="text-slate-200">{postGameStatsSummary.overallRecord.losses}</span>
-                                                            <span className="text-[0.65rem] font-bold text-slate-500">{gs("loseShort")}</span>
-                                                        </span>
-                                                    ) : (
-                                                        <span className="text-sm font-bold text-slate-500">-</span>
-                                                    )}
-                                                </div>
+                                                {showMannerPostGameStats ? (
+                                                    <div className={`${statCardClass} text-center`}>
+                                                        <p className={statLabelClass}>{t('summary.mannerRank')}</p>
+                                                        <div className={statCardBodyClass}>
+                                                            <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
+                                                                <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
+                                                                <span className="text-slate-500">→</span>
+                                                                <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ) : null}
                                             </div>
-                                            {showMannerPostGameStats ? (
-                                                <div className={`${statCardClass} text-center`}>
-                                                    <p className={statLabelClass}>{gs('mannerRank')}</p>
-                                                    <div className={statCardBodyClass}>
-                                                        <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
-                                                            <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
-                                                            <span className="text-slate-500">→</span>
-                                                            <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
+                                        </div>
+                                    ) : null}
+                                </div>
+                                {pvpRewardsSection}
+                            </div>
+                        )}
+                    </GameResultModalFitContent>
+                ) : (
+                    <GameResultModalFitContent className="min-h-0 flex-1">
+                        {useResultTabs ? (
+                            <MobileResultTabPanelStack
+                                active={resultTab}
+                                detailPanel={
+                                    <div className="flex min-h-0 flex-col gap-2 overflow-x-hidden sm:gap-2.5">
+                                        <div className="flex shrink-0 flex-col items-center overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
+                                            <h2
+                                                className="mb-0 w-full flex-shrink-0 border-b border-amber-500/20 pb-1 text-center font-bold uppercase tracking-[0.12em] text-amber-200/85"
+                                                style={desktopSectionHeadStyle}
+                                            >
+                                                {t('summary.gameContent')}
+                                            </h2>
+                                            <p
+                                                className="mb-1.5 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90 min-[1024px]:text-xs"
+                                                style={desktopSectionHeadStyle}
+                                            >
+                                                {translateGameMode(session.mode)}
+                                            </p>
+                                            {isGuildWar ? (
+                                                <div className="mb-2 mt-1.5 flex flex-shrink-0 flex-col items-center gap-0.5" aria-label={t('summary.starsEarnedAria', { count: guildWarStars })}>
+                                                    <div className="flex items-center justify-center gap-1.5">
+                                                        <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400 min-[1024px]:text-xs">
+                                                            {t('summary.starsEarned')}
                                                         </span>
+                                                        {[0, 1, 2].map((i) => (
+                                                            <img
+                                                                key={i}
+                                                                src={
+                                                                    i < guildWarStars
+                                                                        ? '/images/guild/guildwar/clearstar.webp'
+                                                                        : '/images/guild/guildwar/emptystar.webp'
+                                                                }
+                                                                alt=""
+                                                                className="h-7 w-7 object-contain drop-shadow min-[1024px]:h-8 min-[1024px]:w-8"
+                                                            />
+                                                        ))}
+                                                        <span className="text-sm font-bold tabular-nums text-amber-100/95 min-[1024px]:text-base">
+                                                            {guildWarStars}/3
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                            ) : null}
+                                            <MatchPlayersRoster
+                                                session={session}
+                                                blackPlayer={blackPlayer}
+                                                whitePlayer={whitePlayer}
+                                                isPlayful={isPlayful}
+                                                isMobile={false}
+                                                mobileTextScale={mobileTextScale}
+                                                mobileImageScale={mobileImageScale}
+                                                desktopTextScale={desktopTextScale}
+                                            />
+                                            <div className="flex w-full min-h-0 flex-col items-center overflow-x-hidden overflow-y-visible pr-0.5">
+                                                {renderGameContent()}
+                                            </div>
+                                        </div>
+                                        <div className={`flex min-h-0 min-w-0 shrink-0 flex-col gap-2 overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 ${hasDetailResultExtras ? '' : 'hidden'}`}>
+                                            <h2
+                                                className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-1 text-center font-bold uppercase tracking-[0.12em] text-violet-200/85"
+                                                style={desktopSectionHeadStyle}
+                                            >
+                                                {t('summary.resultSection')}
+                                            </h2>
+                                            {isAdventureGame && mySummary?.adventureCodexDelta ? (
+                                                <AdventureResultCodexCard
+                                                    codexDelta={mySummary.adventureCodexDelta}
+                                                    understandingDelta={mySummary.adventureUnderstandingDelta}
+                                                    compact={false}
+                                                    mobileTextScale={mobileTextScale}
+                                                />
+                                            ) : null}
+                                            {isGuildWar ? (
+                                                renderGuildWarStarConditions()
+                                            ) : postGameStatsSummary ? (
+                                                <div className={`${isAdventureGame ? 'min-h-0' : 'min-h-0'} min-w-0 flex-1 overflow-x-hidden overflow-y-visible`}>
+                                                    <div className="grid grid-cols-2 gap-0.5 sm:gap-1">
+                                                        <div className={`${statCardClass} text-center`}>
+                                                            <p className={statLabelClass}>{gs('rankingScore')}</p>
+                                                            <div className={statCardBodyClass}>
+                                                                <span className={statValueMainClass}>{postGameStatsSummary.rating.final}</span>
+                                                                <span
+                                                                    className={`rounded-full border px-1.5 py-px text-[0.6rem] font-bold tabular-nums leading-none min-[1024px]:text-[0.65rem] ${
+                                                                        postGameStatsSummary.rating.change >= 0
+                                                                            ? 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
+                                                                            : 'border-rose-400/35 bg-rose-500/15 text-rose-200'
+                                                                    }`}
+                                                                >
+                                                                    {postGameStatsSummary.rating.change > 0 ? '+' : ''}
+                                                                    {postGameStatsSummary.rating.change}
+                                                                </span>
+                                                            </div>
+                                                        </div>
+                                                        {showMannerPostGameStats ? (
+                                                            <div className={`${statCardClass} text-center`}>
+                                                                <p className={statLabelClass}>{gs('mannerScore')}</p>
+                                                                <div className={statCardBodyClass}>
+                                                                    <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
+                                                                    {postGameStatsSummary.manner.change === 0 ? (
+                                                                        <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">{gs("noChange")}</span>
+                                                                    ) : (
+                                                                        <span
+                                                                            className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
+                                                                                postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
+                                                                            }`}
+                                                                        >
+                                                                            <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
+                                                                            <span>
+                                                                                {postGameStatsSummary.manner.change > 0
+                                                                                    ? postGameStatsSummary.manner.change
+                                                                                    : Math.abs(postGameStatsSummary.manner.change)}
+                                                                                {gs('pointsDelta')}
+                                                                            </span>
+                                                                        </span>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        ) : null}
+                                                        <div className={`${statCardClass} text-center`}>
+                                                            <p className={statLabelClass}>{gs('overallRecord')}</p>
+                                                            <div className={statCardBodyClass}>
+                                                                {postGameStatsSummary.overallRecord != null ? (
+                                                                    <span className={statOverallClass}>
+                                                                        <span className="text-amber-200">{postGameStatsSummary.overallRecord.wins}</span>
+                                                                        <span className="text-[0.65rem] font-bold text-slate-500">{gs("winShort")}</span>
+                                                                        <span className="text-slate-200">{postGameStatsSummary.overallRecord.losses}</span>
+                                                                        <span className="text-[0.65rem] font-bold text-slate-500">{gs("loseShort")}</span>
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="text-sm font-bold text-slate-500">-</span>
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                        {showMannerPostGameStats ? (
+                                                            <div className={`${statCardClass} text-center`}>
+                                                                <p className={statLabelClass}>{gs('mannerRank')}</p>
+                                                                <div className={statCardBodyClass}>
+                                                                    <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
+                                                                        <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
+                                                                        <span className="text-slate-500">→</span>
+                                                                        <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
+                                                                    </span>
+                                                                </div>
+                                                            </div>
+                                                        ) : null}
                                                     </div>
                                                 </div>
                                             ) : null}
                                         </div>
                                     </div>
-                                ) : null}
-                        </div>
-                        {pvpRewardsSection}
-                    </div>
+                                }
+                                rewardsPanel={pvpRewardsSection}
+                            />
+                        ) : (
+                            <div className="flex min-h-0 flex-col gap-2 overflow-x-hidden sm:gap-2.5">
+                                <div className="flex shrink-0 flex-col items-center overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/90 via-[#121318] to-[#0a0a0e] p-2.5 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10">
+                                    <h2
+                                        className="mb-0 w-full flex-shrink-0 border-b border-amber-500/20 pb-1 text-center font-bold uppercase tracking-[0.12em] text-amber-200/85"
+                                        style={desktopSectionHeadStyle}
+                                    >
+                                        {t('summary.gameContent')}
+                                    </h2>
+                                    {!isChampionshipVersusSummary ? (
+                                        <p
+                                            className="mb-1.5 w-full flex-shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-400/90 min-[1024px]:text-xs"
+                                            style={desktopSectionHeadStyle}
+                                        >
+                                            {translateGameMode(session.mode)}
+                                        </p>
+                                    ) : null}
+                                    {isGuildWar ? (
+                                        <div className="mb-2 mt-1.5 flex flex-shrink-0 flex-col items-center gap-0.5" aria-label={t('summary.starsEarnedAria', { count: guildWarStars })}>
+                                            <div className="flex items-center justify-center gap-1.5">
+                                                <span className="text-[0.65rem] font-semibold uppercase tracking-wider text-slate-400 min-[1024px]:text-xs">
+                                                    {t('summary.starsEarned')}
+                                                </span>
+                                                {[0, 1, 2].map((i) => (
+                                                    <img
+                                                        key={i}
+                                                        src={
+                                                            i < guildWarStars
+                                                                ? '/images/guild/guildwar/clearstar.webp'
+                                                                : '/images/guild/guildwar/emptystar.webp'
+                                                        }
+                                                        alt=""
+                                                        className="h-7 w-7 object-contain drop-shadow min-[1024px]:h-8 min-[1024px]:w-8"
+                                                    />
+                                                ))}
+                                                <span className="text-sm font-bold tabular-nums text-amber-100/95 min-[1024px]:text-base">
+                                                    {guildWarStars}/3
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                    <MatchPlayersRoster
+                                        session={session}
+                                        blackPlayer={blackPlayer}
+                                        whitePlayer={whitePlayer}
+                                        isPlayful={isPlayful}
+                                        isMobile={false}
+                                        mobileTextScale={mobileTextScale}
+                                        mobileImageScale={mobileImageScale}
+                                        desktopTextScale={desktopTextScale}
+                                    />
+                                    <div className="flex w-full min-h-0 flex-col items-center overflow-x-hidden overflow-y-visible pr-0.5">
+                                        {renderGameContent()}
+                                    </div>
+                                </div>
+                                <div className={`flex min-h-0 min-w-0 shrink-0 flex-col gap-2 overflow-visible rounded-xl border border-amber-500/25 bg-gradient-to-b from-slate-900/92 via-[#121318] to-[#0a0a0e] p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-amber-500/10 ${hasDetailResultExtras ? '' : 'hidden'}`}>
+                                    <h2
+                                        className="mb-0 flex-shrink-0 border-b border-violet-500/25 pb-1 text-center font-bold uppercase tracking-[0.12em] text-violet-200/85"
+                                        style={desktopSectionHeadStyle}
+                                    >
+                                        {isGuildWar ? t('summary.rewardsSection') : t('summary.resultSection')}
+                                    </h2>
+                                    {isAdventureGame && mySummary?.adventureCodexDelta ? (
+                                        <AdventureResultCodexCard
+                                            codexDelta={mySummary.adventureCodexDelta}
+                                            understandingDelta={mySummary.adventureUnderstandingDelta}
+                                            compact={false}
+                                            mobileTextScale={mobileTextScale}
+                                        />
+                                    ) : null}
+                                    {isGuildWar ? (
+                                        renderGuildWarStarConditions()
+                                    ) : postGameStatsSummary ? (
+                                        <div className={`${isAdventureGame ? 'min-h-0' : 'min-h-0'} min-w-0 flex-1 overflow-x-hidden overflow-y-visible`}>
+                                            <div className="grid grid-cols-2 gap-0.5 sm:gap-1">
+                                                <div className={`${statCardClass} text-center`}>
+                                                    <p className={statLabelClass}>{gs('rankingScore')}</p>
+                                                    <div className={statCardBodyClass}>
+                                                        <span className={statValueMainClass}>{postGameStatsSummary.rating.final}</span>
+                                                        <span
+                                                            className={`rounded-full border px-1.5 py-px text-[0.6rem] font-bold tabular-nums leading-none min-[1024px]:text-[0.65rem] ${
+                                                                postGameStatsSummary.rating.change >= 0
+                                                                    ? 'border-emerald-400/35 bg-emerald-500/15 text-emerald-200'
+                                                                    : 'border-rose-400/35 bg-rose-500/15 text-rose-200'
+                                                            }`}
+                                                        >
+                                                            {postGameStatsSummary.rating.change > 0 ? '+' : ''}
+                                                            {postGameStatsSummary.rating.change}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                {showMannerPostGameStats ? (
+                                                    <div className={`${statCardClass} text-center`}>
+                                                        <p className={statLabelClass}>{gs('mannerScore')}</p>
+                                                        <div className={statCardBodyClass}>
+                                                            <span className={statValueMannerClass}>{postGameStatsSummary.manner.final}</span>
+                                                            {postGameStatsSummary.manner.change === 0 ? (
+                                                                <span className="text-[0.6rem] font-semibold text-slate-500 min-[1024px]:text-[0.65rem]">{gs("noChange")}</span>
+                                                            ) : (
+                                                                <span
+                                                                    className={`inline-flex items-center gap-0.5 text-[0.6rem] font-bold tabular-nums min-[1024px]:text-[0.65rem] ${
+                                                                        postGameStatsSummary.manner.change > 0 ? 'text-emerald-300' : 'text-rose-300'
+                                                                    }`}
+                                                                >
+                                                                    <span aria-hidden>{postGameStatsSummary.manner.change > 0 ? '↑' : '↓'}</span>
+                                                                    <span>
+                                                                        {postGameStatsSummary.manner.change > 0
+                                                                            ? postGameStatsSummary.manner.change
+                                                                            : Math.abs(postGameStatsSummary.manner.change)}
+                                                                        {gs('pointsDelta')}
+                                                                    </span>
+                                                                </span>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+                                                <div className={`${statCardClass} text-center`}>
+                                                    <p className={statLabelClass}>{gs('overallRecord')}</p>
+                                                    <div className={statCardBodyClass}>
+                                                        {postGameStatsSummary.overallRecord != null ? (
+                                                            <span className={statOverallClass}>
+                                                                <span className="text-amber-200">{postGameStatsSummary.overallRecord.wins}</span>
+                                                                <span className="text-[0.65rem] font-bold text-slate-500">{gs("winShort")}</span>
+                                                                <span className="text-slate-200">{postGameStatsSummary.overallRecord.losses}</span>
+                                                                <span className="text-[0.65rem] font-bold text-slate-500">{gs("loseShort")}</span>
+                                                            </span>
+                                                        ) : (
+                                                            <span className="text-sm font-bold text-slate-500">-</span>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                {showMannerPostGameStats ? (
+                                                    <div className={`${statCardClass} text-center`}>
+                                                        <p className={statLabelClass}>{gs('mannerRank')}</p>
+                                                        <div className={statCardBodyClass}>
+                                                            <span className="flex flex-wrap items-center justify-center gap-0.5 text-[0.65rem] font-bold text-violet-200/95 min-[1024px]:text-xs">
+                                                                <span className="rounded border border-violet-400/25 bg-violet-950/40 px-1 py-px">{initialMannerRank}</span>
+                                                                <span className="text-slate-500">→</span>
+                                                                <span className="rounded border border-violet-400/35 bg-violet-900/35 px-1 py-px">{finalMannerRank}</span>
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    ) : null}
+                                </div>
+                                {pvpRewardsSection}
+                            </div>
+                        )}
                     </GameResultModalFitContent>
                 )}
             </div>

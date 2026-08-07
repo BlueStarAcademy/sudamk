@@ -35,7 +35,7 @@ import {
 } from '../../shared/constants/guildConstants.js';
 import AdBanner from '../ads/AdBanner.js';
 import { isBannerHiddenForGameStatus } from '../../constants/ads.js';
-import SinglePlayerGameDescriptionModal from '../SinglePlayerGameDescriptionModal.js';
+import PveBriefStartModal from '../pve/PveBriefStartModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
@@ -293,28 +293,23 @@ export const GameInfoPanel: React.FC<{
                 </div>
             </div>
             {matchGuideOpen && (
-                session.isSinglePlayer || session.gameCategory === 'singleplayer' || session.gameCategory === 'tower' ? (
-                    <SinglePlayerGameDescriptionModal
+                session.isSinglePlayer ||
+                session.gameCategory === 'singleplayer' ||
+                session.gameCategory === 'tower' ||
+                session.gameCategory === 'adventure' ? (
+                    <PveBriefStartModal
                         session={session}
+                        mode={
+                            session.gameCategory === 'tower'
+                                ? 'tower'
+                                : session.gameCategory === 'adventure'
+                                  ? 'adventure'
+                                  : 'academy'
+                        }
                         readOnly
                         currentUser={currentUser}
                         onAction={onAction}
                         onClose={() => setMatchGuideOpen(false)}
-                        onTowerItemPurchase={
-                            session.gameCategory === 'tower' && onAction
-                                ? async (itemId, quantity) => {
-                                      const gid = session.id;
-                                      await onAction({
-                                          type: 'BUY_TOWER_ITEM',
-                                          payload: {
-                                              itemId,
-                                              quantity,
-                                              ...(typeof gid === 'string' && gid.startsWith('tower-game-') ? { gameId: gid } : {}),
-                                          },
-                                      } as ServerAction);
-                                  }
-                                : undefined
-                        }
                     />
                 ) : (
                     <AiGameDescriptionModal

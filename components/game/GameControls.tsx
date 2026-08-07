@@ -17,8 +17,8 @@ import { ArenaControlStrip, ArenaFixedColsGrid } from './ArenaControlStrip.js';
 import {
     arenaPostGameButtonClass,
     arenaPostGameButtonInRowModifier,
+    arenaPostGameIngameEndedPanelShellClass,
     arenaPostGameIngameEndedRowClass,
-    arenaPostGamePanelShellClass,
     formatArenaRetryLabel,
     formatAiRematchFooterLabel,
     formatSinglePlayerNextFooterLabel,
@@ -1980,7 +1980,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             return (
                 <>
                 <footer className={`${arenaGameRoomControlsFooterClass} ${pveIngameFooterReservedHeightClass(!!isMobile)}`}>
-                    <div className={arenaPostGamePanelShellClass}>
+                    <div className={arenaPostGameIngameEndedPanelShellClass}>
                         <div className={arenaPostGameIngameEndedRowClass}>
                         <Button
                             bare

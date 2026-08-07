@@ -184,6 +184,12 @@ export function getAdventureDesignScoringTurnLimit(boardSize: number): number | 
     return ADVENTURE_BOARD_RULES[bs]?.scoringTurnLimit;
 }
 
+/** 탐험 따내기 목표 돌 수(판 크기별 설계값) */
+export function getAdventureDesignCaptureTarget(boardSize: number): number | undefined {
+    const bs = boardSize as 7 | 9 | 11 | 13 | 19;
+    return ADVENTURE_BOARD_RULES[bs]?.captureTarget;
+}
+
 /** 맵·도감 풍선용 — 판 줄·계가·룰별 수치 한 줄씩 */
 export function formatAdventureBattleQuickLines(boardSize: number, mode: GameMode): string[] {
     const bs = boardSize as 7 | 9 | 11 | 13 | 19;

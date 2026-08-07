@@ -1,14 +1,15 @@
 import React, { type ReactNode } from 'react';
 import { tx } from '../../shared/i18n/runtimeText.js';
 
-export type MobileGameResultTab = 'match' | 'record';
+/** 결과 모달 공통: 상세결과 ↔ 보상 */
+export type MobileGameResultTab = 'detail' | 'rewards';
 
 type MobileResultTabPanelStackProps = {
     active: MobileGameResultTab;
-    /** 첫 번째 탭(경기 내용 / 경기 결과) 본문 — 비활성 시에도 레이아웃 높이에 반영됨 */
-    matchPanel: ReactNode;
-    /** 두 번째 탭(대국 결과 / 기록) 본문 */
-    recordPanel: ReactNode;
+    /** 상세결과 본문 — 비활성 시에도 레이아웃 높이에 반영됨 */
+    detailPanel: ReactNode;
+    /** 보상 본문 */
+    rewardsPanel: ReactNode;
     className?: string;
 };
 
@@ -18,26 +19,26 @@ type MobileResultTabPanelStackProps = {
  */
 export const MobileResultTabPanelStack: React.FC<MobileResultTabPanelStackProps> = ({
     active,
-    matchPanel,
-    recordPanel,
+    detailPanel,
+    rewardsPanel,
     className = '',
 }) => (
     <div className={`grid w-full min-w-0 grid-cols-1 ${className}`.trim()}>
         <div
             className={`col-start-1 row-start-1 min-w-0 ${
-                active === 'match' ? 'relative z-[1]' : 'pointer-events-none invisible relative z-0 select-none'
+                active === 'detail' ? 'relative z-[1]' : 'pointer-events-none invisible relative z-0 select-none'
             }`}
-            aria-hidden={active !== 'match'}
+            aria-hidden={active !== 'detail'}
         >
-            {matchPanel}
+            {detailPanel}
         </div>
         <div
             className={`col-start-1 row-start-1 min-w-0 ${
-                active === 'record' ? 'relative z-[1]' : 'pointer-events-none invisible relative z-0 select-none'
+                active === 'rewards' ? 'relative z-[1]' : 'pointer-events-none invisible relative z-0 select-none'
             }`}
-            aria-hidden={active !== 'record'}
+            aria-hidden={active !== 'rewards'}
         >
-            {recordPanel}
+            {rewardsPanel}
         </div>
     </div>
 );
@@ -74,19 +75,19 @@ export const MobileEqualHeightTabPanels: React.FC<{
 type MobileGameResultTabBarProps = {
     active: MobileGameResultTab;
     onChange: (tab: MobileGameResultTab) => void;
-    matchLabel?: string;
-    recordLabel?: string;
+    detailLabel?: string;
+    rewardsLabel?: string;
     className?: string;
-    /** 놀이바둑 등 점수·라운드 정보가 많은 모바일 결과 — 탭 글자·터치 영역 확대 */
+    /** 놀이바둑 등 점수·라운드 정보가 많은 결과 — 탭 글자·터치 영역 확대 */
     comfortable?: boolean;
 };
 
-/** 모바일 경기 결과: 경기 내용 ↔ 기록/보상 전환 */
+/** 경기 결과 모달 공통: 상세결과 ↔ 보상 전환 (모바일·데스크톱) */
 export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
     active,
     onChange,
-    matchLabel = tx("game:summary.gameContent"),
-    recordLabel = tx("game:summary.resultSection"),
+    detailLabel = tx('game:summary.detailResultTab'),
+    rewardsLabel = tx('game:summary.rewardsTab'),
     className = '',
     comfortable = false,
 }) => {
@@ -95,37 +96,37 @@ export const MobileGameResultTabBar: React.FC<MobileGameResultTabBarProps> = ({
         : 'min-h-[2rem] flex-1 rounded-md px-1.5 py-1 text-center text-[10px] font-bold uppercase tracking-[0.08em] transition-colors sm:text-xs';
 
     return (
-    <div
-        className={`flex w-full shrink-0 gap-0.5 rounded-lg border border-amber-500/35 bg-slate-950/80 p-0.5 ring-1 ring-inset ring-amber-500/12 ${className}`}
-        role="tablist"
-        aria-label={tx("game:mobileResultTab.aria")}
-    >
-        <button
-            type="button"
-            role="tab"
-            aria-selected={active === 'match'}
-            className={`${tabBtnBase} ${
-                active === 'match'
-                    ? 'border border-amber-400/40 bg-amber-500/20 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
-                    : 'border border-transparent text-slate-500 hover:text-slate-300'
-            }`}
-            onClick={() => onChange('match')}
+        <div
+            className={`flex w-full shrink-0 gap-0.5 rounded-lg border border-amber-500/35 bg-slate-950/80 p-0.5 ring-1 ring-inset ring-amber-500/12 ${className}`}
+            role="tablist"
+            aria-label={tx('game:mobileResultTab.aria')}
         >
-            {matchLabel}
-        </button>
-        <button
-            type="button"
-            role="tab"
-            aria-selected={active === 'record'}
-            className={`${tabBtnBase} ${
-                active === 'record'
-                    ? 'border border-violet-400/35 bg-violet-500/18 text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
-                    : 'border border-transparent text-slate-500 hover:text-slate-300'
-            }`}
-            onClick={() => onChange('record')}
-        >
-            {recordLabel}
-        </button>
-    </div>
+            <button
+                type="button"
+                role="tab"
+                aria-selected={active === 'detail'}
+                className={`${tabBtnBase} ${
+                    active === 'detail'
+                        ? 'border border-amber-400/40 bg-amber-500/20 text-amber-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]'
+                        : 'border border-transparent text-slate-500 hover:text-slate-300'
+                }`}
+                onClick={() => onChange('detail')}
+            >
+                {detailLabel}
+            </button>
+            <button
+                type="button"
+                role="tab"
+                aria-selected={active === 'rewards'}
+                className={`${tabBtnBase} ${
+                    active === 'rewards'
+                        ? 'border border-violet-400/35 bg-violet-500/18 text-violet-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]'
+                        : 'border border-transparent text-slate-500 hover:text-slate-300'
+                }`}
+                onClick={() => onChange('rewards')}
+            >
+                {rewardsLabel}
+            </button>
+        </div>
     );
 };

@@ -11,8 +11,9 @@ import { ArenaControlStrip } from './ArenaControlStrip.js';
 import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
     arenaPostGameButtonClass,
-    arenaPostGameButtonGridClass,
-    arenaPostGamePanelShellClass,
+    arenaPostGameButtonInRowModifier,
+    arenaPostGameIngameEndedPanelShellClass,
+    arenaPostGameIngameEndedRowClass,
 } from './arenaPostGameButtonStyles.js';
 import {
     arenaGameRoomControlsDividerClass,
@@ -128,15 +129,15 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
 
         return (
             <footer
-                className={`responsive-controls flex w-full flex-shrink-0 flex-col items-stretch justify-center gap-2 p-2 ${pveIngameFooterReservedHeightClass(!!isMobile)} ${arenaGameRoomIngameBottomBarShellClass}`}
+                className={`responsive-controls flex w-full flex-shrink-0 flex-col items-stretch justify-center p-1.5 sm:p-2 ${pveIngameFooterReservedHeightClass(!!isMobile)} ${arenaGameRoomIngameBottomBarShellClass}`}
             >
-                <div className={arenaPostGamePanelShellClass}>
-                    <div className={arenaPostGameButtonGridClass}>
+                <div className={arenaPostGameIngameEndedPanelShellClass}>
+                    <div className={arenaPostGameIngameEndedRowClass}>
                     <Button
                         bare
                         onClick={handleShowResults}
                         colorScheme="none"
-                        className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
+                        className={`${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} ${arenaPostGameButtonInRowModifier}`}
                         disabled={blockPostGameFooter && !!showResultModal}
                     >
                         결과 보기
@@ -145,7 +146,7 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
                         bare
                         onClick={handleExit}
                         colorScheme="none"
-                        className={arenaPostGameButtonClass('neutral', !!isMobile, 'strip')}
+                        className={`${arenaPostGameButtonClass('neutral', !!isMobile, 'strip')} ${arenaPostGameButtonInRowModifier}`}
                         disabled={blockPostGameFooter}
                     >
                         대기실로
@@ -175,10 +176,10 @@ const GuildWarMissileTowerControls: React.FC<GuildWarMissileTowerControlsProps> 
 
     return (
 		<footer
-			className={`responsive-controls flex-shrink-0 w-full ${arenaGameRoomIngameBottomBarShellClass} ${
+			className={`responsive-controls flex-shrink-0 w-full ${arenaGameRoomIngameBottomBarShellClass} ${pveIngameFooterReservedHeightClass(!!isMobile)} ${
 				isMobile
-					? 'flex min-h-[104px] w-full min-w-0 flex-col items-stretch gap-0.5 p-1'
-					: 'flex min-h-[124px] flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
+					? 'flex w-full min-w-0 flex-col items-stretch gap-0.5 overflow-hidden p-1'
+					: 'flex flex-row items-stretch gap-6 p-2 min-[1025px]:gap-7 min-[1025px]:py-1.5 min-[1025px]:px-2.5'
 			}`}
 		>
             {isMobile ? (

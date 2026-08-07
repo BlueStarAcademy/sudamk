@@ -35,7 +35,12 @@ import TimeoutFoulModal from './components/TimeoutFoulModal.js';
 import AiChallengeModal from './components/waiting-room/AiChallengeModal.js';
 import SinglePlayerControls from './components/game/SinglePlayerControls.js';
 import SinglePlayerInfoPanel from './components/game/SinglePlayerInfoPanel.js';
-import SinglePlayerGameDescriptionModal from './components/SinglePlayerGameDescriptionModal.js';
+import PveBriefStartModal from './components/pve/PveBriefStartModal.js';
+import PveInteractiveTutorialModal from './components/pve/PveInteractiveTutorialModal.js';
+import {
+    resolveTutorialForStage,
+    type PveTutorialId,
+} from './shared/constants/pveTutorials.js';
 import SinglePlayerSidebar from './components/game/SinglePlayerSidebar.js';
 import TowerControls from './components/game/TowerControls.js';
 import TowerSidebar from './components/game/TowerSidebar.js';
@@ -5453,6 +5458,56 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         (session as { startTime?: number | null }).startTime == null &&
         towerValidMoveCount === 0;
 
+    const academyStageId = isSinglePlayer ? session.stageId ?? null : null;
+    const academyStageForBrief = useMemo(
+        () => (isSinglePlayer ? resolveLiveSessionSinglePlayerStageRow(session) : null),
+        // session 전체 대신 stage 식별자·리비전만 — 매 렌더 새 session 참조로 인한 연쇄 갱신 방지
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional narrow deps
+        [isSinglePlayer, academyStageId, singlePlayerStagesListRevision],
+    );
+    /** 스테이지 재입장마다 튜토리얼 노출 — 같은 세션에서 닫은 뒤에만 brief로 전환 */
+    const pendingTutorialId = useMemo((): PveTutorialId | null => {
+        if (!showGameDescription || !academyStageForBrief) return null;
+        return resolveTutorialForStage(session, academyStageForBrief);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- stage row + mode/settings snapshot fields
+    }, [
+        showGameDescription,
+        academyStageForBrief,
+        academyStageId,
+        session.mode,
+        session.settings?.missileCount,
+        session.settings?.hiddenStoneCount,
+        session.settings?.baseStones,
+        session.settings?.isSurvivalMode,
+        session.settings?.autoScoringTurns,
+    ]);
+    const [forcedTutorialId, setForcedTutorialId] = useState<PveTutorialId | null>(null);
+    const [tutorialDismissedForSession, setTutorialDismissedForSession] = useState<string | null>(null);
+    useEffect(() => {
+        // 새 세션(스테이지 재입장)마다 튜토리얼을 다시 보여 준다.
+        setForcedTutorialId(null);
+        setTutorialDismissedForSession(null);
+    }, [session.id]);
+    const activeTutorialId: PveTutorialId | null = useMemo(() => {
+        if (forcedTutorialId) return forcedTutorialId;
+        if (!pendingTutorialId || !showGameDescription) return null;
+        if (tutorialDismissedForSession === session.id) return null;
+        return pendingTutorialId;
+    }, [
+        forcedTutorialId,
+        pendingTutorialId,
+        showGameDescription,
+        tutorialDismissedForSession,
+        session.id,
+    ]);
+    const finishAcademyTutorial = useCallback(
+        (_tutorialId: PveTutorialId) => {
+            setForcedTutorialId(null);
+            setTutorialDismissedForSession(session.id);
+        },
+        [session.id],
+    );
+
     /** 새로고침 직후 INITIAL_STATE/rejoin 전에 격자·돌이 맞지 않으면 안내 레이어(착점은 handleBoardClick에서도 차단) */
     const boardSyncHydrationOverlayActive = useMemo(() => {
         if (isSpectator) return false;
@@ -5795,15 +5850,31 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         : {}),
                 }}
             >
-                {showGameDescription && (
-                    <SinglePlayerGameDescriptionModal 
+                {showGameDescription && activeTutorialId ? (
+                    <PveInteractiveTutorialModal
+                        tutorialId={activeTutorialId}
+                        onComplete={() => finishAcademyTutorial(activeTutorialId)}
+                        onClose={() => finishAcademyTutorial(activeTutorialId)}
+                    />
+                ) : null}
+                {showGameDescription && !activeTutorialId ? (
+                    <PveBriefStartModal
                         session={sessionWithRestoredPatternStones}
+                        mode="academy"
                         onStart={handleStartGame}
                         onExit={handleExitPreGameModal}
                         currentUser={currentUserWithStatus}
                         onAction={handlers.handleAction}
+                        onReplayTutorial={
+                            pendingTutorialId
+                                ? () => {
+                                      setTutorialDismissedForSession(null);
+                                      setForcedTutorialId(pendingTutorialId);
+                                  }
+                                : undefined
+                        }
                     />
-                )}
+                ) : null}
                 <Header compact />
                 <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
                     <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">
@@ -5955,26 +6026,16 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         : {}),
                 }}
             >
-                {showTowerGameDescription && (
-                    <SinglePlayerGameDescriptionModal 
+                {showTowerGameDescription ? (
+                    <PveBriefStartModal
                         session={sessionWithRestoredPatternStones}
+                        mode="tower"
                         onStart={handleStartGame}
                         onExit={handleExitPreGameModal}
                         currentUser={currentUserWithStatus}
                         onAction={handlers.handleAction}
-                        onTowerItemPurchase={async (itemId, quantity) => {
-                            const gid = sessionWithRestoredPatternStones?.id;
-                            await handlers.handleAction({
-                                type: 'BUY_TOWER_ITEM',
-                                payload: {
-                                    itemId,
-                                    quantity,
-                                    ...(typeof gid === 'string' && gid.startsWith('tower-game-') ? { gameId: gid } : {}),
-                                },
-                            } as ServerAction);
-                        }}
                     />
-                )}
+                ) : null}
                 <Header compact />
                 <div className="flex-1 flex flex-row gap-2 min-h-0 overflow-hidden">
                     <main className="flex-1 flex items-center justify-center min-w-0 min-h-0 overflow-hidden">

@@ -841,6 +841,8 @@
       "adGoldDoubleFailed": "광고 골드 2배 지급에 실패했습니다. 잠시 후 다시 시도해 주세요.",
       "gameContent": "경기 내용",
       "resultSection": "대국 결과",
+      "detailResultTab": "상세결과",
+      "rewardsTab": "보상",
       "rewardsSection": "보상·기록",
       "noScoreInfo": "점수 정보가 없습니다.",
       "territory": "영토",
@@ -1728,7 +1730,7 @@
       "regionAria": "획득 아이템"
     },
     "mobileResultTab": {
-      "aria": "결과 탭"
+      "aria": "상세결과와 보상"
     },
     "speedPressure": {
       "aria": "수당 시간 {{sec}}초",
@@ -2143,6 +2145,57 @@
           "tab": "살리기 바둑",
           "step1Title": "백 막기",
           "step1Body": "정해진 턴 동안 백(상대)이 목표 점수를 달성하지 못하게 막습니다."
+        }
+      }
+    },
+    "pveBrief": {
+      "badgeAcademy": "모험",
+      "badgeTower": "도전의 탑",
+      "badgeAdventure": "탐험",
+      "headlineCaptureVs": "{{my}}개 vs {{opp}}개 따내기",
+      "headlineCaptureSolo": "{{count}}개 따내기",
+      "headlineSurvival": "{{turns}}턴 동안 {{count}}개 잡히지 않고 버티기",
+      "headlineAutoScoring": "{{turns}}턴까지 상대보다 많은 영토 만들기",
+      "headlineTerritory": "계가에서 상대보다 많은 영토 만들기",
+      "itemMissile": "미사일 {{count}}개",
+      "itemHidden": "히든 {{count}}개",
+      "itemScan": "스캔 {{count}}회",
+      "itemBase": "베이스 돌 {{count}}개",
+      "itemHintLabel": "사용 아이템",
+      "exit": "나가기",
+      "start": "시작하기",
+      "confirm": "확인",
+      "replayTutorial": "튜토리얼 다시보기",
+      "tutorialSkip": "닫기",
+      "tutorialNext": "다음",
+      "tutorialPractice": "따라 놓기",
+      "tutorialDone": "완료",
+      "tutorialReplayDemo": "다시 보기",
+      "tutorialPlaceHint": "빛나는 곳에 돌을 놓으세요",
+      "tutorials": {
+        "sp_capture_basics": {
+          "title": "돌 따내기 기초",
+          "body": "상대 돌을 사방에서 에워싸면 따낼 수 있습니다. 짧은 연출을 본 뒤, 같은 수를 따라 놓아 보세요."
+        },
+        "sp_survival": {
+          "title": "살리기 바둑",
+          "body": "정해진 턴 동안 상대가 목표 개수를 따내지 못하게 막으면 승리합니다."
+        },
+        "sp_auto_scoring": {
+          "title": "영토와 계가",
+          "body": "정해진 턴이 지나면 계가가 진행됩니다. 상대보다 넓은 집을 만드세요."
+        },
+        "sp_missile": {
+          "title": "미사일 아이템",
+          "body": "내 차례에 미사일로 돌을 밀어 형세를 바꿀 수 있습니다. 연출을 보고 착점을 따라 해 보세요."
+        },
+        "sp_hidden": {
+          "title": "히든·스캔",
+          "body": "히든으로 보이지 않는 수를 두고, 스캔으로 상대 히든을 찾을 수 있습니다."
+        },
+        "sp_base": {
+          "title": "베이스 바둑",
+          "body": "미리 놓인 베이스 돌을 보고 덤을 정한 뒤 대국을 시작합니다."
         }
       }
     },

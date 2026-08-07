@@ -2294,6 +2294,57 @@
       "timeoutFoulAutoTurn": "Turn skipped due to timeout.",
       "timeoutFoulLoseStone": "Lost a stone due to timeout.",
       "timeoutFoulPassTurn": "Passed due to timeout."
+    },
+    "pveBrief": {
+      "badgeAcademy": "Adventure",
+      "badgeTower": "Tower",
+      "badgeAdventure": "Exploration",
+      "headlineCaptureVs": "Capture {{my}} vs {{opp}}",
+      "headlineCaptureSolo": "Capture {{count}}",
+      "headlineSurvival": "Survive {{turns}} turns without losing {{count}}",
+      "headlineAutoScoring": "Hold more territory by turn {{turns}}",
+      "headlineTerritory": "Win by territory at scoring",
+      "itemMissile": "Missile ×{{count}}",
+      "itemHidden": "Hidden ×{{count}}",
+      "itemScan": "Scan ×{{count}}",
+      "itemBase": "Base stones ×{{count}}",
+      "itemHintLabel": "Items",
+      "exit": "Leave",
+      "start": "Start",
+      "confirm": "OK",
+      "replayTutorial": "Replay tutorial",
+      "tutorialSkip": "Close",
+      "tutorialNext": "Next",
+      "tutorialPractice": "Follow along",
+      "tutorialDone": "Done",
+      "tutorialReplayDemo": "Replay",
+      "tutorialPlaceHint": "Place a stone on the glowing point",
+      "tutorials": {
+        "sp_capture_basics": {
+          "title": "Capture basics",
+          "body": "Surround an opponent stone on all sides to capture it. Watch the demo, then place the same moves."
+        },
+        "sp_survival": {
+          "title": "Survival Go",
+          "body": "Prevent the opponent from reaching their capture target within the turn limit."
+        },
+        "sp_auto_scoring": {
+          "title": "Territory & scoring",
+          "body": "After the turn limit, scoring begins. Make more territory than your opponent."
+        },
+        "sp_missile": {
+          "title": "Missile item",
+          "body": "On your turn, use a missile to push a stone and change the shape. Watch, then practice."
+        },
+        "sp_hidden": {
+          "title": "Hidden & scan",
+          "body": "Play hidden moves the opponent cannot see, and use scan to find theirs."
+        },
+        "sp_base": {
+          "title": "Base Go",
+          "body": "Read the pre-placed base stones, set komi, then start the game."
+        }
+      }
     }
   },
   "settings": {

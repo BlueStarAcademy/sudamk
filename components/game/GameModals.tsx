@@ -31,9 +31,11 @@ import AlkkagiStartConfirmationModal from '../AlkkagiStartConfirmationModal.js';
 import SinglePlayerSummaryModal from '../SinglePlayerSummaryModal.js';
 import TowerSummaryModal from '../TowerSummaryModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
+import PveBriefStartModal from '../pve/PveBriefStartModal.js';
 import ColorStartConfirmationModal from '../ColorStartConfirmationModal.js';
 import PairTurnOrderModal from '../PairTurnOrderModal.js';
 import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { replaceAppHash } from '../../utils/appUtils.js';
 export type GameConfirmModalType = 'resign' | 'resignShortRanked' | null;
 
 interface GameModalsProps extends GameProps {
@@ -86,6 +88,27 @@ const GameModals: React.FC<GameModalsProps> = (props) => {
             if (isSpectator) return null;
             if (isAiLobbyStartConfirmInFlight) {
                 return null;
+            }
+            if (String(session.gameCategory ?? '') === 'adventure') {
+                return (
+                    <PveBriefStartModal
+                        session={session}
+                        mode="adventure"
+                        currentUser={currentUser}
+                        onAction={onAction}
+                        onStart={() => {
+                            void onAction({ type: 'CONFIRM_AI_GAME_START', payload: { gameId: session.id } });
+                        }}
+                        onExit={() => {
+                            sessionStorage.setItem('postGameRedirect', '#/adventure');
+                            void Promise.resolve(
+                                onAction({ type: 'LEAVE_AI_GAME', payload: { gameId: session.id } }),
+                            ).finally(() => {
+                                window.setTimeout(() => replaceAppHash('#/adventure'), 100);
+                            });
+                        }}
+                    />
+                );
             }
             return <AiGameDescriptionModal session={session} currentUser={currentUser} onAction={onAction} />;
         }

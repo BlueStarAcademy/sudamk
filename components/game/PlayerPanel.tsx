@@ -41,7 +41,6 @@ import {
     getSpeedTimePressureUiCountdownSeconds,
 } from '../../shared/utils/speedTimePressureDisplay.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
-import SpeedTenSecPressureBar from './SpeedTenSecPressureBar.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
@@ -464,8 +463,8 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const winLoseTextSize = isMobile ? 'text-xl' : 'text-2xl';
     const displayWinLoseTextSize =
         fluidTextLayout && isMobile ? 'text-base font-black' : `${winLoseTextSize} font-black`;
-    /** 모바일: 이름 옆 승·패가 flex-1 닉네임과 경쟁해 말줄임 발생 → 아바타 위 오버레이만 사용 */
-    const showWinLoseAvatarOverlay = isMobile && showWinLossLabel && (isWinner || isLoser);
+    /** PC·모바일 공통: 승·패는 아바타 오버레이만 — 인라인 text-2xl이 패널 높이를 키워 바둑판이 줄어들지 않게 함 */
+    const showWinLoseAvatarOverlay = showWinLossLabel && (isWinner || isLoser);
     const winLoseAvatarRibbonClass =
         'w-full rounded-b-md py-[2px] text-center text-[10px] font-black leading-none text-white shadow-[0_-1px_6px_rgba(0,0,0,0.45)]';
     const winLoseAvatarRibbonOverlay =
@@ -527,7 +526,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
 
     const timeAndMetaBlock = (
         <>
-            {useAdventureMatchCountdown && !isGameEnded && (
+            {useAdventureMatchCountdown && (
                 <>
                     <TimeBar
                         timeLeft={adventureMatchCountdownSec!}
@@ -535,7 +534,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                         byoyomiTime={effectiveByoyomiTime}
                         byoyomiPeriods={0}
                         totalByoyomi={0}
-                        isActive={!adventureMonsterTurnPanel}
+                        isActive={!isGameEnded && !adventureMonsterTurnPanel}
                         isInByoyomi={false}
                         isFoulMode={false}
                         isMobile={isMobile}
@@ -609,24 +608,32 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         </>
     );
 
+    /** 모바일 stats 시간 패널: 컴팩트하게 넣어 보드 레이아웃을 흔들지 않음 */
+    const speedPressureFooterCompact = fluidTextLayout && isMobile;
     const speedPressureFooter =
         speedTenSecBarActive && speedBonusSecToNextDrop != null && speedBonusTickProgress != null ? (
             <div
-                className={`mt-auto w-full min-w-0 shrink-0 border-t pt-1.5 ${
-                    panelType === 'white' ? 'border-slate-400/40' : 'border-white/10'
-                } ${isLeft ? 'text-left' : 'text-right'}`}
+                className={`mt-auto w-full min-w-0 shrink-0 border-t ${
+                    speedPressureFooterCompact ? 'pt-0.5' : 'pt-1.5'
+                } ${panelType === 'white' ? 'border-slate-400/40' : 'border-white/10'} ${
+                    isLeft ? 'text-left' : 'text-right'
+                }`}
             >
                 <div
-                    className={`flex w-full min-w-0 items-center gap-2 ${
-                        isLeft ? 'flex-row' : 'flex-row-reverse'
-                    }`}
+                    className={`flex w-full min-w-0 items-center ${
+                        speedPressureFooterCompact ? 'gap-1.5' : 'gap-2'
+                    } ${isLeft ? 'flex-row' : 'flex-row-reverse'}`}
                     role="timer"
                     aria-live="polite"
                     aria-label={t('speedPressure.aria', { sec: speedBonusSecToNextDrop })}
                 >
                     <span
                         className={`shrink-0 min-w-[2ch] text-center font-black tabular-nums leading-none ${
-                            fluidTextLayout && isMobile ? 'text-base' : isMobile ? 'text-lg' : 'text-xl'
+                            speedPressureFooterCompact
+                                ? 'text-sm'
+                                : isMobile
+                                  ? 'text-lg'
+                                  : 'text-xl'
                         } ${
                             speedBonusSecToNextDrop <= 3
                                 ? panelType === 'white'
@@ -642,7 +649,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
                     <div
                         className={`min-w-0 flex-1 overflow-hidden rounded-full ${
                             panelType === 'white' ? 'bg-slate-400/35' : 'bg-white/20'
-                        } ${fluidTextLayout && isMobile ? 'h-3' : 'h-3.5'}`}
+                        } ${speedPressureFooterCompact ? 'h-2.5' : 'h-3.5'}`}
                     >
                         <div
                             className={`h-full rounded-full transition-[width] duration-300 ${
@@ -1514,29 +1521,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         rightSpeedBonusTick.secToNextDrop != null &&
         (isPvpHumanSpeedLiveBonusUi || rightPlayerUser.id === currentUser?.id);
 
-    /** 모바일·좁은 창 스피드: 수당 10초 막대를 패널이 아닌 전용 행으로 표시(라벨 없이 카운트+막대만) */
-    const useMobileDedicatedSpeedTenSecBar = compactPlayerBar && isSpeedLiveBonusUi;
-    const myPlayerEnumForSpeedBar =
-        currentUser?.id === leftPlayerUser.id
-            ? leftPlayerEnum
-            : currentUser?.id === rightPlayerUser.id
-              ? rightPlayerEnum
-              : null;
-    const mySpeedBonusTickForBar =
-        myPlayerEnumForSpeedBar === leftPlayerEnum
-            ? leftSpeedBonusTick
-            : myPlayerEnumForSpeedBar === rightPlayerEnum
-              ? rightSpeedBonusTick
-              : { progress: null as number | null, secToNextDrop: null as number | null };
-    const showDedicatedMobileSpeedTenSecBar =
-        useMobileDedicatedSpeedTenSecBar &&
-        myPlayerEnumForSpeedBar != null &&
-        session.currentPlayer === myPlayerEnumForSpeedBar &&
-        mySpeedBonusTickForBar.progress != null &&
-        mySpeedBonusTickForBar.secToNextDrop != null;
-    const leftShowSpeedTenSecBarPanel = leftShowSpeedTenSecBar && !useMobileDedicatedSpeedTenSecBar;
-    const rightShowSpeedTenSecBarPanel = rightShowSpeedTenSecBar && !useMobileDedicatedSpeedTenSecBar;
-
     const buildHumanPenaltyPointsForPlayer = (playerEnum: Player, playerId: string): number | null => {
         if (!isSpeedLiveBonusUi || playerId === aiUserId) return null;
         const penaltyCommitted = ((session.settings as any)?.__speedTurnPenaltyCommitted ?? {}) as {
@@ -1883,7 +1867,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
               ? 'h-full min-h-0 w-[4.25rem]'
               : 'w-[4.5rem] sm:w-[4.75rem] md:w-[5.25rem] min-h-[4.25rem]';
 
-    /** 컴팩트 바 행 높이: 중앙 수순·남은 돌 박스와 동일하게 고정해 양쪽 대국자 패널이 세로로 늘어나지 않게 함 */
+    /** 컴팩트 바 행 높이 고정. 스피드 모드에서는 시간 패널 안 수당 막대 공간까지 미리 확보. */
     const compactBarFixedHeightClass = !compactPlayerBar
         ? ''
         : showPlayfulStonesBox
@@ -1892,12 +1876,14 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
               : 'h-[5rem] min-h-[5rem] max-h-[5rem]'
           : mode === GameMode.Curling && isMobile
             ? 'min-h-[5.5rem] max-h-[7rem]'
-            : 'h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem]';
+            : isSpeedLikeMode && sessionHasStrategicClock
+              ? 'h-[5.5rem] min-h-[5.5rem] max-h-[5.5rem]'
+              : 'h-[4.5rem] min-h-[4.5rem] max-h-[4.5rem]';
 
-    /** 컴팩트 바(모바일·좁은 창): 한 행에서 수순 박스·대국자 패널 높이 동일 */
+    /** 컴팩트 바 외(데스크톱 등): min만 두면 승패·시계 UI 유무로 높이가 변해 바둑판이 출렁인다 */
     const playerColClass = compactPlayerBar
         ? 'flex min-h-0 min-w-0 flex-1 items-stretch'
-        : 'flex min-h-[5.5rem] min-w-0 flex-1 sm:min-h-[4.5rem]';
+        : 'flex h-[5.5rem] min-h-[5.5rem] max-h-[5.5rem] min-w-0 flex-1 overflow-hidden sm:h-[4.5rem] sm:min-h-[4.5rem] sm:max-h-[4.5rem]';
     const compactBarRowClass = compactPlayerBar
         ? `${compactBarFixedHeightClass} items-stretch justify-between gap-1.5 overflow-hidden`
         : 'h-full items-stretch gap-2 min-[1025px]:gap-1.5';
@@ -2079,7 +2065,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
-                            showSpeedTenSecBar={leftShowSpeedTenSecBarPanel}
+                            showSpeedTenSecBar={leftShowSpeedTenSecBar}
                             showWinLossOnPanel={showWinLossOnPanel}
                             {...leftAdventureCdProps}
                         />
@@ -2114,20 +2100,12 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
-                            showSpeedTenSecBar={rightShowSpeedTenSecBarPanel}
+                            showSpeedTenSecBar={rightShowSpeedTenSecBar}
                             showWinLossOnPanel={showWinLossOnPanel}
                             {...rightAdventureCdProps}
                         />
                     </div>
                 </div>
-                {showDedicatedMobileSpeedTenSecBar && (
-                    <div className="flex w-full shrink-0 items-center rounded-lg border border-amber-400/45 bg-gradient-to-r from-gray-900 via-gray-900/95 to-gray-900 px-3 py-2 shadow-md ring-1 ring-amber-500/30">
-                        <SpeedTenSecPressureBar
-                            secToNextDrop={mySpeedBonusTickForBar.secToNextDrop!}
-                            tickProgress={mySpeedBonusTickForBar.progress!}
-                        />
-                    </div>
-                )}
                 <div className={`flex w-full min-h-0 flex-shrink-0 items-stretch gap-1.5 overflow-hidden ${compactBarFixedHeightClass}`}>
                     <div className={playerColClass}>
                         <SinglePlayerPanel
@@ -2159,7 +2137,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={leftSpeedBonusScoreLabel}
                             speedBonusTickProgress={leftSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={leftSpeedBonusTick.secToNextDrop}
-                            showSpeedTenSecBar={leftShowSpeedTenSecBarPanel}
+                            showSpeedTenSecBar={leftShowSpeedTenSecBar}
                             showWinLossOnPanel={showWinLossOnPanel}
                             {...leftAdventureCdProps}
                         />
@@ -2195,7 +2173,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             speedBonusScoreLabel={rightSpeedBonusScoreLabel}
                             speedBonusTickProgress={rightSpeedBonusTick.progress}
                             speedBonusSecToNextDrop={rightSpeedBonusTick.secToNextDrop}
-                            showSpeedTenSecBar={rightShowSpeedTenSecBarPanel}
+                            showSpeedTenSecBar={rightShowSpeedTenSecBar}
                             showWinLossOnPanel={showWinLossOnPanel}
                             {...rightAdventureCdProps}
                         />

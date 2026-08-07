@@ -3567,6 +3567,10 @@ export const useApp = () => {
             waitingLobby: statusInfo?.waitingLobby,
             gameCategory: statusInfo?.gameCategory,
             inPairLobby: statusInfo?.inPairLobby,
+            arenaChannel: statusInfo?.arenaChannel,
+            lobbyIntent: statusInfo?.lobbyIntent,
+            /** 홈 Ch.N — 빼면 CHANGE_LOBBY_CHANNEL 후에도 UI가 항상 기본 채널로 남음 */
+            lobbyChannel: statusInfo?.lobbyChannel,
         };
         // 로그인 응답으로 받은 진행 중 경기가 있으면 WebSocket INITIAL_STATE 전까지 in-game으로 표시
         if (activeGameFromLogin && (activeGameFromLogin.player1?.id === currentUser.id || activeGameFromLogin.player2?.id === currentUser.id)) {
@@ -3915,6 +3919,16 @@ export const useApp = () => {
         const bucket = getArenaStoreBucketForSession(game);
         const merge = (prev: Record<string, LiveGameSession>) => {
             const existing = prev[game.id];
+            // sessionStorage 복구는 매 호출마다 새 객체를 만들므로, 판/수순이 나아지지 않으면
+            // 스토어를 건드리지 않는다 (pending 빈 판에서 Maximum update depth 루프 방지).
+            if (existing) {
+                const exMoves = existing.moveHistory?.length ?? 0;
+                const inMoves = game.moveHistory?.length ?? 0;
+                const exStones = boardGridHasAnyStones(existing.boardState);
+                const inStones = boardGridHasAnyStones(game.boardState);
+                const improves = inMoves > exMoves || (inStones && !exStones);
+                if (!improves) return prev;
+            }
             const merged = mergePveRejoinResponseWithExistingBoard(existing, game);
             if (existing === merged) return prev;
             return { ...prev, [game.id]: merged };
@@ -3927,6 +3941,9 @@ export const useApp = () => {
             setLiveGames(merge);
         }
     }, []);
+
+    /** gameId당 sessionStorage PVE 복구 1회 — needsRecovery가 pending·빈 판에서 항상 true여도 루프 방지 */
+    const pveSessionStorageRecoveryAttemptedRef = useRef<string | null>(null);
 
     const recoverPveGameFromSessionStorage = useCallback(
         (gameId: string): boolean => {
@@ -13510,7 +13527,10 @@ export const useApp = () => {
     /** F5 직후 rejoin 전에 sessionStorage로 PVE 판·수순을 스토어에 올려 홈으로 튕기는 것을 방지 */
     useEffect(() => {
         const gameId = currentRoute?.view === 'game' ? (currentRoute.params?.id ?? '') : '';
-        if (!currentUser?.id || !gameId) return;
+        if (!currentUser?.id || !gameId) {
+            if (!gameId) pveSessionStorageRecoveryAttemptedRef.current = null;
+            return;
+        }
         const shell = liveGames[gameId] || singlePlayerGames[gameId] || towerGames[gameId];
         const chessGoOpeningReady =
             !!shell &&
@@ -13523,6 +13543,9 @@ export const useApp = () => {
                 (shell.moveHistory?.length ?? 0) === 0 &&
                 !sessionUsesChessGo(shell));
         if (!needsRecovery) return;
+        // pending·빈 판은 needsRecovery가 계속 true — gameId당 1회만 시도해 setState 루프를 막는다.
+        if (pveSessionStorageRecoveryAttemptedRef.current === gameId) return;
+        pveSessionStorageRecoveryAttemptedRef.current = gameId;
         recoverPveGameFromSessionStorage(gameId);
     }, [
         currentRoute?.view,

@@ -19,7 +19,6 @@ import { getTowerSessionFloor, isTowerHumanWinnerFromSession } from '../utils/to
 import { formatScoreDetailNumber, hasRenderableScoreDetails } from '../shared/utils/scoreDetailsGuards.js';
 import { getXpRequirementForLevel } from '../shared/utils/strategyLevelXp.js';
 import { GoStoneIcon } from './game/arenaRoundEndShared.js';
-import { ResultModalXpRewardBadge, ResultModalPetGradeUpgradeNeededSlot } from './game/ResultModalXpRewardBadge.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -37,6 +36,11 @@ import { useGameResultModalLayout } from './game/useGameResultModalLayout.js';
 import GameResultModalFitContent from './game/GameResultModalFitContent.js';
 import ResultAdGoldDoubleButton from './game/ResultAdGoldDoubleButton.js';
 import GameResultModalConfirmFooter from './game/GameResultModalConfirmFooter.js';
+import {
+    MobileGameResultTabBar,
+    MobileResultTabPanelStack,
+    type MobileGameResultTab,
+} from './game/MobileGameResultTabBar.js';
 
 interface TowerSummaryModalProps {
     session: LiveGameSession;
@@ -145,9 +149,11 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
     const renderableScoreDetails = hasRenderableScoreDetails(analysisResult);
     const summary = session.summary?.[currentUser.id];
     const [localAdGoldBonus, setLocalAdGoldBonus] = useState(0);
+    const [resultTab, setResultTab] = useState<MobileGameResultTab>('detail');
 
     useEffect(() => {
         setLocalAdGoldBonus(0);
+        setResultTab('detail');
     }, [session.id]);
     
     // 계가 결과가 있으면 점수를 기반으로 승리/실패 판단, 없으면 session.winner 사용 (`towerPreGameDisplay`와 인게임 푸터 동일)
@@ -416,14 +422,11 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
             ? (isWinner ? t('towerSummary.floorClear') : t('towerSummary.floorFail'))
             : t('towerSummary.gameResult');
 
+    /** 탭 라벨과 중복되므로 rewardsTitle 헤더는 생략. 경험치 증가 표시는 보상 탭에 둔다. */
     const towerRewardsSection = (
-        <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 ${isMobile ? 'gap-1 p-1.5' : 'gap-1.5 p-2'}`}>
-            <h2
-                className={`${SP_SUMMARY_SECTION_LABEL} border-b border-amber-500/25 text-center ${isMobile ? 'mb-0.5 pb-0.5' : 'mb-1 pb-0.5 sm:mb-2 sm:pb-1'}`}
-                style={{ fontSize: isMobile ? `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` : '15px' }}
-            >
-                {t('towerSummary.rewardsTitle')}
-            </h2>
+        <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 ${isMobile ? 'gap-1.5 p-1.5' : 'gap-1.5 p-2'}`}>
+            {renderTowerStrategyXpPanel(isMobile)}
+            {renderTowerPetXpPanel(isMobile)}
             <div
                 className={
                     isMobile
@@ -454,29 +457,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                                 dimmed={!summary}
                             />
                         )}
-                        {displaySummary?.xp && displaySummary.xp.change > 0 && (
-                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
-                                <ResultModalXpRewardBadge
-                                    variant="strategy"
-                                    amount={displaySummary.xp.change}
-                                    density={isMobile ? 'compact' : 'comfortable'}
-                                />
-                            </div>
-                        )}
-                        {displaySummary?.pairPetXp && displaySummary.pairPetXp.change > 0 && (
-                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
-                                <ResultModalXpRewardBadge
-                                    variant="pet"
-                                    amount={displaySummary.pairPetXp.change}
-                                    density={isMobile ? 'compact' : 'comfortable'}
-                                />
-                            </div>
-                        )}
-                        {displaySummary?.pairPetXp && showPetGradeUpgradeInsteadOfXp && (
-                            <div className={`flex flex-col items-center justify-center ${!summary ? 'opacity-80' : ''}`}>
-                                <ResultModalPetGradeUpgradeNeededSlot density={isMobile ? 'compact' : 'comfortable'} />
-                            </div>
-                        )}
+                        {/* 전략/펫 EXP는 상단 경험치 바에서 표시 — 슬롯 배지 중복 제거 */}
                         {displaySummary?.items &&
                             displaySummary.items.length > 0 &&
                             displaySummary.items.map((item, idx) => {
@@ -523,6 +504,130 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
         </div>
     );
 
+    const towerDetailPanel = (
+        <div className={`flex flex-col overflow-x-hidden ${isMobile ? 'gap-1.5' : 'min-h-0 gap-2'}`}>
+            <div
+                className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 sp-summary-left-panel ${
+                    isMobile ? 'overflow-x-hidden p-2' : 'overflow-visible p-2'
+                }`}
+            >
+                <h2
+                    className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
+                    style={{
+                        fontSize: isMobile
+                            ? `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px`
+                            : '15px',
+                    }}
+                >
+                    {t('towerSummary.matchResult')}
+                </h2>
+                <div className={`flex flex-col gap-1.5 ${isMobile ? 'overflow-x-hidden' : 'overflow-visible'}`}>
+                    {(analysisResult || (isEnded && session.winner !== null)) && (
+                        <div
+                            className={`${SP_SUMMARY_INSET_CLASS} flex-shrink-0 space-y-0.5 ${
+                                isMobile ? 'p-1' : 'p-1.5'
+                            }`}
+                        >
+                            <div
+                                className="flex items-center justify-between"
+                                style={{
+                                    fontSize: isMobile
+                                        ? `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px`
+                                        : '15px',
+                                }}
+                            >
+                                <span className="text-amber-200/65">{t('towerSummary.totalElapsed')}</span>
+                                <span className="font-semibold text-zinc-100">{gameDuration}</span>
+                            </div>
+                            {(winReasonText || failureReason) && (
+                                <p
+                                    className={`leading-snug ${isWinner ? 'text-green-400' : 'text-red-400'} ${
+                                        isMobile ? '' : 'font-semibold'
+                                    }`}
+                                    style={{
+                                        fontSize: isMobile
+                                            ? `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px`
+                                            : `${13 * desktopTextScale}px`,
+                                    }}
+                                >
+                                    {winReasonText || failureReason}
+                                </p>
+                            )}
+                        </div>
+                    )}
+                    {isScoring && !renderableScoreDetails && (
+                        <div
+                            className={`flex flex-col items-center justify-center ${
+                                isMobile ? 'min-h-[100px] flex-shrink-0' : 'min-h-[200px] flex-1'
+                            }`}
+                        >
+                            <ScoringOverlay variant="inline" />
+                        </div>
+                    )}
+                    {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
+                        <ScoreDetailsComponent
+                            analysis={analysisResult!}
+                            session={session}
+                            isMobile={isMobile}
+                            mobileTextScale={mobileTextScale}
+                            desktopTextScale={desktopTextScale}
+                            compactSideBySideMobile={isMobile}
+                        />
+                    ) : !isScoring && !isEnded ? (
+                        <p className="text-center text-gray-400">{t('towerSummary.noScoringResult')}</p>
+                    ) : null}
+                </div>
+            </div>
+            <div
+                className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 ${
+                    isMobile ? 'p-2' : 'min-w-0 overflow-visible p-2'
+                }`}
+            >
+                <h2
+                    className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
+                    style={{
+                        fontSize: isMobile
+                            ? `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px`
+                            : '15px',
+                    }}
+                >
+                    {t('towerSummary.myInfo')}
+                </h2>
+                <div
+                    className={`${SP_SUMMARY_INSET_CLASS} flex flex-shrink-0 items-center gap-1.5 ${
+                        isMobile ? 'p-1' : 'min-w-0 p-1.5'
+                    }`}
+                >
+                    <Avatar
+                        userId={currentUser.id}
+                        userName={currentUser.nickname}
+                        avatarUrl={avatarUrl}
+                        borderUrl={borderUrl}
+                        size={isMobile ? 24 : 32}
+                    />
+                    <div className={isMobile ? undefined : 'min-w-0'}>
+                        <p
+                            className={`font-bold text-zinc-100 ${isMobile ? '' : 'truncate'}`}
+                            style={{ fontSize: isMobile ? `${11 * mobileTextScale}px` : '15px' }}
+                        >
+                            {currentUser.nickname}
+                        </p>
+                        <p
+                            className="text-amber-200/60"
+                            style={{
+                                fontSize: isMobile
+                                    ? `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px`
+                                    : '13px',
+                            }}
+                        >
+                            Lv.{currentUser.userLevel}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+
     return (
         <DraggableWindow 
             title={modalTitle}
@@ -547,7 +652,7 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                 } ${PRE_GAME_MODAL_LAYER_CLASS} ${isMobile ? 'text-xs sm:text-sm' : 'text-[1.0625rem] min-[1024px]:text-lg min-[1280px]:text-xl'}`}
                 style={!isMobile ? { fontSize: `${14 * desktopTextScale}px` } : undefined}
             >
-                {/* Title */}
+                {/* Title — outside tabs */}
                 {(analysisResult || (isEnded && session.winner !== null)) && (
                     <h1 className={`${isMobile ? 'text-base' : 'text-2xl min-[1024px]:text-3xl min-[1280px]:text-4xl'} font-black text-center mb-1 sm:mb-2 tracking-widest flex-shrink-0 ${isWinner ? 'sudamr-stable-gradient-text text-transparent bg-clip-text bg-gradient-to-r from-amber-200 via-yellow-200 to-amber-300' : 'text-red-400'}`} style={{ fontSize: isMobile ? `${14 * mobileTextScale}px` : undefined }}>
                         {isWinner ? t('towerSummary.challengeSuccess') : t('towerSummary.challengeFail')}
@@ -558,154 +663,28 @@ const TowerSummaryModal: React.FC<TowerSummaryModalProps> = ({ session, currentU
                         {t('towerSummary.gameResult')}
                     </h1>
                 )}
-                
+
+                <MobileGameResultTabBar
+                    active={resultTab}
+                    onChange={setResultTab}
+                    className="mb-1.5 shrink-0"
+                />
+
                 {isMobile ? (
                     <GameResultModalFitContent className="flex-1 basis-0" enabled={false}>
-                    <div className="flex flex-col gap-1.5 overflow-x-hidden">
-                        <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-2 sp-summary-left-panel overflow-x-hidden`}>
-                            <h2
-                                className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
-                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
-                            >
-                                {t('towerSummary.matchResult')}
-                            </h2>
-                            <div className="flex flex-col gap-1.5 overflow-x-hidden">
-                                {(analysisResult || (isEnded && session.winner !== null)) && (
-                                    <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex-shrink-0 space-y-0.5`}>
-                                        <div className="flex items-center justify-between" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}>
-                                            <span className="text-amber-200/65">{t('towerSummary.totalElapsed')}</span>
-                                            <span className="font-semibold text-zinc-100">{gameDuration}</span>
-                                        </div>
-                                        {(winReasonText || failureReason) && (
-                                            <p
-                                                className={`leading-snug ${isWinner ? 'text-green-400' : 'text-red-400'}`}
-                                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.dataRow * mobileTextScale}px` }}
-                                            >
-                                                {winReasonText || failureReason}
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-                                {isScoring && !renderableScoreDetails && (
-                                    <div className="flex min-h-[100px] flex-shrink-0 flex-col items-center justify-center">
-                                        <ScoringOverlay variant="inline" />
-                                    </div>
-                                )}
-                                {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
-                                    <ScoreDetailsComponent
-                                        analysis={analysisResult!}
-                                        session={session}
-                                        isMobile={isMobile}
-                                        mobileTextScale={mobileTextScale}
-                                        desktopTextScale={desktopTextScale}
-                                        compactSideBySideMobile
-                                    />
-                                ) : !isScoring && !isEnded ? (
-                                    <p className="text-center text-gray-400">{t('towerSummary.noScoringResult')}</p>
-                                ) : null}
-                            </div>
-                        </div>
-                        <div className={`flex flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 p-2`}>
-                            <h2
-                                className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
-                                style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.sectionLabel * mobileTextScale}px` }}
-                            >
-                                {t('towerSummary.myInfo')}
-                            </h2>
-                            <div className={`p-1 ${SP_SUMMARY_INSET_CLASS} flex flex-shrink-0 items-center gap-1.5`}>
-                                <Avatar
-                                    userId={currentUser.id}
-                                    userName={currentUser.nickname}
-                                    avatarUrl={avatarUrl}
-                                    borderUrl={borderUrl}
-                                    size={24}
-                                />
-                                <div>
-                                    <p className="font-bold text-zinc-100" style={{ fontSize: `${11 * mobileTextScale}px` }}>
-                                        {currentUser.nickname}
-                                    </p>
-                                    <p className="text-amber-200/60" style={{ fontSize: `${RESULT_MODAL_SCORE_MOBILE_PX.emptyState * mobileTextScale}px` }}>
-                                        Lv.{currentUser.userLevel}
-                                    </p>
-                                </div>
-                            </div>
-                            {renderTowerStrategyXpPanel(true)}
-                            {renderTowerPetXpPanel(true)}
-                        </div>
-                        {towerRewardsSection}
-                    </div>
+                        <MobileResultTabPanelStack
+                            active={resultTab}
+                            detailPanel={towerDetailPanel}
+                            rewardsPanel={towerRewardsSection}
+                        />
                     </GameResultModalFitContent>
                 ) : (
                     <GameResultModalFitContent className="min-h-0 flex-1">
-                    <div className="flex min-h-0 flex-col gap-2 overflow-x-hidden">
-                        <div className={`flex flex-col ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-visible p-2 sp-summary-left-panel`}>
-                            <h2
-                                className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
-                                style={{ fontSize: '15px' }}
-                            >
-                                {t('towerSummary.matchResult')}
-                            </h2>
-                            <div className="flex flex-col gap-1.5 overflow-visible">
-                                {(analysisResult || (isEnded && session.winner !== null)) && (
-                                    <div className={`${SP_SUMMARY_INSET_CLASS} space-y-0.5 p-1.5 flex-shrink-0`}>
-                                        <div className="flex items-center justify-between" style={{ fontSize: '15px' }}>
-                                            <span className="text-amber-200/65">{t('towerSummary.totalElapsed')}</span>
-                                            <span className="font-semibold text-zinc-100">{gameDuration}</span>
-                                        </div>
-                                        {(winReasonText || failureReason) && (
-                                            <p className={`font-semibold leading-snug ${isWinner ? 'text-green-400' : 'text-red-400'}`} style={{ fontSize: `${13 * desktopTextScale}px` }}>
-                                                {winReasonText || failureReason}
-                                            </p>
-                                        )}
-                                    </div>
-                                )}
-                                {isScoring && !renderableScoreDetails && (
-                                    <div className="flex min-h-[200px] flex-1 flex-col items-center justify-center">
-                                        <ScoringOverlay variant="inline" />
-                                    </div>
-                                )}
-                                {(isScoring && renderableScoreDetails) || (isEnded && renderableScoreDetails) ? (
-                                    <ScoreDetailsComponent
-                                        analysis={analysisResult!}
-                                        session={session}
-                                        isMobile={false}
-                                        mobileTextScale={mobileTextScale}
-                                        desktopTextScale={desktopTextScale}
-                                    />
-                                ) : !isScoring && !isEnded ? (
-                                    <p className="text-center text-gray-400">{t('towerSummary.noScoringResult')}</p>
-                                ) : null}
-                            </div>
-                        </div>
-                        <div className={`flex min-w-0 flex-col gap-1.5 ${SP_SUMMARY_PANEL_CLASS} shrink-0 overflow-visible p-2`}>
-                            <h2
-                                className={`${SP_SUMMARY_SECTION_LABEL} mb-1 border-b border-amber-500/25 pb-0.5 text-center sm:mb-2 sm:pb-1`}
-                                style={{ fontSize: '15px' }}
-                            >
-                                {t('towerSummary.myInfo')}
-                            </h2>
-                            <div className={`${SP_SUMMARY_INSET_CLASS} flex min-w-0 flex-shrink-0 items-center gap-1.5 p-1.5`}>
-                                <Avatar
-                                    userId={currentUser.id}
-                                    userName={currentUser.nickname}
-                                    avatarUrl={avatarUrl}
-                                    borderUrl={borderUrl}
-                                    size={32}
-                                />
-                                <div className="min-w-0">
-                                    <p className="truncate font-bold text-zinc-100" style={{ fontSize: '15px' }}>
-                                        {currentUser.nickname}
-                                    </p>
-                                    <p className="text-amber-200/60" style={{ fontSize: '13px' }}>
-                                        Lv.{currentUser.userLevel}
-                                    </p>
-                                </div>
-                            </div>
-                            {renderTowerStrategyXpPanel(false)}
-                            {renderTowerPetXpPanel(false)}
-                        </div>
-                        {towerRewardsSection}
-                    </div>
+                        <MobileResultTabPanelStack
+                            active={resultTab}
+                            detailPanel={towerDetailPanel}
+                            rewardsPanel={towerRewardsSection}
+                        />
                     </GameResultModalFitContent>
                 )}
             </div>
