@@ -1,5 +1,10 @@
-import React from 'react';
-import { resourceIcons } from '../resourceIcons.js';
+import React, { useState } from 'react';
+import {
+    ACTION_POINT_ICON_PATH,
+    ACTION_POINT_ICON_WEBP_PATH,
+    resourceIcons,
+} from '../resourceIcons.js';
+import { resolvePublicUrl } from '../../utils/publicAssetUrl.js';
 
 type ActionPointIconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
@@ -15,13 +20,16 @@ export type ActionPointIconProps = {
     size?: ActionPointIconSize;
     className?: string;
     /**
-     * `auto`/`raster`: webp (모바일·헤더에서 SVG 필터/img 조합이 빈 칸으로 나오는 경우 회피)
-     * `svg`: 선명 SVG (데스크톱 인라인 등 명시적 요청 시)
+     * `auto`/`raster`: PNG (모바일 WebView에서 webp/CSS filter 이슈 회피)
+     * `svg`: 선명 SVG
      */
     variant?: 'auto' | 'svg' | 'raster';
     alt?: string;
     title?: string;
 };
+
+const PNG_SRC = resolvePublicUrl(ACTION_POINT_ICON_PATH);
+const WEBP_SRC = resolvePublicUrl(ACTION_POINT_ICON_WEBP_PATH);
 
 /**
  * 행동력 번개 아이콘 — 이모지(⚡) 대신 사용.
@@ -33,19 +41,25 @@ const ActionPointIcon: React.FC<ActionPointIconProps> = ({
     alt = '',
     title,
 }) => {
-    // 기본은 래스터: 헤더/비용 표기 등 작은 UI가 모바일에서도 골드·다이아와 동일하게 보이게
-    const useSvg = variant === 'svg';
-    const src = useSvg ? resourceIcons.actionPointSvg : resourceIcons.actionPoint;
+    const [src, setSrc] = useState(() =>
+        variant === 'svg' ? resourceIcons.actionPointSvg : PNG_SRC,
+    );
+
     return (
         <img
             src={src}
             alt={alt}
             title={title}
             aria-hidden={alt ? undefined : true}
-            className={`inline-block shrink-0 object-contain drop-shadow-[0_0_6px_rgba(34,211,238,0.35)] ${SIZE_CLASS[size]} ${className}`}
+            className={`inline-block shrink-0 object-contain ${SIZE_CLASS[size]} ${className}`}
             loading="eager"
             decoding="async"
             fetchPriority="high"
+            draggable={false}
+            onError={() => {
+                if (src === PNG_SRC) setSrc(WEBP_SRC);
+                else if (src === WEBP_SRC) setSrc(resourceIcons.actionPointSvg);
+            }}
         />
     );
 };

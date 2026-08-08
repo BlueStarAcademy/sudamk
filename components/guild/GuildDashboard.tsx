@@ -2069,14 +2069,24 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                         </div>
                     </div>
 
-                    <div className={`${isMobile || isCompact ? 'mb-1.5' : 'mb-2'} flex min-h-0 w-full flex-1 flex-col gap-1.5 overflow-hidden`}>
-                        <div className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${isMobile ? 'order-2' : ''}`}>
+                    <div
+                        className={`${isMobile || isCompact ? 'mb-1.5' : 'mb-2'} flex min-h-0 w-full flex-1 flex-col gap-1.5 ${
+                            isMobile ? 'overflow-y-auto overscroll-y-contain' : 'overflow-hidden'
+                        }`}
+                    >
+                        <div
+                            className={`flex min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${
+                                isMobile ? 'order-2 shrink-0' : 'min-h-0 flex-1'
+                            }`}
+                        >
                             <div
                                 className={`border-b border-stone-600/40 bg-gradient-to-r from-orange-950/55 via-stone-950/60 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-orange-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                             >
                                 {t('war.currentWar')}
                             </div>
-                            <div className={`flex min-h-0 flex-1 flex-col gap-2 ${isMobile ? 'p-2' : 'p-2.5'} overflow-y-auto`}>
+                            <div
+                                className={`flex flex-col gap-2 ${isMobile ? 'p-2' : 'min-h-0 flex-1 overflow-y-auto p-2.5'}`}
+                            >
                                 {showOpponentWarPanel ? (
                                     <>
                                         <p
@@ -2168,95 +2178,69 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                             </div>
                         </div>
                         <div
-                            className={`flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${isMobile ? 'order-1' : ''}`}
+                            className={`flex min-w-0 flex-col overflow-hidden rounded-xl border border-stone-600/50 bg-gradient-to-b from-stone-900/75 to-black/50 shadow-inner ${
+                                isMobile ? 'order-1 shrink-0' : 'min-h-0 flex-1'
+                            }`}
                         >
                             <div
                                 className={`border-b border-stone-600/40 bg-gradient-to-r from-amber-950/45 via-stone-950/55 to-stone-950/55 px-2 py-1.5 text-center font-bold tracking-wide text-amber-100/95 ${isMobile ? 'text-[10px]' : 'text-xs'}`}
                             >
                                 {t('war.lastWar')}
                             </div>
-                            <div className="flex min-h-0 min-w-0 flex-1 flex-col">
+                            <div className={`flex min-h-0 min-w-0 flex-col ${isMobile ? '' : 'flex-1'}`}>
                                 <div
-                                    className={`flex min-h-0 flex-1 flex-col overflow-y-auto ${isMobile ? 'p-2' : 'p-2.5'}`}
+                                    className={`flex flex-col gap-2 ${
+                                        isMobile ? 'p-2' : 'min-h-0 flex-1 overflow-y-auto p-2.5'
+                                    }`}
                                 >
                                     {warStats?.lastOpponent ? (
                                         <>
-                                            <div className="flex min-h-0 flex-1 flex-col gap-2">
-                                                <p
-                                                    className={`truncate text-center font-semibold text-stone-100 ${isMobile ? 'text-xs' : 'text-sm'}`}
-                                                    title={warStats.lastOpponent.name}
-                                                >
-                                                    {warStats.lastOpponent.name}
+                                            <p
+                                                className={`truncate text-center font-semibold text-stone-100 ${isMobile ? 'text-xs' : 'text-sm'}`}
+                                                title={warStats.lastOpponent.name}
+                                            >
+                                                {warStats.lastOpponent.name}
+                                            </p>
+                                            {warStats.lastOpponent.isBotGuild ? (
+                                                <p className="text-center text-[10px] font-semibold text-cyan-200/90 sm:text-xs">
+                                                    {t('war.botWarResult')}
                                                 </p>
-                                                {warStats.lastOpponent.isBotGuild ? (
-                                                    <p className="text-center text-[10px] font-semibold text-cyan-200/90 sm:text-xs">
-                                                        {t('war.botWarResult')}
-                                                    </p>
-                                                ) : null}
-                                                <GuildWarUnifiedScoreboard
-                                                    variant="embedded"
-                                                    compact
-                                                    blueStars={warStats.lastOpponent.ourStars}
-                                                    redStars={warStats.lastOpponent.enemyStars}
-                                                    blueHouse={warStats.lastOpponent.ourScore}
-                                                    redHouse={warStats.lastOpponent.enemyScore}
-                                                    hideHouseWhenZero
-                                                />
-                                                <div className="flex flex-wrap items-center justify-center gap-2">
-                                                    <span
-                                                        className={`rounded-full border px-2.5 py-0.5 text-xs font-black ${
-                                                            warStats.lastOpponent.isWin
-                                                                ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-300'
-                                                                : 'border-rose-500/40 bg-rose-950/50 text-rose-300'
-                                                        }`}
-                                                    >
-                                                        {warStats.lastOpponent.isWin ? t('war.victoryShort2') : t('war.defeatShort2')}
+                                            ) : null}
+                                            <GuildWarUnifiedScoreboard
+                                                variant="embedded"
+                                                compact
+                                                blueStars={warStats.lastOpponent.ourStars}
+                                                redStars={warStats.lastOpponent.enemyStars}
+                                                blueHouse={warStats.lastOpponent.ourScore}
+                                                redHouse={warStats.lastOpponent.enemyScore}
+                                                hideHouseWhenZero
+                                            />
+                                            <div className="flex flex-wrap items-center justify-center gap-2">
+                                                <span
+                                                    className={`rounded-full border px-2.5 py-0.5 text-xs font-black ${
+                                                        warStats.lastOpponent.isWin
+                                                            ? 'border-emerald-500/40 bg-emerald-950/50 text-emerald-300'
+                                                            : 'border-rose-500/40 bg-rose-950/50 text-rose-300'
+                                                    }`}
+                                                >
+                                                    {warStats.lastOpponent.isWin ? t('war.victoryShort2') : t('war.defeatShort2')}
+                                                </span>
+                                            </div>
+                                            {(warStats as any).myRecordInLastWar != null ? (
+                                                <div className="flex justify-center border-t border-white/10 pt-2">
+                                                    <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/25 bg-black/35 px-2 py-1 text-[10px] font-bold text-amber-200 sm:text-xs">
+                                                        <img src="/images/guild/guildwar/clearstar.webp" alt="" className="h-3.5 w-3.5" />
+                                                        {t('war.contribution', { stars: '' }).replace('{{stars}}', '')}
+                                                        {
+                                                            (
+                                                                (warStats as any).myRecordInLastWar as {
+                                                                    contributedStars: number;
+                                                                }
+                                                            ).contributedStars
+                                                        }
                                                     </span>
                                                 </div>
-                                                {(warStats as any).myRecordInLastWar != null ? (
-                                                    <div className="flex justify-center border-t border-white/10 pt-2">
-                                                        <span className="inline-flex items-center gap-1 rounded-lg border border-amber-400/25 bg-black/35 px-2 py-1 text-[10px] font-bold text-amber-200 sm:text-xs">
-                                                            <img src="/images/guild/guildwar/clearstar.webp" alt="" className="h-3.5 w-3.5" />
-                                                            {t('war.contribution', { stars: '' }).replace('{{stars}}', '')}
-                                                            {
-                                                                (
-                                                                    (warStats as any).myRecordInLastWar as {
-                                                                        contributedStars: number;
-                                                                    }
-                                                                ).contributedStars
-                                                            }
-                                                        </span>
-                                                    </div>
-                                                ) : null}
-                                            </div>
-                                            <div className="mt-2 flex shrink-0 justify-center pt-1">
-                                                <button
-                                                    type="button"
-                                                    disabled={isClaimed || !canClaimReward || isClaimingReward}
-                                                    title={
-                                                        isClaimed
-                                                            ? t('war.rewardAlreadyClaimed')
-                                                            : canClaimReward
-                                                              ? t('war.rewardClaimHint')
-                                                              : t('war.rewardUnavailable')
-                                                    }
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        void requestGuildWarRewardAndShowModal();
-                                                    }}
-                                                    className={
-                                                        canClaimReward && !isClaimed && !isClaimingReward
-                                                            ? guildPanelBtn.reward
-                                                            : guildPanelBtn.disabled
-                                                    }
-                                                >
-                                                    {isClaimingReward
-                                                        ? t('loading.processing')
-                                                        : isClaimed
-                                                          ? t('war.rewardClaimedBtn')
-                                                          : t('war.claimRewardBtn')}
-                                                </button>
-                                            </div>
+                                            ) : null}
                                         </>
                                     ) : (
                                         <p className={`py-6 text-center text-stone-500 ${isMobile ? 'text-[10px]' : 'text-sm'}`}>
@@ -2264,6 +2248,40 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                                         </p>
                                     )}
                                 </div>
+                                {warStats?.lastOpponent ? (
+                                    <div
+                                        className={`flex shrink-0 justify-center border-t border-stone-600/40 bg-stone-950/55 ${
+                                            isMobile ? 'px-2 py-2' : 'px-2.5 py-2'
+                                        }`}
+                                    >
+                                        <button
+                                            type="button"
+                                            disabled={isClaimed || !canClaimReward || isClaimingReward}
+                                            title={
+                                                isClaimed
+                                                    ? t('war.rewardAlreadyClaimed')
+                                                    : canClaimReward
+                                                      ? t('war.rewardClaimHint')
+                                                      : t('war.rewardUnavailable')
+                                            }
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                void requestGuildWarRewardAndShowModal();
+                                            }}
+                                            className={
+                                                canClaimReward && !isClaimed && !isClaimingReward
+                                                    ? `${guildPanelBtn.reward} w-full max-w-[14rem]`
+                                                    : `${guildPanelBtn.disabled} w-full max-w-[14rem]`
+                                            }
+                                        >
+                                            {isClaimingReward
+                                                ? t('loading.processing')
+                                                : isClaimed
+                                                  ? t('war.rewardClaimedBtn')
+                                                  : t('war.claimRewardBtn')}
+                                        </button>
+                                    </div>
+                                ) : null}
                             </div>
                         </div>
                     </div>
@@ -3129,7 +3147,7 @@ export const GuildDashboard: React.FC<GuildDashboardProps> = ({
                                         type="button"
                                         onClick={() => setIsMobileDonationOpen(true)}
                                         title={t('donation.title')}
-                                        className={`${getLuxuryButtonClasses('accent')} !text-xs sm:!text-sm !py-1 sm:!py-2 !px-2 sm:!px-4`}
+                                        className={`${getLuxuryButtonClasses('accent')} !min-w-[4.75rem] !px-3.5 !py-1.5 !text-xs sm:!min-w-0 sm:!px-4 sm:!py-2 sm:!text-sm`}
                                     >
                                         {t('dashboard.donation')}
                                     </button>

@@ -3606,7 +3606,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             const settings = transformPairDraftLobbySettings(mode, patch);
             return { mode, settings, settingsByMode: { ...d.settingsByMode, [mode]: settings } };
         });
-        setPairCreateRoomModalNonce((n) => n + 1);
+        // 탭 전환 시 모달을 remount하면 모바일에서 모드 선택 1단계로 튕기므로 nonce는 올리지 않는다.
     }, [friendlyOpponentTab, lobbyChannel, pairLobbyRoomForm, transformPairDraftLobbySettings]);
 
     useEffect(() => {
@@ -6018,6 +6018,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                 isHandheld &&
                 (pairLobbyRoomForm === 'create' || pairLobbyRoomForm === 'edit' || pairLobbyRoomForm === 'propose')
             }
+            pairRoomHandheldUnifiedCreateLayout={
+                isHandheld &&
+                (lobbyChannel === 'friendly' || lobbyChannel === 'playful') &&
+                (pairLobbyRoomForm === 'create' || pairLobbyRoomForm === 'edit')
+            }
             pairRoomHandheldBusy={isBusy}
             onPairRoomHandheldCancel={() => {
                 if (!isBusy) showLobbyRoomListScreen();
@@ -6071,7 +6076,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                     </Button>
                 </>
             }
-            pairRoomEmbeddedRightSlot={(gameSettingsBlock) => {
+            pairRoomEmbeddedRightSlot={(gameSettingsBlock, extras) => {
                 const kindOptionsRaw = pairLobbyCreateModalRoomKindOptions(lobbyChannel, lobbyIntent);
                 /** 친선·놀이·AI 공통 cyan — 「게임 종류」레일 UI 통일 */
                 const kindDefaultTone: LobbyMatchKindTone = 'cyan';
@@ -6087,15 +6092,30 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                     (pairLobbyRoomForm === 'create' &&
                         lobbyChannel === 'friendly' &&
                         friendlyOpponentTab === 'ai');
+                const showKindPicker = pairLobbyRoomForm !== 'propose' && kindOptions.length > 1;
+                const onKindChange = (next: RoomKind) => {
+                    const locked =
+                        (lobbyChannel === 'pair' || lobbyChannel === 'friendly') &&
+                        next === 'friendly_2p' &&
+                        !hasEquippedPairPet;
+                    if (locked) {
+                        window.alert(pt('alerts.equipPetForRoomKind'));
+                        return;
+                    }
+                    setCreateModalRoomKind(next);
+                };
+                /** 모바일 친선/놀이: 탭 → 종류(폴더) → 모드 → 설정 세로 스택 */
+                const handheldFolderLayout = Boolean(isHandheld && extras?.modePicker);
                 return (
                 <div
                     className={`flex min-h-0 w-full min-w-0 flex-1 flex-col bg-primary text-on-panel ${
-                        isHandheld ? 'gap-1 p-2' : 'gap-0 p-3 sm:p-4'
+                        isHandheld ? 'gap-1.5 p-2' : 'gap-0 p-3 sm:p-4'
                     }`}
                 >
-                    {lobbyChannel === 'friendly' && pairLobbyRoomForm === 'create' ? (
+                    {lobbyChannel === 'friendly' &&
+                    (pairLobbyRoomForm === 'create' || pairLobbyRoomForm === 'edit') ? (
                         <div
-                            className="mb-1.5 grid shrink-0 grid-cols-2 gap-1 rounded-xl border border-cyan-400/30 bg-black/30 p-1"
+                            className="grid shrink-0 grid-cols-2 gap-1 rounded-xl border border-cyan-400/30 bg-black/30 p-1"
                             role="tablist"
                             aria-label={pt('waitingLobby.opponentTabAria')}
                         >
@@ -6104,7 +6124,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                 role="tab"
                                 aria-pressed={friendlyOpponentTab === 'user'}
                                 onClick={() => setFriendlyOpponentTab('user')}
-                                className={`rounded-lg px-2 py-1.5 text-center text-xs font-extrabold transition sm:text-sm ${
+                                className={`rounded-lg px-2 py-2 text-center text-xs font-extrabold transition sm:text-sm ${
                                     friendlyOpponentTab === 'user'
                                         ? 'bg-cyan-500 text-cyan-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
                                         : 'text-cyan-100 hover:bg-cyan-950/45'
@@ -6117,7 +6137,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                                 role="tab"
                                 aria-pressed={friendlyOpponentTab === 'ai'}
                                 onClick={() => setFriendlyOpponentTab('ai')}
-                                className={`rounded-lg px-2 py-1.5 text-center text-xs font-extrabold transition sm:text-sm ${
+                                className={`rounded-lg px-2 py-2 text-center text-xs font-extrabold transition sm:text-sm ${
                                     friendlyOpponentTab === 'ai'
                                         ? 'bg-cyan-500 text-cyan-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.18)]'
                                         : 'text-cyan-100 hover:bg-cyan-950/45'
@@ -6125,6 +6145,21 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                             >
                                 {pt('waitingLobby.aiMatchTab')}
                             </button>
+                        </div>
+                    ) : null}
+                    {handheldFolderLayout && showKindPicker ? (
+                        <div className="shrink-0 space-y-1">
+                            <p className="px-0.5 text-[10px] font-extrabold tracking-wide text-slate-300">
+                                {pt('waitingLobby.gameKindTitle')}
+                            </p>
+                            <LobbyMatchKindPicker
+                                layout="row"
+                                ariaLabel={pt('waitingLobby.roomKind')}
+                                options={kindOptions}
+                                value={createModalRoomKind}
+                                defaultTone={kindDefaultTone}
+                                onChange={onKindChange}
+                            />
                         </div>
                     ) : null}
                     {pairLobbyRoomForm === 'propose' ? (
@@ -6210,36 +6245,39 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
                             />
                         </div>
                     )}
-                    <div
-                        className={`flex min-h-0 min-w-0 flex-1 flex-row gap-2 overflow-hidden border-t border-white/10 ${
-                            isHandheld ? 'mt-1 pt-1.5' : 'mt-2 pt-2'
-                        }`}
-                    >
-                        {pairLobbyRoomForm !== 'propose' && kindOptions.length > 1 ? (
-                            <LobbyMatchKindPicker
-                                layout="rail"
-                                title={pt('waitingLobby.gameKindTitle')}
-                                ariaLabel={pt('waitingLobby.roomKind')}
-                                options={kindOptions}
-                                value={createModalRoomKind}
-                                defaultTone={kindDefaultTone}
-                                onChange={(next) => {
-                                    const locked =
-                                        (lobbyChannel === 'pair' || lobbyChannel === 'friendly') &&
-                                        next === 'friendly_2p' &&
-                                        !hasEquippedPairPet;
-                                    if (locked) {
-                                        window.alert(pt('alerts.equipPetForRoomKind'));
-                                        return;
-                                    }
-                                    setCreateModalRoomKind(next);
-                                }}
-                            />
-                        ) : null}
-                        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
-                            {gameSettingsBlock}
+                    {handheldFolderLayout ? (
+                        <>
+                            {extras?.modePicker ? (
+                                <div className="shrink-0 overflow-hidden rounded-xl border border-white/10">
+                                    {extras.modePicker}
+                                </div>
+                            ) : null}
+                            <div className="mt-0.5 flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain border-t border-white/10 pt-1.5">
+                                {gameSettingsBlock}
+                            </div>
+                        </>
+                    ) : (
+                        <div
+                            className={`flex min-h-0 min-w-0 flex-1 flex-row gap-2 overflow-hidden border-t border-white/10 ${
+                                isHandheld ? 'mt-1 pt-1.5' : 'mt-2 pt-2'
+                            }`}
+                        >
+                            {showKindPicker ? (
+                                <LobbyMatchKindPicker
+                                    layout="rail"
+                                    title={pt('waitingLobby.gameKindTitle')}
+                                    ariaLabel={pt('waitingLobby.roomKind')}
+                                    options={kindOptions}
+                                    value={createModalRoomKind}
+                                    defaultTone={kindDefaultTone}
+                                    onChange={onKindChange}
+                                />
+                            ) : null}
+                            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+                                {gameSettingsBlock}
+                            </div>
                         </div>
-                    </div>
+                    )}
                 </div>
                 );
             }}

@@ -577,7 +577,11 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                         >
                             <ActionPointIcon
                                 size="sm"
-                                className={isMobile ? '!h-[clamp(0.85rem,calc(0.65rem+2vw),1.05rem)] !w-[clamp(0.85rem,calc(0.65rem+2vw),1.05rem)]' : ''}
+                                className={
+                                    isMobile
+                                        ? '!h-[clamp(0.95rem,calc(0.7rem+2.2vw),1.15rem)] !w-[clamp(0.95rem,calc(0.7rem+2.2vw),1.15rem)] shrink-0'
+                                        : 'shrink-0'
+                                }
                             />
                             {`${safeActionPoints.current}/${safeActionPoints.max}`}
                         </span>
