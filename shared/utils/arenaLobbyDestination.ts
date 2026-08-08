@@ -172,20 +172,17 @@ export function isPairAiDuoInviteOnlyRoom(room: PairRoomLobbyVisibility): boolea
     );
 }
 
-/** 친선 1:1·팀페어: 상대 슬롯에 로비 AI를 넣을 수 있는지 (4인 친선은 인간만) */
-export function pairRoomAllowsFriendlyOpponentAiSeats(room: {
+/**
+ * 친선 상대 슬롯 로비 AI — 유저대전/AI대전 탭 분리 후 방 안 슬롯 AI 추가는 비활성.
+ * (AI대전은 방 없이 즉시 시작)
+ */
+export function pairRoomAllowsFriendlyOpponentAiSeats(_room: {
     roomKind: string;
     lobbyChannel?: string | null;
     pairMode?: string | null;
     mode?: string | null;
     pairAiDuoInviteShell?: boolean;
 }): boolean {
-    const pairMode = room.pairMode ?? room.mode;
-    if (pairMode === 'ai') return false;
-    if (room.pairAiDuoInviteShell) return false;
-    const channel = room.lobbyChannel ?? 'pair';
-    if (room.roomKind === 'duo_match' && channel === 'friendly') return true;
-    if (room.roomKind === 'team_pair' && (channel === 'friendly' || channel === 'pair')) return true;
     return false;
 }
 

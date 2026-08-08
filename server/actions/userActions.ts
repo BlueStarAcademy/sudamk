@@ -1506,6 +1506,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 id: `item-${randomUUID()}`,
                 isExchangeListed: false,
                 isEquipped: false,
+                /** 가방 최신순은 `createdAt` 기준 — 구매 시각으로 새로 찍어 판매자 획득 시각이 남지 않게 한다 */
+                createdAt: now,
             });
 
             const addResult = addItemsToInventory(buyer.inventory, buyer.inventorySlots, [purchased]);

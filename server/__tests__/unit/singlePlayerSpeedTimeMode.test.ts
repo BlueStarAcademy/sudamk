@@ -57,20 +57,59 @@ describe('resolveTutorialForStage speed', () => {
         expect(resolveTutorialForStage(session, stage)).toBe('sp_auto_scoring');
     });
 
-    it('returns sp_missile when missileCount is set (over Speed mix)', () => {
+    it('returns sp_missile for 초급-11 even when runtime stage lost missile fields (code default)', () => {
         const stage = baseStage({
             id: '초급-11',
-            missileCount: 2,
-            strategicRulePreset: 'mix',
-            mixedStrategicModes: [GameMode.Speed, GameMode.Missile],
+            strategicRulePreset: 'speed',
             timeControl: { type: 'fischer', mainTime: 3, increment: 5 },
         });
         const session = {
             gameCategory: 'singleplayer',
-            mode: GameMode.Mix,
-            settings: { autoScoringTurns: 40, missileCount: 2, mixedModes: [GameMode.Speed, GameMode.Missile] },
+            mode: GameMode.Speed,
+            settings: { autoScoringTurns: 40 },
         } as any;
         expect(resolveTutorialForStage(session, stage)).toBe('sp_missile');
+    });
+
+    it('returns sp_hidden for 중급-6 (별빛 계곡 첫 히든)', () => {
+        const stage = baseStage({
+            id: '중급-6',
+            strategicRulePreset: 'hidden',
+            hiddenCount: 1,
+            scanCount: 2,
+            missileCount: undefined,
+            autoScoringTurns: 40,
+            timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 3 },
+        });
+        const session = {
+            gameCategory: 'singleplayer',
+            mode: GameMode.Hidden,
+            settings: { autoScoringTurns: 40, hiddenStoneCount: 1, scanCount: 2 },
+        } as any;
+        expect(resolveTutorialForStage(session, stage)).toBe('sp_hidden');
+    });
+
+    it('prefers sp_hidden over missile when mix has both', () => {
+        const stage = baseStage({
+            id: '중급-7',
+            strategicRulePreset: 'mix',
+            mixedStrategicModes: [GameMode.Missile, GameMode.Hidden],
+            missileCount: 3,
+            hiddenCount: 1,
+            scanCount: 2,
+            timeControl: { type: 'byoyomi', mainTime: 5, byoyomiTime: 30, byoyomiCount: 3 },
+        });
+        const session = {
+            gameCategory: 'singleplayer',
+            mode: GameMode.Mix,
+            settings: {
+                autoScoringTurns: 60,
+                missileCount: 3,
+                hiddenStoneCount: 1,
+                mixedModes: [GameMode.Missile, GameMode.Hidden],
+            },
+        } as any;
+        expect(resolveTutorialForStage(session, stage)).toBe('sp_hidden');
     });
 
     it('returns sp_missile from mix modes even if missileCount was wiped from settings', () => {

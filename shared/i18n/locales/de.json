@@ -889,7 +889,9 @@
       "goldBundleSpaced": "Goldpaket",
       "goldBundleCompact": "Goldpaket",
       "noRewardInfo": "Keine Vergütungsinformationen verfügbar.",
-      "noRewardsEmpty": "Eine Entschädigung gibt es nicht."
+      "noRewardsEmpty": "Eine Entschädigung gibt es nicht.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Spielinformationen",

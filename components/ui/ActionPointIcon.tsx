@@ -1,5 +1,10 @@
-import React from 'react';
-import { resourceIcons } from '../resourceIcons.js';
+import React, { useState } from 'react';
+import {
+    ACTION_POINT_ICON_PATH,
+    ACTION_POINT_ICON_WEBP_PATH,
+    resourceIcons,
+} from '../resourceIcons.js';
+import { resolvePublicUrl } from '../../utils/publicAssetUrl.js';
 
 type ActionPointIconSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl';
 
@@ -14,11 +19,17 @@ const SIZE_CLASS: Record<ActionPointIconSize, string> = {
 export type ActionPointIconProps = {
     size?: ActionPointIconSize;
     className?: string;
-    /** Prefer crisp SVG for tiny inline UI; raster for larger hero slots */
+    /**
+     * `auto`/`raster`: PNG (모바일 WebView에서 webp/CSS filter 이슈 회피)
+     * `svg`: 선명 SVG
+     */
     variant?: 'auto' | 'svg' | 'raster';
     alt?: string;
     title?: string;
 };
+
+const PNG_SRC = resolvePublicUrl(ACTION_POINT_ICON_PATH);
+const WEBP_SRC = resolvePublicUrl(ACTION_POINT_ICON_WEBP_PATH);
 
 /**
  * 행동력 번개 아이콘 — 이모지(⚡) 대신 사용.
@@ -30,18 +41,25 @@ const ActionPointIcon: React.FC<ActionPointIconProps> = ({
     alt = '',
     title,
 }) => {
-    const useSvg =
-        variant === 'svg' || (variant === 'auto' && (size === 'xs' || size === 'sm' || size === 'md'));
-    const src = useSvg ? resourceIcons.actionPointSvg : resourceIcons.actionPoint;
+    const [src, setSrc] = useState(() =>
+        variant === 'svg' ? resourceIcons.actionPointSvg : PNG_SRC,
+    );
+
     return (
         <img
             src={src}
             alt={alt}
             title={title}
             aria-hidden={alt ? undefined : true}
-            className={`inline-block shrink-0 object-contain drop-shadow-[0_0_6px_rgba(34,211,238,0.35)] ${SIZE_CLASS[size]} ${className}`}
-            loading="lazy"
+            className={`inline-block shrink-0 object-contain ${SIZE_CLASS[size]} ${className}`}
+            loading="eager"
             decoding="async"
+            fetchPriority="high"
+            draggable={false}
+            onError={() => {
+                if (src === PNG_SRC) setSrc(WEBP_SRC);
+                else if (src === WEBP_SRC) setSrc(resourceIcons.actionPointSvg);
+            }}
         />
     );
 };

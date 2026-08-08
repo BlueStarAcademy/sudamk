@@ -514,7 +514,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                 ? [
                       {
                           value: 'seasonInfo',
-                          label: t('waitingLobby.seasonInfoTab', '시즌정보'),
+                          label: t('waitingLobby.seasonInfoTab', { ns: 'pair', defaultValue: '시즌정보' }),
                           tone: 'cyan',
                       },
                       ...queueKindOptions,
@@ -594,9 +594,9 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                             }`}
                         >
                             {!dedicated && panelSection === 'season'
-                                ? t('waitingLobby.seasonInfoTab', '시즌정보')
+                                ? t('waitingLobby.seasonInfoTab', { ns: 'pair', defaultValue: '시즌정보' })
                                 : dedicated && dedicatedChromeTab === 'seasonInfo'
-                                  ? t('waitingLobby.seasonInfoTab', '시즌정보')
+                                  ? t('waitingLobby.seasonInfoTab', { ns: 'pair', defaultValue: '시즌정보' })
                                 : isPairNormal
                                   ? t('arenaLobby.queuePairNormal', '페어일반전')
                                   : isStrategicNormalQueue

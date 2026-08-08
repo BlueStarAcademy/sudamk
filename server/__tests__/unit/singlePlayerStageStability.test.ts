@@ -153,8 +153,47 @@ describe('single-player stage stability', () => {
         expect(stage.mixedStrategicModes).toEqual([GameMode.Speed, GameMode.Missile]);
     });
 
+    it('pins 초급-11 back to Speed+Missile mix when KV/editor saved it as speed-only', () => {
+        const codeDefault = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.id === '초급-11')!;
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...codeDefault,
+                strategicRulePreset: 'speed',
+                missileCount: undefined,
+                mixedStrategicModes: undefined,
+            },
+        ]);
+        const stage = normalized.find((s) => s.id === '초급-11')!;
+        expect(stage.missileCount).toBe(2);
+        expect(stage.strategicRulePreset).toBe('mix');
+        expect(stage.mixedStrategicModes).toEqual([GameMode.Speed, GameMode.Missile]);
+    });
+
+    it('pins 중급-6 back to hidden when KV saved it as missile-only', () => {
+        const codeDefault = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.id === '중급-6')!;
+        expect(codeDefault.strategicRulePreset).toBe('hidden');
+        const normalized = normalizeSinglePlayerStagesOverride([
+            {
+                ...codeDefault,
+                strategicRulePreset: 'missile',
+                missileCount: 3,
+                hiddenCount: undefined,
+                scanCount: undefined,
+            },
+        ]);
+        const stage = normalized.find((s) => s.id === '중급-6')!;
+        expect(stage.hiddenCount).toBe(1);
+        expect(stage.scanCount).toBe(2);
+        expect(stage.strategicRulePreset).toBe('hidden');
+        expect(stage.missileCount).toBeUndefined();
+    });
+
     it('does not revive default rule fields after admin editor saves a clean mix stage', () => {
-        const base = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.hiddenCount != null && s.autoScoringTurns != null) ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
+        // 중급-6은 첫 히든 입문 핀 대상이므로 제외
+        const base =
+            DEFAULT_SINGLE_PLAYER_STAGES.find(
+                (s) => s.id !== '중급-6' && s.hiddenCount != null && s.autoScoringTurns != null,
+            ) ?? DEFAULT_SINGLE_PLAYER_STAGES[0];
         const normalized = normalizeSinglePlayerStagesOverride([
             {
                 ...base,

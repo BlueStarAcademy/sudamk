@@ -880,7 +880,9 @@
       "goldBundleSpaced": "złoty pakiet",
       "goldBundleCompact": "Złoty pakiet",
       "noRewardInfo": "Brak informacji o odszkodowaniach.",
-      "noRewardsEmpty": "Nie ma rekompensaty."
+      "noRewardsEmpty": "Nie ma rekompensaty.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Informacje o meczu",

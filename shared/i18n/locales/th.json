@@ -889,7 +889,9 @@
       "goldBundleSpaced": "แพ็คเกจทอง",
       "goldBundleCompact": "แพ็คเกจทอง",
       "noRewardInfo": "ไม่มีข้อมูลการชดเชย",
-      "noRewardsEmpty": "ไม่มีการชดเชย"
+      "noRewardsEmpty": "ไม่มีการชดเชย",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "ข้อมูลการแข่งขัน",

@@ -880,7 +880,9 @@
       "goldBundleSpaced": "pakete ng ginto",
       "goldBundleCompact": "paketeng ginto",
       "noRewardInfo": "Walang magagamit na impormasyon sa kompensasyon.",
-      "noRewardsEmpty": "Walang kabayaran."
+      "noRewardsEmpty": "Walang kabayaran.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Impormasyon ng tugma",

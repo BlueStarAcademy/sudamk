@@ -285,7 +285,14 @@ const GameList: React.FC<GameListProps> = ({
                     </div>
                     <div className="flex items-center gap-2 overflow-hidden">
                       <div className="text-center truncate">
-                        <Avatar userId={game.player1.id} userName={game.player1.nickname} size={36} className={`border-2 mx-auto ${avatarRing}`} />
+                        <Avatar
+                            userId={game.player1.id}
+                            userName={game.player1.nickname}
+                            avatarId={game.player1.avatarId}
+                            borderId={game.player1.borderId}
+                            size={36}
+                            className={`border-2 mx-auto ${avatarRing}`}
+                        />
                         <span
                             className={`block truncate font-semibold ${
                                 pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'
@@ -296,7 +303,14 @@ const GameList: React.FC<GameListProps> = ({
                       </div>
                       <span className={vsClass}>vs</span>
                       <div className="text-center truncate">
-                        <Avatar userId={game.player2.id} userName={game.player2.nickname} size={36} className={`border-2 mx-auto ${avatarRing}`} />
+                        <Avatar
+                            userId={game.player2.id}
+                            userName={game.player2.nickname}
+                            avatarId={game.player2.avatarId}
+                            borderId={game.player2.borderId}
+                            size={36}
+                            className={`border-2 mx-auto ${avatarRing}`}
+                        />
                         <span
                             className={`block truncate font-semibold ${
                                 pairAlignedNativeCompact ? 'text-[0.65rem] sm:text-xs' : 'text-xs'

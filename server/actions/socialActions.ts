@@ -1038,7 +1038,11 @@ const buildPairTeams = (room: types.PairRoomState): { teamA: types.PairTeamState
                 ready: true,
             }));
         }
-    } else if (room.roomKind === 'team_pair') {
+    } else if (
+        room.roomKind === 'team_pair' &&
+        ((room.pairMode ?? room.mode) === 'ai' || (room.pairLobbyAiSeatSlots?.teamB?.length ?? 0) > 0)
+    ) {
+        /** AI 모드·ephemeral AI 팀페어만 상대 teamB를 AI로 채움 (유저대전 팀페어는 인간 대기) */
         teamBMembers = [0, 1].map((i) => ({
             id: lobbyAiSeatParticipantId(i as 0 | 1),
             name: 'AI',
@@ -1046,6 +1050,31 @@ const buildPairTeams = (room: types.PairRoomState): { teamA: types.PairTeamState
             slot: 'opponentAi' as const,
             ready: true,
         }));
+    } else if (
+        room.roomKind === 'friendly_4p' &&
+        ((room.pairMode ?? room.mode) === 'ai' || (room.pairLobbyAiSeatSlots?.teamB?.length ?? 0) > 0)
+    ) {
+        /** 친선 4인 AI 즉시 시작: 빈 자리를 AI로 채움 */
+        while (teamAMembers.length < 2) {
+            const idx = teamAMembers.length;
+            teamAMembers.push({
+                id: `lobby-ai-a-${idx}`,
+                name: 'AI',
+                kind: 'ai',
+                slot: 'partner',
+                ready: true,
+            });
+        }
+        while (teamBMembers.length < 2) {
+            const idx = teamBMembers.length as 0 | 1;
+            teamBMembers.push({
+                id: lobbyAiSeatParticipantId(idx),
+                name: 'AI',
+                kind: 'ai',
+                slot: 'opponentAi',
+                ready: true,
+            });
+        }
     }
 
     /** 팀페어: 인간 파트너가 없고 펫 슬롯이 켜져 있으면 teamA에 방장 펫 배치 */
@@ -1357,6 +1386,7 @@ function restoreEndedPairRoomShellsIfNeeded(volatileState: VolatileState, game: 
 function buildEphemeralPairPetAiDuelLobbySnapshot(
     user: User,
     payload: { mode?: GameMode; settings?: types.GameSettings } | undefined,
+    lobbyChannel: types.ArenaChannel = 'pair',
 ): types.PairRoomState | null {
     if (!hasUsableEquippedPairPet(user)) return null;
     const roomId = `pair-ai-ephemeral-${randomUUID()}`;
@@ -1366,11 +1396,11 @@ function buildEphemeralPairPetAiDuelLobbySnapshot(
         code: '0',
         mode: 'ai',
         pairMode: 'ai',
-        roomKind: 'ai_duel',
+        roomKind: lobbyChannel === 'friendly' ? 'friendly_2p' : 'ai_duel',
         visibility: 'public',
         passwordProtected: false,
         phase: 'waiting',
-        lobbyChannel: 'pair',
+        lobbyChannel,
         title: clampPairRoomTitle(`${user.nickname}님의 펫 페어방`),
         ownerId: user.id,
         ownerName: user.nickname,
@@ -1391,6 +1421,87 @@ function buildEphemeralPairPetAiDuelLobbySnapshot(
     mergePairRoomLobbyGameSettings(room, {
         selectedGameMode: payload?.mode,
         settings: payload?.settings,
+    });
+    if (lobbyChannel === 'friendly') {
+        room.settings = { ...room.settings, friendlyLobbyMatch: true };
+    }
+    return refreshPairRoomTeams(room);
+}
+
+/** 친선 AI 팀페어: 나+장착펫 vs AI2 — 방 없이 즉시 시작 */
+function buildEphemeralFriendlyTeamPairAiLobbySnapshot(
+    user: User,
+    payload: { mode?: GameMode; settings?: types.GameSettings } | undefined,
+): types.PairRoomState | null {
+    if (!hasUsableEquippedPairPet(user)) return null;
+    const roomId = `pair-ai-ephemeral-team-${randomUUID()}`;
+    const room: types.PairRoomState = {
+        id: roomId,
+        code: '0',
+        mode: 'ai',
+        pairMode: 'ai',
+        roomKind: 'team_pair',
+        visibility: 'public',
+        passwordProtected: false,
+        phase: 'waiting',
+        lobbyChannel: 'friendly',
+        title: clampPairRoomTitle(`${user.nickname}님의 팀페어 AI`),
+        ownerId: user.id,
+        ownerName: user.nickname,
+        selectedGameMode: PAIR_MODE_DEFAULT_GAME_MODE,
+        settings: { ...DEFAULT_GAME_SETTINGS, friendlyLobbyMatch: true },
+        teamA: { id: 'teamA', name: '우리 팀', members: [] },
+        teamB: { id: 'teamB', name: '상대 팀', members: [] },
+        ownerReady: true,
+        partnerReady: true,
+        createdAt: Date.now(),
+        pairChatMessages: [],
+        pairSeatAssignments: { teamA: [user.id], teamB: [] },
+        pairLobbyAiSeatSlots: { teamB: [0, 1] },
+        pairLobbyPetSeatSlots: { teamA: [1] },
+    };
+    const snap = pairLobbyPetSnapshotFromUser(user);
+    if (snap) room.ownerLobbyPet = snap;
+    mergePairRoomLobbyGameSettings(room, {
+        selectedGameMode: payload?.mode,
+        settings: { ...(payload?.settings ?? {}), friendlyLobbyMatch: true },
+    });
+    return refreshPairRoomTeams(room);
+}
+
+/** 친선 4인 AI: 나+AI vs AI2 — 방 없이 즉시 시작 */
+function buildEphemeralFriendlyFourAiLobbySnapshot(
+    user: User,
+    payload: { mode?: GameMode; settings?: types.GameSettings } | undefined,
+): types.PairRoomState {
+    const roomId = `pair-ai-ephemeral-4p-${randomUUID()}`;
+    const room: types.PairRoomState = {
+        id: roomId,
+        code: '0',
+        mode: 'ai',
+        pairMode: 'ai',
+        roomKind: 'friendly_4p',
+        visibility: 'public',
+        passwordProtected: false,
+        phase: 'waiting',
+        lobbyChannel: 'friendly',
+        title: clampPairRoomTitle(`${user.nickname}님의 4인 AI`),
+        ownerId: user.id,
+        ownerName: user.nickname,
+        selectedGameMode: PAIR_MODE_DEFAULT_GAME_MODE,
+        settings: { ...DEFAULT_GAME_SETTINGS, friendlyLobbyMatch: true },
+        teamA: { id: 'teamA', name: '우리 팀', members: [] },
+        teamB: { id: 'teamB', name: '상대 팀', members: [] },
+        ownerReady: true,
+        partnerReady: true,
+        createdAt: Date.now(),
+        pairChatMessages: [],
+        pairSeatAssignments: { teamA: [user.id], teamB: [] },
+        pairLobbyAiSeatSlots: { teamB: [0, 1] },
+    };
+    mergePairRoomLobbyGameSettings(room, {
+        selectedGameMode: payload?.mode,
+        settings: { ...(payload?.settings ?? {}), friendlyLobbyMatch: true },
     });
     return refreshPairRoomTeams(room);
 }
@@ -1526,7 +1637,11 @@ function applyPairRoomKindTransition(room: types.PairRoomState, normalizedKind: 
     };
     const humanGuests = collectHumanGuests();
     const maxGuestsForKind =
-        normalizedKind === 'friendly_4p' ? 3 : normalizedKind === 'duo_match' || normalizedKind === 'friendly_2p' || normalizedKind === 'team_pair' ? 1 : humanGuests.length;
+        normalizedKind === 'friendly_4p' || normalizedKind === 'team_pair'
+            ? 3
+            : normalizedKind === 'duo_match' || normalizedKind === 'friendly_2p'
+              ? 1
+              : humanGuests.length;
     const keptGuests = humanGuests.slice(0, maxGuestsForKind);
     const excessGuests = humanGuests.slice(maxGuestsForKind);
     if (excessGuests.length > 0) {
@@ -1600,16 +1715,15 @@ function applyPairRoomKindTransition(room: types.PairRoomState, normalizedKind: 
     }
 
     if (normalizedKind === 'team_pair') {
-        const partner = petPairGuest ?? humanGuests[0];
-        room.partnerId = partner?.id;
-        room.partnerName = partner?.name;
+        const guests = humanGuests.slice(0, 3);
+        room.partnerId = undefined;
+        room.partnerName = undefined;
         room.partnerReady = false;
-        room.extraPairMembers = undefined;
-        room.pairSeatAssignments = {
-            teamA: partner ? [room.ownerId, partner.id] : [room.ownerId],
-            teamB: [],
-        };
-        room.pairLobbyAiSeatSlots = { teamB: [0, 1] };
+        room.extraPairMembers = guests.map((g) => ({ id: g.id, name: g.name, ready: false }));
+        const teamA = [room.ownerId, guests[0]?.id].filter(Boolean) as string[];
+        const teamB = [guests[1]?.id, guests[2]?.id].filter(Boolean) as string[];
+        room.pairSeatAssignments = { teamA, teamB };
+        delete room.pairLobbyAiSeatSlots;
         return;
     }
 
@@ -3511,6 +3625,19 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 return { error: queueKind === 'normal' ? '일반전 모드만 선택할 수 있습니다.' : '랭킹전 모드만 선택할 수 있습니다.' };
             }
 
+            if (queueKind === 'ranked') {
+                const {
+                    isRankedModeUnlockedForUser,
+                    RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
+                } = await import('../../shared/utils/contentProgressionGates.js');
+                const locked = selectedModes.filter((m) => !isRankedModeUnlockedForUser(user, m));
+                if (locked.length > 0) {
+                    return {
+                        error: `일색·캐슬·체스 바둑은 친선전에서 해당 모드 ${RANKED_MODE_FRIENDLY_UNLOCK_GAMES}판 완료 후 랭킹전에서 선택할 수 있습니다.`,
+                    };
+                }
+            }
+
             const { readStrategicNormalMatchScore, ensureStrategicNormalStatBlock, writeStrategicNormalMatchScore } =
                 await import('../../shared/utils/strategicNormalMmr.js');
             if (queueKind === 'normal') {
@@ -3764,8 +3891,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     return { error: '이미 상대가 있는 2인 친선 방입니다.' };
                 }
             }
-            if (room.roomKind === 'team_pair' && humanCount >= 2) {
-                return { error: '이미 파트너가 있는 팀페어 방입니다.' };
+            if (room.roomKind === 'team_pair' && humanCount >= 4) {
+                return { error: '팀이 가득 찼습니다.' };
             }
             if (room.roomKind === 'friendly_4p' && humanCount >= 4) {
                 return { error: '방이 가득 찼습니다.' };
@@ -3897,9 +4024,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 broadcastPairPartnerInvites(volatileState);
                 return { error: '방이 가득 찼습니다.' };
             }
-            if (target.roomKind === 'team_pair' && countPairRoomHumanUsers(target) >= 2) {
+            if (target.roomKind === 'team_pair' && countPairRoomHumanUsers(target) >= 4) {
                 broadcastPairPartnerInvites(volatileState);
-                return { error: '이미 파트너가 있는 팀페어 방입니다.' };
+                return { error: '팀이 가득 찼습니다.' };
             }
 
             clearPairRoomKickEntry(target, user.id);
@@ -3913,6 +4040,25 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 }
                 const guestSnap = pairLobbyPetSnapshotFromUser(user);
                 if (guestSnap) target.opponentLobbyPet = guestSnap;
+            } else if (target.roomKind === 'team_pair') {
+                target.extraPairMembers = [
+                    ...(target.extraPairMembers ?? []).filter((m) => m.id !== user.id),
+                    { id: user.id, name: user.nickname, ready: false },
+                ];
+                if (target.partnerId === user.id) {
+                    delete target.partnerId;
+                    delete target.partnerName;
+                }
+                delete target.pairLobbyAiSeatSlots;
+                const teamA = [...(target.pairSeatAssignments?.teamA ?? [target.ownerId])].filter((id) => id !== user.id);
+                const teamB = [...(target.pairSeatAssignments?.teamB ?? [])].filter((id) => id !== user.id);
+                const destTeam = inv.targetTeam === 'teamB' ? 'teamB' : 'teamA';
+                const dest = destTeam === 'teamB' ? teamB : teamA;
+                const index = inv.targetIndex === 0 || inv.targetIndex === 1 ? inv.targetIndex : dest.length >= 1 ? 1 : 0;
+                if (!dest.includes(user.id)) {
+                    dest.splice(Math.min(index, dest.length), 0, user.id);
+                }
+                target.pairSeatAssignments = { teamA: teamA.slice(0, 2), teamB: teamB.slice(0, 2) };
             } else if (!hasRealPartner) {
                 target.partnerId = user.id;
                 target.partnerName = user.nickname;
@@ -3926,14 +4072,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             recordPairGuestJoinOrder(target, user.id);
             if (target.roomKind === 'duo_match') {
                 syncDuoMatchPairSeatAssignments(target);
-            } else if (target.roomKind === 'team_pair') {
-                target.partnerId = user.id;
-                target.partnerName = user.nickname;
-                target.partnerReady = false;
-                target.extraPairMembers = undefined;
-                target.pairSeatAssignments = { teamA: [target.ownerId, user.id], teamB: [] };
-                target.pairLobbyAiSeatSlots = { teamB: [0, 1] };
-            } else {
+            } else if (target.roomKind !== 'team_pair' && target.roomKind !== 'friendly_2p') {
                 const teamA = [...(target.pairSeatAssignments?.teamA ?? [target.ownerId])].filter((id) => id !== user.id);
                 const teamB = [...(target.pairSeatAssignments?.teamB ?? [])].filter((id) => id !== user.id);
                 const destTeam = inv.targetTeam === 'teamB' ? 'teamB' : 'teamA';
@@ -4132,7 +4271,6 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 if (snap) room.ownerLobbyPet = snap;
             }
             if (normalizedKind === 'team_pair') {
-                room.pairLobbyAiSeatSlots = { teamB: [0, 1] };
                 room.pairSeatAssignments = { teamA: [user.id], teamB: [] };
             }
             (room as any).roomPassword = normalizedVisibility === 'private' ? normalizedPassword : undefined;
@@ -4298,8 +4436,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (target.roomKind === 'friendly_4p' && countPairRoomHumanUsers(target) >= 4) {
                 return { error: '방이 가득 찼습니다.' };
             }
-            if (target.roomKind === 'team_pair' && countPairRoomHumanUsers(target) >= 2) {
-                return { error: '이미 파트너가 있는 팀페어 방입니다.' };
+            if (target.roomKind === 'team_pair' && countPairRoomHumanUsers(target) >= 4) {
+                return { error: '팀이 가득 찼습니다.' };
             }
             if (target.roomKind === 'duo_match') {
                 const duoCh = target.lobbyChannel ?? 'pair';
@@ -4308,6 +4446,38 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     return { error: '방이 가득 찼습니다.' };
                 }
             }
+            if (target.roomKind === 'team_pair' || target.roomKind === 'friendly_4p') {
+                clearPairRoomKickEntry(target, user.id);
+                target.extraPairMembers = [
+                    ...(target.extraPairMembers ?? []).filter((m) => m.id !== user.id),
+                    { id: user.id, name: user.nickname, ready: false },
+                ];
+                if (target.partnerId === user.id) {
+                    delete target.partnerId;
+                    delete target.partnerName;
+                }
+                delete target.pairLobbyAiSeatSlots;
+                const teamA = [...(target.pairSeatAssignments?.teamA ?? [target.ownerId])].filter((id) => id !== user.id);
+                const teamB = [...(target.pairSeatAssignments?.teamB ?? [])].filter((id) => id !== user.id);
+                if (teamA.length < 2) teamA.push(user.id);
+                else if (teamB.length < 2) teamB.push(user.id);
+                else return { error: '방이 가득 찼습니다.' };
+                target.pairSeatAssignments = { teamA: teamA.slice(0, 2), teamB: teamB.slice(0, 2) };
+                recordPairGuestJoinOrder(target, user.id);
+                clearLobbyAiSeatsOverlappingHumans(target);
+                clearLobbyPetSeatsOverlappingHumans(target);
+                refreshPairRoomTeams(target);
+                syncPairOwnerStartDeadline(target, now);
+                clearPairInvitesForRoom(volatileState, target.id);
+                broadcastPairRooms(volatileState);
+                broadcastPairPartnerInvites(volatileState);
+                return {
+                    clientResponse: {
+                        pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms),
+                        pairRoomChatHistory: { [target.id]: mergePairChatHistoriesForViewer(target, volatileState, user.id) },
+                    },
+                };
+            }
             if (target.partnerId) return { error: '이미 파트너가 입장한 방입니다.' };
             target.partnerId = user.id;
             target.partnerName = user.nickname;
@@ -4315,9 +4485,6 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             recordPairGuestJoinOrder(target, user.id);
             if (target.roomKind === 'duo_match') {
                 syncDuoMatchPairSeatAssignments(target);
-            } else if (target.roomKind === 'team_pair') {
-                target.pairSeatAssignments = { teamA: [target.ownerId, user.id], teamB: [] };
-                target.pairLobbyAiSeatSlots = { teamB: [0, 1] };
             } else {
                 target.pairSeatAssignments = { teamA: [target.ownerId, user.id], teamB: [] };
             }
@@ -5040,7 +5207,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 return { error: 'AI와 대결 방은 「AI 대전 시작」으로 시작해 주세요.' };
             }
             const startLobbyCh = (target as { lobbyChannel?: string }).lobbyChannel ?? 'pair';
-            if (target.roomKind === 'duo_match' || target.roomKind === 'friendly_4p') {
+            if (target.roomKind === 'duo_match' || target.roomKind === 'friendly_4p' || target.roomKind === 'team_pair') {
                 if (target.roomKind === 'duo_match') {
                     const friendlyDuoArenaLobby =
                         (startLobbyCh === 'strategic' ||
@@ -5055,7 +5222,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     }
                 } else {
                     if (startLobbyCh !== 'pair' && startLobbyCh !== 'friendly') {
-                        return { error: '4인 친선은 친선전·페어 경기장에서만 시작할 수 있습니다.' };
+                        return {
+                            error:
+                                target.roomKind === 'team_pair'
+                                    ? '팀페어는 친선전·페어 경기장에서만 시작할 수 있습니다.'
+                                    : '4인 친선은 친선전·페어 경기장에서만 시작할 수 있습니다.',
+                        };
                     }
                     if ((target.phase ?? 'waiting') !== 'waiting' && target.phase !== 'ready') {
                         return { error: '대기 중인 방에서만 시작할 수 있습니다.' };
@@ -5075,14 +5247,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 const isFourHumanTwoPlusTwo = teamAUsers.length === 2 && teamBUsers.length === 2;
                 const isFourMixedTwoPlusTwo = teamASeats.length === 2 && teamBSeats.length === 2;
                 const hasLobbyAiOpponent = teamBSeats.some((m) => m.kind === 'ai');
-                if (target.roomKind === 'friendly_4p') {
+                if (target.roomKind === 'friendly_4p' || target.roomKind === 'team_pair') {
                     if (!isFourHumanTwoPlusTwo) {
                         return {
-                            error: '4인 친선은 양 팀에 유저 2명씩 착석해야 시작할 수 있습니다.',
+                            error:
+                                target.roomKind === 'team_pair'
+                                    ? '팀페어는 양 팀에 유저 2명씩 착석해야 시작할 수 있습니다.'
+                                    : '4인 친선은 양 팀에 유저 2명씩 착석해야 시작할 수 있습니다.',
                         };
                     }
-                } else if (target.roomKind === 'team_pair') {
-                    return { error: '팀페어는 「AI 대전 시작」으로 시작해 주세요.' };
                 } else {
                     if (humanTotal >= 4) {
                         if (!isFourHumanTwoPlusTwo) {
@@ -5091,12 +5264,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     } else if (humanTotal === 2) {
                         // 방장+상대 2인
                     } else if (humanTotal === 1 && hasLobbyAiOpponent) {
-                        // 친선전: 상대 슬롯 AI
+                        // 레거시: 상대 슬롯 AI (신규 UI에서는 비활성)
                     } else if (humanTotal <= 1) {
                         return { error: '상대가 입장한 뒤 시작할 수 있습니다.' };
                     } else {
                         return {
-                            error: '참가 인원을 맞춰 주세요. 친선전은 상대 1명(또는 AI)과, 4인 친선은 양 팀 2명씩으로 시작할 수 있습니다.',
+                            error: '참가 인원을 맞춰 주세요. 친선전은 상대 1명과, 4인·팀페어는 양 팀 2명씩으로 시작할 수 있습니다.',
                         };
                     }
                 }
@@ -5124,7 +5297,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 let pairSettingsDuo: types.GameSettings;
                 let gameDuo: types.LiveGameSession;
                 let inGameUserIds: string[];
-                if (target.roomKind === 'friendly_4p' || isFourHumanTwoPlusTwo) {
+                if (target.roomKind === 'friendly_4p' || target.roomKind === 'team_pair' || isFourHumanTwoPlusTwo) {
                     const humanUsers = [...teamAUsers, ...teamBUsers];
                     const loadedHumans = (
                         await Promise.all(humanUsers.map((m) => db.getUser(m.id)))
@@ -5138,6 +5311,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                             ? loadedHumans.find((u) => u.id === teamBUsers[0].id) || aiOpponentUser
                             : aiOpponentUser;
                     pairSettingsDuo = buildPairGameSettings(target);
+                    if (startLobbyCh === 'friendly') {
+                        pairSettingsDuo.friendlyLobbyMatch = true;
+                    }
                     const negotiationDuo: Negotiation = {
                         id: `neg-pair-duo-friendly-${randomUUID()}`,
                         challenger: user,
@@ -5161,6 +5337,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     const aiOpponent = getAiUser(requestedModeDuo);
                     pairSettingsDuo = { ...DEFAULT_GAME_SETTINGS, ...target.settings, ...payloadSettingsDuo };
                     delete (pairSettingsDuo as { pairGame?: unknown }).pairGame;
+                    if (startLobbyCh === 'friendly') {
+                        pairSettingsDuo.friendlyLobbyMatch = true;
+                    }
                     const negotiationDuo: Negotiation = {
                         id: `neg-arena-duo-ai-${randomUUID()}`,
                         challenger: ownerUser,
@@ -5184,6 +5363,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     // 친선전 2인: 방 UI는 페어 로비이나 대국은 일반 1:1
                     pairSettingsDuo = { ...DEFAULT_GAME_SETTINGS, ...target.settings, ...payloadSettingsDuo };
                     delete (pairSettingsDuo as { pairGame?: unknown }).pairGame;
+                    if (startLobbyCh === 'friendly') {
+                        pairSettingsDuo.friendlyLobbyMatch = true;
+                    }
                     const negotiationDuo: Negotiation = {
                         id: `neg-arena-duo-classic-${randomUUID()}`,
                         challenger: ownerUser,
@@ -5253,6 +5435,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 refreshPairRoomTeams(target);
                 const partnerUser = opponentUser;
                 const pairSettings = buildPairGameSettings(target);
+                if ((target.lobbyChannel ?? 'pair') === 'friendly') {
+                    pairSettings.friendlyLobbyMatch = true;
+                }
                 const negotiation: Negotiation = {
                     id: `neg-pair-pet-friendly-${randomUUID()}`,
                     challenger: user,
@@ -5558,16 +5743,51 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             let target = resolvePairStartAiMatchTargetRoom();
             let ephemeralPairPetAiDuelShell = false;
+            const payloadAi = payload as
+                | {
+                      mode?: GameMode;
+                      settings?: types.GameSettings;
+                      ephemeralRoomKind?: 'ai_duel' | 'friendly_2p' | 'team_pair' | 'friendly_4p';
+                      lobbyChannel?: types.ArenaChannel;
+                  }
+                | undefined;
             if (!target) {
-                const shell = buildEphemeralPairPetAiDuelLobbySnapshot(
-                    user,
-                    payload as { mode?: GameMode; settings?: types.GameSettings } | undefined,
-                );
-                if (!shell) {
-                    return { error: 'AI 대전을 시작하려면 페어 펫을 장착해야 합니다.' };
+                const ephemeralKind = payloadAi?.ephemeralRoomKind;
+                const ephemeralChannel =
+                    payloadAi?.lobbyChannel === 'friendly' ||
+                    payloadAi?.lobbyChannel === 'pair' ||
+                    payloadAi?.lobbyChannel === 'strategic' ||
+                    payloadAi?.lobbyChannel === 'playful'
+                        ? payloadAi.lobbyChannel
+                        : 'pair';
+                if (ephemeralKind === 'team_pair') {
+                    const shell = buildEphemeralFriendlyTeamPairAiLobbySnapshot(user, payloadAi);
+                    if (!shell) {
+                        return { error: '팀페어 AI 대전을 시작하려면 페어 펫을 장착해야 합니다.' };
+                    }
+                    target = shell;
+                    ephemeralPairPetAiDuelShell = true;
+                } else if (ephemeralKind === 'friendly_4p') {
+                    target = buildEphemeralFriendlyFourAiLobbySnapshot(user, payloadAi);
+                    ephemeralPairPetAiDuelShell = true;
+                } else if (
+                    ephemeralKind === 'friendly_2p' ||
+                    ephemeralKind === 'ai_duel' ||
+                    ephemeralKind === undefined
+                ) {
+                    const shell = buildEphemeralPairPetAiDuelLobbySnapshot(
+                        user,
+                        payloadAi,
+                        ephemeralKind === 'friendly_2p' || ephemeralChannel === 'friendly' ? 'friendly' : 'pair',
+                    );
+                    if (!shell) {
+                        return { error: 'AI 대전을 시작하려면 페어 펫을 장착해야 합니다.' };
+                    }
+                    target = shell;
+                    ephemeralPairPetAiDuelShell = true;
+                } else {
+                    return { error: '지원하지 않는 AI 대전 종류입니다.' };
                 }
-                target = shell;
-                ephemeralPairPetAiDuelShell = true;
             } else if (target.ownerId !== user.id) {
                 return { error: '방장만 AI 대전을 시작할 수 있습니다.' };
             }
@@ -5575,11 +5795,14 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 target.roomKind !== 'ai_duel' &&
                 target.roomKind !== 'duo_match' &&
                 target.roomKind !== 'arena_ai' &&
-                target.roomKind !== 'team_pair'
+                target.roomKind !== 'team_pair' &&
+                target.roomKind !== 'friendly_2p' &&
+                target.roomKind !== 'friendly_4p'
             ) {
-                return { error: '펫 페어, AI와 대결, 팀페어, 또는 2인 페어 방에서만 AI 대전을 시작할 수 있습니다.' };
+                return { error: '펫 페어, AI와 대결, 팀페어, 4인, 또는 2인 페어 방에서만 AI 대전을 시작할 수 있습니다.' };
             }
-            const isPetPairAiDuel = target.roomKind === 'ai_duel';
+            const isFriendlyFourAi = target.roomKind === 'friendly_4p';
+            const isPetPairAiDuel = target.roomKind === 'ai_duel' || target.roomKind === 'friendly_2p';
             const isTeamPairAiDuel = target.roomKind === 'team_pair';
             const isDuoPairAiDuel = target.roomKind === 'duo_match' || isTeamPairAiDuel;
             if (!ephemeralPairPetAiDuelShell && isPetPairAiDuel && !hasUsableEquippedPairPet(user)) {
@@ -5589,14 +5812,21 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 return { error: '상대가 입장한 펫 페어 방에서는 친선 대국을 시작해 주세요.' };
             }
             const targetLobbyChannel = target.lobbyChannel ?? 'pair';
-            if (isPetPairAiDuel && targetLobbyChannel !== 'pair') {
-                return { error: '펫 페어 AI 대전은 페어 경기장에서만 시작할 수 있습니다.' };
+            if (
+                isPetPairAiDuel &&
+                targetLobbyChannel !== 'pair' &&
+                targetLobbyChannel !== 'friendly'
+            ) {
+                return { error: '펫 페어 AI 대전은 친선전·페어 경기장에서만 시작할 수 있습니다.' };
             }
             if (target.roomKind === 'arena_ai' && targetLobbyChannel !== 'strategic' && targetLobbyChannel !== 'playful') {
                 return { error: 'AI와 대결은 전략·놀이 경기장에서만 시작할 수 있습니다.' };
             }
             if (isTeamPairAiDuel && targetLobbyChannel !== 'friendly' && targetLobbyChannel !== 'pair') {
                 return { error: '팀페어는 친선전·페어 경기장에서만 시작할 수 있습니다.' };
+            }
+            if (isFriendlyFourAi && targetLobbyChannel !== 'friendly' && targetLobbyChannel !== 'pair') {
+                return { error: '4인 AI 대전은 친선전·페어 경기장에서만 시작할 수 있습니다.' };
             }
             if (isDuoPairAiDuel) {
                 const duoPartner = getDuoPairAiPartner(target);
@@ -5633,6 +5863,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 }
                 if (isTeamPairAiDuel) {
                     target.pairLobbyAiSeatSlots = { teamB: [0, 1] };
+                    target.pairMode = 'ai';
+                    target.mode = 'ai';
                 }
             }
 
@@ -5640,6 +5872,11 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (isPetPairAiDuel) {
                 target.partnerId = target.partnerId || `pet-ai-${target.ownerId}`;
                 target.partnerName = target.partnerName || '내 펫';
+            }
+            if (isFriendlyFourAi) {
+                target.pairMode = 'ai';
+                target.mode = 'ai';
+                target.pairLobbyAiSeatSlots = { teamB: [0, 1] };
             }
             target.partnerReady = true;
             refreshPairRoomTeams(target);
@@ -5650,21 +5887,26 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 ...DEFAULT_GAME_SETTINGS,
                 ...(payload?.settings && typeof payload.settings === 'object' ? payload.settings : target.settings),
                 scoringTurnLimit: 0,
+                ...(targetLobbyChannel === 'friendly' || target.settings?.friendlyLobbyMatch
+                    ? { friendlyLobbyMatch: true }
+                    : {}),
             };
             delete (target.settings as any).autoScoringTurns;
             target.settings = clampAiLobbyStrategicItemCaps(selectedMode, target.settings);
 
             const ownerPetPartnerActive = isTeamPairAiDuel && teamPairUsesOwnerPetPartner(target);
-            const partnerUser = isDuoPairAiDuel
-                ? ownerPetPartnerActive
-                    ? getAiUser(selectedMode)
-                    : await db.getUser(target.partnerId!)
-                : getAiUser(selectedMode);
+            const partnerUser = isFriendlyFourAi
+                ? getAiUser(selectedMode)
+                : isDuoPairAiDuel
+                  ? ownerPetPartnerActive
+                      ? getAiUser(selectedMode)
+                      : await db.getUser(target.partnerId!)
+                  : getAiUser(selectedMode);
             if (!partnerUser) return { error: '파트너 정보를 찾지 못했습니다.' };
 
             const apNow = Date.now();
             const apParticipants =
-                isDuoPairAiDuel && !ownerPetPartnerActive ? [user, partnerUser] : [user];
+                isDuoPairAiDuel && !ownerPetPartnerActive && !isFriendlyFourAi ? [user, partnerUser] : [user];
             const aiMatchBaseAp = baseAiLobbyActionPointCostForModeAndSettings(selectedMode, target.settings);
             const apCheck = await assertAndConsumePairLobbyMatchActionPoints(
                 volatileState,
@@ -5675,7 +5917,14 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             );
             if (!apCheck.ok) return { error: apCheck.error };
 
-            const pairSettings = isDuoPairAiDuel ? makeDuoPairAiDuelSettings(target) : makePairPetAiDuelSettings(target);
+            const pairSettings = isFriendlyFourAi
+                ? makeFriendlyLobbyMixedPairSettings(target)
+                : isDuoPairAiDuel
+                  ? makeDuoPairAiDuelSettings(target)
+                  : makePairPetAiDuelSettings(target);
+            if (target.settings.friendlyLobbyMatch) {
+                pairSettings.friendlyLobbyMatch = true;
+            }
             const negotiation: Negotiation = {
                 id: `neg-pair-ai-${randomUUID()}`,
                 challenger: user,
@@ -5687,14 +5936,15 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 deadline: 0,
                 turnCount: 0,
                 isRanked: false,
-                pairPetStatUsers: ownerPetPartnerActive || !isDuoPairAiDuel ? [user] : [user, partnerUser],
+                pairPetStatUsers:
+                    isFriendlyFourAi || ownerPetPartnerActive || !isDuoPairAiDuel ? [user] : [user, partnerUser],
                 pairPetConfigureOwnerId: user.id,
             };
             const game = await initializeGame(negotiation);
             configurePairClassicGameStart(
                 game,
                 user,
-                ownerPetPartnerActive || !isDuoPairAiDuel ? [user] : [user, partnerUser],
+                isFriendlyFourAi || ownerPetPartnerActive || !isDuoPairAiDuel ? [user] : [user, partnerUser],
             );
             await db.saveGame(game);
             setInGameUserStatusForArena(volatileState, game.player1.id, game);
@@ -6819,6 +7069,8 @@ async function buildRankedMatchProposalPayload(
             winChange: isNormal ? 0 : calculateEloChange(player1Rating, player2Rating, 'win'),
             lossChange: isNormal ? 0 : calculateEloChange(player1Rating, player2Rating, 'loss'),
             accepted: prop.acceptUser1,
+            avatarId: player1.avatarId,
+            borderId: player1.borderId,
         },
         player2: {
             id: player2.id,
@@ -6827,6 +7079,8 @@ async function buildRankedMatchProposalPayload(
             winChange: isNormal ? 0 : calculateEloChange(player2Rating, player1Rating, 'win'),
             lossChange: isNormal ? 0 : calculateEloChange(player2Rating, player1Rating, 'loss'),
             accepted: prop.acceptUser2,
+            avatarId: player2.avatarId,
+            borderId: player2.borderId,
         },
     };
 }

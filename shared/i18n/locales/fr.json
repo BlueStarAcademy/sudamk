@@ -889,7 +889,9 @@
       "goldBundleSpaced": "paquet d'or",
       "goldBundleCompact": "Forfait Or",
       "noRewardInfo": "Aucune information sur la rémunération disponible.",
-      "noRewardsEmpty": "Il n'y a aucune compensation."
+      "noRewardsEmpty": "Il n'y a aucune compensation.",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards"
     },
     "sidebar": {
       "gameInfo": "Informations sur le match",

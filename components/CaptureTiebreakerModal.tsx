@@ -162,6 +162,8 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                         <Avatar
                             userId={user.id}
                             userName={getSessionPlayerDisplayName(session, user)}
+                            avatarId={user.avatarId}
+                            borderId={user.borderId}
                             size={48}
                             className="border-[3px] border-slate-950"
                         />

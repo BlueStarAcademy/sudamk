@@ -3642,7 +3642,12 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 guildId: guild.id,
                 authorId: user.id,
                 content: trimmedContent,
-                user: { id: user.id, nickname: user.nickname },
+                user: {
+                    id: user.id,
+                    nickname: user.nickname,
+                    avatarId: user.avatarId,
+                    borderId: user.borderId,
+                },
                 system: false,
                 timestamp: now,
                 createdAt: now,

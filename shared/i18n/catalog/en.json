@@ -848,6 +848,8 @@
       "adGoldDoubleHint": "Complete the ad to receive double gold for this match.",
       "adGoldDoubleFailed": "Failed to grant double gold. Please try again shortly.",
       "gameContent": "Match details",
+      "detailResultTab": "Details",
+      "rewardsTab": "Rewards",
       "resultSection": "Game result",
       "rewardsSection": "Rewards & records",
       "noScoreInfo": "No score information.",
@@ -2329,6 +2331,33 @@
       "tutorialMissileFireHint": "Firing…",
       "tutorialMissileCaptureFlash": "Captured!",
       "tutorialMissileCaptureHint": "You blocked the last liberty and captured the stone.",
+      "tutorialHiddenItemHint": "Tap the glowing Hidden item",
+      "tutorialHiddenPlaceHint": "Place a hidden stone on the glowing point to put White in atari",
+      "tutorialHiddenWhiteHint": "Play White's move elsewhere on the glowing point",
+      "tutorialHiddenCaptureHint": "Fill the last liberty to capture — your hidden stone is revealed",
+      "tutorialHiddenRevealFlash": "Capture · Hidden revealed!",
+      "tutorialHiddenRevealHint": "Capturing the ataried stone reveals your hidden stone.",
+      "tutorialHiddenOpponentFlash": "Opponent uses Hidden",
+      "tutorialHiddenOpponentHint": "The opponent plays a hidden move you cannot see.",
+      "tutorialScanItemHint": "Tap the glowing Scan item",
+      "tutorialScanClickHint": "Scan the glowing point to find the hidden stone",
+      "tutorialScanHint": "Use Scan to find the opponent's hidden stone.",
+      "tutorialScanFoundFlash": "Scan success!",
+      "tutorialScanFoundHint": "The scanned hidden stone appears translucent.",
+      "tutorialBaseShowHint": "Check the pre-placed base stones and their marks.",
+      "tutorialBaseChooseHint": "Tap the glowing Black stone",
+      "tutorialBaseDiffFlash": "Different colors · start with 0.5 komi!",
+      "tutorialBaseDiffHint": "If you pick different colors, the game starts right away with 0.5 komi.",
+      "tutorialBaseSameHint": "If you pick the same color, you bid komi to claim it.",
+      "tutorialBaseBidHint": "The higher komi bid plays that color.",
+      "tutorialBaseBidWinFlash": "Higher bid · play as Black!",
+      "tutorialBaseBidWinHint": "Your higher komi bid lets you play as Black.",
+      "tutorialBaseBidSubmit": "Submit komi",
+      "tutorialBaseBlack": "Black",
+      "tutorialBaseWhite": "White",
+      "tutorialBaseYou": "You",
+      "tutorialBaseOpponent": "Opponent",
+      "tutorialBaseContested": "Claim {{color}} · komi bid",
       "tutorialSpeedYou": "You",
       "tutorialSpeedOpponent": "Opponent",
       "tutorialSpeedScore": "Score",
@@ -2366,11 +2395,11 @@
         },
         "sp_hidden": {
           "title": "Hidden & scan",
-          "body": "Play hidden moves the opponent cannot see, and use scan to find theirs."
+          "body": "Use Hidden to threaten atari, reveal on capture, then Scan to find the opponent's hidden stone."
         },
         "sp_base": {
           "title": "Base Go",
-          "body": "Read the pre-placed base stones, set komi, then start the game."
+          "body": "Read the base stones, then pick Black or White. Different colors start with 0.5 komi; the same color goes to a komi bid — higher bid gets that color."
         }
       }
     }

@@ -6,6 +6,7 @@ import {
     inferSinglePlayerStrategicRulePreset,
 } from '../utils/singlePlayerStrategicRulePreset.js';
 import type { ScreenGuideId } from './screenGuideDismiss.js';
+import { DEFAULT_SINGLE_PLAYER_STAGES } from './singlePlayerConstants.js';
 
 export type PveTutorialStoneColor = 'B' | 'W';
 
@@ -15,6 +16,14 @@ export type PveTutorialStone = {
     color: PveTutorialStoneColor;
     /** 문양돌(따내면 2점) */
     pattern?: boolean;
+    /** 내 히든(미공개) — 고스트 표시 */
+    hiddenMine?: boolean;
+    /** 스캔으로 찾은 상대 히든 — 반투명 */
+    scanned?: boolean;
+    /** 히든 문양 오버레이(공개·스캔 포함, 인게임 Hidden.webp) */
+    hiddenMark?: boolean;
+    /** 베이스 문양 오버레이(인게임 Base.webp) */
+    baseMark?: boolean;
 };
 
 export type PveTutorialId =
@@ -50,6 +59,31 @@ export type PveMissileTutorialDemo = {
     captureRemovals: Array<{ x: number; y: number }>;
 };
 
+/**
+ * 히든 튜토리얼:
+ * 히든 아이템 → 단수 히든 착점 → 백이 다른 곳 → 따내며 히든 공개
+ * → 상대 히든 사용/착점 → 스캔 아이템 → 위치 클릭 → 반투명 공개
+ */
+export type PveHiddenTutorialDemo = {
+    myHiddenPlace: { x: number; y: number };
+    whiteElsewhere: { x: number; y: number };
+    /** 마지막 활로를 막아 따내는 흑 수(공개 수) */
+    capturePlace: { x: number; y: number };
+    captureRemovals: Array<{ x: number; y: number }>;
+    opponentHiddenPlace: { x: number; y: number };
+};
+
+/**
+ * 베이스 튜토리얼:
+ * 베이스돌 확인 → 흑/백 선택 → 다른 색이면 0.5덤 즉시 시작
+ * → 같은 색이면 덤 입찰 → 높은 쪽 해당 색
+ */
+export type PveBaseTutorialDemo = {
+    /** 따라하기에서 이겨야 하는 내 덤(상대보다 높음) */
+    winBid: number;
+    oppBid: number;
+};
+
 export type PveTutorialLesson = {
     id: PveTutorialId;
     guideId: PveTutorialGuideId;
@@ -78,6 +112,10 @@ export type PveTutorialLesson = {
     scoringTerritorySteps?: PveTutorialStone[][];
     /** 있으면 착점 대신 미사일 아이템 사용 연출을 쓴다 */
     missileDemo?: PveMissileTutorialDemo;
+    /** 있으면 히든·스캔 연출을 쓴다 */
+    hiddenDemo?: PveHiddenTutorialDemo;
+    /** 있으면 베이스 색 선택·덤 입찰 연출을 쓴다 */
+    baseDemo?: PveBaseTutorialDemo;
     /** 스피드 막대(10→0)와 상대 +1점 연출 */
     speedDemo?: boolean;
     /** true면 따라놓기 없이 데모 후 완료 */
@@ -317,12 +355,21 @@ export const PVE_TUTORIAL_LESSONS: Record<PveTutorialId, PveTutorialLesson> = {
         titleKey: 'pveBrief.tutorials.sp_hidden.title',
         bodyKey: 'pveBrief.tutorials.sp_hidden.body',
         boardSize: 5,
+        // 백 한 점, 좌·우만 막힌 상태(활로 위·아래). 히든으로 위를 막아 단수 → 백이 다른 곳 → 아래로 따내며 공개
         initialStones: [
             { x: 2, y: 2, color: 'W' },
-            { x: 1, y: 1, color: 'B' },
+            { x: 1, y: 2, color: 'B' },
+            { x: 3, y: 2, color: 'B' },
         ],
-        demoPlacements: [{ x: 3, y: 3, color: 'B' }],
-        practiceTargets: [{ x: 3, y: 3 }],
+        demoPlacements: [],
+        practiceTargets: [],
+        hiddenDemo: {
+            myHiddenPlace: { x: 2, y: 1 },
+            whiteElsewhere: { x: 0, y: 4 },
+            capturePlace: { x: 2, y: 3 },
+            captureRemovals: [{ x: 2, y: 2 }],
+            opponentHiddenPlace: { x: 4, y: 0 },
+        },
     },
     sp_base: {
         id: 'sp_base',
@@ -330,14 +377,19 @@ export const PVE_TUTORIAL_LESSONS: Record<PveTutorialId, PveTutorialLesson> = {
         titleKey: 'pveBrief.tutorials.sp_base.title',
         bodyKey: 'pveBrief.tutorials.sp_base.body',
         boardSize: 5,
+        // 코너에 미리 놓인 베이스돌 — 형세를 읽고 색·덤을 정한다
         initialStones: [
-            { x: 0, y: 0, color: 'B' },
-            { x: 4, y: 4, color: 'W' },
-            { x: 0, y: 4, color: 'B' },
-            { x: 4, y: 0, color: 'W' },
+            { x: 0, y: 0, color: 'B', baseMark: true },
+            { x: 4, y: 4, color: 'W', baseMark: true },
+            { x: 0, y: 4, color: 'B', baseMark: true },
+            { x: 4, y: 0, color: 'W', baseMark: true },
         ],
-        demoPlacements: [{ x: 2, y: 2, color: 'B' }],
-        practiceTargets: [{ x: 2, y: 2 }],
+        demoPlacements: [],
+        practiceTargets: [],
+        baseDemo: {
+            winBid: 3,
+            oppBid: 1,
+        },
     },
 };
 
@@ -358,7 +410,8 @@ export function pveTutorialGuideId(id: PveTutorialId): PveTutorialGuideId {
 
 /**
  * 모험(싱글) 스테이지에 대해 보여줄 튜토리얼 id.
- * 우선순위: 살리기 → 미사일 → 히든 → 베이스 → 스피드 → 계가 → 문양돌 → 입문-1 따내기
+ * 우선순위: 살리기 → 히든 → 미사일 → 베이스 → 스피드 → 계가 → 문양돌 → 입문-1 따내기
+ * (히든을 미사일보다 앞: 믹스 스테이지에서 이미 배운 미사일보다 신규 히든을 우선)
  * 해당 없으면 null (시작 모달 튜토리얼 버튼도 숨김).
  * 자동 노출은 종류별 `dismissedScreenGuides`로 **한 번만**.
  */
@@ -375,19 +428,39 @@ export function resolveTutorialForStage(
     }
     const mixModes = (session.settings as { mixedModes?: GameMode[] } | undefined)?.mixedModes;
     const stageMix = stage.mixedStrategicModes;
-    const missileCount = Number(session.settings.missileCount ?? stage.missileCount ?? 0);
+    const codeDefault = DEFAULT_SINGLE_PLAYER_STAGES.find((s) => s.id === stage.id);
+    const codeMix = codeDefault?.mixedStrategicModes;
+    const hidden = Number(
+        session.settings.hiddenStoneCount ?? stage.hiddenCount ?? codeDefault?.hiddenCount ?? 0,
+    );
+    const hasHiddenRule =
+        hidden > 0 ||
+        stage.strategicRulePreset === 'hidden' ||
+        codeDefault?.strategicRulePreset === 'hidden' ||
+        (session.mode === GameMode.Hidden) ||
+        (session.mode === GameMode.Mix && Array.isArray(mixModes) && mixModes.includes(GameMode.Hidden)) ||
+        (stage.strategicRulePreset === 'mix' && Array.isArray(stageMix) && stageMix.includes(GameMode.Hidden)) ||
+        (codeDefault?.strategicRulePreset === 'mix' &&
+            Array.isArray(codeMix) &&
+            codeMix.includes(GameMode.Hidden));
+    if (hasHiddenRule) {
+        return 'sp_hidden';
+    }
+    const missileCount = Number(
+        session.settings.missileCount ?? stage.missileCount ?? codeDefault?.missileCount ?? 0,
+    );
     const hasMissileRule =
         missileCount > 0 ||
         session.mode === GameMode.Missile ||
         stage.strategicRulePreset === 'missile' ||
+        codeDefault?.strategicRulePreset === 'missile' ||
         (session.mode === GameMode.Mix && Array.isArray(mixModes) && mixModes.includes(GameMode.Missile)) ||
-        (stage.strategicRulePreset === 'mix' && Array.isArray(stageMix) && stageMix.includes(GameMode.Missile));
+        (stage.strategicRulePreset === 'mix' && Array.isArray(stageMix) && stageMix.includes(GameMode.Missile)) ||
+        (codeDefault?.strategicRulePreset === 'mix' &&
+            Array.isArray(codeMix) &&
+            codeMix.includes(GameMode.Missile));
     if (hasMissileRule) {
         return 'sp_missile';
-    }
-    const hidden = Number(session.settings.hiddenStoneCount ?? stage.hiddenCount ?? 0);
-    if (hidden > 0 || stage.strategicRulePreset === 'hidden') {
-        return 'sp_hidden';
     }
     const base = Number(session.settings.baseStones ?? stage.baseStones ?? 0);
     if (base > 0 || stage.strategicRulePreset === 'base') {

@@ -90,7 +90,7 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
             <div className="flex-1 overflow-y-auto space-y-2 mb-4">
                 {messages.map((message) => {
                     const author = allUsers?.find(u => u.id === message.authorId);
-                    const msgUser = (message as { user?: { id?: string; nickname?: string }; authorId?: string })?.user;
+                    const msgUser = (message as { user?: { id?: string; nickname?: string; avatarId?: string; borderId?: string }; authorId?: string })?.user;
                     const displayName = message.authorId === 'system' ? t('roles.system') : (msgUser?.nickname || (message.authorId === ADMIN_USER_ID || author?.isAdmin ? ADMIN_NICKNAME : author?.nickname) || 'Unknown');
                     const nameClass =
                         message.authorId === 'system'
@@ -105,7 +105,13 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
                               );
                     return (
                         <div key={message.id} className="flex gap-3 p-2 hover:bg-gray-800/50 rounded">
-                            <Avatar userId={message.authorId} userName={displayName} size={32} />
+                            <Avatar
+                                userId={message.authorId}
+                                userName={displayName}
+                                avatarId={author?.avatarId ?? msgUser?.avatarId}
+                                borderId={author?.borderId ?? msgUser?.borderId}
+                                size={32}
+                            />
                             <div className="flex-1">
                                 <div className="flex items-center gap-2">
                                     <span className={nameClass}>

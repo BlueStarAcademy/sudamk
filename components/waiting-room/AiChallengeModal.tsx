@@ -99,8 +99,13 @@ export type AiLobbyPreferredGameSettingsBucket =
     | 'pair_room_create_friendly_4p'
     | 'pair_room_create_friendly_2p'
     | 'pair_room_create_duo_match'
+    | 'pair_room_create_team_pair'
     | 'pair_room_create_ai_duel'
-    | 'pair_room_create_arena_ai';
+    | 'pair_room_create_arena_ai'
+    | 'friendly_ai_duo_match'
+    | 'friendly_ai_friendly_2p'
+    | 'friendly_ai_team_pair'
+    | 'friendly_ai_friendly_4p';
 
 interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';
@@ -144,8 +149,12 @@ interface AiChallengeModalProps {
     /**
      * 페어 방 만들기: 좌측=게임 모드, 우측은 이 함수로 감싼 `대국 설정` 블록 위에 방 이름·종류·공개 등 배치.
      * `configureOnly` + `embeddedPanel` + 전략 로비에서만 사용한다.
+     * 두 번째 인자 `extras.modePicker`는 핸드헬드 통합 생성 UI에서 탭·종류 아래에 모드 스트립을 끼울 때 쓴다.
      */
-    pairRoomEmbeddedRightSlot?: (gameSettingsBlock: ReactNode) => ReactNode;
+    pairRoomEmbeddedRightSlot?: (
+        gameSettingsBlock: ReactNode,
+        extras?: { modePicker?: ReactNode },
+    ) => ReactNode;
     /**
      * 페어/전략 방 모달: 우측 열(방 이름·대국 설정) 하단에 고정되는 푸터(취소·만들기 등).
      * 핸드헬드「방 만들기」1단계(게임 모드만)에서는 렌더하지 않는다.
@@ -158,6 +167,11 @@ interface AiChallengeModalProps {
      * `configureOnly` + `embeddedPanel` + `pairRoomEmbeddedRightSlot` + 좁은 뷰포트와 함께 쓴다.
      */
     pairRoomHandheldCreateStackedFooter?: boolean;
+    /**
+     * 친선전·놀이터 모바일 방 만들기: 게임 모드 단독 1단계를 생략하고
+     * (유저/AI 탭 → 종류 → 모드 → 설정) 한 스크롤 + 하단 CTA로 표시한다.
+     */
+    pairRoomHandheldUnifiedCreateLayout?: boolean;
     onPairRoomHandheldCancel?: () => void;
     onPairRoomHandheldSubmit?: () => void | Promise<void>;
     /** 핸드헬드 푸터 버튼 비활성(제출 중 등) */
@@ -661,6 +675,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     pairRoomEmbeddedColumnFooter,
     pairRoomDenseSettingsGrid = false,
     pairRoomHandheldCreateStackedFooter = false,
+    pairRoomHandheldUnifiedCreateLayout = false,
     onPairRoomHandheldCancel,
     onPairRoomHandheldSubmit,
     pairRoomHandheldBusy = false,
@@ -2734,7 +2749,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         const handheldStackedFooterBtn =
             '!justify-center rounded-xl !py-2 !text-xs disabled:cursor-not-allowed disabled:opacity-60';
         const showPairEmbeddedColumnFooter =
-            Boolean(pairRoomEmbeddedColumnFooter) && !(handheldStackedCreate && pairEmbedMobileStep === 'game');
+            Boolean(pairRoomEmbeddedColumnFooter) &&
+            !(handheldStackedCreate && !pairRoomHandheldUnifiedCreateLayout && pairEmbedMobileStep === 'game');
 
         /** 손님 변경 제안: 모바일에서 게임 모드 단계 생략(고정 모드 요약 + 설정 폼만) */
         if (handheldStackedCreate && pairRoomLobbyChangePropose) {
@@ -2751,6 +2767,25 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                             ) : null}
                         </div>
                     </div>
+                </div>
+            );
+        }
+
+        if (handheldStackedCreate && pairRoomHandheldUnifiedCreateLayout) {
+            return (
+                <div
+                    className={`${embeddedPanelShellClass} relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden bg-[#070708]`}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => e.stopPropagation()}
+                >
+                    <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-y-auto overscroll-contain">
+                        {pairRoomEmbeddedRightSlot(desktopGameSettingsBlock, {
+                            modePicker: stackedInlineModePickerStrip,
+                        })}
+                    </div>
+                    {showPairEmbeddedColumnFooter ? (
+                        <div className={`relative z-40 ${handheldPairCreateFooterClass}`}>{pairRoomEmbeddedColumnFooter}</div>
+                    ) : null}
                 </div>
             );
         }
