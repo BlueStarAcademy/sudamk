@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import {
     ACTION_POINT_ICON_PATH,
+    ACTION_POINT_ICON_SVG_PATH,
     ACTION_POINT_ICON_WEBP_PATH,
     resourceIcons,
 } from '../resourceIcons.js';
@@ -20,8 +21,8 @@ export type ActionPointIconProps = {
     size?: ActionPointIconSize;
     className?: string;
     /**
-     * `auto`/`raster`: PNG (모바일 WebView에서 webp/CSS filter 이슈 회피)
-     * `svg`: 선명 SVG
+     * `auto`/`raster`: 투명 PNG (SVG에서 재생성한 알파 채널)
+     * `svg`: 벡터 SVG
      */
     variant?: 'auto' | 'svg' | 'raster';
     alt?: string;
@@ -30,6 +31,7 @@ export type ActionPointIconProps = {
 
 const PNG_SRC = resolvePublicUrl(ACTION_POINT_ICON_PATH);
 const WEBP_SRC = resolvePublicUrl(ACTION_POINT_ICON_WEBP_PATH);
+const SVG_SRC = resolvePublicUrl(ACTION_POINT_ICON_SVG_PATH);
 
 /**
  * 행동력 번개 아이콘 — 이모지(⚡) 대신 사용.
@@ -41,8 +43,9 @@ const ActionPointIcon: React.FC<ActionPointIconProps> = ({
     alt = '',
     title,
 }) => {
+    // 기본은 투명 PNG. SVG는 명시적 요청 또는 PNG 실패 시.
     const [src, setSrc] = useState(() =>
-        variant === 'svg' ? resourceIcons.actionPointSvg : PNG_SRC,
+        variant === 'svg' ? SVG_SRC : PNG_SRC,
     );
 
     return (
@@ -51,14 +54,15 @@ const ActionPointIcon: React.FC<ActionPointIconProps> = ({
             alt={alt}
             title={title}
             aria-hidden={alt ? undefined : true}
-            className={`inline-block shrink-0 object-contain ${SIZE_CLASS[size]} ${className}`}
+            className={`inline-block shrink-0 bg-transparent object-contain ${SIZE_CLASS[size]} ${className}`}
             loading="eager"
             decoding="async"
             fetchPriority="high"
             draggable={false}
             onError={() => {
                 if (src === PNG_SRC) setSrc(WEBP_SRC);
-                else if (src === WEBP_SRC) setSrc(resourceIcons.actionPointSvg);
+                else if (src === WEBP_SRC) setSrc(SVG_SRC);
+                else if (src === SVG_SRC) setSrc(resourceIcons.actionPointSvg);
             }}
         />
     );

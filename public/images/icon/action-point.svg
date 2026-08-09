@@ -12,7 +12,6 @@
       <stop offset="100%" stop-color="#d97706"/>
     </linearGradient>
   </defs>
-  <ellipse cx="32" cy="34" rx="18" ry="20" fill="#22d3ee" opacity="0.18"/>
   <path
     fill="url(#apBoltEdge)"
     stroke="#0c4a6e"
