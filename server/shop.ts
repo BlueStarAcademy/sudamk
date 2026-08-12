@@ -14,6 +14,7 @@ import {
     EQUIPMENT_BOX_LOOT_TABLES,
     getChampionshipEquipmentBoxGradeWeights,
     MATERIAL_BOX_PROBABILITIES,
+    findGradeGuaranteedEquipmentBoxByName,
 } from '../shared/constants/index.js';
 import { normalizeInventoryEquipmentItem } from '../shared/utils/inventoryLegacyNormalize.js';
 import {
@@ -298,7 +299,15 @@ export function applyChampionshipVenueStatToEquipmentItem(item: InventoryItem): 
     item.options.specialSubs = next;
 }
 
-const gradeOrder: ItemGrade[] = [ItemGrade.Normal, ItemGrade.Uncommon, ItemGrade.Rare, ItemGrade.Epic, ItemGrade.Legendary, ItemGrade.Mythic];
+const gradeOrder: ItemGrade[] = [
+    ItemGrade.Normal,
+    ItemGrade.Uncommon,
+    ItemGrade.Rare,
+    ItemGrade.Epic,
+    ItemGrade.Legendary,
+    ItemGrade.Mythic,
+    ItemGrade.Transcendent,
+];
 
 export type OpenGuildGradeBoxOpts = {
     /** 길드 상점 장비 상자에서 열 때만 true — 특수/신화 스페셜 보장 규칙 적용 */
@@ -401,3 +410,38 @@ export const SHOP_ITEMS: { [key: string]: { type: 'equipment' | 'material'; name
         dailyLimit: 1,
     },
 };
+
+/** 가방·우편 등급 확정 장비 상자 개봉 (옵션 완전 랜덤, 길드 보장 없음) */
+export function openGradeGuaranteedEquipmentBoxByName(name: string): InventoryItem | null {
+    const def = findGradeGuaranteedEquipmentBoxByName(name);
+    if (!def) return null;
+    return openGuildGradeBox(def.grade);
+}
+
+export type OpenableConsumableBoxHandler = {
+    name: string;
+    type: 'equipment' | 'material';
+    onPurchase: () => InventoryItem | InventoryItem[];
+};
+
+/** 상점 상자 + 등급 확정 장비 상자 통합 조회 (USE_ITEM용) */
+export function resolveOpenableConsumableBox(itemName: string): OpenableConsumableBoxHandler | null {
+    const trimmed = (itemName || '').replace(/\s+/g, ' ').trim();
+    const shopEntry = Object.values(SHOP_ITEMS).find((v) => v.name === trimmed);
+    if (shopEntry && (shopEntry.type === 'equipment' || shopEntry.type === 'material')) {
+        return {
+            name: shopEntry.name,
+            type: shopEntry.type,
+            onPurchase: shopEntry.onPurchase,
+        };
+    }
+    const gradeDef = findGradeGuaranteedEquipmentBoxByName(trimmed);
+    if (gradeDef) {
+        return {
+            name: gradeDef.name,
+            type: 'equipment',
+            onPurchase: () => openGuildGradeBox(gradeDef.grade),
+        };
+    }
+    return null;
+}

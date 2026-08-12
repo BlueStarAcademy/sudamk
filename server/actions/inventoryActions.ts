@@ -64,7 +64,7 @@ import {
 } from '../../constants/rules.js';
 import * as effectService from '../effectService.js';
 import { isFunctionVipActive } from '../../shared/utils/rewardVip.js';
-import { SHOP_ITEMS, createItemFromTemplate } from '../shop.js';
+import { createItemFromTemplate, resolveOpenableConsumableBox } from '../shop.js';
 import { updateQuestProgress } from '../questService.js';
 import { addItemsToInventory as addItemsToInventoryUtil, normalizeInventoryAfterLoad } from '../../utils/inventoryUtils.js';
 import {
@@ -502,19 +502,15 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
             // 인벤 표기 오류(이중 공백·전각 공백 등) — 상자/상점 키와 동일한 표준 이름으로 슬롯 정규화
             const shopBoxCanonicalName = canonicalShopConsumableBoxKey(item.name || '');
-            const matchesKnownShopBox = Object.values(SHOP_ITEMS).some(
-                (v) => v.name === shopBoxCanonicalName && (v.type === 'equipment' || v.type === 'material'),
-            );
+            const matchesKnownShopBox = !!resolveOpenableConsumableBox(shopBoxCanonicalName);
             if (matchesKnownShopBox && item.name !== shopBoxCanonicalName) {
                 user.inventory[itemIndex] = { ...item, name: shopBoxCanonicalName };
                 item = user.inventory[itemIndex]!;
             }
             const isTradeListingTicketMaterial = item.type === 'material' && item.name === '거래 등록권';
             const isRefinementCharmMaterial = item.type === 'material' && item.name === '제련의 부적';
-            const openableShopBoxEntry = Object.values(SHOP_ITEMS).find(
-                (v) =>
-                    v.name === canonicalShopConsumableBoxKey(item.name || '') &&
-                    (v.type === 'equipment' || v.type === 'material'),
+            const openableShopBoxEntry = resolveOpenableConsumableBox(
+                canonicalShopConsumableBoxKey(item.name || ''),
             );
             const allowMisstoredMaterialShopBox = item.type === 'material' && !!openableShopBoxEntry;
             if (
@@ -835,13 +831,9 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             }
             
             normalizedItemName = canonicalShopConsumableBoxKey(item.name);
-            let shopItemKey = Object.keys(SHOP_ITEMS).find((key) => {
-                const n = SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name;
-                return n === item.name || n === normalizedItemName;
-            });
-            if (!shopItemKey) return { error: '알 수 없는 아이템입니다.' };
-            
-            const shopItem = SHOP_ITEMS[shopItemKey as keyof typeof SHOP_ITEMS];
+            const shopItem = resolveOpenableConsumableBox(normalizedItemName)
+                ?? resolveOpenableConsumableBox(item.name);
+            if (!shopItem) return { error: '알 수 없는 아이템입니다.' };
             const allObtainedItems: InventoryItem[] = [];
             
             // 여러 개를 사용하는 경우
@@ -901,7 +893,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                 const eqSlots = user.inventorySlots?.equipment ?? 0;
                 const eqUsed = tempInventoryAfterUse.filter((i) => i && i.type === 'equipment').length;
                 console.warn(
-                    `[USE_ITEM] Box reward did not fit in bag (user=${user.id}, key=${shopItemKey}, type=${shopItem.type}, equipment=${eqUsed}/${eqSlots}, rewards=${allObtainedItems.length}) — consuming box and sending mail`,
+                    `[USE_ITEM] Box reward did not fit in bag (user=${user.id}, key=${shopItem.name}, type=${shopItem.type}, equipment=${eqUsed}/${eqSlots}, rewards=${allObtainedItems.length}) — consuming box and sending mail`,
                 );
                 user.inventory = [...tempInventoryAfterUse];
                 if (!user.mail) user.mail = [];
@@ -997,10 +989,8 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             let totalGoldGained = 0;
             let totalDiamondsGained = 0;
 
-            let shopItemKey = Object.keys(SHOP_ITEMS).find((key) => {
-                const n = SHOP_ITEMS[key as keyof typeof SHOP_ITEMS].name;
-                return n === itemName || n === normalizedItemName;
-            });
+            let shopItem = resolveOpenableConsumableBox(normalizedItemName)
+                ?? resolveOpenableConsumableBox(itemName);
             const bundleInfo = currencyBundles[itemName] || currencyBundles[normalizedItemName];
             
             // First, generate all potential rewards
@@ -1009,8 +999,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
                     const amount = getRandomInt(bundleInfo.min, bundleInfo.max);
                     if (bundleInfo.type === 'gold') totalGoldGained += amount;
                     else totalDiamondsGained += amount;
-                } else if (shopItemKey) {
-                    const shopItem = SHOP_ITEMS[shopItemKey as keyof typeof SHOP_ITEMS];
+                } else if (shopItem) {
                     const openedItems = shopItem.onPurchase();
                     if (Array.isArray(openedItems)) {
                         allObtainedItems.push(...openedItems);
@@ -1034,11 +1023,10 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             user.gold += totalGoldGained;
             user.diamonds += totalDiamondsGained;
 
-            if (shopItemKey && !bundleInfo) {
-                const si = SHOP_ITEMS[shopItemKey as keyof typeof SHOP_ITEMS];
-                if (si.type === 'equipment') {
+            if (shopItem && !bundleInfo) {
+                if (shopItem.type === 'equipment') {
                     recordAchievementBoxOpens(user, 'equipment', totalQuantity);
-                } else if (si.type === 'material') {
+                } else if (shopItem.type === 'material') {
                     recordAchievementBoxOpens(user, 'material', totalQuantity);
                 }
             }
@@ -1063,7 +1051,7 @@ export const handleInventoryAction = async (volatileState: VolatileState, action
             const changedFields: string[] = ['inventory'];
             if (totalGoldGained > 0) changedFields.push('gold');
             if (totalDiamondsGained > 0) changedFields.push('diamonds');
-            if (shopItemKey && !bundleInfo) changedFields.push('quests');
+            if (shopItem && !bundleInfo) changedFields.push('quests');
             broadcastUserUpdate(user, changedFields);
 
             return { clientResponse: { obtainedItemsBulk: clientResponseItems, updatedUser } };

@@ -17,6 +17,7 @@ import {
     sellGoldTenPercentOfShopGold,
 } from './shopSellGoldReference.js';
 import { CONDITION_POTION_SHOP_GOLD_BY_TYPE } from './conditionPotionShop.js';
+import { GRADE_GUARANTEED_EQUIPMENT_BOXES } from './gradeGuaranteedEquipmentBoxes.js';
 
 export const emptySlotImages: Record<EquipmentSlot, string> = {
     fan: 'images/equipments/EmptyFanSlot.webp',
@@ -128,6 +129,15 @@ export const CONSUMABLE_ITEMS: (Omit<InventoryItem, 'id'|'createdAt'|'isEquipped
     { name: '장비 상자 IV', description: '희귀~신화 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox4.webp', grade: ItemGrade.Epic, sellable: false },
     { name: '장비 상자 V', description: '에픽~신화 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox5.webp', grade: ItemGrade.Legendary, sellable: false },
     { name: '장비 상자 VI', description: '전설~신화 등급 장비 획득', type: 'consumable', slot: null, image: '/images/Box/EquipmentBox6.webp', grade: ItemGrade.Mythic, sellable: false },
+    ...GRADE_GUARANTEED_EQUIPMENT_BOXES.map((box) => ({
+        name: box.name,
+        description: box.description,
+        type: 'consumable' as const,
+        slot: null as null,
+        image: box.image,
+        grade: box.grade,
+        sellable: false as const,
+    })),
     { name: '재료 상자 I', description: '하급 ~ 상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox1.webp', grade: ItemGrade.Normal, sellable: false },
     { name: '재료 상자 II', description: '하급 ~ 상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox2.webp', grade: ItemGrade.Uncommon, sellable: false },
     { name: '재료 상자 III', description: '하급 ~ 상급 강화석 5개 획득', type: 'consumable', slot: null, image: '/images/Box/ResourceBox3.webp', grade: ItemGrade.Rare, sellable: false },

@@ -17,6 +17,7 @@ export * from './adventureStrategyXp.js';
 export * from './vipPlayReward.js';
 export * from './vipBenefits.js';
 export * from './shopLootTables.js';
+export * from './gradeGuaranteedEquipmentBoxes.js';
 export * from './pvpLootTables.js';
 export * from './settings.js';
 export * from './skillReward.js';
