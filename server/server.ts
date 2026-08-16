@@ -59,6 +59,7 @@ import * as aiPlayer from './aiPlayer.js';
 import { processRankingRewards, processWeeklyLeagueUpdates, updateWeeklyCompetitorsIfNeeded, processWeeklyTournamentReset, resetAllTournamentScores, resetAllUsersLeagueScoresForNewWeek, processDailyRankings, processDailyQuestReset, resetAllChampionshipScoresToZero, processTowerRankingRewards } from './scheduledTasks.js';
 import * as tournamentService from './tournamentService.js';
 import { AVATAR_POOL, BOT_NAMES, PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES, SINGLE_PLAYER_MISSIONS, GRADE_LEVEL_REQUIREMENTS, NICKNAME_MAX_LENGTH, NICKNAME_MIN_LENGTH, NO_CONTEST_MOVE_THRESHOLD } from '../shared/constants';
+import { applyMissionEnhanceXpCycleUnit } from '../shared/utils/trainingQuestEconomy.js';
 import { calculateTotalStats } from './statService.js';
 import { isSameDayKST, getKSTDate } from '../shared/utils/timeUtils.js';
 import { createDefaultBaseStats, createDefaultUser } from './initialData.ts';
@@ -374,6 +375,10 @@ const processSinglePlayerMissions = (user: types.User): types.User => {
             }
             if (typeof missionState.level !== 'number') {
                 missionState.level = 1;
+                userModified = true;
+            }
+
+            if (applyMissionEnhanceXpCycleUnit(missionState, missionInfo)) {
                 userModified = true;
             }
 

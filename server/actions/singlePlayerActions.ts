@@ -37,6 +37,7 @@ import {
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { singlePlayerMapNameKo } from '../../shared/utils/singlePlayerMapDisplayName.js';
 import {
+    applyMissionEnhanceXpCycleUnit,
     claimedCyclesFromAmount,
     isCurrencyRewardType,
     isItemRewardType,
@@ -98,6 +99,8 @@ async function buildTrainingQuestBulkRewardPreview(
     for (const missionInfo of SINGLE_PLAYER_MISSIONS) {
         const missionState = user.singlePlayerMissions[missionInfo.id];
         if (!missionState || !missionState.isStarted) continue;
+
+        applyMissionEnhanceXpCycleUnit(missionState, missionInfo);
 
         const currentLevel = missionState.level || 1;
         if (!missionInfo.levels || !Array.isArray(missionInfo.levels) || missionInfo.levels.length < currentLevel) continue;
@@ -1061,6 +1064,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 lastCollectionTime: now,
                 accumulatedAmount: initialAmount,
                 accumulatedCollection: 0,
+                enhanceXpUnit: 'cycles',
             };
             // DB 업데이트를 비동기로 처리 (응답 지연 최소화)
             db.updateUser(user).catch(err => {
@@ -1100,6 +1104,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             if (!missionState.isStarted) {
                 return { error: '미션이 시작되지 않았습니다.' };
             }
+
+            applyMissionEnhanceXpCycleUnit(missionState, missionInfo);
             
             const currentLevel = missionState.level || 1;
             if (!missionInfo.levels || !Array.isArray(missionInfo.levels) || missionInfo.levels.length < currentLevel) {
@@ -1163,6 +1169,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 }
                 user.inventory = updatedInventory;
                 missionState.accumulatedCollection = currentAccumulatedCollection + claimCycles;
+                missionState.enhanceXpUnit = 'cycles';
                 missionState.accumulatedAmount = 0;
                 missionState.lastCollectionTime = productionIntervalMs > 0 ? now - remainderMs : now;
                 if (productionIntervalMs > 0 && availableAmount >= levelInfo.maxCapacity) {
@@ -1205,6 +1212,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             // XP: 유효 수령 사이클
             missionState.accumulatedCollection = currentAccumulatedCollection + claimCycles;
+            missionState.enhanceXpUnit = 'cycles';
             missionState.accumulatedAmount = 0;
             missionState.lastCollectionTime = productionIntervalMs > 0 ? now - remainderMs : now;
             if (productionIntervalMs > 0 && availableAmount >= levelInfo.maxCapacity) {
@@ -1393,10 +1401,15 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             for (const reward of preview.rewards) {
                 const missionState = user.singlePlayerMissions[reward.missionId];
                 if (!missionState) continue;
+                const missionInfo = SINGLE_PLAYER_MISSIONS.find((m) => m.id === reward.missionId);
+                if (missionInfo) {
+                    applyMissionEnhanceXpCycleUnit(missionState, missionInfo);
+                }
                 const currentAccumulatedCollection = typeof missionState.accumulatedCollection === 'number'
                     ? missionState.accumulatedCollection
                     : Number(missionState.accumulatedCollection) || 0;
                 missionState.accumulatedCollection = currentAccumulatedCollection + reward.claimCycles;
+                missionState.enhanceXpUnit = 'cycles';
                 missionState.accumulatedAmount = 0;
                 missionState.lastCollectionTime = reward.productionIntervalMs > 0 ? now - reward.remainderMs : now;
                 if (reward.productionIntervalMs > 0 && reward.rawAvailableAmount >= reward.maxCapacity) {
@@ -1468,6 +1481,8 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 });
                 return { error: '미션이 시작되지 않았습니다.' };
             }
+
+            applyMissionEnhanceXpCycleUnit(missionState, missionInfo);
             
             const currentLevel = missionState.level ?? 0;
             if (currentLevel >= 10) return { error: '이미 최대 레벨입니다.' };
@@ -1535,6 +1550,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             // 레벨업 — XP 초과분 이월
             missionState.level = currentLevel + 1;
             missionState.accumulatedCollection = Math.max(0, accumulatedCollection - requiredCollection);
+            missionState.enhanceXpUnit = 'cycles';
             
             // 새 레벨 정보 가져오기
             const newLevelInfo = missionInfo.levels[missionState.level - 1];

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import {
     buildMissionLevels,
     claimedCyclesFromAmount,
+    coerceAccumulatedCollectionToCycleXp,
     requiredEnhanceXpForLevel,
+    totalEnhanceXpBetweenLevels,
     upgradeGoldCostForLevel,
     type FacilityTierParams,
 } from '../../../shared/utils/trainingQuestEconomy.js';
@@ -54,6 +56,97 @@ describe('trainingQuestEconomy', () => {
     it('converts claimed amount to cycles', () => {
         expect(claimedCyclesFromAmount(50, 5)).toBe(10);
         expect(claimedCyclesFromAmount(3, 1)).toBe(3);
+    });
+
+    it('coerces legacy gold-denominated XP to cycles for gold facilities', () => {
+        const levels = buildMissionLevels(goldParams);
+        const xpToMax = totalEnhanceXpBetweenLevels(levels, 1);
+        expect(xpToMax).toBeGreaterThan(0);
+
+        // 레거시: 수령 골드 5만 → 사이클 환산
+        const legacyGold = 50_000;
+        const coerced = coerceAccumulatedCollectionToCycleXp({
+            accumulatedCollection: legacyGold,
+            rewardAmountPerCycle: levels[0]!.rewardAmount,
+            levels,
+        });
+        expect(coerced.converted).toBe(true);
+        expect(coerced.value).toBe(Math.floor(legacyGold / levels[0]!.rewardAmount));
+        expect(coerced.value).toBeLessThanOrEqual(xpToMax);
+
+        // 이미 사이클 단위면 유지
+        const alreadyCycles = coerceAccumulatedCollectionToCycleXp({
+            accumulatedCollection: 120,
+            rewardAmountPerCycle: levels[0]!.rewardAmount,
+            levels,
+            enhanceXpUnit: 'cycles',
+        });
+        expect(alreadyCycles.converted).toBe(false);
+        expect(alreadyCycles.value).toBe(120);
+
+        // 작은 사이클 값(옛 Lv1 골드 필요량 미만)은 환산하지 않음
+        const small = coerceAccumulatedCollectionToCycleXp({
+            accumulatedCollection: 80,
+            rewardAmountPerCycle: levels[0]!.rewardAmount,
+            levels,
+        });
+        expect(small.converted).toBe(false);
+        expect(small.value).toBe(80);
+
+        // 옛 Lv1→2 골드 필요량 이상은 환산 (만렙 합보다 작아도)
+        const legacyOneLevel = levels[0]!.maxCapacity * 10;
+        const mid = coerceAccumulatedCollectionToCycleXp({
+            accumulatedCollection: legacyOneLevel,
+            rewardAmountPerCycle: levels[0]!.rewardAmount,
+            levels,
+        });
+        expect(mid.converted).toBe(true);
+        expect(mid.value).toBe(Math.floor(legacyOneLevel / levels[0]!.rewardAmount));
+    });
+
+    it('all gold facilities convert legacy banks; amount=1 facilities do not need convert', () => {
+        for (const mission of SINGLE_PLAYER_MISSIONS) {
+            const lv1 = mission.levels[0]!;
+            const xpToMax = totalEnhanceXpBetweenLevels(mission.levels, 1);
+            const legacyBank = lv1.maxCapacity * 10 * 15;
+            const coerced = coerceAccumulatedCollectionToCycleXp({
+                accumulatedCollection: legacyBank,
+                rewardAmountPerCycle: lv1.rewardAmount,
+                levels: mission.levels,
+            });
+
+            if (mission.rewardType === 'gold') {
+                expect(lv1.rewardAmount).toBeGreaterThan(1);
+                expect(legacyBank).toBeGreaterThan(xpToMax);
+                expect(coerced.converted).toBe(true);
+                expect(coerced.value).toBe(Math.floor(legacyBank / lv1.rewardAmount));
+                expect(coerced.value).toBeLessThan(xpToMax);
+            } else {
+                // 다이아·강화석·상자: 1회 1개라 재화량=사이클 — 환산 불필요
+                expect(lv1.rewardAmount).toBe(1);
+                expect(coerced.converted).toBe(false);
+                expect(coerced.value).toBe(legacyBank);
+            }
+        }
+    });
+
+    it('crystal garden legacy bank cannot instantly fund max enhance after coerce', () => {
+        const crystal = SINGLE_PLAYER_MISSIONS.find((m) => m.id === 'mission_study_joseki');
+        expect(crystal).toBeTruthy();
+        const levels = crystal!.levels;
+        const lv1 = levels[0]!;
+        const xpToMax = totalEnhanceXpBetweenLevels(levels, 1);
+        const legacyGold = lv1.maxCapacity * 10 * 20;
+        expect(legacyGold).toBeGreaterThan(xpToMax);
+
+        const coerced = coerceAccumulatedCollectionToCycleXp({
+            accumulatedCollection: legacyGold,
+            rewardAmountPerCycle: lv1.rewardAmount,
+            levels,
+        });
+        expect(coerced.converted).toBe(true);
+        expect(coerced.value).toBe(Math.floor(legacyGold / lv1.rewardAmount));
+        expect(coerced.value).toBeLessThan(xpToMax);
     });
 });
 

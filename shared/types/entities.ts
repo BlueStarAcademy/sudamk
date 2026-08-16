@@ -542,7 +542,10 @@ export type SinglePlayerMissionState = {
     level: number; // 현재 레벨 (1-10)
     lastCollectionTime: number;
     accumulatedAmount: number; // 현재 누적 생산량
-    accumulatedCollection: number; // 누적 수령액 (레벨업용)
+    /** 강화용 누적 XP. 현재는 유효 수령 사이클 수 (레거시는 수령 재화량이었음) */
+    accumulatedCollection: number;
+    /** 'cycles'면 accumulatedCollection이 사이클 단위로 확정됨 */
+    enhanceXpUnit?: 'cycles';
 };
 
 export type CurrencyExchangeOrder = {

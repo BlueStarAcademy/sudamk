@@ -4,6 +4,7 @@ import { InventoryItem, UserWithStatus } from '../../types.js';
 import { SINGLE_PLAYER_MISSIONS } from '../../constants/singlePlayerConstants.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { useIsHandheldDevice } from '../../hooks/useIsMobileLayout.js';
 import TrainingQuestLevelUpModal from './TrainingQuestLevelUpModal.js';
 import { TrainingQuestNextLevelEffects, TrainingQuestEnhanceActions } from './TrainingQuestEnhancePanel.js';
 import ClaimAllTrainingQuestRewardsModal from './ClaimAllTrainingQuestRewardsModal.js';
@@ -13,6 +14,7 @@ import { PREMIUM_QUEST_BTN } from './trainingQuestPremiumButtons.js';
 import {
     requiredEnhanceXpForLevel,
     upgradeGoldCostForLevel,
+    coerceAccumulatedCollectionToCycleXp,
     type TrainingQuestRewardType,
 } from '../../shared/utils/trainingQuestEconomy.js';
 
@@ -178,7 +180,14 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
             quest.currentLevel === 0 || !quest.levelInfo
                 ? 0
                 : requiredEnhanceXpForLevel(quest.levelInfo, quest.currentLevel);
-        const accumulatedCollection = quest.missionState?.accumulatedCollection || 0;
+        const accumulatedCollection = quest.levelInfo
+            ? coerceAccumulatedCollectionToCycleXp({
+                  accumulatedCollection: quest.missionState?.accumulatedCollection || 0,
+                  rewardAmountPerCycle: quest.levelInfo.rewardAmount,
+                  levels: quest.levels,
+                  enhanceXpUnit: quest.missionState?.enhanceXpUnit,
+              }).value
+            : quest.missionState?.accumulatedCollection || 0;
         const progress = requiredCollection === 0 ? 100 : Math.min(100, (accumulatedCollection / requiredCollection) * 100);
         const upgradeCost =
             quest.levelInfo && quest.currentLevel > 0
@@ -384,8 +393,11 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
         }
     };
 
+    const isHandheld = useIsHandheldDevice(1025);
     const effectiveCompactTop = compactTopSlot && !embeddedInTab;
     const inModal = embeddedInModal;
+    /** 모바일 모달: PC용 2×4 고정 높이 그리드 대신 1열 스크롤 */
+    const inModalMobile = inModal && isHandheld;
     /** 모바일 탭·네이티브 상단: 컴팩트 카드. PC 모달·홈 인라인: 스크롤 가능한 시설 카드 + 인라인 강화 */
     const useCompactQuestCard = effectiveCompactTop || embeddedInTab;
     const embeddedTabNarrow = embeddedInTab && !effectiveCompactTop;
@@ -393,6 +405,15 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
         ? ' !text-[9px] !leading-tight !px-0.5 !py-0.5 [&_img]:!h-2.5 [&_img]:!w-2.5'
         : '';
     const isAdminUser = !!currentUser.isAdmin;
+    const modalActionBtnClass = inModalMobile
+        ? `${PREMIUM_QUEST_BTN.claim} !w-auto !min-w-[4.75rem] !max-w-none !flex-none !px-2 !py-1.5 !text-[11px]`
+        : `${PREMIUM_QUEST_BTN.claim} !w-[5.75rem] !min-w-[5.75rem] !max-w-[5.75rem] !flex-none !px-1.5 !py-1 !text-[11px] sm:!text-xs`;
+    const modalStartBtnClass = inModalMobile
+        ? `${PREMIUM_QUEST_BTN.start} !w-auto !min-w-[4.75rem] !max-w-none !flex-none !px-2 !py-1.5 !text-xs`
+        : `${PREMIUM_QUEST_BTN.start} !w-[5.75rem] !min-w-[5.75rem] !max-w-[5.75rem] !flex-none !px-1.5 !py-1 !text-xs`;
+    const modalEnhanceColClass = inModalMobile
+        ? 'flex w-[5rem] shrink-0 flex-col justify-center'
+        : 'flex w-[5.75rem] shrink-0 flex-col justify-center';
 
     return (
         <>
@@ -403,7 +424,9 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                         : effectiveCompactTop
                           ? 'h-full min-h-0 rounded-lg bg-panel p-1.5 shadow-lg'
                           : inModal
-                            ? 'relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#1a1710] via-[#0c0e12] to-black p-2 shadow-[inset_0_1px_0_rgba(251,191,36,0.08),0_20px_48px_-28px_rgba(0,0,0,0.9)] ring-1 ring-amber-100/10 sm:p-2.5'
+                            ? `relative flex h-full min-h-0 w-full flex-col overflow-hidden rounded-2xl border border-amber-500/30 bg-gradient-to-b from-[#1a1710] via-[#0c0e12] to-black shadow-[inset_0_1px_0_rgba(251,191,36,0.08),0_20px_48px_-28px_rgba(0,0,0,0.9)] ring-1 ring-amber-100/10 ${
+                                  inModalMobile ? 'gap-1.5 p-1.5' : 'p-2 sm:p-2.5'
+                              }`
                             : 'h-full rounded-lg bg-panel p-1.5 shadow-lg sm:p-2'
                 }`}
             >
@@ -448,22 +471,26 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                 {/* 시설 카드 그리드 */}
                 <div
                     className={`min-h-0 flex-1 ${
-                        embeddedInTab || effectiveCompactTop
-                            ? 'min-h-0 overflow-hidden'
-                            : inModal
-                              ? 'min-h-0 flex-1 overflow-hidden'
-                              : 'overflow-hidden'
+                        inModalMobile
+                            ? 'overflow-y-auto overflow-x-hidden overscroll-contain [-webkit-overflow-scrolling:touch]'
+                            : embeddedInTab || effectiveCompactTop
+                              ? 'min-h-0 overflow-hidden'
+                              : inModal
+                                ? 'min-h-0 flex-1 overflow-hidden'
+                                : 'overflow-hidden'
                     }`}
                 >
                     <div
                         className={`grid min-h-0 ${
-                            effectiveCompactTop
-                                ? 'h-full grid-cols-2 grid-rows-4 gap-1.5'
-                                : embeddedInTab
-                                  ? 'h-full grid-cols-2 grid-rows-4 gap-1'
-                                  : inModal
-                                    ? 'h-full min-h-0 w-full grid-cols-2 grid-rows-4 items-stretch gap-1.5 overflow-hidden sm:gap-2'
-                                    : 'grid h-full grid-cols-2 grid-rows-4 gap-1 sm:gap-1.5'
+                            inModalMobile
+                                ? 'w-full auto-rows-auto grid-cols-1 gap-2'
+                                : effectiveCompactTop
+                                  ? 'h-full grid-cols-2 grid-rows-4 gap-1.5'
+                                  : embeddedInTab
+                                    ? 'h-full grid-cols-2 grid-rows-4 gap-1'
+                                    : inModal
+                                      ? 'h-full min-h-0 w-full grid-cols-2 grid-rows-4 items-stretch gap-1.5 overflow-hidden sm:gap-2'
+                                      : 'grid h-full grid-cols-2 grid-rows-4 gap-1 sm:gap-1.5'
                         }`}
                     >
                         {trainingQuests.map((quest) => {
@@ -476,7 +503,9 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                     key={quest.id}
                                     className={
                                         inModal
-                                            ? `group/factory relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-2xl border p-2 shadow-[0_12px_28px_-18px_rgba(0,0,0,0.85)] transition-[border-color,box-shadow] duration-300 sm:p-2.5 ${
+                                            ? `group/factory relative flex min-h-0 w-full min-w-0 flex-col overflow-hidden rounded-2xl border shadow-[0_12px_28px_-18px_rgba(0,0,0,0.85)] transition-[border-color,box-shadow] duration-300 ${
+                                                  inModalMobile ? 'p-2.5' : 'h-full p-2 sm:p-2.5'
+                                              } ${
                                                   quest.isUnlocked
                                                       ? 'border-amber-400/35 bg-gradient-to-br from-[#2a2318]/95 via-[#12151c] to-[#0a0c10] ring-1 ring-inset ring-amber-200/10 hover:border-amber-300/50 hover:shadow-[0_16px_36px_-16px_rgba(245,158,11,0.28)]'
                                                       : 'border-zinc-700/70 bg-gradient-to-br from-zinc-900/95 via-zinc-950 to-black ring-1 ring-inset ring-white/[0.04]'
@@ -521,14 +550,16 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                         className={`rounded-lg border border-amber-200/60 bg-black/90 shadow-lg ${inModal ? 'px-2.5 py-1' : 'px-3 py-1.5 sm:px-3.5 sm:py-2'}`}
                                                     >
                                                         <span
-                                                            className={`block whitespace-nowrap text-center font-black leading-tight text-amber-100 ${
+                                                            className={`block text-center font-black leading-tight text-amber-100 ${
                                                                 inModal
-                                                                    ? 'text-[10px] tracking-wide'
+                                                                    ? inModalMobile
+                                                                      ? 'whitespace-normal text-[11px] tracking-wide'
+                                                                      : 'whitespace-nowrap text-[10px] tracking-wide'
                                                                     : useCompactQuestCard
                                                                       ? embeddedTabNarrow
-                                                                          ? 'text-[10px]'
-                                                                          : 'text-[13px] sm:text-[14px]'
-                                                                      : 'text-xs sm:text-sm'
+                                                                          ? 'whitespace-nowrap text-[10px]'
+                                                                          : 'whitespace-nowrap text-[13px] sm:text-[14px]'
+                                                                      : 'whitespace-nowrap text-xs sm:text-sm'
                                                             }`}
                                                         >
                                                             {t('singleplayer.unlockRequiredLevel', { level: quest.unlockUserLevel })}
@@ -553,7 +584,13 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                             */}
                                             <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5">
                                                 <div className="flex min-w-0 items-start gap-2.5">
-                                                    <div className="relative h-[5rem] w-[5rem] shrink-0 overflow-hidden rounded-xl bg-zinc-950 shadow-[0_8px_20px_-10px_rgba(0,0,0,0.9)] ring-1 ring-amber-200/30 sm:h-[5.5rem] sm:w-[5.5rem]">
+                                                    <div
+                                                        className={`relative shrink-0 overflow-hidden rounded-xl bg-zinc-950 shadow-[0_8px_20px_-10px_rgba(0,0,0,0.9)] ring-1 ring-amber-200/30 ${
+                                                            inModalMobile
+                                                                ? 'h-[4.25rem] w-[4.25rem]'
+                                                                : 'h-[5rem] w-[5rem] sm:h-[5.5rem] sm:w-[5.5rem]'
+                                                        }`}
+                                                    >
                                                         <img
                                                             src={quest.image}
                                                             alt=""
@@ -635,7 +672,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 <Button
                                                                     onClick={() => handleCollectReward(quest.id)}
                                                                     colorScheme="none"
-                                                                    className={`${PREMIUM_QUEST_BTN.claim} !w-[5.75rem] !min-w-[5.75rem] !max-w-[5.75rem] !flex-none !px-1.5 !py-1 !text-[11px] sm:!text-xs`}
+                                                                    className={modalActionBtnClass}
                                                                     disabled={!canCollect}
                                                                 >
                                                                     <span className="inline-flex items-center justify-center gap-0.5 leading-tight">
@@ -665,7 +702,7 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                                 <Button
                                                                     onClick={() => handleOpenStartMissionModal(quest.id)}
                                                                     colorScheme="none"
-                                                                    className={`${PREMIUM_QUEST_BTN.start} !w-[5.75rem] !min-w-[5.75rem] !max-w-[5.75rem] !flex-none !px-1.5 !py-1 !text-xs`}
+                                                                    className={modalStartBtnClass}
                                                                 >
                                                                     {t('singleplayer.start')}
                                                                 </Button>
@@ -679,7 +716,11 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
 
                                             {/* [생산정보] [강화버튼] — 최대 레벨이어도 생산/생산량/저장 표시 */}
                                             {quest.isUnlocked && quest.isStarted && quest.levelInfo ? (
-                                                <div className="flex min-h-0 min-w-0 shrink-0 items-stretch gap-1.5">
+                                                <div
+                                                    className={`flex min-h-0 min-w-0 shrink-0 ${
+                                                        inModalMobile ? 'flex-col gap-1.5' : 'items-stretch gap-1.5'
+                                                    }`}
+                                                >
                                                     <div className="flex min-w-0 flex-1 flex-col justify-center rounded-xl border border-amber-400/20 bg-gradient-to-br from-amber-950/35 via-black/40 to-orange-950/25 p-1.5 ring-1 ring-inset ring-amber-200/10 sm:p-2">
                                                         {isMaxLevel || levelUpInfo ? (
                                                             <TrainingQuestNextLevelEffects
@@ -700,7 +741,13 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                         ) : null}
                                                     </div>
                                                     {!isMaxLevel && levelUpInfo ? (
-                                                        <div className="flex w-[5.75rem] shrink-0 flex-col justify-center">
+                                                        <div
+                                                            className={
+                                                                inModalMobile
+                                                                    ? 'flex w-full shrink-0 flex-col justify-center'
+                                                                    : modalEnhanceColClass
+                                                            }
+                                                        >
                                                             <TrainingQuestEnhanceActions
                                                                 mission={quest}
                                                                 currentLevel={quest.currentLevel}
@@ -718,7 +765,11 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                                                             />
                                                         </div>
                                                     ) : isMaxLevel ? (
-                                                        <div className="flex w-[5.75rem] shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-950/20">
+                                                        <div
+                                                            className={`flex shrink-0 items-center justify-center rounded-lg border border-amber-400/30 bg-amber-950/20 ${
+                                                                inModalMobile ? 'min-h-[2.25rem] w-full' : 'w-[5.75rem]'
+                                                            }`}
+                                                        >
                                                             <span className="text-[10px] font-black text-amber-100">
                                                                 {t('singleplayer.maxLevel')}
                                                             </span>
@@ -1199,7 +1250,11 @@ const TrainingQuestPanel: React.FC<TrainingQuestPanelProps> = ({
                 </div>
 
                 {inModal ? (
-                    <div className="flex flex-shrink-0 justify-center border-t border-emerald-500/25 pt-2 sm:pt-2.5">
+                    <div
+                        className={`flex flex-shrink-0 justify-center border-t border-emerald-500/25 ${
+                            inModalMobile ? 'pt-1.5' : 'pt-2 sm:pt-2.5'
+                        }`}
+                    >
                         <Button
                             onClick={handleClaimAllRewards}
                             colorScheme="none"

@@ -25,13 +25,13 @@ const TrainingQuestModal: React.FC<TrainingQuestModalProps> = ({
     const trainingGuide = useScreenGuide('trainingQuest', { active: embedded || open });
 
     const questBody = (
-        <div className="relative flex min-h-0 w-full min-w-0 flex-col overflow-hidden bg-gradient-to-b from-[#1c1812] via-[#0b0d12] to-black">
+        <div className="relative flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden bg-gradient-to-b from-[#1c1812] via-[#0b0d12] to-black">
             <div
                 className="pointer-events-none absolute inset-0 bg-[radial-gradient(80%_55%_at_50%_-10%,rgba(251,191,36,0.14),transparent_55%),radial-gradient(60%_40%_at_90%_20%,rgba(16,185,129,0.1),transparent_50%)]"
                 aria-hidden
             />
             <div
-                className="relative box-border flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden px-2 pb-1.5 pt-1 sm:px-3 sm:pb-2 sm:pt-1.5"
+                className="relative box-border flex h-full min-h-0 w-full min-w-0 flex-col overflow-hidden px-1.5 pb-1 pt-1 sm:px-3 sm:pb-2 sm:pt-1.5"
                 role="region"
                 aria-label={t('singleplayer.trainingQuestListAria')}
             >

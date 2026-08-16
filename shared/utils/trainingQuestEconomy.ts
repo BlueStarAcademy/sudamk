@@ -110,6 +110,93 @@ export function requiredEnhanceXpForLevel(
     return cyclesPerFull * currentLevel * 10;
 }
 
+/** fromLevel → toLevelExclusive 직전까지 필요한 사이클 XP 합 (만렙=10) */
+export function totalEnhanceXpBetweenLevels(
+    levels: ReadonlyArray<Pick<SinglePlayerMissionLevelInfo, 'maxCapacity' | 'rewardAmount'>>,
+    fromLevel: number,
+    toLevelExclusive: number = 10,
+): number {
+    let sum = 0;
+    const start = Math.max(1, Math.floor(fromLevel) || 1);
+    const end = Math.min(10, Math.floor(toLevelExclusive) || 10);
+    for (let level = start; level < end; level++) {
+        const info = levels[level - 1];
+        if (!info) break;
+        sum += requiredEnhanceXpForLevel(info, level);
+    }
+    return sum;
+}
+
+/**
+ * 레거시 `accumulatedCollection`은 수령 재화량(골드 등)이었고,
+ * 현재는 유효 사이클 수다. 골드 시설(1회 생산량>1)에서 옛 값이 그대로면
+ * 필요 사이클보다 수십 배 큰 XP로 잡혀 즉시 만렙 강화가 가능하다.
+ * `enhanceXpUnit === 'cycles'`이면 이미 환산된 값으로 본다.
+ *
+ * 환산 조건(미마킹 + 생산량>1):
+ * - 사이클 만렙 XP 합보다 크거나
+ * - 옛 공식 Lv1→2 필요량(`maxCapacity × 10`) 이상 (한 레벨치 이상 골드 XP)
+ */
+export function coerceAccumulatedCollectionToCycleXp(args: {
+    accumulatedCollection: number;
+    rewardAmountPerCycle: number;
+    levels: ReadonlyArray<Pick<SinglePlayerMissionLevelInfo, 'maxCapacity' | 'rewardAmount'>>;
+    enhanceXpUnit?: string | null;
+}): { value: number; converted: boolean } {
+    const acc = Math.max(0, Math.floor(Number(args.accumulatedCollection) || 0));
+    if (args.enhanceXpUnit === 'cycles') {
+        return { value: acc, converted: false };
+    }
+    const per = Math.max(1, Math.floor(Number(args.rewardAmountPerCycle) || 1));
+    // 1회 생산량 1(다이아/아이템)은 재화량 ≡ 사이클 — 단위 불일치 없음
+    if (per <= 1) {
+        return { value: acc, converted: false };
+    }
+    const xpToMaxFrom1 = totalEnhanceXpBetweenLevels(args.levels, 1, 10);
+    const legacyLevel1GoldXp = Math.max(1, args.levels[0]?.maxCapacity ?? 1) * 10;
+    if ((xpToMaxFrom1 > 0 && acc > xpToMaxFrom1) || acc >= legacyLevel1GoldXp) {
+        return { value: Math.floor(acc / per), converted: true };
+    }
+    return { value: acc, converted: false };
+}
+
+/** 미션 상태에 사이클 XP 단위를 적용. 변경 시 true */
+export function applyMissionEnhanceXpCycleUnit(
+    missionState: {
+        accumulatedCollection?: number;
+        level?: number;
+        enhanceXpUnit?: string;
+    },
+    mission: Pick<SinglePlayerMissionInfo, 'levels'>,
+): boolean {
+    const levels = mission.levels ?? [];
+    if (levels.length === 0) {
+        if (missionState.enhanceXpUnit !== 'cycles') {
+            missionState.enhanceXpUnit = 'cycles';
+            return true;
+        }
+        return false;
+    }
+    const level = Math.max(1, Math.floor(Number(missionState.level) || 1));
+    const levelInfo = levels[Math.min(level, levels.length) - 1] ?? levels[0]!;
+    const coerced = coerceAccumulatedCollectionToCycleXp({
+        accumulatedCollection: missionState.accumulatedCollection ?? 0,
+        rewardAmountPerCycle: levelInfo.rewardAmount,
+        levels,
+        enhanceXpUnit: missionState.enhanceXpUnit,
+    });
+    let changed = false;
+    if ((missionState.accumulatedCollection ?? 0) !== coerced.value) {
+        missionState.accumulatedCollection = coerced.value;
+        changed = true;
+    }
+    if (missionState.enhanceXpUnit !== 'cycles') {
+        missionState.enhanceXpUnit = 'cycles';
+        changed = true;
+    }
+    return changed;
+}
+
 /** @deprecated `requiredEnhanceXpForLevel` 사용 */
 export function requiredEnhanceXp(xpBase: number, currentLevel: number): number {
     if (currentLevel <= 0) return 0;
