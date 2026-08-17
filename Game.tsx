@@ -633,8 +633,8 @@ const PairMobileTeamTimeScorePanel: React.FC<{
 const PairMobileMoveCountBox: React.FC<{ session: LiveGameSession }> = ({ session }) => {
     const { label, primary, secondary } = getPairMoveCountDisplay(session);
     return (
-        <div className="flex min-w-[3.25rem] flex-col items-center justify-center rounded-xl border border-amber-300/55 bg-black/75 px-1.5 py-1 text-center text-amber-50 shadow-lg ring-1 ring-amber-400/15">
-            <div className="text-[8px] font-black leading-tight tracking-[0.12em] text-amber-200/85">{label}</div>
+        <div className="relative z-[1] flex min-w-[3.5rem] w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-xl border border-amber-300/55 bg-black/75 px-1 py-1 text-center text-amber-50 shadow-lg ring-1 ring-amber-400/15 sm:min-w-[4.25rem] sm:w-[4.25rem]">
+            <div className="whitespace-nowrap text-[8px] font-black leading-tight tracking-[0.12em] text-amber-200/85">{label}</div>
             {secondary != null ? (
                 <div className="mt-0.5 flex items-baseline justify-center gap-px tabular-nums">
                     <span className="font-mono text-lg font-black leading-none text-amber-300">{primary}</span>
@@ -683,7 +683,7 @@ const PairIngameTopPanel: React.FC<{
             <div className="flex w-full shrink-0 flex-col gap-1.5 px-1 pb-0.5">
                 <div className="flex w-full min-h-[3.25rem] flex-shrink-0 items-stretch gap-0.5">
                     <PairMobileTeamProfilePanel session={session} player={Player.Black} viewerUserId={pairMobileViewerUserId} />
-                    <div className="min-w-[3.25rem] shrink-0" aria-hidden />
+                    <div className="w-[3.5rem] min-w-[3.5rem] shrink-0 sm:w-[4.25rem] sm:min-w-[4.25rem]" aria-hidden />
                     <PairMobileTeamProfilePanel session={session} player={Player.White} viewerUserId={pairMobileViewerUserId} />
                 </div>
                 <div className="flex min-h-[4.5rem] w-full flex-shrink-0 items-stretch gap-0.5">
@@ -6402,7 +6402,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                                 <PairIngameTopPanel
                                                     session={session}
                                                     clientTimes={clientTimes.clientTimes}
-                                                    mobile={isMobile}
+                                                    mobile={isMobile || isHandheld}
                                                     pairMobileViewerUserId={!isSpectator ? currentUser.id : undefined}
                                                 />
                                                 <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center overflow-hidden">

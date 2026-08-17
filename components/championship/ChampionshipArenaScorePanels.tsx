@@ -18,7 +18,7 @@ export const championshipScoringCountdownBoxClass =
     'flex shrink-0 flex-col items-center justify-center rounded-lg border-2 border-amber-500/80 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 text-center shadow-lg';
 
 export const championshipMobileScoringCountdownBoxClass =
-    'flex w-[36%] shrink-0 flex-col items-center justify-center rounded-md border-2 border-amber-500/80 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-1 py-0.5 text-center shadow-lg';
+    'flex w-[36%] min-w-[5.25rem] shrink-0 flex-col items-center justify-center rounded-md border-2 border-amber-500/80 bg-gradient-to-br from-zinc-800 via-zinc-900 to-zinc-950 px-1 py-0.5 text-center shadow-lg';
 
 export function championshipMobileScoreCellClass(isWhite: boolean): string {
     return isWhite

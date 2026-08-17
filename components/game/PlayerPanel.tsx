@@ -1611,15 +1611,18 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const autoScoringProgressMaxRef = useRef<{ key: string; max: number }>({ key: '', max: 0 });
 
     // 전략바둑 로비(대국실) 턴 표시: 제한 없음 → N수, 제한 있음 → N/N에서 0/N으로 줄어드는 계가 카운트다운
+    // 집계 로비 듀오·펫전은 pairGame이 있어도 PlayerPanel을 쓰므로 여기서 숨기지 않는다.
+    // (`#/pair` 전용 크롬은 PairMoveCountBox가 같은 숫자를 담당)
     const strategicLobbyTurnInfoRaw = useMemo(() => {
-        if (session.settings?.pairGame) return null;
         if (!isStrategicMode || isSinglePlayer || session.gameCategory === 'tower') return null;
         // stageId(길드전·챔피언십 등)가 있어도 중앙 수순·계가 카운트는 항상 표시(빈 간격 방지)
         const moveHistory = session.moveHistory ?? [];
         // scoringTurnLimit 기준 "턴"은 PASS(-1,-1)도 포함해서 카운트한다.
         const turnCountFromHistory = moveHistory.length;
         const validMovesOnly = moveHistory.filter((m) => m.x !== -1 && m.y !== -1).length;
-        const scoringTurnProgress = Math.max(turnCountFromHistory, session.totalTurns ?? 0);
+        const scoringTurnProgress = session.settings?.pairGame
+            ? turnCountFromHistory
+            : Math.max(turnCountFromHistory, session.totalTurns ?? 0);
         // 새로고침 직후 moveHistory가 비어 있을 수 있으므로 totalTurns로 대체 (수순 0/N 되는 버그 방지)
         const current =
             session.gameCategory === 'adventure'
@@ -1835,13 +1838,13 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         return { ...turnInfoRaw, remaining: clamped };
     }, [turnInfoRaw, session.gameStatus]);
     
-    /** 컴팩트 바: 행(stretch) 높이에 맞춤 — 대국자 패널과 동일 높이 */
+    /** 컴팩트 바: 행(stretch) 높이에 맞춤 — 대국자 패널과 동일 높이. min-w+flex-none 없으면 좁은 모바일에서 계가 박스가 0폭으로 접힌다. */
     const turnInfoShellClass = compactPlayerBar
-        ? 'flex w-[5.25rem] shrink-0 self-stretch min-h-0 flex-col'
+        ? 'relative z-[1] flex w-[4.75rem] min-w-[4.75rem] flex-none self-stretch min-h-0 flex-col sm:w-[5.25rem] sm:min-w-[5.25rem]'
         : 'flex h-[5.25rem] w-[5.25rem] shrink-0 flex-col items-center justify-center md:h-24 md:w-24';
-    const turnInfoLabelSize = compactPlayerBar ? 'text-xs' : 'text-[11px] md:text-xs';
-    const turnInfoValueSize = compactPlayerBar ? 'text-2xl' : 'text-2xl md:text-3xl';
-    const turnInfoTotalSize = compactPlayerBar ? 'text-sm' : 'text-sm md:text-base';
+    const turnInfoLabelSize = compactPlayerBar ? 'text-[10px] sm:text-xs' : 'text-[11px] md:text-xs';
+    const turnInfoValueSize = compactPlayerBar ? 'text-xl sm:text-2xl' : 'text-2xl md:text-3xl';
+    const turnInfoTotalSize = compactPlayerBar ? 'text-xs sm:text-sm' : 'text-sm md:text-base';
 
     const showStrategicTurnBox = strategicLobbyTurnInfo != null;
     const showAlkkagiRoundBox = mode === GameMode.Alkkagi;
@@ -1890,7 +1893,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
 
     /** 컴팩트 바 외(데스크톱 등): 아바타+닉+레벨+시계(+스피드 막대)가 들어가도록 고정 높이 */
     const playerColClass = compactPlayerBar
-        ? 'flex min-h-0 min-w-0 flex-1 items-stretch'
+        ? 'flex min-h-0 min-w-0 flex-1 items-stretch overflow-hidden'
         : isSpeedLikeMode && sessionHasStrategicClock
           ? 'flex h-[7.5rem] min-h-[7.5rem] max-h-[7.5rem] min-w-0 flex-1 overflow-hidden'
           : 'flex h-[5.75rem] min-h-[5.75rem] max-h-[5.75rem] min-w-0 flex-1 overflow-hidden';
@@ -1968,7 +1971,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
                             compactPlayerBar ? 'min-h-0 flex-1' : ''
                         }`}
                     >
-                        <span className={`${turnInfoLabelSize} text-gray-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>
+                        <span className={`${turnInfoLabelSize} text-gray-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold whitespace-nowrap`}>
                             {strategicLobbyTurnInfo.label}
                         </span>
                         {strategicLobbyTurnInfo.type === 'moves_only' ? (
@@ -1987,7 +1990,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             return (
                 <div className={`${turnInfoShellClass} bg-stone-800/95 rounded-lg border-2 border-stone-500 shadow-xl`}>
                     <div className="flex min-h-0 w-full flex-1 flex-col items-center justify-center px-1 text-center">
-                        <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold`}>
+                        <span className={`${turnInfoLabelSize} text-stone-300 ${compactPlayerBar ? 'mb-0.5' : 'mb-1'} leading-tight font-semibold whitespace-nowrap`}>
                             {turnInfo.label}
                         </span>
                         {turnInfo.type === 'pve_moves_only' ? (
