@@ -8,7 +8,8 @@ WORKDIR /app
 # (APKINDEX fetch fails → "no such package" / masked in --no-network).
 RUN set -eux; \
   apk_install() { \
-    apk add --no-cache python3 make g++ autoconf automake libtool pkgconfig nasm; \
+    # bash: pngquant-bin/mozjpeg-bin source fallback needs bash (not ash)
+    apk add --no-cache bash python3 make g++ autoconf automake libtool pkgconfig nasm libpng-dev; \
   }; \
   ok=0; \
   i=1; \
@@ -31,8 +32,13 @@ RUN set -eux; \
 # Copy package files
 COPY package.json package-lock.json ./
 
-# Install dependencies (including devDependencies for Vite build)
-RUN npm ci
+# Install dependencies (including devDependencies for Vite build).
+# --ignore-scripts: imagemin-pngquant → pngquant-bin postinstall downloads
+# GitHub prebuilds (often 429) then tries to compile; that path is only needed for
+# local `optimize-images`, not `vite build`. Re-run esbuild's installer so Vite
+# still gets its platform binary after scripts are skipped.
+RUN npm ci --ignore-scripts \
+  && node node_modules/esbuild/install.js
 
 # Copy source code for Vite build
 COPY vite.config.ts tsconfig.json tsconfig.base.json tsconfig.node.json ./
