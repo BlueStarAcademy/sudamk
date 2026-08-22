@@ -1200,6 +1200,9 @@ export type GameSettings = {
   goAiBotLevel?: number;
   /** KataServer 레벨봇 레벨 (-31~9). 미설정 시 goAiBotLevel 사용 */
   kataServerLevel?: number;
+  /** PVE 선포석 — settings JSON으로 저장해 DB 재로드 후에도 Kata 접두를 복구 */
+  kataStrategicOpeningBoardState?: BoardState;
+  kataCaptureSetupMoves?: Array<{ x: number; y: number; player: number }>;
   /** 전략바둑 대국 시 계가까지 턴 제한 (해당 턴 수가 되면 자동으로 KataGo 계가 진행). 0/미설정 시 제한 없음 */
   scoringTurnLimit?: number;
   /** 클라이언트 GnuGo 등으로 착수만 처리하는 AI 대국 */

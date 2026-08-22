@@ -19,7 +19,7 @@ import {
 } from './aiSessionManager.js';
 import { getCaptureTarget, NO_CAPTURE_TARGET } from './utils/captureTargets.ts';
 import { getGuildWarAiBotDisplayName } from '../shared/constants/guildConstants.js';
-import { profileStepFromKataServerLevel } from '../shared/utils/strategicAiDifficulty.js';
+import { profileStepFromKataServerLevel, resolveSinglePlayerHeuristicProfileStep } from '../shared/utils/strategicAiDifficulty.js';
 import { towerKataLevelFromSnapshot } from '../shared/utils/kataServerRuntimeResolvers.js';
 import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import {
@@ -1363,30 +1363,31 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     const stageNum = parseInt(parts[3], 10);
                     difficulty = !Number.isNaN(stageNum) && stageNum >= 1 && stageNum <= 10 ? stageNum : 1;
                 } else if (game.isSinglePlayer || isTower) {
-                    // 싱글/탑: 길드전과 동일하게 kataServerLevel이 있으면 그걸로 단계를 잡는다(없으면 탑은 층 표로 복구).
-                    difficulty = game.settings.aiDifficulty || 1;
+                    // 싱글/탑: Kata `/move.level`은 kataServerLevel. 휴리스틱 프로필은 반별 1~5 / 탑 표시 단계.
+                    // 유단자 kataServerLevel=1 을 대기실 1단계로 오인하면 천상의 탑에서 최약 휴리스틱이 돈다.
                     if (resolveArenaSessionPolicy(game).kind === 'singleplayer') {
                         await ensureSinglePlayerKataServerLevelOnGame(game);
-                    }
-                    let ks: number | undefined =
-                        typeof (game.settings as any)?.kataServerLevel === 'number' &&
-                        Number.isFinite((game.settings as any).kataServerLevel)
-                            ? (game.settings as any).kataServerLevel
-                            : undefined;
-                    if (ks === undefined && isTower) {
-                        const f = Number((game as any).towerFloor);
-                        if (Number.isFinite(f) && f >= 1) {
-                            ks = towerKataLevelFromSnapshot(getKataServerRuntimeSnapshot(), f);
+                        difficulty = resolveSinglePlayerHeuristicProfileStep(game.settings);
+                    } else {
+                        difficulty = game.settings.aiDifficulty || 1;
+                        let ks: number | undefined =
+                            typeof (game.settings as any)?.kataServerLevel === 'number' &&
+                            Number.isFinite((game.settings as any).kataServerLevel)
+                                ? (game.settings as any).kataServerLevel
+                                : undefined;
+                        if (ks === undefined && isTower) {
+                            const f = Number((game as any).towerFloor);
+                            if (Number.isFinite(f) && f >= 1) {
+                                ks = towerKataLevelFromSnapshot(getKataServerRuntimeSnapshot(), f);
+                            }
                         }
-                    }
-                    if (ks !== undefined) {
-                        const fromKata = profileStepFromKataServerLevel(ks, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
-                        if (fromKata != null) {
-                            difficulty = fromKata;
-                        } else if (ks >= 1 && ks <= 10) {
-                            difficulty = ks;
-                        } else if ((game.settings as any)?.goAiBotLevel != null) {
-                            difficulty = Number((game.settings as any).goAiBotLevel) || difficulty;
+                        if (ks !== undefined) {
+                            const fromKata = profileStepFromKataServerLevel(ks, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
+                            if (fromKata != null) {
+                                difficulty = fromKata;
+                            } else if ((game.settings as any)?.goAiBotLevel != null) {
+                                difficulty = Number((game.settings as any).goAiBotLevel) || difficulty;
+                            }
                         }
                     }
                 } else {

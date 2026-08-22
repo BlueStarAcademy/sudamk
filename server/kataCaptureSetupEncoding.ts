@@ -13,6 +13,56 @@ export function cloneBoardStateForKataOpeningSnapshot(
     return boardState.map((row) => (Array.isArray(row) ? [...row] : row)) as BoardState;
 }
 
+type KataOpeningSessionLike = {
+    settings?: { kataStrategicOpeningBoardState?: BoardState; kataCaptureSetupMoves?: unknown } | null;
+    kataStrategicOpeningBoardState?: BoardState;
+    kataCaptureSetupMoves?: unknown;
+};
+
+/**
+ * 선포석 스냅샷을 세션 최상위와 `settings`(SQLite JSON 컬럼)에 같이 둔다.
+ * 최상위 필드는 saveGame 컬럼에 없어 캐시 만료·재로드 시 사라지고, 그때 Kata가 빈 판/짧은 수순만 보고 휴리스틱으로 떨어진다.
+ */
+export function attachKataOpeningSnapshotToSession(
+    game: KataOpeningSessionLike,
+    boardState: BoardState | null | undefined
+): void {
+    const snap = cloneBoardStateForKataOpeningSnapshot(boardState);
+    const setup = encodeBoardStateAsKataSetupMovesFromEmpty(boardState);
+    (game as KataOpeningSessionLike).kataStrategicOpeningBoardState = snap;
+    (game as KataOpeningSessionLike).kataCaptureSetupMoves = setup;
+    if (game.settings && typeof game.settings === 'object') {
+        game.settings.kataStrategicOpeningBoardState = snap;
+        game.settings.kataCaptureSetupMoves = setup;
+    }
+}
+
+export function readKataOpeningBoardSnapshotFromSession(
+    game: KataOpeningSessionLike | null | undefined
+): BoardState | undefined {
+    if (!game) return undefined;
+    const top = game.kataStrategicOpeningBoardState;
+    if (Array.isArray(top) && top.length > 0) return top;
+    const fromSettings = game.settings?.kataStrategicOpeningBoardState;
+    if (Array.isArray(fromSettings) && fromSettings.length > 0) return fromSettings;
+    return undefined;
+}
+
+export function readKataCaptureSetupMovesFromSession(
+    game: KataOpeningSessionLike | null | undefined
+): Array<{ x: number; y: number; player: number }> | undefined {
+    if (!game) return undefined;
+    const top = game.kataCaptureSetupMoves;
+    if (Array.isArray(top) && top.length > 0) {
+        return top as Array<{ x: number; y: number; player: number }>;
+    }
+    const fromSettings = game.settings?.kataCaptureSetupMoves;
+    if (Array.isArray(fromSettings) && fromSettings.length > 0) {
+        return fromSettings as Array<{ x: number; y: number; player: number }>;
+    }
+    return undefined;
+}
+
 /**
  * 빈 판에서 재생하면 현재 `boardState`와 같아지도록 하는 Kata 입력용 선행 수.
  * KataServer는 boardState를 받지 않고 moves만으로 국면을 복원하므로,

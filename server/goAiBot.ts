@@ -72,9 +72,11 @@ import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
 import {
     appendPassesUntilSideToMove,
-    cloneBoardStateForKataOpeningSnapshot,
     doesKataCombinedMovesReplayToBoard,
     encodeBoardStateAsKataSetupMovesFromEmpty,
+    readKataCaptureSetupMovesFromSession,
+    readKataOpeningBoardSnapshotFromSession,
+    attachKataOpeningSnapshotToSession,
 } from './kataCaptureSetupEncoding.js';
 import { bumpGuildWarMaxSingleCapturePointsForPlayer } from '../shared/utils/guildWarMaxSingleCapturePoints.js';
 import { reconcileStrategicAiBoardSizeWithGroundTruth } from './utils/effectiveBoardSize.js';
@@ -1409,10 +1411,8 @@ function buildKataMoveHistory(
         );
     }
 
-    let setupMoves = (game as any).kataCaptureSetupMoves as
-        | Array<{ x: number; y: number; player: number }>
-        | undefined;
-    let snap = (game as any).kataStrategicOpeningBoardState as types.BoardState | undefined;
+    let setupMoves = readKataCaptureSetupMovesFromSession(game as any);
+    let snap = readKataOpeningBoardSnapshotFromSession(game as any);
     if (
         (!snap?.length || snap.length !== bs) &&
         String((game as any).gameCategory ?? '') === 'tower'
@@ -1420,8 +1420,8 @@ function buildKataMoveHistory(
         const backup = (game as any).kataTowerOpeningBoardBackup as types.BoardState | undefined;
         if (backup?.length === bs && backup.every((row) => Array.isArray(row) && row.length === bs)) {
             snap = backup;
-            if (!(game as any).kataStrategicOpeningBoardState?.length) {
-                (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(backup);
+            if (!readKataOpeningBoardSnapshotFromSession(game as any)?.length) {
+                attachKataOpeningSnapshotToSession(game as any, backup);
             }
         }
     }
@@ -1432,21 +1432,15 @@ function buildKataMoveHistory(
 
     // 스냅샷이 있으면 항상 여기서 재인코딩(구버전 연속 동색 접두 등으로 저장된 kataCaptureSetupMoves도 덮어씀).
     if (snapOk) {
-        setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(snap);
-        (game as any).kataCaptureSetupMoves = setupMoves;
+        attachKataOpeningSnapshotToSession(game as any, snap);
+        setupMoves = readKataCaptureSetupMovesFromSession(game as any);
     } else if (snap?.length) {
         console.warn(
             `[buildKataMoveHistory] kataStrategicOpeningBoardState size mismatch (snap=${snap?.length}, boardSize=${bs}) game=${game.id} — ignoring snapshot`,
         );
     } else if ((!Array.isArray(setupMoves) || setupMoves.length === 0) && moveHistory.length === 0 && game.boardState?.length) {
-        setupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(game.boardState);
-        if (setupMoves.length > 0) {
-            (game as any).kataCaptureSetupMoves = setupMoves;
-            if (!(game as any).kataStrategicOpeningBoardState?.length) {
-                (game as any).kataStrategicOpeningBoardState =
-                    cloneBoardStateForKataOpeningSnapshot(game.boardState);
-            }
-        }
+        attachKataOpeningSnapshotToSession(game as any, game.boardState);
+        setupMoves = readKataCaptureSetupMovesFromSession(game as any);
     }
 
     if (
@@ -2522,8 +2516,12 @@ export async function makeGoAiBotMove(
         game.isSinglePlayer &&
         forcedAiResponsesForStage.length > 0 &&
         (!forceResponsesOnHiddenTurnsOnly || isConfiguredAiHiddenTurn);
+    // 강제응수 규칙이 있다는 이유만으로 Kata를 끄면(입문-8 외 스테이지에 규칙이 섞인 경우)
+    // 천상의 탑 등에서 전 턴 휴리스틱이 돈다. 엄격 튜토리얼·체스만 Kata를 생략한다.
     const useHeuristicInsteadOfKata =
-        shouldApplyForcedResponsesThisTurn || game.mode === types.GameMode.Chess;
+        game.mode === types.GameMode.Chess ||
+        (shouldApplyForcedResponsesThisTurn &&
+            (game.settings as any)?.singlePlayerStrictForcedAiResponses === true);
     if (!useHeuristicInsteadOfKata && !isKataServerAvailable()) {
         console.error(
             `[makeGoAiBotMove] KataServer를 사용할 수 없습니다(KATA_SERVER_URL 미설정). 서버 합법수 폴백으로 진행합니다. game=${game.id}`

@@ -48,8 +48,7 @@ import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOp
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
 import {
-    cloneBoardStateForKataOpeningSnapshot,
-    encodeBoardStateAsKataSetupMovesFromEmpty,
+    attachKataOpeningSnapshotToSession,
 } from '../kataCaptureSetupEncoding.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../../shared/constants/rewardConfig.js';
 import { isRewardVipActive } from '../../shared/utils/rewardVip.js';
@@ -3243,8 +3242,7 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 game.blackPatternStones = blackMarkedPoints.map((p) => ({ ...p }));
                 game.whitePatternStones = whiteMarkedPoints.map((p) => ({ ...p }));
                 game.baseStones = undefined;
-                (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(gwBoard);
-                (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(gwBoard);
+                attachKataOpeningSnapshotToSession(game, gwBoard);
             }
             
             // 게임 저장

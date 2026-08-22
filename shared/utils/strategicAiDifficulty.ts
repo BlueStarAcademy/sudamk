@@ -33,6 +33,31 @@ const SINGLE_PLAYER_ACADEMY_KATA_TO_PROFILE_STEP: Record<number, number> = {
   [-27]: 5,
 };
 
+/**
+ * 바둑학원 휴리스틱 프로필(1~5).
+ * 유단자 `kataServerLevel: 1`은 Kata levelbot 강도이지 대기실 1단계가 아니다.
+ * `ks >= 1 && ks <= 10`으로 오인하면 천상의 탑에서 최약 휴리스틱이 돌아간다.
+ */
+export function resolveSinglePlayerHeuristicProfileStep(settings: {
+  goAiBotLevel?: number;
+  aiDifficulty?: number;
+  kataServerLevel?: number;
+} | null | undefined): number {
+  if (typeof settings?.goAiBotLevel === 'number' && Number.isFinite(settings.goAiBotLevel)) {
+    const g = Math.round(settings.goAiBotLevel);
+    if (g >= 1 && g <= 10) return g;
+  }
+  if (typeof settings?.aiDifficulty === 'number' && Number.isFinite(settings.aiDifficulty)) {
+    return Math.max(1, Math.min(10, Math.round(settings.aiDifficulty)));
+  }
+  const ks = settings?.kataServerLevel;
+  if (typeof ks === 'number' && Number.isFinite(ks)) {
+    const academy = SINGLE_PLAYER_ACADEMY_KATA_TO_PROFILE_STEP[ks];
+    if (academy !== undefined) return academy;
+  }
+  return 1;
+}
+
 export function profileStepFromKataServerLevel(kataLevel: number, strategicLobbyKataByStep?: Record<string, number>): number | undefined {
   const academy = SINGLE_PLAYER_ACADEMY_KATA_TO_PROFILE_STEP[kataLevel];
   if (academy !== undefined) return academy;

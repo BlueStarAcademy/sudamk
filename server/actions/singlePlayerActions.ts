@@ -6,8 +6,7 @@ import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/
 import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import {
-    cloneBoardStateForKataOpeningSnapshot,
-    encodeBoardStateAsKataSetupMovesFromEmpty,
+    attachKataOpeningSnapshotToSession,
 } from '../kataCaptureSetupEncoding.js';
 import {
     generateStrategicRandomBoard,
@@ -405,9 +404,6 @@ const applyLatestPendingSinglePlayerStage = async (
         game.basePlacementReady = undefined;
         game.baseKomiBidsSnapshot = undefined;
     }
-    (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
-    (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
-
     game.settings = {
         ...game.settings,
         boardSize: stage.boardSize,
@@ -440,6 +436,7 @@ const applyLatestPendingSinglePlayerStage = async (
         singlePlayerForceAiResponsesOnHiddenTurnsOnly: ruleFlags.hasHidden ? stage.forceAiResponsesOnHiddenTurnsOnly === true : undefined,
         ...(gameMode === GameMode.Mix ? { mixedModes: mixModes } : {}),
     } as any;
+    attachKataOpeningSnapshotToSession(game, board);
 
     if (gameMode !== GameMode.Hidden && gameMode !== GameMode.Mix) {
         game.hiddenMoves = {};
@@ -682,8 +679,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 totalTurns: 0, // 턴 카운팅 초기화
             } as LiveGameSession;
 
-            (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
-            (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
+            attachKataOpeningSnapshotToSession(game, board);
 
             // 히든바둑 초기화 (싱글플레이용). AI 히든돌은 미리 배치하지 않음 — 봇이 턴에 히든 아이템 연출 후 실제로 둠.
             if (gameMode === GameMode.Hidden) {
@@ -944,8 +940,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             game.boardState = board;
             game.blackPatternStones = blackPattern;
             game.whitePatternStones = whitePattern;
-            (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
-            (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
+            attachKataOpeningSnapshotToSession(game, board);
 
             // 캐시 업데이트
             updateGameCache(game);

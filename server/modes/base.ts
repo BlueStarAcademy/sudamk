@@ -8,8 +8,7 @@ import { aiUserId } from '../aiPlayer.js';
 import { processMove } from '../goLogic.js';
 import { pickAiKomiValueAvoiding } from '../../shared/utils/singlePlayerAiBaseKomiBid.js';
 import {
-    cloneBoardStateForKataOpeningSnapshot,
-    encodeBoardStateAsKataSetupMovesFromEmpty,
+    attachKataOpeningSnapshotToSession,
 } from '../kataCaptureSetupEncoding.js';
 import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
@@ -668,8 +667,7 @@ export const finalizeBaseCaptureBidResolution = (
     commitFinalBaseSeats(game, finalBlackPlayerId, finalWhitePlayerId);
     markBaseFinalColorAssignment(game, now);
     game.finalKomi = game.settings.komi ?? 0.5;
-    (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
-    (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(newBoardState);
+    attachKataOpeningSnapshotToSession(game, newBoardState);
     clearBasePrePlayState(game);
 };
 
@@ -697,8 +695,7 @@ const finalizeBaseDifferentStoneColorChoices = (
     markBaseFinalColorAssignment(game, now);
     game.finalKomi = finalKomi;
     /** 본대국에서는 `game.baseStones`만 베이스 좌표 소스 — p1/p2가 남으면 빈 자리 재착수가 베이스로 오인될 수 있음 */
-    (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
-    (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(newBoardState);
+    attachKataOpeningSnapshotToSession(game, newBoardState);
     game.baseKomiBidsSnapshot = {
         [p1.id]: { color: c1, komi: 0 },
         [p2.id]: { color: c2, komi: 0 },
@@ -803,8 +800,7 @@ const applyBaseKomiBidResolution = (game: types.LiveGameSession, now: number) =>
     commitFinalBaseSeats(game, finalBlackPlayerId, finalWhitePlayerId);
     markBaseFinalColorAssignment(game, now);
     game.finalKomi = finalKomi;
-    (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(newBoardState);
-    (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(newBoardState);
+    attachKataOpeningSnapshotToSession(game, newBoardState);
     game.baseKomiBidsSnapshot = { [p1.id]: { color: lockedColor, komi: p1Komi }, [p2.id]: { color: lockedColor, komi: p2Komi } };
     clearBasePrePlayState(game);
     enterBaseGameStartConfirmation(game, now);

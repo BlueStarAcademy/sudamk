@@ -6,8 +6,8 @@ import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
 import {
+    attachKataOpeningSnapshotToSession,
     cloneBoardStateForKataOpeningSnapshot,
-    encodeBoardStateAsKataSetupMovesFromEmpty,
 } from '../kataCaptureSetupEncoding.js';
 import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
 import { towerKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
@@ -286,8 +286,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 totalTurns: 0,
             } as unknown as LiveGameSession;
 
-            (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
-            (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
+            attachKataOpeningSnapshotToSession(game, board);
             // reconcile 등으로 스냅만 지워질 때 Kata 포석 접두 복구용(길드전과 동일한 오프닝 보존 개념)
             (game as any).kataTowerOpeningBoardBackup = cloneBoardStateForKataOpeningSnapshot(board);
             reconcileStrategicAiBoardSizeWithGroundTruth(game);
@@ -592,8 +591,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
             game.whitePatternStones = whitePattern;
             // 스테이지 변경(줄 수 등) 후에도 KataServer boardXSize·GTP 좌표가 실제 판과 일치하도록 settings 동기화
             game.settings = { ...(game.settings as any), boardSize: stage.boardSize } as typeof game.settings;
-            (game as any).kataCaptureSetupMoves = encodeBoardStateAsKataSetupMovesFromEmpty(board);
-            (game as any).kataStrategicOpeningBoardState = cloneBoardStateForKataOpeningSnapshot(board);
+            attachKataOpeningSnapshotToSession(game, board);
             (game as any).kataTowerOpeningBoardBackup = cloneBoardStateForKataOpeningSnapshot(board);
             reconcileStrategicAiBoardSizeWithGroundTruth(game);
 

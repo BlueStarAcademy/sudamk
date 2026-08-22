@@ -109,6 +109,11 @@ function toKataServerMoves(
     });
 }
 
+/** Kata `/move` firstMove: 실제 돌이 하나도 없을 때만 true (PASS 접두·단수 착수는 첫수가 아님) */
+export function isKataServerFirstMoveFlag(moves: Array<[string, string]>): boolean {
+    return moves.every(([, coord]) => String(coord).trim().toLowerCase() === 'pass');
+}
+
 type KataMoveApiData = {
     move?: string;
     strategy?: string;
@@ -154,9 +159,15 @@ function buildGtpCandidatesFromKataResponse(
     };
     pushUnique(reported);
     pushUnique(best);
-    if (!allowPass && out.length === 0) {
-        const forced = selectKataMoveWithoutPass(data.moveInfos, boardSize, false);
-        if (forced?.move) pushUnique(forced.move);
+    // occupied/`move`가 서버 판에서 불법이어도 moveInfos의 다른 착점을 써야 한다.
+    // PASS-only일 때만 보면 밀집 따내기(천상의 탑 5 등)에서 후보가 비고 휴리스틱으로 떨어진다.
+    const fromInfos = selectKataMoveWithoutPass(data.moveInfos, boardSize, allowPass);
+    if (fromInfos?.move) pushUnique(fromInfos.move);
+    if (Array.isArray(data.moveInfos)) {
+        for (const info of data.moveInfos) {
+            if (!info?.move) continue;
+            pushUnique(info.move);
+        }
     }
     return out;
 }
@@ -231,7 +242,9 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
         }
     }
     const moves = toKataServerMoves(moveHistory, boardSize);
-    const isFirstMove = moves.length < 2;
+    // 선포석 PASS 접두가 있으면 moves.length는 커지고, 접두가 빠진 1수만 보내면 예전엔 firstMove=true가 되어
+    // KataServer가 빈 판 첫수로 약수(휴리스틱)를 고른다. 실제 돌이 하나라도 있으면 첫수가 아니다.
+    const isFirstMove = isKataServerFirstMoveFlag(moves);
 
     const body: Record<string, unknown> = {
         level,
