@@ -10,15 +10,8 @@ import { getAdventureCodexMonsterById, getAdventureMonsterPortraitUrl } from '..
 import { TOWER_STAGES } from '../constants/towerConstants.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../shared/utils/liveSessionSinglePlayerStage.js';
 import { getMannerRank as getMannerRankShared } from '../services/manner.js';
-import {
-    getGuildWarBoardMode,
-    isGuildWarLiveSession,
-    GUILD_WAR_STAR_CAPTURE_TIER2_MIN,
-    GUILD_WAR_STAR_CAPTURE_TIER3_MIN,
-    getGuildWarStarScoreTier2MinDiff,
-    getGuildWarStarScoreTier3MinDiff,
-} from '../shared/constants/guildConstants.js';
-import { computeGuildWarAttemptMetrics } from '../shared/utils/guildWarAttemptMetrics.js';
+import { isGuildWarLiveSession } from '../shared/constants/guildConstants.js';
+import { computeGuildWarAttemptMetrics, evaluateGuildWarStarConditionFlags } from '../shared/utils/guildWarAttemptMetrics.js';
 import {
     ResultModalGoldCurrencySlot,
     ResultModalItemRewardSlot,
@@ -1849,7 +1842,17 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
         isGuildWar ||
         Boolean(postGameStatsSummary) ||
         Boolean(isAdventureGame && mySummary?.adventureCodexDelta);
-    const guildWarStars = mySummary?.guildWarStars ?? 0;
+    const guildWarStarFlags = useMemo(() => {
+        if (!isGuildWar) return null;
+        const humanEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
+        return evaluateGuildWarStarConditionFlags(
+            session as any,
+            humanEnum,
+            isWinner === true,
+            typeof mySummary?.guildWarStars === 'number' ? mySummary.guildWarStars : undefined
+        );
+    }, [isGuildWar, currentUser.id, blackPlayerId, session, isWinner, mySummary?.guildWarStars]);
+    const guildWarStars = guildWarStarFlags?.stars ?? 0;
     const guildWarHouseScore = useMemo(() => {
         if (!isGuildWar) return undefined;
         const humanEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
@@ -2290,28 +2293,19 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     }
 
     const renderGuildWarStarConditions = () => {
-        if (!isGuildWar) return null;
-        const boardId = (session as any).guildWarBoardId as string | undefined;
-        const mode = getGuildWarBoardMode(boardId ?? 'top-left');
-        const humanWon = isWinner === true;
-        const humanEnum = currentUser.id === blackPlayerId ? Player.Black : Player.White;
-        const metrics = computeGuildWarAttemptMetrics(session as any, humanEnum as any, humanWon);
-        const maxSingleCapture = metrics.maxSingleCapture ?? 0;
-        const scoreDiff = metrics.scoreDiff ?? 0;
-        const scoreT2 = getGuildWarStarScoreTier2MinDiff(boardId);
-        const scoreT3 = getGuildWarStarScoreTier3MinDiff(boardId);
-
+        if (!isGuildWar || !guildWarStarFlags) return null;
+        const display = guildWarStarFlags;
         const rows =
-            mode === 'capture'
+            display.kind === 'capture'
                 ? [
-                    { label: t('summary.winCondition'), ok: humanWon },
-                    { label: gs("captureTier2", { min: GUILD_WAR_STAR_CAPTURE_TIER2_MIN }), ok: maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER2_MIN },
-                    { label: gs("captureTier3", { min: GUILD_WAR_STAR_CAPTURE_TIER3_MIN }), ok: maxSingleCapture >= GUILD_WAR_STAR_CAPTURE_TIER3_MIN },
+                    { key: 'win', label: t('summary.winCondition'), ok: display.win },
+                    { key: 't2', label: gs('captureTier2', { min: display.captureT2 }), ok: display.tier2 },
+                    { key: 't3', label: gs('captureTier3', { min: display.captureT3 }), ok: display.tier3 },
                 ]
                 : [
-                    { label: t('summary.winCondition'), ok: humanWon },
-                    { label: gs("scoreDiffTier", { diff: scoreT2 }), ok: humanWon && scoreDiff >= scoreT2 },
-                    { label: gs("scoreDiffTier", { diff: scoreT3 }), ok: humanWon && scoreDiff >= scoreT3 },
+                    { key: 'win', label: t('summary.winCondition'), ok: display.win },
+                    { key: 't2', label: gs('scoreDiffTier', { diff: display.scoreT2 }), ok: display.tier2 },
+                    { key: 't3', label: gs('scoreDiffTier', { diff: display.scoreT3 }), ok: display.tier3 },
                 ];
 
         return (
@@ -2334,7 +2328,7 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 <div className={isMobile ? 'space-y-0' : 'space-y-1'}>
                     {rows.map((row) => (
                         <div
-                            key={row.label}
+                            key={row.key}
                             className={
                                 isMobile
                                     ? 'flex items-center justify-center gap-1.5 text-[0.65rem] leading-tight'

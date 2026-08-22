@@ -5,7 +5,7 @@
 import React from 'react';
 import { tx } from '../../shared/i18n/runtimeText.js';
 import { LiveGameSession, GameProps } from '../../types.js';
-import { GameInfoPanel, ChatPanel } from './Sidebar.js';
+import { GameInfoPanel, ChatPanel, GuildWarStarConditionsPanel } from './Sidebar.js';
 import Button from '../Button.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
@@ -56,6 +56,7 @@ const GuildWarTowerSidebar: React.FC<GuildWarTowerSidebarProps> = ({
                         <p className="text-lg font-black text-yellow-300">{boardLabel}</p>
                     </div>
                 </div>
+                <GuildWarStarConditionsPanel session={session} currentUser={currentUser} sidebarLayout={sidebarLayout} />
             </div>
             <div className="flex-1 mt-2 min-h-0">
                 <ChatPanel

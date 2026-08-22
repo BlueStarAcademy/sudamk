@@ -26,13 +26,7 @@ import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js
 import { mixSubRuleDisplayName } from '../../shared/utils/mixSubRuleDisplayName.js';
 import { pairSeatMatchesViewerUser, pairTurnSeatIdShortLabel } from '../../shared/utils/pairGameTurn.js';
 import { formatDiceGoSpecialDiceSummary } from '../../shared/utils/diceGoSettings.js';
-import {
-    getGuildWarBoardMode,
-    getGuildWarBoardRuleModeFromGameMode,
-    getGuildWarStarConditionLines,
-    GUILD_WAR_STAR_CAPTURE_TIER2_MIN,
-    GUILD_WAR_STAR_CAPTURE_TIER3_MIN,
-} from '../../shared/constants/guildConstants.js';
+import { evaluateGuildWarStarConditionFlags } from '../../shared/utils/guildWarAttemptMetrics.js';
 import AdBanner from '../ads/AdBanner.js';
 import { isBannerHiddenForGameStatus } from '../../constants/ads.js';
 import PveBriefStartModal from '../pve/PveBriefStartModal.js';
@@ -734,7 +728,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
     );
 };
 
-const GuildWarStarConditionsPanel: React.FC<{
+export const GuildWarStarConditionsPanel: React.FC<{
     session: LiveGameSession;
     currentUser: User;
     sidebarLayout?: 'desktop' | 'mobileDrawer';
@@ -742,52 +736,45 @@ const GuildWarStarConditionsPanel: React.FC<{
     const { t } = useTranslation('game');
     const drawerUi = sidebarLayout === 'mobileDrawer';
     const starBodyClass = drawerUi ? 'text-[13px] leading-snug text-gray-200' : 'text-xs text-gray-200';
-    if (session.gameCategory !== 'guildwar') return null;
-    const boardId = (session as any).guildWarBoardId as string | undefined;
-    const boardMode =
-        getGuildWarBoardRuleModeFromGameMode(session.mode) ?? (boardId ? getGuildWarBoardMode(boardId) : 'capture');
-    const lines = getGuildWarStarConditionLines(boardMode, boardId);
+    if (resolveArenaSessionPolicy(session).kind !== 'guildwar') return null;
 
     const humanEnum = currentUser.id === session.blackPlayerId ? Player.Black : Player.White;
     const ended = ['ended', 'no_contest', 'rematch_pending'].includes(session.gameStatus);
     const humanWon = ended && session.winner === humanEnum;
-    const maxPts = Number((session as any).maxSingleCapturePointsByPlayer?.[humanEnum] ?? 0) || 0;
+    const awarded = session.summary?.[currentUser.id]?.guildWarStars;
+    const display = evaluateGuildWarStarConditionFlags(
+        session,
+        humanEnum,
+        humanWon,
+        ended && typeof awarded === 'number' ? awarded : undefined
+    );
 
-    if (boardMode === 'capture') {
-        const c2 = GUILD_WAR_STAR_CAPTURE_TIER2_MIN;
-        const c3 = GUILD_WAR_STAR_CAPTURE_TIER3_MIN;
-        const rows = [
-            { label: t('win'), ok: humanWon },
-            { label: lines[1] ?? t('summary.captureTier2', { min: c2 }), ok: maxPts >= c2 },
-            { label: lines[2] ?? t('summary.captureTier3', { min: c3 }), ok: maxPts >= c3 },
-        ];
-        return (
-            <div className={arenaGameRoomGuildStarPanelClass}>
-                <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>{t('sidebar.starConditions')}</h3>
-                <div className="space-y-1.5">
-                    {rows.map((row) => (
-                        <div key={row.label} className={`flex items-start justify-between gap-2 ${starBodyClass}`}>
-                            <span className="min-w-0 flex-1 leading-snug">{row.label}</span>
-                            <img
-                                src={row.ok ? '/images/guild/guildwar/clearstar.webp' : '/images/guild/guildwar/emptystar.webp'}
-                                alt=""
-                                className="mt-0.5 h-4 w-4 shrink-0 object-contain opacity-95"
-                                aria-hidden
-                            />
-                        </div>
-                    ))}
-                </div>
-            </div>
-        );
-    }
+    const rows =
+        display.kind === 'capture'
+            ? [
+                  { key: 'win', label: t('summary.winCondition'), ok: display.win },
+                  { key: 't2', label: t('summary.captureTier2', { min: display.captureT2 }), ok: display.tier2 },
+                  { key: 't3', label: t('summary.captureTier3', { min: display.captureT3 }), ok: display.tier3 },
+              ]
+            : [
+                  { key: 'win', label: t('summary.winCondition'), ok: display.win },
+                  { key: 't2', label: t('summary.scoreDiffTier', { diff: display.scoreT2 }), ok: display.tier2 },
+                  { key: 't3', label: t('summary.scoreDiffTier', { diff: display.scoreT3 }), ok: display.tier3 },
+              ];
 
     return (
         <div className={arenaGameRoomGuildStarPanelClass}>
             <h3 className={`${arenaGameRoomPanelTitleClass} border-amber-700/25`}>{t('sidebar.starConditions')}</h3>
-            <div className="space-y-1">
-                {lines.map((line) => (
-                    <div key={line} className={starBodyClass}>
-                        {line}
+            <div className="space-y-1.5">
+                {rows.map((row) => (
+                    <div key={row.key} className={`flex items-start justify-between gap-2 ${starBodyClass}`}>
+                        <span className="min-w-0 flex-1 leading-snug">{row.label}</span>
+                        <img
+                            src={row.ok ? '/images/guild/guildwar/clearstar.webp' : '/images/guild/guildwar/emptystar.webp'}
+                            alt=""
+                            className="mt-0.5 h-4 w-4 shrink-0 object-contain opacity-95"
+                            aria-hidden
+                        />
                     </div>
                 ))}
             </div>

@@ -19,6 +19,128 @@ function scoreModeStarsFromDiff(diff: number, boardId: string | undefined): numb
     return 1;
 }
 
+function scoreTotalsFromSession(game: LiveGameSession): { black: number; white: number } | null {
+    const fs = game.finalScores;
+    if (fs && typeof fs.black === 'number' && typeof fs.white === 'number') {
+        return { black: fs.black, white: fs.white };
+    }
+    const ar = game.analysisResult;
+    if (!ar || typeof ar !== 'object') return null;
+    const pick =
+        ar.system ??
+        (game.blackPlayerId ? ar[game.blackPlayerId] : undefined) ??
+        Object.values(ar)[0];
+    const sd = pick?.scoreDetails;
+    const black = sd?.black?.total;
+    const white = sd?.white?.total;
+    if (typeof black === 'number' && typeof white === 'number') {
+        return { black, white };
+    }
+    return null;
+}
+
+export type GuildWarStarConditionKind = 'capture' | 'score';
+
+export type GuildWarStarConditionFlags = {
+    kind: GuildWarStarConditionKind;
+    win: boolean;
+    tier2: boolean;
+    tier3: boolean;
+    stars: number;
+    captureT2: number;
+    captureT3: number;
+    scoreT2: number;
+    scoreT3: number;
+};
+
+function clampGuildWarStars(stars: number): number {
+    if (!Number.isFinite(stars)) return 0;
+    return Math.max(0, Math.min(3, Math.round(stars)));
+}
+
+/**
+ * 정산된 별 개수(0~3)로 조건별 금/은 표시를 복원한다.
+ * 따내기는 승리 없이도 2·3번째 별을 딸 수 있어 `humanWon`이 필요하다.
+ */
+export function guildWarStarFlagsFromAwardedStars(
+    kind: GuildWarStarConditionKind,
+    humanWon: boolean,
+    awardedStars: number
+): Pick<GuildWarStarConditionFlags, 'win' | 'tier2' | 'tier3'> {
+    const stars = clampGuildWarStars(awardedStars);
+    if (kind === 'score') {
+        return { win: stars >= 1, tier2: stars >= 2, tier3: stars >= 3 };
+    }
+    if (stars >= 3) return { win: true, tier2: true, tier3: true };
+    if (stars === 2) {
+        if (humanWon) return { win: true, tier2: true, tier3: false };
+        return { win: false, tier2: true, tier3: true };
+    }
+    if (stars === 1) {
+        if (humanWon) return { win: true, tier2: false, tier3: false };
+        return { win: false, tier2: true, tier3: false };
+    }
+    return { win: false, tier2: false, tier3: false };
+}
+
+/**
+ * 인게임·결과 UI 공통: 실제 `game.mode`로 따내기/계가 조건을 가른다.
+ * (`getGuildWarBoardMode(boardId)` 레거시 칸 배정은 쓰지 않음)
+ * `awardedStars`가 있으면 결과 화면은 정산 별 개수를 금별 표시의 기준으로 삼는다.
+ */
+export function evaluateGuildWarStarConditionFlags(
+    game: LiveGameSession,
+    humanEnum: Player,
+    humanWon: boolean,
+    awardedStars?: number
+): GuildWarStarConditionFlags {
+    const metrics = computeGuildWarAttemptMetrics(game, humanEnum, humanWon);
+    const boardId = (game as { guildWarBoardId?: string }).guildWarBoardId;
+    const kind: GuildWarStarConditionKind = game.mode === GameMode.Capture ? 'capture' : 'score';
+    const captureT2 = GUILD_WAR_STAR_CAPTURE_TIER2_MIN;
+    const captureT3 = GUILD_WAR_STAR_CAPTURE_TIER3_MIN;
+    const scoreT2 = getGuildWarStarScoreTier2MinDiff(boardId);
+    const scoreT3 = getGuildWarStarScoreTier3MinDiff(boardId);
+
+    let win: boolean;
+    let tier2: boolean;
+    let tier3: boolean;
+    if (kind === 'capture') {
+        const max = metrics.maxSingleCapture ?? 0;
+        win = humanWon;
+        tier2 = max >= captureT2;
+        tier3 = max >= captureT3;
+    } else {
+        const diff = metrics.scoreDiff ?? 0;
+        win = humanWon;
+        tier2 = humanWon && diff >= scoreT2;
+        tier3 = humanWon && diff >= scoreT3;
+    }
+
+    const awarded =
+        typeof awardedStars === 'number' && Number.isFinite(awardedStars)
+            ? clampGuildWarStars(awardedStars)
+            : undefined;
+    if (awarded != null) {
+        const overlaid = guildWarStarFlagsFromAwardedStars(kind, humanWon, awarded);
+        win = overlaid.win;
+        tier2 = overlaid.tier2;
+        tier3 = overlaid.tier3;
+    }
+
+    return {
+        kind,
+        win,
+        tier2,
+        tier3,
+        stars: awarded ?? metrics.stars,
+        captureT2,
+        captureT3,
+        scoreT2,
+        scoreT3,
+    };
+}
+
 /**
  * 길드전 한 판 기준 별·따내기 수 등 (서버 `guildWarBoardResult`와 동일).
  * 따내기 모드에서 `maxSingleCapture`는 **한 수 포획 점수 합의 최대값**(문양·배치돌 가중 반영).
@@ -56,10 +178,10 @@ export function computeGuildWarAttemptMetrics(
         return { stars: 0, captures, score: 0 };
     }
 
-    const fs = game.finalScores;
-    if (fs && typeof fs.black === 'number' && typeof fs.white === 'number') {
-        const myTotal = humanEnum === Player.Black ? fs.black : fs.white;
-        const opTotal = humanEnum === Player.Black ? fs.white : fs.black;
+    const totals = scoreTotalsFromSession(game);
+    if (totals) {
+        const myTotal = humanEnum === Player.Black ? totals.black : totals.white;
+        const opTotal = humanEnum === Player.Black ? totals.white : totals.black;
         const myHouseScore = Math.round((myTotal + timeHouseBonus) * 10) / 10;
         const diff = myTotal - opTotal;
         const stars = scoreModeStarsFromDiff(diff, (game as { guildWarBoardId?: string }).guildWarBoardId);
