@@ -28,6 +28,7 @@ export const PC_EMBEDDED_UTILITY_PANEL_KINDS = [
     'inventory',
     'pet',
     'trainingQuest',
+    'trainingGround',
     'matchArena',
     'rankedMatch',
     'normalMatch',

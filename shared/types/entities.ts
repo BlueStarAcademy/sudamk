@@ -743,6 +743,8 @@ export type User = {
   championshipDungeonDailyEntry?: Partial<
       Record<TournamentType, { dateStartOfDayKST: number; entriesUsed: number; adBonusGranted: boolean }>
   >;
+  /** 훈련장 심법·단짝 수련 일일 보상 티켓 */
+  trainingGround?: import('../constants/trainingGround.js').TrainingGroundUserState;
   dailyDungeonScore?: number; // 일일 획득 점수 (리셋용)
   mbti?: string | null;
   rejectedGameModes?: GameMode[];
@@ -1077,6 +1079,8 @@ export type GameSettings = {
    * pairGame.lobbyChannel === 'friendly' 인 경우에도 동일하게 취급한다.
    */
   friendlyLobbyMatch?: boolean;
+  /** 훈련장 심법/단짝 수련 대국 — 승리 시 표 보상, 대기실 AI 보상 제외 */
+  trainingGround?: import('../constants/trainingGround.js').TrainingGroundGameMeta;
   pairGame?: {
     /** 대기 방이 속한 경기장 — 인게임 배경(페어 전용 이미지 vs 전략/놀이 CSS) 구분 */
     lobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly';

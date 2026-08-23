@@ -6,6 +6,7 @@ export type QuickUtilityPanelKind =
     | 'inventory'
     | 'pet'
     | 'trainingQuest'
+    | 'trainingGround'
     | 'matchArena'
     | 'pairArena'
     /** @deprecated 홈 뷰어는 matchArena로 통합 — 레거시 스택/딥링크 호환 */
@@ -37,6 +38,7 @@ export const HOME_VIEWER_UTILITY_KINDS = [
     'playgroundLobby',
     'championship',
     'trainingQuest',
+    'trainingGround',
     'singleplayer',
     'tower',
     'adventure',
@@ -53,6 +55,7 @@ export const QUICK_UTILITY_PANEL_TITLES: Record<QuickUtilityPanelKind, string> =
     inventory: '가방',
     pet: '펫',
     trainingQuest: '생산소',
+    trainingGround: '훈련장',
     matchArena: '경기장',
     pairArena: '페어 경기장',
     rankedMatch: '랭킹전',
@@ -150,6 +153,14 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
             'bg-gradient-to-r from-emerald-50 via-teal-100 to-emerald-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
         hairlineViaClass: 'via-emerald-300/42',
         bodyRingClass: 'ring-emerald-400/22',
+    },
+    trainingGround: {
+        iconUrl: '/images/bg/trainingground.webp',
+        titleChromeClass: 'border-amber-400/55 bg-gradient-to-r from-amber-950/60 via-zinc-900/80 to-yellow-950/50',
+        titleHeadingClass:
+            'bg-gradient-to-r from-amber-50 via-yellow-100 to-amber-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',
+        hairlineViaClass: 'via-amber-300/45',
+        bodyRingClass: 'ring-amber-400/25',
     },
     matchArena: MATCH_ARENA_CHROME,
     pairArena: {

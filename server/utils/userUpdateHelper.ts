@@ -154,6 +154,7 @@ export function getSelectiveUserUpdate(
         'CLAIM_TOURNAMENT_REWARD': ['inventory', 'gold', 'diamonds', 'tournamentScore', 'cumulativeTournamentScore', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament', 'dungeonProgress', 'quests'],
         'START_DUNGEON_STAGE': ['dungeonProgress', 'dungeonConditionSnapshot', 'championshipDungeonDailyEntry', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
         'CLAIM_CHAMPIONSHIP_DUNGEON_AD_ENTRY': ['championshipDungeonDailyEntry'],
+        'CLAIM_TRAINING_GROUND_AD_RESTORE': ['trainingGround'],
         'COMPLETE_DUNGEON_STAGE': ['dungeonProgress', 'inventory', 'gold', 'diamonds', 'champCoins', 'tournamentScore', 'cumulativeTournamentScore', 'dailyDungeonScore', 'quests', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodPlayedDate', 'lastNationalPlayedDate', 'lastWorldPlayedDate', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
         
         // 싱글플레이어 관련

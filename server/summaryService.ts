@@ -47,6 +47,8 @@ import {
   resolveAiLobbyProfileStepFromSettings,
   strategicLobbyAiWinXp,
 } from '../shared/utils/strategicAiDifficulty.js';
+import { rewardForKataLevel, clampTrainingGroundBoardSize, isTrainingGroundSession } from '../shared/constants/trainingGround.js';
+import { claimTrainingGroundWin, getTrainingGroundTrackState } from '../shared/utils/trainingGroundDaily.js';
 import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { createItemInstancesFromReward, addItemsToInventory } from '../utils/inventoryUtils.js';
 import { finalizeRewardEquipmentInstances } from './finalizeRewardEquipmentInstances.js';
@@ -1747,6 +1749,7 @@ const processPlayerSummary = async (
     const isAdventureRewardableLoss = isAdventureHumanLoss && winReason !== 'resign';
     const adventureBoardSize = game.adventureBoardSize ?? game.settings.boardSize;
     const isStrategicLobbyAi = !isNoContest && isWaitingRoomAiGame(game) && isStrategic;
+    const isTrainingGroundGame = isTrainingGroundSession(game);
     const liveArenaPhaseMul =
         !isNoContest && !isAdventureGame && !isGuildWarMatch
             ? resolveLiveArenaPhaseGoldXpMultiplier(game)
@@ -1867,6 +1870,9 @@ const processPlayerSummary = async (
         xpGain = 0;
     }
     if (isPvpHumanResignLoser || isPveAbandonForfeitLoser) {
+        xpGain = 0;
+    }
+    if (isTrainingGroundGame) {
         xpGain = 0;
     }
     // --- END NEW LOGIC ---
@@ -2304,7 +2310,8 @@ const processPlayerSummary = async (
         (game.gameCategory as string) !== 'tower' &&
         (game.gameCategory as string) !== 'singleplayer' &&
         !game.isSinglePlayer &&
-        (isAdventureGame || isStrategic || isPlayful || isGuildWarMatch);
+        (isAdventureGame || isStrategic || isPlayful || isGuildWarMatch) &&
+        !isTrainingGroundGame;
 
     const vipWinEligible =
         qualifiesVipPlayRewardSurface &&
@@ -2357,6 +2364,31 @@ const processPlayerSummary = async (
         vipGoldBonus = 0;
         vipGrant = null;
         vipGrantedDisplay = undefined;
+    }
+
+    if (isTrainingGroundGame && player.id !== aiUserId) {
+        vipGoldBonus = 0;
+        vipGrant = null;
+        vipGrantedDisplay = undefined;
+        delete rewards.adventureGoldUnderstandingBonus;
+        const meta = game.settings?.trainingGround;
+        const canGrant =
+            !isNoContest &&
+            !isDraw &&
+            isWinner &&
+            meta &&
+            getTrainingGroundTrackState(updatedPlayer, meta.track).remaining >= 1;
+        if (canGrant && meta) {
+            const table = rewardForKataLevel(meta.kataLevel, clampTrainingGroundBoardSize(meta.boardSize));
+            rewards.gold = table.gold;
+            rewards.diamonds = table.diamonds;
+            rewards.items = [];
+            claimTrainingGroundWin(updatedPlayer, meta.track, meta.kataLevel);
+        } else {
+            rewards.gold = 0;
+            rewards.diamonds = 0;
+            rewards.items = [];
+        }
     }
 
     const itemsForInventory = [...rewards.items, ...(vipGrant ? [vipGrant] : [])];
@@ -3001,6 +3033,9 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
             ) {
                 fieldsToUpdate.push('adventureProfile');
             }
+            if (isTrainingGroundSession(game) && p1.id !== aiUserId) {
+                fieldsToUpdate.push('trainingGround');
+            }
             broadcastUserUpdate(updatedP1, fieldsToUpdate);
         }
     } catch (e) {
@@ -3042,6 +3077,9 @@ export const processGameSummary = async (game: LiveGameSession): Promise<void> =
                 typeof game.adventureStageId === 'string'
             ) {
                 fieldsToUpdate.push('adventureProfile');
+            }
+            if (isTrainingGroundSession(game) && p2.id !== aiUserId) {
+                fieldsToUpdate.push('trainingGround');
             }
             broadcastUserUpdate(updatedP2, fieldsToUpdate);
         }

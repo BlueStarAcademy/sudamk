@@ -28,6 +28,8 @@ export const TOWER_MOBILE_HERO_WEBP = "/images/tower/towergo.webp";
 export const TOWER_STAGE_SCROLL_BG_WEBP = "/images/tower/tower-stage-scroll.webp";
 /** 생산소 홈 입장 — 성소형 생산 게이트 (`bg/factorybg`) */
 export const FACTORY_GO_LOBBY_IMG = "/images/bg/factorybg.webp";
+/** 훈련장 홈 입장 — 도장 (`bg/trainingground`) */
+export const TRAINING_GROUND_GO_LOBBY_IMG = "/images/bg/trainingground.webp";
 /** 길드 홈 입장 — 시네마틱 길드 홀 (`bg/guildbg1`) */
 export const GUILD_GO_LOBBY_IMG = "/images/bg/guildbg1.webp";
 

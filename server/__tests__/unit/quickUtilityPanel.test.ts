@@ -35,6 +35,7 @@ describe('quickUtilityPanel', () => {
             'inventory',
             'pet',
             'trainingQuest',
+            'trainingGround',
             'matchArena',
             'rankedMatch',
             'normalMatch',
@@ -62,6 +63,7 @@ describe('quickUtilityPanel', () => {
         expect(QUICK_UTILITY_PANEL_TITLES.tower).toBe('도전의 탑');
         expect(QUICK_UTILITY_PANEL_TITLES.adventure).toBe('탐험');
         expect(QUICK_UTILITY_PANEL_TITLES.guild).toBe('길드');
+        expect(QUICK_UTILITY_PANEL_TITLES.trainingGround).toBe('훈련장');
         expect(resolveHomeViewerUtilityKind('rankedMatch')).toBe('matchArena');
         expect(resolveHomeViewerUtilityKind('normalMatch')).toBe('matchArena');
         expect(resolveHomeViewerUtilityKind('aiArena')).toBe('friendlyLobby');

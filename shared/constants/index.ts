@@ -29,6 +29,7 @@ export * from './pairGoRewardBands.js';
 export * from './pairHatchery.js';
 export * from './pairArena.js';
 export * from './championshipRealMatch.js';
+export * from './trainingGround.js';
 export * from './championshipVersusVenue.js';
 export * from './championshipShop.js';
 export * from './numericLimits.js';

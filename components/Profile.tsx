@@ -70,6 +70,7 @@ import { isClientAdmin } from '../utils/clientAdmin.js';
 import { sumLobbyAiMatchRecordFromStats } from '../shared/utils/lobbyAiMatchRecord.js';
 import { getAdventureCodexCompletionBreakdown } from '../utils/adventureCodexCompletion.js';
 import { userHasFullTrainingQuestReward } from '../utils/trainingQuestRewardNotify.js';
+import { getTrainingGroundTrackState } from '../shared/utils/trainingGroundDaily.js';
 import { computeCoreStatFinalFromBonuses } from '../shared/utils/coreStatComposition.js';
 import {
     userMeetsGuildFeatureLevelRequirement,
@@ -2109,6 +2110,7 @@ const Profile: React.FC<ProfileProps> = () => {
             tower: onSelectTowerLobby,
             adventure: onSelectAdventureLobby,
             factory: () => handlers.openTrainingQuest(),
+            trainingGround: () => handlers.openTrainingGround(),
             friendly: onSelectFriendlyLobby,
             playground: onSelectPlaygroundLobby,
             guild: onSelectGuildLobby,
@@ -2178,6 +2180,14 @@ const Profile: React.FC<ProfileProps> = () => {
                 badge: hasPcHomeTrainingQuestReward,
                 infoLines: hasPcHomeTrainingQuestReward ? [t('claimableReward')] : undefined,
             },
+            trainingGround: {
+                infoLines: [
+                    t('trainingGroundUi.homeTickets', {
+                        kata: getTrainingGroundTrackState(currentUserWithStatus, 'kata').remaining,
+                        pet: getTrainingGroundTrackState(currentUserWithStatus, 'pet').remaining,
+                    }),
+                ],
+            },
             friendly: {
                 infoLines: [t('lobbyMetaFriendlyCustom'), t('lobbyMetaFriendlyPair')],
             },
@@ -2211,6 +2221,7 @@ const Profile: React.FC<ProfileProps> = () => {
         guildCheckDone,
         guildInfo,
         hasPcHomeTrainingQuestReward,
+        currentUserWithStatus,
         overallTiers.strategicIntegratedScore,
         overallTiers.strategicTier?.icon,
         overallTiers.pairSeasonScore,

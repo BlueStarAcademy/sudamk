@@ -202,12 +202,14 @@ export function strategicLobbyAiWinXp(boardSize?: number, scoringTurnLimit?: num
   return Math.max(1, Math.round(base * turnMul));
 }
 
-/** 전략/놀이 대기실에서 시작한 AI 대국(싱글·탑·길드전 제외) */
+/** 전략/놀이 대기실에서 시작한 AI 대국(싱글·탑·길드전·훈련장 심법/단짝 제외. 훈련 머신은 대기실 AI 보상 유지) */
 export function isWaitingRoomAiGame(game: {
   isAiGame?: boolean;
   isSinglePlayer?: boolean;
   gameCategory?: string;
+  settings?: { trainingGround?: unknown } | null;
 }): boolean {
+  if (game.settings?.trainingGround) return false;
   if (!game.isAiGame || game.isSinglePlayer) return false;
   const c = game.gameCategory;
   if (c === 'tower' || c === 'singleplayer' || c === 'guildwar' || c === 'adventure') return false;

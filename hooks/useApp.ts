@@ -2305,6 +2305,7 @@ export const useApp = () => {
                 patch.championshipDungeonDailyEntry !== undefined
                     ? { ...(base.championshipDungeonDailyEntry ?? {}), ...patch.championshipDungeonDailyEntry }
                     : base.championshipDungeonDailyEntry,
+            trainingGround: patch.trainingGround !== undefined ? patch.trainingGround : base.trainingGround,
             championshipVersusConditionSnapshot:
                 patch.championshipVersusConditionSnapshot !== undefined
                     ? mergeChampionshipVersusConditionSnapshotRecords(
@@ -8718,6 +8719,7 @@ export const useApp = () => {
                     effectiveGameId &&
                     (action.type === 'ACCEPT_NEGOTIATION' ||
                         action.type === 'START_AI_GAME' ||
+                        action.type === 'START_TRAINING_GROUND_GAME' ||
                         action.type === 'START_GUILD_WAR_GAME' ||
                         action.type === 'START_ADVENTURE_MONSTER_BATTLE' ||
                         action.type === 'CLAIM_RESULT_AD_GOLD_DOUBLE' ||
@@ -8931,7 +8933,7 @@ export const useApp = () => {
                                     [mergeId]: coerceAdventureLiveGameScoringTurnLimit(mergedForSlot),
                                 };
                             };
-                            if (action.type === 'CONFIRM_AI_GAME_START' || action.type === 'START_AI_GAME') {
+                            if (action.type === 'CONFIRM_AI_GAME_START' || action.type === 'START_AI_GAME' || action.type === 'START_TRAINING_GROUND_GAME') {
                                 flushSync(() => setLiveGames(applyLiveGameHttpMerge));
                             } else {
                                 setLiveGames(applyLiveGameHttpMerge);
@@ -9018,6 +9020,7 @@ export const useApp = () => {
                         // START_AI_GAME(대기실→규칙설명), CONFIRM_AI_GAME_START(경기시작→경기장) 모두 적용
                         if (
                             action.type === 'START_AI_GAME' ||
+                            action.type === 'START_TRAINING_GROUND_GAME' ||
                             action.type === 'START_ADVENTURE_MONSTER_BATTLE' ||
                             action.type === 'CONFIRM_AI_GAME_START' ||
                             action.type === 'START_SINGLE_PLAYER_GAME' ||
@@ -14531,6 +14534,11 @@ export const useApp = () => {
             closeTrainingQuest: () => {
                 setIsTrainingQuestModalOpen(false);
                 setActiveQuickUtilityPanel((prev) => (prev === 'trainingQuest' ? null : prev));
+            },
+            openTrainingGround: () => {
+                if (!openQuickUtilityViewport('trainingGround')) {
+                    setActiveQuickUtilityPanel('trainingGround');
+                }
             },
             openMatchArena: () => {
                 if (!openQuickUtilityViewport('matchArena')) {

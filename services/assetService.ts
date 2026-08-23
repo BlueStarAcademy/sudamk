@@ -28,6 +28,7 @@ import {
     TOWER_CHALLENGE_LOBBY_IMG,
     PAIR_GO_LOBBY_IMG,
     FACTORY_GO_LOBBY_IMG,
+    TRAINING_GROUND_GO_LOBBY_IMG,
     GUILD_GO_LOBBY_IMG,
 } from '../assets.js';
 import { ItemGrade } from '../types.js';
@@ -126,6 +127,7 @@ const ENTRY_ARENA_LOBBY_URLS = dedupePaths([
     SINGLE_PLAYER_LOBBY_IMG,
     TOWER_CHALLENGE_LOBBY_IMG,
     FACTORY_GO_LOBBY_IMG,
+    TRAINING_GROUND_GO_LOBBY_IMG,
     GUILD_GO_LOBBY_IMG,
 ]);
 

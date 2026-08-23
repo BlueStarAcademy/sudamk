@@ -40,6 +40,7 @@ import { handleTournamentAction } from './actions/tournamentActions.js';
 import { handleUserAction } from './actions/userActions.js';
 import { handleSinglePlayerAction } from './actions/singlePlayerActions.js';
 import { handleTowerAction } from './actions/towerActions.js';
+import { handleTrainingGroundAction } from './actions/trainingGroundActions.js';
 import { handleGuildAction } from './actions/guildActions.js';
 import { broadcast, broadcastToGameParticipants } from './socket.js';
 import { applyPveItemActionClientSync } from './pveItemSync.js';
@@ -2453,6 +2454,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
 
     // Non-Game actions
     // ADMIN_ 액션은 위에서 이미 처리됨
+    if (type === 'START_TRAINING_GROUND_GAME' || type === 'CLAIM_TRAINING_GROUND_AD_RESTORE') {
+        return handleTrainingGroundAction(volatileState, action, userData);
+    }
     if (type.includes('NEGOTIATION') || type === 'START_AI_GAME' || type === 'REQUEST_REMATCH' || type === 'CHALLENGE_USER' || type === 'SEND_CHALLENGE') return handleNegotiationAction(volatileState, action, userData);
     if (
         type === 'CLAIM_SINGLE_PLAYER_MISSION_REWARD' ||

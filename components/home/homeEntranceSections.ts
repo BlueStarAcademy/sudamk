@@ -1,5 +1,6 @@
 import {
     FACTORY_GO_LOBBY_IMG,
+    TRAINING_GROUND_GO_LOBBY_IMG,
     GUILD_GO_LOBBY_IMG,
     PAIR_GO_LOBBY_IMG,
     PLAYFUL_GO_LOBBY_IMG,
@@ -19,6 +20,7 @@ export type HomeEntranceCardId =
     | 'tower'
     | 'adventure'
     | 'factory'
+    | 'trainingGround'
     | 'friendly'
     | 'playground'
     | 'guild';
@@ -121,11 +123,16 @@ export const HOME_ENTRANCE_SECTIONS: HomeEntranceSectionDef[] = [
                 imageSrc: FACTORY_GO_LOBBY_IMG,
             },
             {
+                id: 'trainingGround',
+                titleKey: 'trainingGroundHomeTile',
+                accent: 'amber',
+                imageSrc: TRAINING_GROUND_GO_LOBBY_IMG,
+            },
+            {
                 id: 'guild',
                 titleKey: 'guildHomeTile',
                 accent: 'indigo',
                 imageSrc: GUILD_GO_LOBBY_IMG,
-                alignEnd: true,
             },
         ],
     },

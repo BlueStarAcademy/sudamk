@@ -547,6 +547,10 @@ const applyDefaults = (
         user.championshipDungeonDailyEntry ??
         (status?.serializedUser as User | undefined)?.championshipDungeonDailyEntry ??
         undefined,
+    trainingGround:
+        user.trainingGround ??
+        (status?.serializedUser as User | undefined)?.trainingGround ??
+        undefined,
     championshipVersusConditionSnapshot:
         user.championshipVersusConditionSnapshot ??
         (status?.serializedUser as User | undefined)?.championshipVersusConditionSnapshot ??

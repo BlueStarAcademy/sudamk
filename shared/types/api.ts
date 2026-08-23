@@ -382,6 +382,15 @@ export type ServerAction =
     | { type: 'ACCEPT_NEGOTIATION', payload: { negotiationId: string; settings: any } }
     | { type: 'DECLINE_NEGOTIATION', payload: { negotiationId: string } }
     | { type: 'START_AI_GAME', payload: { mode: GameMode, settings: any } }
+    | {
+          type: 'START_TRAINING_GROUND_GAME';
+          payload: {
+              track: 'kata' | 'pet';
+              kataLevel: number;
+              boardSize?: 9 | 13 | 19;
+          };
+      }
+    | { type: 'CLAIM_TRAINING_GROUND_AD_RESTORE'; payload: { track: 'kata' | 'pet' } }
     | { type: 'CONFIRM_AI_GAME_START', payload: { gameId: string } }
     | { type: 'PAUSE_AI_GAME', payload: { gameId: string } }
     | { type: 'RESUME_AI_GAME', payload: { gameId: string } }

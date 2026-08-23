@@ -18,6 +18,7 @@ const ShopModal = lazy(() => import('../ShopModal.js'));
 const InventoryModal = lazy(() => import('../InventoryModal.js'));
 const PetManagementModal = lazy(() => import('../PetManagementModal.js'));
 const TrainingQuestModal = lazy(() => import('../singleplayer/TrainingQuestModal.js'));
+const TrainingGroundPanel = lazy(() => import('../training-ground/TrainingGroundPanel.js'));
 const StrategicRankedMatchArena = lazy(() => import('../arenas/waiting/StrategicRankedMatchArena.js'));
 const HomeWaitingLobbyEmbed = lazy(() => import('../home/HomeWaitingLobbyEmbed.js'));
 const TournamentLobby = lazy(() => import('../TournamentLobby.js'));
@@ -136,6 +137,8 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
                         onClose={onBack}
                     />
                 );
+            case 'trainingGround':
+                return <TrainingGroundPanel />;
             case 'matchArena':
             case 'rankedMatch':
             case 'normalMatch':
@@ -241,7 +244,8 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
         kind === 'singleplayer' ||
         kind === 'tower' ||
         kind === 'adventure' ||
-        kind === 'guild';
+        kind === 'guild' ||
+        kind === 'trainingGround';
 
     return (
         <div
@@ -270,7 +274,7 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
                 className={
                     isMobileShell
                         ? `relative flex min-h-0 flex-1 flex-col overflow-hidden ${MOBILE_QUICK_UTILITY_BODY_SCROLL_CLASS}`
-                        : kind === 'singleplayer' || kind === 'tower' || kind === 'adventure' || kind === 'guild'
+                        : kind === 'singleplayer' || kind === 'tower' || kind === 'adventure' || kind === 'guild' || kind === 'trainingGround'
                           ? `relative mt-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-transparent shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ${chrome.bodyRingClass} sm:mt-1.5`
                           : `relative mt-1 flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-white/10 bg-black/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.07)] ring-1 backdrop-blur-[2px] ${chrome.bodyRingClass} sm:mt-1.5`
                 }
