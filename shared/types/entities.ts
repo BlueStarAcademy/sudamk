@@ -80,7 +80,7 @@ export type PairPetHatcherySession = {
     startedAt: number;
     /** 부화 시작 시 차감한 알 인벤 행 id (취소 시 복구) */
     eggItemId?: string;
-    /** 부화에 사용한 알의 templateId (예: `pair-egg-welcome` → 1분·레벨 10) */
+    /** 부화에 사용한 알의 templateId (예: `pair-egg-welcome` → 8초·레벨 10) */
     eggTemplateId?: string;
 };
 
@@ -831,11 +831,13 @@ export type User = {
   equippedPairPetTemplateId?: string | null;
   /** 동종 펫이 여러 마리일 때 대표로 쓸 정확한 인벤 행 (`inventory[].id`) */
   equippedPairPetInventoryItemId?: string | null;
-  /** 펫 온보딩 단계 시각(장착 / 힌트 착점 / 수련 파견) */
+  /** 펫 온보딩 단계 시각(장착 / 힌트 착점 / 수련 파견 / 첫 가이드) */
   pairPetOnboarding?: {
     equippedAt?: number | null;
     petHintPlacedAt?: number | null;
     trainingStartedAt?: number | null;
+    /** 첫 접속 펫·모험 가이드가 모험 입장으로 끝난 시각 */
+    walkthroughCompletedAt?: number | null;
   };
   /** 페어 경기장 펫 탭 로비 인벤 슬롯 수(기본 10, 최대 50, 확장 시 +5) */
   pairPetLobbyPetSlotCount?: number;

@@ -250,6 +250,36 @@ describe('stripHumanPvpTurnLimitFields', () => {
         expect(out.boardSize).toBe(9);
         expect(out.chessPieceTotalScore).toBe(9);
     });
+
+    it('mix+chess AI uses chess scoring turn limits', () => {
+        const out = sanitizePvpGameSettings(
+            GameMode.Mix,
+            {
+                mixedModes: [GameMode.Chess, GameMode.Hidden],
+                boardSize: 13,
+                komi: 6.5,
+                scoringTurnLimit: 130,
+            } as GameSettings,
+            { isAiGame: true },
+        );
+        expect(out.scoringTurnLimit).toBe(120);
+        expect(out.timeLimit).toBe(0);
+    });
+
+    it('mix+castle AI strips scoring turn limits', () => {
+        const out = sanitizePvpGameSettings(
+            GameMode.Mix,
+            {
+                mixedModes: [GameMode.Castle, GameMode.Hidden],
+                boardSize: 13,
+                castleCount: 4,
+                scoringTurnLimit: 80,
+            } as GameSettings,
+            { isAiGame: true },
+        );
+        expect(out.scoringTurnLimit).toBe(0);
+        expect(out.castleCount).toBeGreaterThan(0);
+    });
 });
 
 describe('modeIncludesCaptureRuleForSettings', () => {

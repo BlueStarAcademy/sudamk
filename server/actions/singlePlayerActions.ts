@@ -707,6 +707,14 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             (game as any).singlePlayerStageDisplay = JSON.parse(JSON.stringify(stage)) as SinglePlayerStageInfo;
 
+            const { markPairPetOnboardingWalkthroughCompleted } = await import('../../shared/utils/pairPetOnboarding.js');
+            const { normalizeDismissedScreenGuides } = await import('../../shared/constants/screenGuideDismiss.js');
+            markPairPetOnboardingWalkthroughCompleted(user);
+            const dismissed = normalizeDismissedScreenGuides(user.dismissedScreenGuides);
+            if (!dismissed.includes('first_run_walkthrough')) dismissed.push('first_run_walkthrough');
+            if (!dismissed.includes('home')) dismissed.push('home');
+            user.dismissedScreenGuides = dismissed;
+
             // pending은 기본 save가 스킵되므로 force — 모달 장시간·캐시 정리 후에도 DB에서 복구
             await db.saveGame(game, true);
             const { updateGameCache } = await import('../gameCache.js');
@@ -725,7 +733,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
             // 그 다음 사용자 상태 브로드캐스트
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
             const { broadcastUserUpdate } = await import('../socket.js');
-            broadcastUserUpdate(user, ['actionPoints', 'singlePlayerProgress']);
+            broadcastUserUpdate(user, ['actionPoints', 'singlePlayerProgress', 'pairPetOnboarding', 'dismissedScreenGuides']);
 
             // 클라이언트가 즉시 게임을 로드할 수 있도록 게임 데이터를 응답에 포함
             const gameCopy = JSON.parse(JSON.stringify(game));

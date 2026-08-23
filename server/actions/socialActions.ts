@@ -2196,9 +2196,7 @@ export function configurePairClassicGameStart(
         game.preGameConfirmations = { ...(pairGame.orderRevealConfirmed ?? {}) };
         game.revealEndTime = undefined;
     }
-    if (game.mode === GameMode.Castle) {
-        ensureCastleStonePointsForSession(game);
-    }
+    ensureCastleStonePointsForSession(game);
 }
 
 const getRankedRatingForMode = (user: Pick<User, 'stats'> | null | undefined, mode: GameMode): number => {

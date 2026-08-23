@@ -12,7 +12,7 @@ export const WELCOME_SPECIAL_EGG_MAIL_MESSAGE = `수담에 오신 걸 환영합�
 2) 모험에서 펫 힌트를 눌러 추천 자리에 착점해 보세요.
 3) 두 번째 알을 부화한 뒤 기술수련에 보내 성장을 시작하세요.
 
-특징: 특알 첫 부화 1분, 10레벨 펫 부화`;
+특징: 특알 첫 부화 약 8초, 10레벨 펫 부화`;
 
 /** 우편 1통(안내만 — 알은 인벤 스타터로 지급)을 유저 객체에 추가합니다. `mailId`가 이미 있으면 false. */
 export function appendWelcomeSpecialEggMailToUser(user: User, options?: { mailId?: string }): boolean {

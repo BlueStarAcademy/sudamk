@@ -34,7 +34,7 @@ import {
 } from '../../shared/utils/chessGoRules.js';
 import { handleChessMoveAction, handleChessPlacementAction, initializeChessGame, repairChessGoSessionState, tryEndChessOnKingCapture } from './chess.js';
 import { enterChessPiecePlacement, updateChessPlacementState } from './chessPlacementFlow.js';
-import { processCastleMove } from '../../shared/utils/castleGoRules.js';
+import { processCastleMove, sessionUsesCastleGo } from '../../shared/utils/castleGoRules.js';
 import {
     handleSharedAction,
     transitionToPlaying,
@@ -400,7 +400,7 @@ function updatePairOrderRevealState(game: types.LiveGameSession, now: number): v
         enterChessPiecePlacement(game, now);
         return;
     }
-    if (game.mode === types.GameMode.Castle) {
+    if (sessionUsesCastleGo(game)) {
         ensureCastleStonePointsForSession(game);
     }
     // `transitionToPlaying`가 sync 후 `getCurrentPairTurnSeat`로 currentPlayer를 맞춘다.
@@ -577,6 +577,20 @@ export const initializeStrategicGame = (game: types.LiveGameSession, neg: types.
             }
             if (modeIncludesBaseRule(game.mode, game.settings)) {
                 initializeBase(game, now);
+                if (sessionUsesCastleGo(game)) {
+                    ensureCastleStonePointsForSession(game);
+                }
+                break;
+            }
+            if (sessionUsesChessGo(game)) {
+                initializeChessGame(game, neg, now);
+                if (sessionUsesCastleGo(game)) {
+                    ensureCastleStonePointsForSession(game);
+                }
+                break;
+            }
+            if (sessionUsesCastleGo(game)) {
+                initializeCastleGame(game, neg, now);
                 break;
             }
             if (usesServerKataAi) {
@@ -1452,7 +1466,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 game[usedKey] = (game[usedKey] || 0) + 1;
             }
 
-            const isCastleGame = game.mode === types.GameMode.Castle;
+            const isCastleGame = sessionUsesCastleGo(game);
             const isChessGame = sessionUsesChessGo(game);
             if (isChessGame) {
                 repairChessGoSessionState(game);

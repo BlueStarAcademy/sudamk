@@ -10,6 +10,8 @@ export type PairPetOnboardingState = {
     petHintPlacedAt?: number | null;
     /** 기술수련(슬롯0) 파견 완료 시각 */
     trainingStartedAt?: number | null;
+    /** 첫 접속 펫·모험 가이드 완료 시각 */
+    walkthroughCompletedAt?: number | null;
 };
 
 export type PairPetOnboardingStep = 'equip' | 'petHint' | 'training' | 'done';
@@ -25,6 +27,7 @@ export function normalizePairPetOnboarding(raw: unknown): PairPetOnboardingState
         equippedAt: num(o.equippedAt),
         petHintPlacedAt: num(o.petHintPlacedAt),
         trainingStartedAt: num(o.trainingStartedAt),
+        walkthroughCompletedAt: num(o.walkthroughCompletedAt),
     };
 }
 
@@ -94,4 +97,10 @@ export function markPairPetOnboardingTrainingStarted(user: User, at = Date.now()
     const cur = getPairPetOnboarding(user);
     if (cur.trainingStartedAt) return;
     user.pairPetOnboarding = { ...cur, trainingStartedAt: at };
+}
+
+export function markPairPetOnboardingWalkthroughCompleted(user: User, at = Date.now()): void {
+    const cur = getPairPetOnboarding(user);
+    if (cur.walkthroughCompletedAt) return;
+    user.pairPetOnboarding = { ...cur, walkthroughCompletedAt: at };
 }

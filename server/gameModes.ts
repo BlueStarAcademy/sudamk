@@ -22,7 +22,7 @@ import {
     prepareChessGoSessionForScoring,
     sessionUsesChessGo,
 } from '../shared/utils/chessGoRules.js';
-import { TOWER_AI_BOT_DISPLAY_NAME } from '../constants/towerConstants.js';
+import { sessionUsesCastleGo } from '../shared/utils/castleGoRules.js';
 import {
     isAiInitialHiddenSoftFoundByAnyPlayer,
     isHiddenMoveIndexSoftRevealedByAnyPlayer,
@@ -562,7 +562,7 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
         return game;
     }
 
-    if (game.mode === types.GameMode.Castle) {
+    if (sessionUsesCastleGo(game)) {
         if (game.endTime == null) game.endTime = Date.now();
         game.gameStatus = 'scoring';
         game.winReason = 'score';

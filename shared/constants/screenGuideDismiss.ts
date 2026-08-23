@@ -10,6 +10,7 @@ export const SCREEN_GUIDE_IDS = [
     'championship',
     'adventure',
     'petManagement',
+    'first_run_walkthrough',
     'sp_tutorial_capture_basics',
     'sp_tutorial_pattern',
     'sp_tutorial_survival',

@@ -943,7 +943,9 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const isCaptureRuleActive =
         mode === GameMode.Capture ||
         (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Capture)));
-    const isCastleMode = mode === GameMode.Castle;
+    const isCastleMode =
+        mode === GameMode.Castle ||
+        (mode === GameMode.Mix && Boolean(session.settings.mixedModes?.includes(GameMode.Castle)));
     const basePrePlayFreezeStatuses: GameStatus[] = [
         'base_placement',
         'base_stone_color_choice',

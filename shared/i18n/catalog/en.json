@@ -3030,6 +3030,22 @@
       "openPet": "Pet management",
       "openAcademy": "Go to Academy"
     },
+    "firstRunGuide": {
+      "welcomeTitle": "Meet your Go partner",
+      "welcomeBody": "{{name}}, a partner who plays Go is waiting. Shall we hatch the special egg?",
+      "start": "Start",
+      "skip": "Skip",
+      "openPet": "Tap Pet in the quick menu to open the hatchery.",
+      "startHatch": "Put the special egg in hatchery slot 1 and start hatching.",
+      "confirmHatch": "One special egg brings your first partner.",
+      "waitHatch": "Just a moment — they’re about to wake.",
+      "claimPet": "They’re here! Claim your pet.",
+      "equipPet": "Set them as your representative pet to adventure together.",
+      "equipCta": "Set as representative pet",
+      "openAdventure": "Head to Adventure — Sprout Forest — with your partner.",
+      "selectFirstStage": "This is the first gate. Tap gate 1.",
+      "startFirstStage": "Enter and start your first game."
+    },
     "adventure": {
       "title": "Exploration",
       "companionPet": "Companion pet",
@@ -5183,7 +5199,7 @@
       },
       "pet_egg-special": {
         "name": "Mysterious Egg (Special)",
-        "description": "A specially adorned golden egg. Hatches in 1 minute in any hatchery slot and yields a level 10 AI pet."
+        "description": "A specially adorned golden egg. Hatches in about 8 seconds in any hatchery slot and yields a level 10 AI pet."
       },
       "pet_soulstone1": {
         "name": "Sprout Soul Stone",
@@ -5419,7 +5435,7 @@
           "soulGradeUpgrade": "[Pet · Grade up] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}}+)",
           "soulGradeUpgradeGeneric": "[Pet · Grade up] Used to raise pair arena AI pet grade",
           "eggHatchRandom": "[Pet · Incubator] Place in a slot to hatch a random AI pet",
-          "welcomeEggHatch": "[Pet · Incubator] 1 min hatch — level 10 AI pet"
+          "welcomeEggHatch": "[Pet · Incubator] ~8 sec hatch — level 10 AI pet"
         }
       },
       "enhanceRange": {

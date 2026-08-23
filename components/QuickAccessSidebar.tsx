@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppUserSlice, useAppUiSlice, useAppRealtimeSlice } from '../hooks/useAppSlices.js';
 import { calculateTotalStats } from '../services/statService.js';
@@ -10,6 +10,8 @@ import {
 import { useLocalizedQuickUtilityPanel } from '../shared/i18n/localizedCatalog.js';
 import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js';
 import { NEW_FEATURE_BADGE_CLASS } from '../utils/newFeatureBadges.js';
+import { TutorialAnchor } from './tutorial/FirstRunGuideContext.js';
+import { isFirstRunGuideEligible } from '../shared/utils/firstRunGuide.js';
 interface QuickAccessSidebarProps {
     mobile?: boolean;
     compact?: boolean;
@@ -191,6 +193,11 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     const utilityButtons = buttons.filter((b) => !b.gameplay);
     const [mobileHeaderDrawer, setMobileHeaderDrawer] = useState<'menu1' | 'menu2' | 'collapsed'>('menu1');
 
+    useEffect(() => {
+        if (!currentUserWithStatus || !isFirstRunGuideEligible(currentUserWithStatus)) return;
+        setMobileHeaderDrawer('menu1');
+    }, [currentUserWithStatus]);
+
     const notificationDotClass =
         'absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-slate-900 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5';
     const notificationCountClass =
@@ -275,7 +282,7 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
         const labelClass = topBar
             ? 'w-full shrink-0 truncate text-center text-[10px] font-semibold leading-tight text-gray-100'
             : 'w-full truncate text-center text-[clamp(8px,2.8vw,10px)] font-semibold leading-tight text-gray-100';
-        return (
+        const button = (
             <button
                 key={btn.kind}
                 type="button"
@@ -299,6 +306,12 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                     ))}
                 {btn.newBadge && <span className={`${NEW_FEATURE_BADGE_CLASS} left-0.5 top-0.5 scale-90`}>NEW</span>}
             </button>
+        );
+        if (btn.kind !== 'pet') return button;
+        return (
+            <TutorialAnchor key={btn.kind} id="quick-pet" className="flex min-h-0 min-w-0 flex-1">
+                {button}
+            </TutorialAnchor>
         );
     };
 
@@ -406,16 +419,15 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
     const emojiPcGameplay = compact ? 'text-[1.75rem] leading-none' : 'text-[2.15rem] leading-none sm:text-[2.35rem]';
     const emojiPcUtility = compact ? 'text-[1.75rem] leading-none' : 'text-[2.15rem] leading-none sm:text-[2.35rem]';
 
-    const labelPc = compact ? 'text-[9px] font-semibold text-gray-100' : 'text-[10px] font-semibold text-gray-100 sm:text-[11px]';
+        const labelPc = compact ? 'text-[9px] font-semibold text-gray-100' : 'text-[10px] font-semibold text-gray-100 sm:text-[11px]';
 
     const renderVerticalButton = (btn: QuickBtn) => {
         const label = translateQuickPanel(btn.kind);
         const base = btn.gameplay ? pcBtnGameplay : pcBtnUtility;
         const imgCls = btn.gameplay ? iconPcGameplay : iconPcUtility;
         const emoCls = btn.gameplay ? emojiPcGameplay : emojiPcUtility;
-        return (
+        const button = (
             <button
-                key={btn.kind}
                 type="button"
                 onClick={(e) => {
                     e.preventDefault();
@@ -445,6 +457,12 @@ const QuickAccessSidebar: React.FC<QuickAccessSidebarProps> = ({
                     ))}
                 {btn.newBadge && <span className={`${NEW_FEATURE_BADGE_CLASS} left-1 top-1`}>NEW</span>}
             </button>
+        );
+        if (btn.kind !== 'pet') return <React.Fragment key={btn.kind}>{button}</React.Fragment>;
+        return (
+            <TutorialAnchor key={btn.kind} id="quick-pet" className="flex min-h-0 min-w-0 flex-1 flex-col">
+                {button}
+            </TutorialAnchor>
         );
     };
 

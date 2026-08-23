@@ -1,6 +1,7 @@
 import { GameMode, Player } from '../types/enums.js';
 import type { BoardState, LiveGameSession, Point } from '../types/entities.js';
 import { clampCastleCount, getDefaultCastleCountByBoardSize, type CastleCount } from '../constants/gameSettings.js';
+import { mixIncludesCastle } from './mixModeSettings.js';
 
 export type CastleTerritoryOwner = Player.Black | Player.White;
 
@@ -20,6 +21,16 @@ export function parsePointKey(key: string): Point {
 
 export function isCastleMode(mode: unknown): boolean {
     return mode === GameMode.Castle;
+}
+
+/** 순수 캐슬 바둑 또는 믹스바둑에 캐슬 규칙이 포함된 세션 */
+export function sessionUsesCastleGo(
+    session: Pick<LiveGameSession, 'mode' | 'settings'>,
+): boolean {
+    return (
+        session.mode === GameMode.Castle ||
+        (session.mode === GameMode.Mix && mixIncludesCastle(session.settings?.mixedModes))
+    );
 }
 
 export function getCastleStoneSet(session: CastleGoSessionSlice): Set<string> {

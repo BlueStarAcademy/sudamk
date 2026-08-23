@@ -116,6 +116,7 @@ import {
     PAIR_EGG_MATERIAL_NAME,
     PAIR_WELCOME_EGG_DISPLAY_IMAGE,
     PAIR_WELCOME_EGG_MATERIAL_NAME,
+    PAIR_WELCOME_EGG_HATCH_LEVEL,
     PAIR_WELCOME_EGG_TEMPLATE_ID,
     PAIR_SOULSTONE_TEMPLATE_IDS,
     findFirstHatchablePairEgg,
@@ -123,6 +124,7 @@ import {
     isPairWelcomeEggItem,
     isPairPetMaterial,
     isPairSoulStoneItem,
+    pairEggTemplateIdForHatch,
     pairPetLobbyInventorySlots,
     pairPetLobbyExpandDiamondCost,
     countPairLobbyPetEntriesInInventory,
@@ -179,6 +181,12 @@ import {
 } from '../../shared/utils/pairPetQuickClaimNotification.js';
 import { resolvePairPetRpsAttributeFromMeta } from '../../shared/utils/pairPetRps.js';
 import PairPetRpsBadge from './PairPetRpsBadge.js';
+import { TutorialAnchor, useFirstRunGuideOptional } from '../tutorial/FirstRunGuideContext.js';
+import {
+    isFirstRunGuideEligible,
+} from '../../shared/utils/firstRunGuide.js';
+import { countOwnedPairPets, hasCompletedPetEquipStep } from '../../shared/utils/pairPetOnboarding.js';
+
 type AiTab = 'info' | 'training' | 'hatchery' | 'shop';
 type InvFilter = 'pet' | 'soul';
 type ShopSkuTab = 'egg' | 'soul';
@@ -731,6 +739,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
     /** 수련·부화 탭 붉은점: 다른 탭에 있어도 완료 시각이 지나면 갱신 */
     const [pairLobbyPendingTick, setPairLobbyPendingTick] = useState(0);
     const [hatcheryConfirmSlotIndex, setHatcheryConfirmSlotIndex] = useState<number | null>(null);
+    const firstRunGuide = useFirstRunGuideOptional();
     const [hatcheryInstantConfirmSlotIndex, setHatcheryInstantConfirmSlotIndex] = useState<number | null>(null);
     const [hatcheryPetInvFullModalOpen, setHatcheryPetInvFullModalOpen] = useState(false);
     const [soulConvertItem, setSoulConvertItem] = useState<InventoryItem | null>(null);
@@ -981,7 +990,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
 
     useEffect(() => {
         if (aiTab !== 'hatchery') return undefined;
-        const id = window.setInterval(() => setHatcheryTick((n) => n + 1), 1000);
+        const id = window.setInterval(() => setHatcheryTick((n) => n + 1), 250);
         return () => window.clearInterval(id);
     }, [aiTab]);
 
@@ -989,6 +998,19 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
         const id = window.setInterval(() => setPairLobbyPendingTick((n) => n + 1), 1000);
         return () => window.clearInterval(id);
     }, []);
+
+    const setHatchConfirmOpen = firstRunGuide?.setHatchConfirmOpen;
+    useEffect(() => {
+        setHatchConfirmOpen?.(hatcheryConfirmSlotIndex !== null);
+        return () => setHatchConfirmOpen?.(false);
+    }, [hatcheryConfirmSlotIndex, setHatchConfirmOpen]);
+
+    useEffect(() => {
+        if (!isFirstRunGuideEligible(currentUser)) return;
+        if (hasCompletedPetEquipStep(currentUser)) return;
+        if (countOwnedPairPets(currentUser) > 0) return;
+        setAiTab('hatchery');
+    }, [currentUser]);
 
     useEffect(() => {
         if (aiTab !== 'hatchery') {
@@ -1226,7 +1248,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
                     (!session && firstHatchEgg && isPairWelcomeEggItem(firstHatchEgg)),
             );
             const levelOutcome = hatchUsesWelcomeEgg ? (
-                <span className={`${PET_MGMT_SEMI} tabular-nums text-amber-100`}>{t('pet.levelFormat', { level: 5 })}</span>
+                <span className={`${PET_MGMT_SEMI} tabular-nums text-amber-100`}>
+                    {t('pet.levelFormat', { level: PAIR_WELCOME_EGG_HATCH_LEVEL })}
+                </span>
             ) : (
                 hatcheryLevelOutcomeLine(def)
             );
@@ -1237,8 +1261,12 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
 
             const effectiveDurationMs = session
                 ? getPairHatcheryDurationMs(slotIndex, session, currentUser)
-                : firstHatchEgg && isPairWelcomeEggItem(firstHatchEgg)
-                  ? 60_000
+                : firstHatchEgg
+                  ? getPairHatcheryDurationMs(
+                        slotIndex,
+                        { eggTemplateId: pairEggTemplateIdForHatch(firstHatchEgg) },
+                        currentUser,
+                    )
                   : def.durationMs;
             const durationHMS = formatHatcheryDurationHMS(effectiveDurationMs);
 
@@ -1277,6 +1305,20 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
             const actionPanel = hasActionPanel ? (
                 <div className={`${PET_MGMT_HATCHERY_INFO_CLASS} min-h-[2.125rem]`}>
                     {usable && !session ? (
+                        slotIndex === PAIR_HATCHERY_MAIN_SLOT_INDEX ? (
+                            <TutorialAnchor id="hatchery-start">
+                                <Button
+                                    type="button"
+                                    bare
+                                    disabled={isBusy || eggCount < 1}
+                                    onClick={() => setHatcheryConfirmSlotIndex(slotIndex)}
+                                    colorScheme="none"
+                                    className={hatchBtnStart}
+                                >
+                                    {t('hatchery.start')}
+                                </Button>
+                            </TutorialAnchor>
+                        ) : (
                         <Button
                             type="button"
                             bare
@@ -1287,6 +1329,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
                         >
                             {t('hatchery.start')}
                         </Button>
+                        )
                     ) : null}
                     {usable && session && !canClaim ? (
                         <div className={PET_MGMT_HATCHERY_ACTION_ROW_CLASS}>
@@ -1324,6 +1367,25 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
                         </div>
                     ) : null}
                     {usable && session && canClaim ? (
+                        slotIndex === PAIR_HATCHERY_MAIN_SLOT_INDEX ? (
+                            <TutorialAnchor id="hatchery-claim">
+                                <Button
+                                    type="button"
+                                    bare
+                                    disabled={isBusy}
+                                    title={
+                                        pairLobbyPetInvFull
+                                            ? t('hatchery.invFullHint')
+                                            : undefined
+                                    }
+                                    onClick={() => void handleHatcheryClaim(slotIndex)}
+                                    colorScheme="none"
+                                    className={hatchBtnClaim}
+                                >
+                                    {t('hatchery.claimPet')}
+                                </Button>
+                            </TutorialAnchor>
+                        ) : (
                         <Button
                             type="button"
                             bare
@@ -1339,6 +1401,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
                         >
                             {t('hatchery.claimPet')}
                         </Button>
+                        )
                     ) : null}
                     {isVip && !vipActive ? (
                         <div
@@ -1361,7 +1424,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
             const glowOrb = usable ? (isVip ? 'bg-amber-500/22' : 'bg-fuchsia-600/20') : 'bg-zinc-600/10';
             const topHairline = usable ? (isVip ? 'via-amber-400/45' : 'via-fuchsia-400/40') : 'via-white/15';
 
-            return (
+            const slotCard = (
                 <div
                     key={`hatch-def-${slotIndex}`}
                     className={`group relative ${petMgmtMobileShell ? PET_MGMT_HATCHERY_SLOT_OUTER_MOBILE_CLASS : PET_MGMT_HATCHERY_SLOT_OUTER_CLASS} gap-0.5 rounded-lg border p-1 shadow-md ${PET_MGMT_BASE} ${
@@ -1486,6 +1549,14 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
                     {actionPanel}
                 </div>
             );
+            if (slotIndex === PAIR_HATCHERY_MAIN_SLOT_INDEX) {
+                return (
+                    <TutorialAnchor key={`hatch-def-${slotIndex}`} id="hatchery-slot" className="min-w-0">
+                        {slotCard}
+                    </TutorialAnchor>
+                );
+            }
+            return slotCard;
         };
 
         const renderUpgradeTierCard = (tierDef: PairHatcheryUpgradeTierDef) => {
@@ -3085,7 +3156,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
                             : (MATERIAL_ITEMS[PAIR_EGG_MATERIAL_NAME as keyof typeof MATERIAL_ITEMS]?.image ??
                               PAIR_EGG_DISPLAY_IMAGE);
                         const confirmDurMs =
-                            startWelcome && d ? 60_000 : d ? d.durationMs : 0;
+                            startEgg && idx !== null
+                                ? getPairHatcheryDurationMs(idx, { eggTemplateId: pairEggTemplateIdForHatch(startEgg) }, currentUser)
+                                : d
+                                  ? d.durationMs
+                                  : 0;
                         const eggTitle = startWelcome ? `${PAIR_WELCOME_EGG_MATERIAL_NAME} ×1` : t('hatchery.mysteriousEgg');
                         return (
                             <div className="relative overflow-hidden">
@@ -3131,6 +3206,7 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
                                         >
                                             {tCommon('actions.cancel')}
                                         </button>
+                                        <TutorialAnchor id="hatchery-confirm" className="order-1 w-full min-w-[8.5rem] sm:order-2 sm:w-auto">
                                         <Button
                                             type="button"
                                             disabled={isBusy || eggCount < 1}
@@ -3147,10 +3223,11 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
                                                 setHatcheryConfirmSlotIndex(null);
                                             }}
                                             colorScheme="none"
-                                            className="order-1 w-full min-w-[8.5rem] !rounded-full !border !border-fuchsia-300/50 !bg-gradient-to-r !from-fuchsia-600 !via-fuchsia-500 !to-violet-600 !px-8 !py-2.5 !text-sm !font-black !tracking-wide !text-white !shadow-[0_8px_28px_rgba(147,51,234,0.45),inset_0_1px_0_rgba(255,255,255,0.2)] hover:!from-fuchsia-500 hover:!via-fuchsia-400 hover:!to-violet-500 disabled:!opacity-40 sm:order-2 sm:w-auto"
+                                            className="w-full !rounded-full !border !border-fuchsia-300/50 !bg-gradient-to-r !from-fuchsia-600 !via-fuchsia-500 !to-violet-600 !px-8 !py-2.5 !text-sm !font-black !tracking-wide !text-white !shadow-[0_8px_28px_rgba(147,51,234,0.45),inset_0_1px_0_rgba(255,255,255,0.2)] hover:!from-fuchsia-500 hover:!via-fuchsia-400 hover:!to-violet-500 disabled:!opacity-40"
                                         >
                                             {t('hatchery.startAction')}
                                         </Button>
+                                        </TutorialAnchor>
                                     </div>
                                 </div>
                             </div>

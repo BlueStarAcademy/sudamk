@@ -1,12 +1,12 @@
 import * as types from '../../types/index.js';
 import type { LiveGameSession, User } from '../../types/index.js';
-import { GameMode } from '../../types/enums.js';
 import {
     detectAndConfirmTerritories,
     generateCastleStonePoints,
     hasAnyLegalCastleMove,
     isCastleMode,
     scoreCastleGame,
+    sessionUsesCastleGo,
 } from '../../shared/utils/castleGoRules.js';
 import { clampCastleCount, getDefaultCastleCountByBoardSize } from '../../shared/constants/gameSettings.js';
 import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
@@ -18,7 +18,7 @@ export { isCastleMode };
 
 /** 페어·AI 등 `initializeCastleGame`을 거치지 않은 세션에서도 캐슬 돌 좌표를 보장한다. */
 export function ensureCastleStonePointsForSession(game: types.LiveGameSession): void {
-    if (game.mode !== GameMode.Castle) return;
+    if (!sessionUsesCastleGo(game)) return;
     if (game.castleStonePoints && game.castleStonePoints.length > 0) return;
 
     const boardSize = game.settings.boardSize ?? 13;
@@ -76,7 +76,7 @@ export async function tryEndCastleOnCapture(
     capturer: types.Player,
     capturedCount: number,
 ): Promise<boolean> {
-    if (game.mode !== GameMode.Castle) return false;
+    if (!sessionUsesCastleGo(game)) return false;
     if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') return false;
     if (capturedCount < 1) return false;
     await summaryService.endGame(game, capturer, 'castle_capture');
@@ -84,7 +84,7 @@ export async function tryEndCastleOnCapture(
 }
 
 export async function tryAutoScoreCastleIfNoMoves(game: types.LiveGameSession): Promise<boolean> {
-    if (game.mode !== GameMode.Castle) return false;
+    if (!sessionUsesCastleGo(game)) return false;
     if (game.gameStatus !== 'playing') return false;
     if (hasAnyLegalCastleMove(game)) return false;
 
@@ -94,7 +94,7 @@ export async function tryAutoScoreCastleIfNoMoves(game: types.LiveGameSession): 
 }
 
 export function applyCastleTerritoryAfterMove(game: types.LiveGameSession): void {
-    if (game.mode !== GameMode.Castle) return;
+    if (!sessionUsesCastleGo(game)) return;
     game.confirmedTerritoryOwnerByPoint = detectAndConfirmTerritories(game, game.boardState);
 }
 

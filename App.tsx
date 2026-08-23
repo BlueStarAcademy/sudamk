@@ -5,6 +5,8 @@ import Router from './components/Router.js';
 import { audioService } from './services/audioService.js';
 import InstallPrompt from './components/InstallPrompt.js';
 import AppModalLayer from './components/AppModalLayer.js';
+import FirstRunGuideOverlay from './components/tutorial/FirstRunGuideOverlay.js';
+import { FirstRunGuideProvider } from './components/tutorial/FirstRunGuideContext.js';
 import AppFooter from './components/AppFooter.js';
 import { VIEWPORT_HEIGHT_LAYOUT_BREAKPOINT } from './hooks/useIsMobileLayout.js';
 import AdProvider from './components/ads/AdProvider.js';
@@ -739,6 +741,7 @@ const AppContent: React.FC = () => {
                 </div>
             </div>
             )}
+            <FirstRunGuideOverlay />
         </div>
     );
 };
@@ -755,7 +758,9 @@ const App: React.FC = () => {
             <InAppBrowserEscapeGate />
             <AppProvider>
                 <AdProviderFromUser>
-                    <AppContent />
+                    <FirstRunGuideProvider>
+                        <AppContent />
+                    </FirstRunGuideProvider>
                 </AdProviderFromUser>
             </AppProvider>
         </div>

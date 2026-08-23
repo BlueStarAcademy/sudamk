@@ -157,7 +157,7 @@ export function getSelectiveUserUpdate(
         'COMPLETE_DUNGEON_STAGE': ['dungeonProgress', 'inventory', 'gold', 'diamonds', 'champCoins', 'tournamentScore', 'cumulativeTournamentScore', 'dailyDungeonScore', 'quests', 'neighborhoodRewardClaimed', 'nationalRewardClaimed', 'worldRewardClaimed', 'lastNeighborhoodPlayedDate', 'lastNationalPlayedDate', 'lastWorldPlayedDate', 'lastNeighborhoodTournament', 'lastNationalTournament', 'lastWorldTournament'],
         
         // 싱글플레이어 관련
-        'START_SINGLE_PLAYER_GAME': ['actionPoints', 'singlePlayerProgress'],
+        'START_SINGLE_PLAYER_GAME': ['actionPoints', 'singlePlayerProgress', 'pairPetOnboarding', 'dismissedScreenGuides'],
         
         // 길드 관련
         'GUILD_DONATE_GOLD': ['gold', 'guildCoins', 'dailyDonations', 'quests'],

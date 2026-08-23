@@ -69,6 +69,12 @@ export const SCREEN_GUIDE_HELP_CONFIG: Record<ScreenGuideId, ScreenGuideHelpConf
         categoryFilter: ['pet-management'],
         modalTitle: '펫 관리 안내',
     },
+    first_run_walkthrough: {
+        categoryId: 'pet-management',
+        subId: 'pet-mgmt-overview',
+        categoryFilter: ['pet-management'],
+        modalTitle: '첫 접속 가이드',
+    },
     sp_tutorial_capture_basics: {
         categoryId: 'pve-academy',
         subId: 'pve-singleplayer',

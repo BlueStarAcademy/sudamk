@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Player } from '../../../shared/types/enums.js';
+import { GameMode, Player } from '../../../shared/types/enums.js';
 import type { BoardState } from '../../../shared/types/entities.js';
 import {
     detectAndConfirmTerritories,
@@ -9,6 +9,7 @@ import {
     pointKey,
     processCastleMove,
     scoreCastleGame,
+    sessionUsesCastleGo,
 } from '../../../shared/utils/castleGoRules.js';
 
 function emptyBoard(size: number): BoardState {
@@ -200,5 +201,23 @@ describe('hasAnyLegalCastleMove', () => {
         board[1][1] = Player.Black;
         const session = sessionOf(board);
         expect(hasAnyLegalCastleMove(session)).toBe(false);
+    });
+});
+
+describe('sessionUsesCastleGo', () => {
+    it('is true for pure castle and mix with castle', () => {
+        expect(sessionUsesCastleGo({ mode: GameMode.Castle, settings: {} })).toBe(true);
+        expect(
+            sessionUsesCastleGo({
+                mode: GameMode.Mix,
+                settings: { mixedModes: [GameMode.Castle, GameMode.Hidden] },
+            }),
+        ).toBe(true);
+        expect(
+            sessionUsesCastleGo({
+                mode: GameMode.Mix,
+                settings: { mixedModes: [GameMode.Hidden, GameMode.Speed] },
+            }),
+        ).toBe(false);
     });
 });

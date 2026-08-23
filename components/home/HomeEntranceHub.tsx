@@ -100,6 +100,7 @@ const HomeEntranceHub: React.FC<HomeEntranceHubProps> = ({
                             badge={state?.badge}
                             className={card.alignEnd ? 'sm:col-start-3' : undefined}
                             onEnter={handlers[card.id]}
+                            tutorialAnchorId={card.id === 'stage' ? 'home-stage' : undefined}
                         />
                     );
                 })}

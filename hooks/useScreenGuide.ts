@@ -6,6 +6,7 @@ import {
     syncDismissedScreenGuidesFromUser,
     type ScreenGuideId,
 } from '../utils/screenGuideDismiss.js';
+import { shouldSuppressScreenGuideForFirstRun } from '../shared/utils/firstRunGuide.js';
 
 type UseScreenGuideOptions = {
     /** false면 자동 표시 안 함 (온보딩 등) */
@@ -29,7 +30,8 @@ export function useScreenGuide(
     const { settings, currentUserWithStatus, handlers } = useAppContext();
     const userId = currentUserWithStatus?.id ?? null;
     const autoShowFromSettings = settings.features.screenGuideModals !== false;
-    const { enabled = autoShowFromSettings, active = true } = options;
+    const firstRunBlocks = shouldSuppressScreenGuideForFirstRun(guideId, currentUserWithStatus);
+    const { enabled = autoShowFromSettings && !firstRunBlocks, active = true } = options;
     const [isOpen, setIsOpen] = useState(false);
 
     useEffect(() => {

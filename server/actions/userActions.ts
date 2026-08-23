@@ -917,6 +917,11 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
             if (!prev.includes(guideId)) {
                 user.dismissedScreenGuides = [...prev, guideId];
             }
+            if (guideId === 'first_run_walkthrough') {
+                const next = normalizeDismissedScreenGuides(user.dismissedScreenGuides);
+                if (!next.includes('home')) next.push('home');
+                user.dismissedScreenGuides = next;
+            }
             if (guideId === 'sp_tutorial_pet_hint') {
                 const { markPairPetOnboardingPetHintPlaced } = await import('../../shared/utils/pairPetOnboarding.js');
                 markPairPetOnboardingPetHintPlaced(user);

@@ -53,6 +53,8 @@ import {
     applyMixModeSettingsConstraints,
     getMixBoardSizeOptions,
     isMixSubModeCheckboxDisabled,
+    mixIncludesCastle,
+    mixIncludesChess,
     normalizeMixedModesSelection,
 } from '../../shared/utils/mixModeSettings.js';
 import StrategicTimeControlFields from '../game/StrategicTimeControlFields.js';
@@ -300,7 +302,25 @@ function modeIncludesCaptureRule(mode: GameMode, settings: Pick<GameSettings, 'm
 
 function normalizeAiScoringTurnLimit(mode: GameMode, settings: GameSettings): GameSettings {
     if (!SPECIAL_GAME_MODES.some(m => m.mode === mode)) return settings;
-    if (mode === GameMode.Chess) {
+    const chessRule = mode === GameMode.Chess || mixIncludesChess(settings.mixedModes);
+    const castleRule = mode === GameMode.Castle || mixIncludesCastle(settings.mixedModes);
+    if (modeIncludesCaptureRule(mode, settings) || (castleRule && !chessRule)) {
+        const next = { ...settings, scoringTurnLimit: 0 };
+        delete (next as any).autoScoringTurns;
+        if (!chessRule) return next;
+        const bs = (next.boardSize === 9 ? 9 : 13) as GameSettings['boardSize'];
+        return {
+            ...next,
+            boardSize: bs,
+            komi: getDefaultChessKomiByBoardSize(bs),
+            scoringTurnLimit: 0,
+            chessPieceTotalScore: clampChessPieceTotalScore(
+                next.chessPieceTotalScore ?? getDefaultChessPieceTotalScore(bs),
+                bs,
+            ),
+        };
+    }
+    if (chessRule) {
         const bs = (settings.boardSize === 9 ? 9 : 13) as GameSettings['boardSize'];
         return {
             ...settings,
@@ -312,11 +332,6 @@ function normalizeAiScoringTurnLimit(mode: GameMode, settings: GameSettings): Ga
                 bs,
             ),
         };
-    }
-    if (mode === GameMode.Castle || modeIncludesCaptureRule(mode, settings)) {
-        const next = { ...settings, scoringTurnLimit: 0 };
-        delete (next as any).autoScoringTurns;
-        return next;
     }
     return {
         ...settings,
@@ -1019,10 +1034,16 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                 newSettings.chessPieceTotalScore = getDefaultChessPieceTotalScore(boardSize);
                 newSettings.scoringTurnLimit = clampChessScoringTurnLimit(newSettings.scoringTurnLimit, boardSize);
             }
-            if (selectedGameMode === GameMode.Chess && key === 'chessPieceTotalScore') {
+            if (
+                (selectedGameMode === GameMode.Chess || mixIncludesChess(newSettings.mixedModes)) &&
+                key === 'chessPieceTotalScore'
+            ) {
                 newSettings.chessPieceTotalScore = clampChessPieceTotalScore(value, newSettings.boardSize ?? 13);
             }
-            if (selectedGameMode === GameMode.Chess && key === 'scoringTurnLimit') {
+            if (
+                (selectedGameMode === GameMode.Chess || mixIncludesChess(newSettings.mixedModes)) &&
+                key === 'scoringTurnLimit'
+            ) {
                 newSettings.scoringTurnLimit = clampChessScoringTurnLimit(value, newSettings.boardSize ?? 13);
             }
             if (selectedGameMode === GameMode.Mix && key === 'mixedModes') {
@@ -1384,7 +1405,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
         const showSpeedTimeControls =
             selectedGameMode === GameMode.Speed || (isMixMode && mixModes.includes(GameMode.Speed));
         const showCastleCount = selectedGameMode === GameMode.Castle || (isMixMode && mixModes.includes(GameMode.Castle));
-        const showChessPieceTotalScore = selectedGameMode === GameMode.Chess && settings.boardSize === 13;
+        const showChessPieceTotalScore =
+            (selectedGameMode === GameMode.Chess || (isMixMode && mixIncludesChess(mixModes))) &&
+            settings.boardSize === 13;
         const showTimeControls =
             pairFriendlyHumanClock &&
             !modesWithoutClockUi.includes(selectedGameMode);
@@ -1405,8 +1428,17 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
 
         const showGoAiLevel = lobbyType === 'strategic' && !pairRoomHideGoAiLevel;
         const captureRuleSelected = modeIncludesCaptureRule(selectedGameMode, settings);
-        const showChessScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && selectedGameMode === GameMode.Chess;
-        const showScoringTurnLimit = !hideScoringTurnLimit && showGoAiLevel && !captureRuleSelected && selectedGameMode !== GameMode.Castle && selectedGameMode !== GameMode.Chess;
+        const showChessScoringTurnLimit =
+            !hideScoringTurnLimit &&
+            showGoAiLevel &&
+            (selectedGameMode === GameMode.Chess || (isMixMode && mixIncludesChess(mixModes)));
+        const showScoringTurnLimit =
+            !hideScoringTurnLimit &&
+            showGoAiLevel &&
+            !captureRuleSelected &&
+            selectedGameMode !== GameMode.Castle &&
+            selectedGameMode !== GameMode.Chess &&
+            !(isMixMode && (mixIncludesChess(mixModes) || mixIncludesCastle(mixModes)));
         /** 전략·놀이 AI 대전 인라인: AI단계·판 크기·계가 턴을 한 줄로 */
         const horizontalPrimaryAiDuelSettings = Boolean(
             denseSettings &&

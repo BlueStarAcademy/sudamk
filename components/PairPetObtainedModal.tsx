@@ -12,6 +12,7 @@ import PairPetSoulConvertModal from './pair/PairPetSoulConvertModal.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { computeOptimisticPairPetSoulConvert } from '../shared/utils/pairPetSoulConvert.js';
 import { useAppContext } from '../hooks/useAppContext.js';
+import { TutorialAnchor } from './tutorial/FirstRunGuideContext.js';
 import { normalizePairPetTrainingSlots, isItemIdInPairTraining } from '../shared/constants/pairTraining.js';
 import { PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE } from '../shared/constants/pairHatchery.js';
 import {
@@ -32,7 +33,7 @@ export interface PairPetObtainedModalProps {
 }
 
 const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser, item, mode, onClose, isTopmost }) => {
-    const { t } = useTranslation('game');
+    const { t } = useTranslation(['game', 'lobby']);
     const { currentUserWithStatus, handlers } = useAppContext();
     const [isBusy, setIsBusy] = useState(false);
     const [soulConvertTarget, setSoulConvertTarget] = useState<InventoryItem | null>(null);
@@ -136,6 +137,8 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
 
     const showRepresentativeBadge =
         mode === 'view' && getEquippedPairPetInventoryRow(userForView)?.id === item.id;
+    const needsFirstEquip = mode === 'obtain' && !equippedRow;
+    const obtainTid = liveItem.templateId;
 
     const petDetailBody = (
         <PairPetLobbyInfoPetViewer
@@ -184,13 +187,31 @@ const PairPetObtainedModal: React.FC<PairPetObtainedModalProps> = ({ currentUser
                 </div>
                 {mode === 'obtain' ? (
                     <div className={`${ITEM_OBTAIN_MODAL_FOOTER_ROW_CLASS} shrink-0 border-t border-slate-700/50`}>
-                        <button
-                            type="button"
-                            onClick={onClose}
-                            className={ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS}
-                        >
-                            확인
-                        </button>
+                        {needsFirstEquip && obtainTid ? (
+                            <TutorialAnchor id="equip-rep">
+                                <button
+                                    type="button"
+                                    disabled={isBusy || petInTraining}
+                                    onClick={() => {
+                                        void (async () => {
+                                            await equipPet(obtainTid, liveItem.id);
+                                            onClose();
+                                        })();
+                                    }}
+                                    className={ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS}
+                                >
+                                    {t('lobby:firstRunGuide.equipCta')}
+                                </button>
+                            </TutorialAnchor>
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={onClose}
+                                className={ITEM_OBTAIN_MODAL_CONFIRM_BUTTON_CLASS}
+                            >
+                                {t('game:pairPet.confirm', { defaultValue: '확인' })}
+                            </button>
+                        )}
                     </div>
                 ) : null}
             </DraggableWindow>

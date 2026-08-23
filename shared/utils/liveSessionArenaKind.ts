@@ -88,8 +88,8 @@ export function modeIncludesStandardRule(mode: unknown, settings: Pick<GameSetti
     return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Standard);
 }
 
-export function modeIncludesCastleRule(mode: unknown, _settings?: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
-    return mode === GameMode.Castle;
+export function modeIncludesCastleRule(mode: unknown, settings?: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {
+    return mixGoOrPureModeIncludes(mode, settings?.mixedModes, GameMode.Castle);
 }
 
 export function modeIncludesBaseCaptureMix(mode: unknown, settings: Pick<GameSettings, 'mixedModes'> | null | undefined): boolean {

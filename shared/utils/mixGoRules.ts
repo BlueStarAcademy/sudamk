@@ -12,6 +12,8 @@ export const MIX_GO_COMBINABLE_SUB_MODES: readonly GameMode[] = [
     GameMode.Hidden,
     GameMode.Missile,
     GameMode.Uniform,
+    GameMode.Castle,
+    GameMode.Chess,
 ] as const;
 
 const MIX_GO_COMBINABLE_SET = new Set<GameMode>(MIX_GO_COMBINABLE_SUB_MODES);

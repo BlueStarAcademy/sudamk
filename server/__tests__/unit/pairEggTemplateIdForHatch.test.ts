@@ -28,7 +28,7 @@ describe('pair egg hatch template resolution', () => {
         ).toBe(PAIR_EGG_TEMPLATE_ID);
     });
 
-    it('keeps welcome eggs on the 1 minute level 10 hatch rule', () => {
+    it('keeps welcome eggs on the short level 10 hatch rule', () => {
         expect(PAIR_WELCOME_EGG_HATCH_LEVEL).toBe(10);
         expect(
             hatcheryEndsAt(
@@ -36,6 +36,6 @@ describe('pair egg hatch template resolution', () => {
                 0,
                 { slotIndex: 0, startedAt: 1_000, eggTemplateId: PAIR_WELCOME_EGG_TEMPLATE_ID },
             ),
-        ).toBe(61_000);
+        ).toBe(9_000);
     });
 });

@@ -20,7 +20,7 @@ import {
 } from '../shared/constants/pairPetModal.js';
 import type { ServerAction } from '../types.js';
 import { PC_QUICK_UTILITY_EMBEDDED_BODY_CLASS } from '../shared/constants/pcShellLayout.js';
-import { resolvePairPetOnboardingStep } from '../shared/utils/pairPetOnboarding.js';
+import { countOwnedPairPets, resolvePairPetOnboardingStep } from '../shared/utils/pairPetOnboarding.js';
 
 interface PetManagementModalProps {
     onClose: () => void;
@@ -55,8 +55,15 @@ const PetManagementModal: React.FC<PetManagementModalProps> = ({ onClose, isTopm
     if (!currentUserWithStatus) return null;
 
     const onboardingStep = resolvePairPetOnboardingStep(currentUserWithStatus);
+    const ownedPets = countOwnedPairPets(currentUserWithStatus);
     const initialAiTab =
-        onboardingStep === 'equip' ? 'hatchery' : onboardingStep === 'training' ? 'training' : undefined;
+        onboardingStep === 'training'
+            ? 'training'
+            : onboardingStep === 'equip'
+              ? ownedPets > 0
+                  ? 'info'
+                  : 'hatchery'
+              : undefined;
 
     const petBody = (
             <div

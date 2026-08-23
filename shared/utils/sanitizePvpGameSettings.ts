@@ -22,7 +22,7 @@ import {
 } from '../constants/gameSettings.js';
 import { SPECIAL_GAME_MODES } from '../constants/gameModes.js';
 import { getRankedGameSettings } from '../constants/rankedGameSettings.js';
-import { applyMixModeSettingsConstraints, getMixBoardSizeOptions } from './mixModeSettings.js';
+import { applyMixModeSettingsConstraints, getMixBoardSizeOptions, mixIncludesCastle, mixIncludesChess } from './mixModeSettings.js';
 
 export function modeIncludesCaptureRuleForSettings(
     mode: GameMode,
@@ -115,7 +115,10 @@ export function sanitizePvpGameSettings(
         next.missileCount = MISSILE_COUNTS.includes(m) ? m : MISSILE_COUNTS[0];
     }
 
-    if (mode === GameMode.Castle || (mode === GameMode.Mix && next.mixedModes?.includes(GameMode.Castle))) {
+    const castleRule = mode === GameMode.Castle || mixIncludesCastle(next.mixedModes);
+    const chessRule = mode === GameMode.Chess || mixIncludesChess(next.mixedModes);
+
+    if (castleRule) {
         if (!CASTLE_BOARD_SIZES.includes(next.boardSize as number) && mode === GameMode.Castle) {
             next.boardSize = CASTLE_BOARD_SIZES[0] as GameSettings['boardSize'];
         }
@@ -123,12 +126,12 @@ export function sanitizePvpGameSettings(
             next.castleCount ?? getDefaultCastleCountByBoardSize(next.boardSize ?? 13),
             next.boardSize ?? 13,
         );
-        if (mode === GameMode.Castle) {
+        if (!chessRule) {
             next = stripHumanPvpTurnLimitFields(next);
         }
     }
 
-    if (mode === GameMode.Chess || (mode === GameMode.Mix && next.mixedModes?.includes(GameMode.Chess))) {
+    if (chessRule) {
         if (!CHESS_BOARD_SIZES.includes(next.boardSize as number)) {
             next.boardSize = CHESS_BOARD_SIZES[0] as GameSettings['boardSize'];
         }
@@ -138,15 +141,13 @@ export function sanitizePvpGameSettings(
             next.boardSize ?? 13,
             isRanked,
         );
-        if (mode === GameMode.Chess) {
-            const chessBoard = next.boardSize === 9 ? 9 : 13;
-            if (isAiGame) {
-                next.scoringTurnLimit = clampChessScoringTurnLimit(next.scoringTurnLimit, chessBoard);
-            } else if (!isRanked) {
-                next = stripHumanPvpTurnLimitFields(next);
-            } else {
-                next.scoringTurnLimit = clampChessScoringTurnLimit(next.scoringTurnLimit, chessBoard);
-            }
+        const chessBoard = next.boardSize === 9 ? 9 : 13;
+        if (isAiGame) {
+            next.scoringTurnLimit = clampChessScoringTurnLimit(next.scoringTurnLimit, chessBoard);
+        } else if (!isRanked) {
+            next = stripHumanPvpTurnLimitFields(next);
+        } else {
+            next.scoringTurnLimit = clampChessScoringTurnLimit(next.scoringTurnLimit, chessBoard);
         }
     }
 
@@ -156,7 +157,7 @@ export function sanitizePvpGameSettings(
     }
 
     const isStrategic = SPECIAL_GAME_MODES.some((m) => m.mode === mode);
-    if (isStrategic && !isAiGame && mode !== GameMode.Castle) {
+    if (isStrategic && !isAiGame && !castleRule) {
         const scoringTurnLimit = next.scoringTurnLimit;
         if (
             typeof scoringTurnLimit === 'number' &&
@@ -167,13 +168,15 @@ export function sanitizePvpGameSettings(
         } else {
             next = stripHumanPvpTurnLimitFields(next);
         }
-    } else if (isStrategic && isAiGame && !captureRule && mode !== GameMode.Castle) {
+    } else if (isStrategic && isAiGame && !captureRule && !castleRule) {
         const scoringTurnLimit = next.scoringTurnLimit;
         if (typeof scoringTurnLimit !== 'number' || !Number.isFinite(scoringTurnLimit) || scoringTurnLimit <= 0) {
-            next.scoringTurnLimit = getAiScoringTurnLimitByBoardSize(next.boardSize ?? 19);
+            next.scoringTurnLimit = chessRule
+                ? clampChessScoringTurnLimit(scoringTurnLimit, next.boardSize === 9 ? 9 : 13)
+                : getAiScoringTurnLimitByBoardSize(next.boardSize ?? 19);
         }
         delete (next as { autoScoringTurns?: number }).autoScoringTurns;
-    } else if (mode === GameMode.Castle) {
+    } else if (castleRule && !chessRule) {
         next = stripHumanPvpTurnLimitFields(next);
     }
 

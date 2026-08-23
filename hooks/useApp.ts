@@ -164,7 +164,6 @@ import {
     ADVENTURE_ENTRANCE_REQUIRED_STAGE_ID,
     isTowerUnlockedByProgression,
 } from '../shared/utils/contentProgressionGates.js';
-import { resolvePairPetOnboardingStep } from '../shared/utils/pairPetOnboarding.js';
 import { calculateTotalStats } from '../services/statService.js';
 import { isClientAdmin } from '../utils/clientAdmin.js';
 import { processMoveClient } from '../client/goLogicClient.js';
@@ -183,6 +182,7 @@ import { reconcileExchangeListedInventoryFlags } from '../shared/utils/exchangeI
 import { stripReappearedRemovedInventoryItems } from '../shared/utils/inventoryStaleGuard.js';
 import { mergeAdventureProfileForPersistence } from '../utils/adventureProfileMerge.js';
 import { applyChessCaptureScoreForRemovedStones, applyChessMoveToSession, commitChessGoPlacementCaptures, getChessGoStoneCapturePointValue, normalizeChessGoSession, resolveChessCapturesByLiberty, sessionUsesChessGo, validateChessMove } from '../shared/utils/chessGoRules.js';
+import { detectAndConfirmTerritories, sessionUsesCastleGo } from '../shared/utils/castleGoRules.js';
 import {
     draftToChessPieceStates,
     generateRandomChessSetupDraftForRemainingBudget,
@@ -194,7 +194,6 @@ import {
     resolvePairChessSetupPlayerColor,
     resolvePairChessSideDraftKeys,
 } from '../shared/utils/pairChessSetup.js';
-import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
 import {
     coerceAdventureLiveGameScoringTurnLimit,
     getClientArenaStateBucket,
@@ -3243,17 +3242,6 @@ export const useApp = () => {
         }
     }, [openQuickUtilityViewport]);
 
-    const petOnboardingAutoOpenedRef = useRef(false);
-    useEffect(() => {
-        if (!currentUser || petOnboardingAutoOpenedRef.current) return;
-        if (resolvePairPetOnboardingStep(currentUser) !== 'equip') return;
-        petOnboardingAutoOpenedRef.current = true;
-        const t = window.setTimeout(() => {
-            setIsPetManagementModalOpen(true);
-        }, 600);
-        return () => window.clearTimeout(t);
-    }, [currentUser]);
-
     const openTowerLobby = useCallback(() => {
         if (!openQuickUtilityViewport('tower')) {
             setActiveQuickUtilityPanel('tower');
@@ -4948,7 +4936,7 @@ export const useApp = () => {
 
                 if (
                     !usesChessGo &&
-                    game.mode !== GameMode.Castle &&
+                    !sessionUsesCastleGo(game) &&
                     capturedStones.length > 0
                 ) {
                     const revealPatch = tryBuildHiddenCaptureRevealState(game, {
@@ -5030,7 +5018,7 @@ export const useApp = () => {
                     const normalized = normalizeChessGoSession(updatedGame);
                     return { ...currentGames, [gameId]: normalized };
                 }
-                if (game.mode === GameMode.Castle) {
+                if (sessionUsesCastleGo(game)) {
                     updatedGame.confirmedTerritoryOwnerByPoint = detectAndConfirmTerritories(
                         updatedGame,
                         newBoardState,
@@ -5071,7 +5059,7 @@ export const useApp = () => {
                 const usesChessGo = sessionUsesChessGo(game);
                 if (
                     !usesChessGo &&
-                    game.mode !== GameMode.Castle &&
+                    !sessionUsesCastleGo(game) &&
                     capturedStones.length > 0
                 ) {
                     const revealPatch = tryBuildHiddenCaptureRevealState(game, {
@@ -5172,7 +5160,7 @@ export const useApp = () => {
                     const normalized = normalizeChessGoSession(updatedGame);
                     return { ...currentGames, [gameId]: normalized };
                 }
-                if (game.mode === GameMode.Castle) {
+                if (sessionUsesCastleGo(game)) {
                     updatedGame.confirmedTerritoryOwnerByPoint = detectAndConfirmTerritories(
                         updatedGame,
                         newBoardState,

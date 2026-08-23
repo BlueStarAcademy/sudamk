@@ -2946,6 +2946,22 @@
       "openPet": "펫 관리",
       "openAcademy": "모험 가기"
     },
+    "firstRunGuide": {
+      "welcomeTitle": "바둑 파트너를 만나세요",
+      "welcomeBody": "{{name}}님, 바둑을 두는 파트너가 기다리고 있어요. 특알을 깨워 볼까요?",
+      "start": "시작",
+      "skip": "건너뛰기",
+      "openPet": "퀵 메뉴의 펫을 눌러 부화장을 열어 주세요.",
+      "startHatch": "부화장 1번에 (특)알을 넣고 부화를 시작하세요.",
+      "confirmHatch": "특알 하나면 첫 파트너가 태어납니다.",
+      "waitHatch": "조금만 기다리세요. 곧 깨어납니다.",
+      "claimPet": "태어났어요! 펫을 받아 주세요.",
+      "equipPet": "이 아이를 대표펫으로 삼으면 모험에서 함께합니다.",
+      "equipCta": "대표펫으로 함께하기",
+      "openAdventure": "파트너와 함께 모험 새싹의 숲으로 가볼까요?",
+      "selectFirstStage": "첫 관문이에요. 관문 1을 눌러 주세요.",
+      "startFirstStage": "입장해서 첫 대국을 시작해 보세요."
+    },
     "adventure": {
       "title": "탐험",
       "companionPet": "동행 펫",
@@ -5212,7 +5228,7 @@
       },
       "pet_egg-special": {
         "name": "(특)신비로운 알",
-        "description": "특별한 금빛 장식의 알로, 어떤 부화 슬롯에서든 부화 시간이 1분이며 부화 시 레벨 10 AI 펫이 나옵니다."
+        "description": "특별한 금빛 장식의 알로, 어떤 부화 슬롯에서든 부화 시간이 약 8초이며 부화 시 레벨 10 AI 펫이 나옵니다."
       },
       "pet_soulstone1": {
         "name": "새싹영혼석",
@@ -5448,7 +5464,7 @@
           "soulGradeUpgrade": "[펫 · 등급 강화] {{fromGrade}}→{{toGrade}} (펫 Lv.{{minLevel}} 이상)",
           "soulGradeUpgradeGeneric": "[펫 · 등급 강화] 페어 경기장 동료 AI 펫의 등급 상승에 사용",
           "eggHatchRandom": "[펫 · 부화장] 슬롯에 배치해 무작위 종류의 AI 펫으로 부화",
-          "welcomeEggHatch": "[펫 · 부화장] 슬롯에 배치 — 부화 시간 1분, 부화 시 레벨 10 AI 펫"
+          "welcomeEggHatch": "[펫 · 부화장] 슬롯에 배치 — 부화 시간 약 8초, 부화 시 레벨 10 AI 펫"
         }
       },
       "enhanceRange": {

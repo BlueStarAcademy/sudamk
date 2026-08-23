@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import GuildMark from '../guild/GuildMark.js';
 import type { HomeEntranceAccent } from './homeEntranceSections.js';
+import { useTutorialAnchor } from '../tutorial/FirstRunGuideContext.js';
+import type { FirstRunGuideAnchorId } from '../../shared/utils/firstRunGuide.js';
 
 const ACCENT: Record<
     HomeEntranceAccent,
@@ -112,6 +114,7 @@ export type HomeEntranceCardProps = {
     badge?: boolean;
     className?: string;
     onEnter: () => void;
+    tutorialAnchorId?: FirstRunGuideAnchorId;
 };
 
 const HomeEntranceCard: React.FC<HomeEntranceCardProps> = ({
@@ -132,6 +135,7 @@ const HomeEntranceCard: React.FC<HomeEntranceCardProps> = ({
     badge = false,
     className,
     onEnter,
+    tutorialAnchorId,
 }) => {
     const a = ACCENT[accent];
     const showTierRow = !!(tierIcon || scoreText);
@@ -143,9 +147,12 @@ const HomeEntranceCard: React.FC<HomeEntranceCardProps> = ({
     const lines = (infoLines ?? []).filter(Boolean);
     const hasGuild = !!guild;
     const showGuildCtas = !hasGuild && !!guildCtas && !locked;
+    const tutorialRef = useRef<HTMLButtonElement>(null);
+    useTutorialAnchor(tutorialAnchorId, tutorialRef);
 
     return (
         <button
+            ref={tutorialRef}
             type="button"
             disabled={locked}
             title={locked ? lockReason : title}

@@ -29,6 +29,8 @@ import { useMapViewport } from '../../hooks/useMapViewport.js';
 import StageClearRewardPreview from '../rewards/StageClearRewardPreview.js';
 import Button from '../Button.js';
 import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
+import { TutorialAnchor, useFirstRunGuideOptional } from '../tutorial/FirstRunGuideContext.js';
+import { FIRST_RUN_FIRST_STAGE_ID, isFirstRunGuideEligible } from '../../shared/utils/firstRunGuide.js';
 
 const PREMIUM_STAGE_ENTER_CLASS =
     'w-full !rounded-lg !border !border-amber-300/50 !bg-gradient-to-b !from-amber-400/90 !via-amber-800 !to-amber-950 !py-2 !text-sm !font-bold !tracking-wide !text-amber-50 !shadow-[0_3px_14px_rgba(245,158,11,0.35),inset_0_1px_0_rgba(255,255,255,0.2)] hover:!brightness-110 active:!scale-[0.98] disabled:!cursor-not-allowed disabled:!opacity-45 disabled:!grayscale';
@@ -83,6 +85,7 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
 }) => {
     const { t } = useTranslation(['lobby', 'common', 'profile', 'game', 'gameModes']);
     const { handlers, singlePlayerStagesListRevision } = useAppContext();
+    const firstRunGuide = useFirstRunGuideOptional();
     const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
     const [pathEditMode, setPathEditMode] = useState(false);
     const [editRoad, setEditRoad] = useState<SinglePlayerStageMapPoint[] | null>(null);
@@ -153,6 +156,12 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
             maxZoomMultiplier: 3.2,
         });
 
+    const reportSelectedStageId = firstRunGuide?.setSelectedStageId;
+    useEffect(() => {
+        reportSelectedStageId?.(selectedStageId);
+        return () => reportSelectedStageId?.(null);
+    }, [selectedStageId, reportSelectedStageId]);
+
     useEffect(() => {
         setSelectedStageId(null);
         setEditRoad(null);
@@ -161,10 +170,15 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
 
     useEffect(() => {
         if (pathEditMode) return;
-        // 맵/단계 전환 시 항상 최소 줌(cover fit)으로 표시
         fitToWorld({ overscan: 1 });
+        if (!isFirstRunGuideEligible(currentUser)) return;
+        const idx = stages.findIndex((s) => s.id === FIRST_RUN_FIRST_STAGE_ID);
+        const point = worldPoints[idx];
+        if (!point) return;
+        const t = window.setTimeout(() => focusWorldPoint(point.x, point.y, { animate: true }), 120);
+        return () => window.clearTimeout(t);
         // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
-    }, [selectedClass, pathEditMode]);
+    }, [selectedClass, pathEditMode, stages, worldPoints, currentUser]);
 
     const selectedStage = useMemo(
         () => stages.find((s) => s.id === selectedStageId) ?? null,
@@ -322,9 +336,8 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
                             const isFocus = index === focusIndex;
                             const isSelected = selectedStageId === stage.id;
 
-                            return (
+                            const node = (
                                 <button
-                                    key={stage.id}
                                     type="button"
                                     disabled={locked}
                                     onClick={(e) => {
@@ -334,7 +347,7 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
                                         setSelectedStageId(stage.id);
                                         focusWorldPoint(point.x, point.y, { animate: true });
                                     }}
-                                    className={`absolute flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-[3px] text-lg font-black tabular-nums shadow-[0_8px_24px_rgba(0,0,0,0.55)] transition-transform duration-150 ${
+                                    className={`relative flex h-14 w-14 items-center justify-center rounded-full border-[3px] text-lg font-black tabular-nums shadow-[0_8px_24px_rgba(0,0,0,0.55)] transition-transform duration-150 ${
                                         locked
                                             ? 'cursor-not-allowed border-zinc-500/60 bg-zinc-900/85 text-zinc-400 opacity-70'
                                             : cleared
@@ -343,7 +356,6 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
                                     } ${isFocus && !locked ? 'ring-4 ring-amber-300/50 scale-110' : ''} ${
                                         isSelected ? 'scale-125 ring-4 ring-white/40' : ''
                                     }`}
-                                    style={{ left: point.x, top: point.y }}
                                     aria-label={`${stageNumber}`}
                                 >
                                     {locked ? (
@@ -361,6 +373,25 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
                                         </>
                                     )}
                                 </button>
+                            );
+                            const wrapClass =
+                                'absolute flex h-14 w-14 -translate-x-1/2 -translate-y-1/2 items-center justify-center';
+                            if (stage.id === FIRST_RUN_FIRST_STAGE_ID) {
+                                return (
+                                    <TutorialAnchor
+                                        key={stage.id}
+                                        id="sp-stage-입문-1"
+                                        className={wrapClass}
+                                        style={{ left: point.x, top: point.y }}
+                                    >
+                                        {node}
+                                    </TutorialAnchor>
+                                );
+                            }
+                            return (
+                                <div key={stage.id} className={wrapClass} style={{ left: point.x, top: point.y }}>
+                                    {node}
+                                </div>
                             );
                         })}
 
@@ -554,6 +585,7 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
                                     usePremiumDesktop
                                 />
                             </div>
+                            <TutorialAnchor id="sp-stage-enter">
                             <Button
                                 onClick={() => handleStageEnter(selectedStage.id)}
                                 colorScheme="none"
@@ -563,6 +595,7 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
                             >
                                 <ActionPointLabelWithCost label={t('singleplayer.enterStage')} cost={cost} />
                             </Button>
+                            </TutorialAnchor>
                         </div>
                     </div>
                 );

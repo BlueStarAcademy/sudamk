@@ -5,6 +5,8 @@ import {
     countOwnedPairPets,
     resolvePairPetOnboardingStep,
 } from '../../shared/utils/pairPetOnboarding.js';
+import { FIRST_RUN_WALKTHROUGH_GUIDE_ID, isFirstRunGuideEligible } from '../../shared/utils/firstRunGuide.js';
+import { isScreenGuideDismissed } from '../../utils/screenGuideDismiss.js';
 
 /** 홈 growth 영역 위: 다음 펫 온보딩 목표 한 줄 */
 const PetOnboardingHomeBanner: React.FC = () => {
@@ -17,6 +19,12 @@ const PetOnboardingHomeBanner: React.FC = () => {
     const petCount = currentUserWithStatus ? countOwnedPairPets(currentUserWithStatus) : 0;
 
     if (!currentUserWithStatus || step === 'done') return null;
+    if (
+        isFirstRunGuideEligible(currentUserWithStatus) &&
+        !isScreenGuideDismissed(FIRST_RUN_WALKTHROUGH_GUIDE_ID, currentUserWithStatus.id)
+    ) {
+        return null;
+    }
 
     let body = '';
     let cta = '';

@@ -9,14 +9,16 @@ import {
     getAdventureDesignScoringTurnLimit,
 } from '../../shared/utils/adventureBattleBoard.js';
 import { applyAdventureRegionalFlatBonusToHumanCaptures } from '../utils/adventureHeadStartCaptures.js';
-import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { mixIncludesChess } from '../../shared/utils/mixModeSettings.js';
+import { modeIncludesCaptureRule, modeIncludesCastleRule, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 
 function normalizeStrategicAiScoringSettings(game: any): void {
   if (!SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)) return;
   const preMergePolicy = resolveArenaSessionPolicy(game);
 
   game.settings = { ...DEFAULT_GAME_SETTINGS, ...(game.settings || {}) };
-  if (game.mode === GameMode.Chess) {
+  const chessRule = game.mode === GameMode.Chess || mixIncludesChess(game.settings?.mixedModes);
+  if (chessRule && !modeIncludesCaptureRule(game.mode, game.settings)) {
     const chessBoard = game.settings.boardSize === 9 ? 9 : 13;
     (game.settings as { scoringTurnLimit?: number }).scoringTurnLimit = clampChessScoringTurnLimit(
       (game.settings as { scoringTurnLimit?: number }).scoringTurnLimit,
@@ -24,7 +26,7 @@ function normalizeStrategicAiScoringSettings(game: any): void {
     );
     return;
   }
-  if (modeIncludesCaptureRule(game.mode, game.settings)) {
+  if (modeIncludesCaptureRule(game.mode, game.settings) || modeIncludesCastleRule(game.mode, game.settings)) {
     game.settings.scoringTurnLimit = 0;
     delete game.settings.autoScoringTurns;
     return;
@@ -179,9 +181,8 @@ export async function handleAiAction(
       );
     }
 
-    const { normalizeChessGoSession } = await import('../../shared/utils/chessGoRules.js');
-    const { GameMode } = await import('../../shared/types/enums.js');
-    if (postInit.mode === GameMode.Chess) {
+    const { normalizeChessGoSession, sessionUsesChessGo } = await import('../../shared/utils/chessGoRules.js');
+    if (sessionUsesChessGo(postInit as any)) {
         const normalized = normalizeChessGoSession(postInit as any);
         Object.assign(postInit, normalized);
     }
