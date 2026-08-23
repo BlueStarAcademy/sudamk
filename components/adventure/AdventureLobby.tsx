@@ -22,13 +22,16 @@ import {
     type AdventureChapterUnlockContext,
 } from '../../utils/adventureChapterUnlock.js';
 
+/** 챕터 목록: 얇은 골드 스크롤바 (`index.css` `.adventure-chapter-scroll`) */
+const ADVENTURE_CHAPTER_SCROLLBAR_Y = 'adventure-chapter-scroll';
+
 /** 우측 챕터 뷰어: 가로 1열(한 줄에 챕터 1개) · 세로 스크롤 */
 const ADVENTURE_CHAPTER_GRID_DESKTOP =
-    'flex h-full min-h-0 w-full flex-col gap-2.5 overflow-y-auto overscroll-contain lg:gap-3 [&>*]:shrink-0';
+    `flex h-full min-h-0 w-full flex-col gap-2.5 overflow-y-auto overscroll-contain pr-0.5 lg:gap-3 [&>*]:shrink-0 ${ADVENTURE_CHAPTER_SCROLLBAR_Y}`;
 
 /** 모바일: 챕터 카드 가로 1열 · 세로 스크롤 */
 const ADVENTURE_CHAPTER_LIST_MOBILE =
-    'flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain py-0.5 [&>*]:shrink-0';
+    `flex min-h-0 min-w-0 flex-1 flex-col gap-2 overflow-y-auto overscroll-contain py-0.5 pr-0.5 [&>*]:shrink-0 ${ADVENTURE_CHAPTER_SCROLLBAR_Y}`;
 
 /** PC 우측 챕터 뷰어 — Profile `mergedCardClass`·대기실 뒷판 패널과 동일 톤 */
 const ADVENTURE_CHAPTER_VIEWER_SHELL_CLASS =
