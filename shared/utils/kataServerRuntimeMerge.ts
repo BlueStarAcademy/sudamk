@@ -10,7 +10,7 @@ import type { KataServerRuntimeOverrides, KataServerRuntimeSnapshot, PairPetKata
 import { buildDefaultKataServerRuntimeSnapshot } from './kataServerRuntimeDefaults.js';
 
 const KATA_LEVEL_MIN = -31;
-const KATA_LEVEL_MAX = 9;
+const KATA_LEVEL_MAX = 10;
 
 function clampKataLevel(n: number): number {
     if (!Number.isFinite(n)) return KATA_LEVEL_MIN;

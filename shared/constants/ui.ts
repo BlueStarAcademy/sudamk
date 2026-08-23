@@ -1,4 +1,5 @@
 import { AvatarInfo, BorderInfo, GameMode, ShopBorderItem } from '../types/index.js';
+import { PVE_BOT_AVATAR_ENTRIES } from './pveBotProfiles.js';
 
 export const AVATAR_POOL: AvatarInfo[] = [
     { id: 'profile_1', name: '기본 아바타 1', url: '/images/profiles/profile1.webp', requiredLevel: 1, type: 'any' },
@@ -51,6 +52,13 @@ export const AVATAR_POOL: AvatarInfo[] = [
     { id: 'profile_45', name: '닭', url: '/images/profiles/profile45.webp', requiredLevel: 1, type: 'any' },
     { id: 'profile_46', name: '개', url: '/images/profiles/profile46.webp', requiredLevel: 1, type: 'any' },
     { id: 'profile_47', name: '돼지', url: '/images/profiles/profile47.webp', requiredLevel: 1, type: 'any' },
+    ...PVE_BOT_AVATAR_ENTRIES.map((entry) => ({
+        id: entry.id,
+        name: entry.name,
+        url: entry.url,
+        requiredLevel: 1,
+        type: 'any' as const,
+    })),
 ];
 
 export const BORDER_POOL: BorderInfo[] = [

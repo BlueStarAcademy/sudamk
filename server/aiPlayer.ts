@@ -30,6 +30,10 @@ import {
     isPairClassicGame,
 } from '../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import {
+    pveBotAvatarIdForMode,
+    PVE_GUILD_WAR_BOT_AVATAR_ID,
+} from '../shared/constants/pveBotProfiles.js';
 import { ensureSinglePlayerKataServerLevelOnGame } from './singlePlayerStageConfigService.js';
 
 
@@ -102,6 +106,7 @@ export const getAiUser = (mode: GameMode): User => {
     return {
         ...baseAiUser,
         nickname: aiNicknames[mode] || 'AI 봇',
+        avatarId: pveBotAvatarIdForMode(mode),
     };
 };
 
@@ -110,6 +115,7 @@ export const getAiUserForGuildWar = (mode: GameMode, boardId: string): User => {
     return {
         ...getAiUser(mode),
         nickname: getGuildWarAiBotDisplayName(boardId),
+        avatarId: PVE_GUILD_WAR_BOT_AVATAR_ID,
     };
 };
 

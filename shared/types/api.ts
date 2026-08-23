@@ -388,6 +388,7 @@ export type ServerAction =
               track: 'kata' | 'pet';
               kataLevel: number;
               boardSize?: 9 | 13 | 19;
+              gameMode?: GameMode;
           };
       }
     | { type: 'CLAIM_TRAINING_GROUND_AD_RESTORE'; payload: { track: 'kata' | 'pet' } }

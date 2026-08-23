@@ -42,6 +42,7 @@ import {
 } from '../../shared/utils/speedTimePressureDisplay.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
+import { resolvePveAiSeatDisplayProfile, applyPveAiSeatDisplayToUser } from '../../shared/utils/pveOpponentDisplay.js';
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
     const total = Math.floor(seconds);
@@ -322,13 +323,17 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const { t } = useTranslation('game');
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
-    /** 싱글플레이 AI 봇 좌석은 전용 봇 프로필 이미지(/images/bot.webp)를 사용 */
-    const useSinglePlayerAiBotProfile = !!isSinglePlayer && !!isAiPlayer && !opponentMonsterDisplay;
+    /** PVE AI 좌석: 모드·훈련장·싱글 등 전용 프로필 이미지 */
+    const pveAiDisplayProfile =
+        isAiPlayer ? resolvePveAiSeatDisplayProfile(session, user) : null;
     const avatarUrl = useMemo(() => {
-        if (useSinglePlayerAiBotProfile) return '/images/bot.webp';
+        if (pveAiDisplayProfile?.avatarUrl) return pveAiDisplayProfile.avatarUrl;
         return AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
-    }, [user.avatarId, useSinglePlayerAiBotProfile]);
-    const borderUrl = useMemo(() => BORDER_POOL.find(b => b.id === user.borderId)?.url, [user.borderId]);
+    }, [user.avatarId, pveAiDisplayProfile?.avatarUrl]);
+    const borderUrl = useMemo(() => {
+        if (pveAiDisplayProfile?.borderUrl) return pveAiDisplayProfile.borderUrl;
+        return BORDER_POOL.find(b => b.id === user.borderId)?.url;
+    }, [user.borderId, pveAiDisplayProfile?.borderUrl]);
 
     const isStrategic = SPECIAL_GAME_MODES.some(m => m.mode === mode);
     const isFoulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode) && ![GameMode.Omok, GameMode.Ttamok].includes(mode);
@@ -355,6 +360,8 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const isStrategicAiGame = session.isAiGame && isStrategic && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
     if (opponentMonsterDisplay) {
         levelText = `Lv.${opponentMonsterDisplay.level}`;
+    } else if (pveAiDisplayProfile?.userLevel != null && isAiPlayer) {
+        levelText = `Lv.${pveAiDisplayProfile.userLevel}`;
     } else if (isStrategicAiGame && isAiPlayer) {
         const profileStep = resolveAiLobbyProfileStepFromSettings(session.settings as GameSettings);
         const displayAiLevel = strategicAiDisplayLevelFromProfileStep(profileStep);
@@ -484,9 +491,9 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const padding = isMobile ? 'p-1.5' : 'p-1';
     const gap = isMobile ? 'gap-1.5' : 'gap-2';
 
-    const displayNickname = opponentMonsterDisplay?.displayName ?? user.nickname;
-    /** 싱글플레이 AI 봇은 닉네임 자체가 `입문봇`/`초급봇`/… 이라 로봇 이모지를 표시하지 않는다 */
-    const showAiRobotEmoji = !!isAiPlayer && !opponentMonsterDisplay && !isSinglePlayer;
+    const displayNickname = opponentMonsterDisplay?.displayName ?? pveAiDisplayProfile?.nickname ?? user.nickname;
+    /** PVE 봇은 전용 닉·이미지를 사용하므로 로봇 이모지를 붙이지 않는다 */
+    const showAiRobotEmoji = false;
     const nameTitle = `${displayNickname}${showAiRobotEmoji ? ' 🤖' : ''}${role ? ` (${role})` : ''}`;
 
     /** 모바일·PC 동일: 따낸 돌 패널을 대국자 블록 옆(가로)에 배치 */
@@ -1102,7 +1109,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const rightPlayerUser = player2;
     const towerOpponentPanelUser =
         session.gameCategory === 'tower' && rightPlayerUser.id === aiUserId
-            ? { ...rightPlayerUser, nickname: TOWER_AI_BOT_DISPLAY_NAME }
+            ? applyPveAiSeatDisplayToUser(session, { ...rightPlayerUser, nickname: TOWER_AI_BOT_DISPLAY_NAME })
             : rightPlayerUser;
     
     const leftPlayerEnum = leftPlayerUser.id === blackPlayerId ? Player.Black : (leftPlayerUser.id === whitePlayerId ? Player.White : Player.None);

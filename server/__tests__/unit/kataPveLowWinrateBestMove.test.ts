@@ -14,7 +14,7 @@ describe('kata move candidate ordering', () => {
         vi.restoreAllMocks();
     });
 
-    it('keeps KataServer move before bestMove regardless of low winrate', async () => {
+    it('keeps move before bestMove by default even with low winrate', async () => {
         const fetchMock = vi.fn(async () =>
             new Response(
                 JSON.stringify({
@@ -38,11 +38,41 @@ describe('kata move candidate ordering', () => {
             allowPass: false,
         });
 
+        expect(result.winrate).toBe(0.02);
         expect(result.candidates[0]).toEqual({ x: 2, y: 4 });
         expect(result.candidates[1]).toEqual({ x: 4, y: 5 });
     });
 
-    it('keeps KataServer move before bestMove in PVP too', async () => {
+    it('puts bestMove before move when preferBestMoveLowWinrate is set', async () => {
+        const fetchMock = vi.fn(async () =>
+            new Response(
+                JSON.stringify({
+                    move: 'C5',
+                    bestMove: 'E4',
+                    strategy: 'weakbot',
+                    winrate: 0.02,
+                }),
+                { status: 200, headers: { 'Content-Type': 'application/json' } },
+            ),
+        );
+        vi.stubGlobal('fetch', fetchMock);
+
+        const { generateKataServerMoveCandidateDetails } = await import('../../kataServerService.js');
+        const result = await generateKataServerMoveCandidateDetails({
+            boardSize: 9,
+            player: 'white',
+            moveHistory: [{ x: 0, y: 0, player: 1 }],
+            level: -31,
+            gameId: 'sp-game-low-wr-best',
+            allowPass: false,
+            preferBestMoveLowWinrate: true,
+        });
+
+        expect(result.candidates[0]).toEqual({ x: 4, y: 5 });
+        expect(result.candidates[1]).toEqual({ x: 2, y: 4 });
+    });
+
+    it('keeps move before bestMove in PVP when not in low-winrate mode', async () => {
         const fetchMock = vi.fn(async () =>
             new Response(
                 JSON.stringify({
@@ -73,7 +103,7 @@ describe('kata move candidate ordering', () => {
     it('clamps out-of-range level into KataServer body and keeps move first', async () => {
         const fetchMock = vi.fn(async (_url: string, init?: RequestInit) => {
             const body = JSON.parse(String(init?.body ?? '{}')) as { level?: number };
-            expect(body.level).toBe(9);
+            expect(body.level).toBe(10);
             return new Response(
                 JSON.stringify({
                     move: 'C5',

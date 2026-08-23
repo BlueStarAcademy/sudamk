@@ -125,6 +125,8 @@ describe('championship real match policy', () => {
             [1250, 7],
             [1349, 8],
             [1350, 9],
+            [1399, 9],
+            [1400, 10],
         ];
 
         for (const [ability, level] of cases) {

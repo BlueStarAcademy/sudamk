@@ -22,6 +22,7 @@ import {
     getSeasonalRankingTierName,
 } from '../shared/constants';
 import { CHAMPIONSHIP_VERSUS_VENUE_KINDS } from '../shared/constants/championshipVersusVenue.js';
+import { isPgTestUserId } from '../shared/constants/pgTestAccount.js';
 import { RANKED_ELO_BASE_SCORE } from '../shared/constants/rules.js';
 import { randomUUID } from 'crypto';
 import { getKSTDate, getCurrentSeason, getPreviousSeason, SeasonInfo, isDifferentWeekKST, isSameDayKST, getStartOfDayKST, isDifferentDayKST, isDifferentMonthKST, getKSTDay, getKSTHours, getKSTMinutes, getKSTFullYear, getKSTMonth, getKSTDate_UTC, getNextGuildWarMatchDate, getTodayKSTDateString } from '../shared/utils/timeUtils.js';
@@ -2440,6 +2441,9 @@ export async function processTowerRankingRewards(): Promise<void> {
     // 여기서는 보상 지급만 처리합니다. 이전 달의 monthlyTowerFloor 값은 userMonthlyFloors에서 가져옵니다.
     let rewardCount = 0;
     for (const user of allUsers) {
+        if (isPgTestUserId(user.id)) {
+            continue;
+        }
         // 이전 달의 monthlyTowerFloor 값 가져오기
         const previousMonthlyTowerFloor = userMonthlyFloors.get(user.id) ?? 0;
         

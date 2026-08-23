@@ -13,12 +13,26 @@ import {
     pairPetKataLevelFromAbilityScoreWithLadder,
 } from '../constants/pairArena.js';
 import { pairPetKataStatsSixFromEquippedUser } from './pairPetKataStatsFromEquippedUser.js';
-import { minAbilityScoreForKataLevel, normalizeTrainingGroundKataLevel } from '../constants/trainingGround.js';
+import type { TrainingGroundTrack } from '../constants/trainingGround.js';
+import {
+    normalizeTrainingGroundKataLevel,
+    trainingGroundUnlockTotalAbility,
+} from '../constants/trainingGround.js';
 
 export function trainingGroundUserMidgameAbility(
     stats: Partial<Record<CoreStat, number>>,
 ): number {
     return championshipKataAbilityScore('midgame', stats);
+}
+
+export function trainingGroundUserTotalAbility(
+    stats: Partial<Record<CoreStat, number>>,
+): number {
+    return (
+        championshipKataAbilityScore('opening', stats) +
+        championshipKataAbilityScore('midgame', stats) +
+        championshipKataAbilityScore('endgame', stats)
+    );
 }
 
 export function trainingGroundUserKataLevel(
@@ -34,6 +48,16 @@ export function trainingGroundPetMidgameAbility(user: User): number | null {
     return pairPetKataAbilityScore('midgame', six);
 }
 
+export function trainingGroundPetTotalAbility(user: User): number | null {
+    const six = pairPetKataStatsSixFromEquippedUser(user);
+    if (!six) return null;
+    return (
+        pairPetKataAbilityScore('opening', six) +
+        pairPetKataAbilityScore('midgame', six) +
+        pairPetKataAbilityScore('endgame', six)
+    );
+}
+
 export function trainingGroundPetKataLevel(
     user: User,
     ladder: readonly PairPetAbilityKataLadderRow[] = DEFAULT_PAIR_PET_ABILITY_KATA_LADDER,
@@ -44,16 +68,17 @@ export function trainingGroundPetKataLevel(
 }
 
 export function isTrainingGroundStageUnlocked(
-    currentKata: number | null | undefined,
+    currentTotalAbility: number | null | undefined,
     stageKata: number,
+    track: TrainingGroundTrack,
 ): boolean {
-    if (currentKata == null || !Number.isFinite(currentKata)) return false;
-    return normalizeTrainingGroundKataLevel(currentKata) >= normalizeTrainingGroundKataLevel(stageKata);
+    if (currentTotalAbility == null || !Number.isFinite(currentTotalAbility)) return false;
+    return currentTotalAbility >= trainingGroundUnlockTotalAbility(stageKata, track);
 }
 
 export function trainingGroundUnlockAbility(
     stageKata: number,
-    ladder: readonly { minAbilityScore: number; kataLevel?: number; kataLevelOffset?: number }[],
+    track: TrainingGroundTrack,
 ): number {
-    return minAbilityScoreForKataLevel(stageKata, ladder);
+    return trainingGroundUnlockTotalAbility(stageKata, track);
 }

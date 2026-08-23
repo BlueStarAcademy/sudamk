@@ -817,7 +817,15 @@ interface GoBoardProps {
   /** 전략바둑 대표펫 힌트: 좌표 점만(말풍선은 푸터) */
   strategicPetHintOverlay?: { x: number; y: number } | null;
   /** 펫 힌트 보너스 획득: 해당 좌표에서 아이콘이 위로 떠오르는 1회성 연출 */
-  strategicPetHintRewardAnimation?: { id: string; x: number; y: number; iconSrc: string; quantityLabel: string } | null;
+  strategicPetHintRewardAnimation?: {
+      id: string;
+      x: number;
+      y: number;
+      iconSrc: string;
+      quantityLabel: string;
+      /** 재료 아이템 등 — 흰 원형 배경 없이 아이콘만 */
+      transparentIconBackdrop?: boolean;
+  } | null;
   /** 페어 방장: 양측 베이스돌을 모두 직접 배치할 때 오버레이·중복클릭 방지에 p1+p2를 함께 사용 */
   isPairBasePlacementHost?: boolean;
   baseStonesP1Player?: Player;
@@ -2859,6 +2867,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         const size = Math.max(cell_size * 0.76, 18);
                         const animationDelay = undefined;
                         const hasIcon = Boolean(strategicPetHintRewardAnimation.iconSrc);
+                        const transparentBackdrop = strategicPetHintRewardAnimation.transparentIconBackdrop === true;
                         const quantityY = hasIcon ? size * 0.52 : -size * 0.1;
                         const quantityFont = hasIcon
                             ? Math.max(11, cell_size * 0.36)
@@ -2872,17 +2881,19 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                 {/* 보드 180° 회전 시에도 아이콘·수량·상승 연출이 화면 기준 정방향(아래→위)으로 보이도록 역회전 */}
                                 <g transform={isRotated ? 'rotate(180)' : undefined}>
                                     <g
-                                        className="pet-hint-reward-float"
+                                        className={`pet-hint-reward-float${transparentBackdrop ? ' pet-hint-reward-float--item' : ''}`}
                                         style={animationDelay ? { animationDelay } : undefined}
                                     >
-                                        <circle
-                                            cx={0}
-                                            cy={-size * 0.1}
-                                            r={size * 0.46}
-                                            fill="rgba(255,255,255,0.72)"
-                                            stroke="#facc15"
-                                            strokeWidth={Math.max(1.4, cell_size * 0.035)}
-                                        />
+                                        {!transparentBackdrop ? (
+                                            <circle
+                                                cx={0}
+                                                cy={-size * 0.1}
+                                                r={size * 0.46}
+                                                fill="rgba(255,255,255,0.72)"
+                                                stroke="#facc15"
+                                                strokeWidth={Math.max(1.4, cell_size * 0.035)}
+                                            />
+                                        ) : null}
                                         {hasIcon ? (
                                             <image
                                                 href={strategicPetHintRewardAnimation.iconSrc}

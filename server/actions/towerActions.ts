@@ -2,6 +2,7 @@ import { randomUUID } from 'crypto';
 import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, LiveGameSession, Player, GameMode, Point, BoardState, SinglePlayerStageInfo, UserStatus, GameCategory } from '../../types/index.js';
 import { TOWER_AI_BOT_DISPLAY_NAME, TOWER_STAGES } from '../../constants/towerConstants.js';
+import { PVE_TOWER_BOT_AVATAR_ID } from '../../shared/constants/pveBotProfiles.js';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import { generateStrategicRandomBoard } from '../strategicInitialBoard.js';
@@ -205,6 +206,7 @@ export const handleTowerAction = async (volatileState: VolatileState, action: Se
                 nickname: botNickname,
                 userLevel: botLevel,
                 userXp: 0,
+                avatarId: PVE_TOWER_BOT_AVATAR_ID,
             };
 
             const { board, blackPattern, whitePattern } = generateTowerBoard(stage, floor);

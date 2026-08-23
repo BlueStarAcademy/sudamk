@@ -14,6 +14,7 @@ import { isGuildWarLiveSession } from '../shared/constants/guildConstants.js';
 import { computeGuildWarAttemptMetrics, evaluateGuildWarStarConditionFlags } from '../shared/utils/guildWarAttemptMetrics.js';
 import {
     ResultModalGoldCurrencySlot,
+    ResultModalDiamondCurrencySlot,
     ResultModalItemRewardSlot,
     RESULT_MODAL_REWARDS_ROW_MIN_H_CLASS,
     RESULT_MODAL_REWARDS_ROW_MOBILE_WRAP_CLASS,
@@ -29,6 +30,8 @@ import {
 } from './game/resultModalScoreTypography.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { resolveArenaSessionPolicy, isAdventureSessionLike } from '../shared/utils/liveSessionArenaKind.js';
+import { isTrainingGroundSession } from '../shared/constants/trainingGround.js';
+import { ResultModalXpRewardBadge } from './game/ResultModalXpRewardBadge.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { VIP_PLAY_REWARD_SLOT_PREVIEW_IMAGE } from '../shared/constants/vipPlayReward.js';
 import { useResilientImgSrc } from '../hooks/useResilientImgSrc.js';
@@ -61,6 +64,7 @@ import i18n from '../shared/i18n/config.js';
 import { translateGameMode } from '../shared/i18n/localizedCatalog.js';
 import { isChampionshipVersusKataSummaryDescription } from '../shared/constants/championshipVersusSummary.js';
 import { resolvePairPetMetaFromInventoryRow } from '../shared/utils/pairPetRoll.js';
+import { getSessionPlayerDisplayName, resolveSessionPlayerRosterDisplay } from '../utils/gameDisplayNames.js';
 
 const gs = (key: string, opts?: Record<string, unknown>) => i18n.t(`game:summary.${key}`, opts);
 
@@ -204,14 +208,14 @@ const XpBar: React.FC<{
         }, 150);
 
         const gainTimer =
-            gainPercent > 0
+            gainPercent > 0 || (levelUp && xpGain > 0)
                 ? setTimeout(() => {
                       if (cancelled) return;
                       requestAnimationFrame(() => {
                           if (cancelled) return;
                           requestAnimationFrame(() => {
                               if (cancelled) return;
-                              setGainW(gainPercent);
+                              if (gainPercent > 0) setGainW(gainPercent);
                               if (xpGain > 0) setShowGainText(true);
                           });
                       });
@@ -226,7 +230,10 @@ const XpBar: React.FC<{
     }, [initial, final, max, levelUp, initialPercent, finalPercent, gainPercent, xpGain]);
 
     const gainTextKey = `${xpGain}-${initial}`;
-    const barCenterLabel = levelUp ? `0 +${final} / ${max} XP` : `${initial} +${xpGain} / ${max} XP`;
+    const levelUpGainDisplay = final > 0 ? final : xpGain;
+    const barCenterLabel = levelUp
+        ? `0 +${levelUpGainDisplay} / ${max} XP`
+        : `${initial} +${xpGain} / ${max} XP`;
 
     const pcCompact = compact && !isMobile;
 
@@ -269,7 +276,7 @@ const XpBar: React.FC<{
                             </span>
                         )}
                     </div>
-                    {gainPercent > 0 && xpGain > 0 && (
+                    {(gainPercent > 0 || levelUp) && xpGain > 0 && (
                         <span
                             key={gainTextKey}
                             className={`shrink-0 text-xs font-bold tabular-nums whitespace-nowrap ${
@@ -291,7 +298,9 @@ const XpBar: React.FC<{
                     >
                         {levelUp ? (
                             <>
-                                0 <span className="text-emerald-300">+{final.toLocaleString()}</span> / {max.toLocaleString()} XP
+                                0{' '}
+                                <span className="text-emerald-300">+{levelUpGainDisplay.toLocaleString()}</span> /{' '}
+                                {max.toLocaleString()} XP
                             </>
                         ) : (
                             <>
@@ -364,7 +373,7 @@ const XpBar: React.FC<{
                     </span>
                 )}
             </div>
-            {gainPercent > 0 && xpGain > 0 && (
+            {(gainPercent > 0 || levelUp) && xpGain > 0 && (
                 <span
                     key={gainTextKey}
                     className={`${
@@ -1241,14 +1250,22 @@ const MatchPlayersRoster: React.FC<{
         if (!e) return null;
         return { imageWebp: getAdventureMonsterPortraitUrl(e), name: e.name, level: Math.max(1, session.adventureMonsterLevel ?? 1) };
     }, [session]);
+    const blackRoster = useMemo(
+        () => resolveSessionPlayerRosterDisplay(session, blackPlayer),
+        [session, blackPlayer],
+    );
+    const whiteRoster = useMemo(
+        () => resolveSessionPlayerRosterDisplay(session, whitePlayer),
+        [session, whitePlayer],
+    );
     const monsterPortrait = useResilientImgSrc(adventureMonster?.imageWebp);
 
-    const blackAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === blackPlayer.avatarId)?.url;
-    const blackBorderUrl = BORDER_POOL.find((b: BorderInfo) => b.id === blackPlayer.borderId)?.url;
-    const whiteAvatarUrl = AVATAR_POOL.find((a: AvatarInfo) => a.id === whitePlayer.avatarId)?.url;
-    const whiteBorderUrl = BORDER_POOL.find((b: BorderInfo) => b.id === whitePlayer.borderId)?.url;
-    const blackLv = blackPlayer.userLevel;
-    const whiteLv = whitePlayer.userLevel;
+    const blackAvatarUrl = blackRoster.avatarUrl ?? AVATAR_POOL.find((a: AvatarInfo) => a.id === blackPlayer.avatarId)?.url;
+    const blackBorderUrl = blackRoster.borderUrl ?? BORDER_POOL.find((b: BorderInfo) => b.id === blackPlayer.borderId)?.url;
+    const whiteAvatarUrl = whiteRoster.avatarUrl ?? AVATAR_POOL.find((a: AvatarInfo) => a.id === whitePlayer.avatarId)?.url;
+    const whiteBorderUrl = whiteRoster.borderUrl ?? BORDER_POOL.find((b: BorderInfo) => b.id === whitePlayer.borderId)?.url;
+    const blackLv = blackRoster.userLevel;
+    const whiteLv = whiteRoster.userLevel;
     const avatarPx = isMobile ? Math.round(40 * mobileImageScale) : Math.round(34 * desktopTextScale);
     const avatarPxAlk = isMobile ? Math.round(32 * mobileImageScale) : Math.round(30 * desktopTextScale);
 
@@ -1448,7 +1465,7 @@ const MatchPlayersRoster: React.FC<{
                         ) : (
                             <Avatar
                                 userId={blackPlayer.id}
-                                userName={blackPlayer.nickname}
+                                userName={blackRoster.nickname}
                                 size={avatarPxAlk}
                                 avatarUrl={blackAvatarUrl}
                                 borderUrl={blackBorderUrl}
@@ -1461,7 +1478,7 @@ const MatchPlayersRoster: React.FC<{
                             </span>
                         )}
                     </div>
-                    {blackIsMonster && adventureMonster ? nickRowMonster('black') : nickRowHuman(blackPlayer.nickname, 'black', blackLv)}
+                    {blackIsMonster && adventureMonster ? nickRowMonster('black') : nickRowHuman(blackRoster.nickname, 'black', blackLv)}
                 </div>
                 <div className="flex min-w-0 items-center gap-1.5 rounded-lg border border-slate-500/35 bg-slate-950/55 px-1.5 py-1.5 ring-1 ring-slate-400/12">
                     <div className="relative shrink-0">
@@ -1483,7 +1500,7 @@ const MatchPlayersRoster: React.FC<{
                         ) : (
                             <Avatar
                                 userId={whitePlayer.id}
-                                userName={whitePlayer.nickname}
+                                userName={whiteRoster.nickname}
                                 size={avatarPxAlk}
                                 avatarUrl={whiteAvatarUrl}
                                 borderUrl={whiteBorderUrl}
@@ -1496,7 +1513,7 @@ const MatchPlayersRoster: React.FC<{
                             </span>
                         )}
                     </div>
-                    {whiteIsMonster && adventureMonster ? nickRowMonster('white') : nickRowHuman(whitePlayer.nickname, 'white', whiteLv)}
+                    {whiteIsMonster && adventureMonster ? nickRowMonster('white') : nickRowHuman(whiteRoster.nickname, 'white', whiteLv)}
                 </div>
             </div>
         );
@@ -1526,7 +1543,7 @@ const MatchPlayersRoster: React.FC<{
                         ) : (
                             <Avatar
                                 userId={blackPlayer.id}
-                                userName={blackPlayer.nickname}
+                                userName={blackRoster.nickname}
                                 size={avatarPx}
                                 avatarUrl={blackAvatarUrl}
                                 borderUrl={blackBorderUrl}
@@ -1550,9 +1567,9 @@ const MatchPlayersRoster: React.FC<{
                                 fontSize: isMobile ? mobPx(mx.columnHead) : deskPx(dx.nickname),
                                 wordBreak: isMobile ? undefined : 'break-word',
                             }}
-                            title={blackIsMonster && adventureMonster ? adventureMonster.name : blackPlayer.nickname}
+                            title={blackIsMonster && adventureMonster ? adventureMonster.name : blackRoster.nickname}
                         >
-                            {blackIsMonster && adventureMonster ? adventureMonster.name : blackPlayer.nickname}
+                            {blackIsMonster && adventureMonster ? adventureMonster.name : blackRoster.nickname}
                         </p>
                         <p
                             className="font-medium text-stone-400"
@@ -1585,7 +1602,7 @@ const MatchPlayersRoster: React.FC<{
                         ) : (
                             <Avatar
                                 userId={whitePlayer.id}
-                                userName={whitePlayer.nickname}
+                                userName={whiteRoster.nickname}
                                 size={avatarPx}
                                 avatarUrl={whiteAvatarUrl}
                                 borderUrl={whiteBorderUrl}
@@ -1609,9 +1626,9 @@ const MatchPlayersRoster: React.FC<{
                                 fontSize: isMobile ? mobPx(mx.columnHead) : deskPx(dx.nickname),
                                 wordBreak: isMobile ? undefined : 'break-word',
                             }}
-                            title={whiteIsMonster && adventureMonster ? adventureMonster.name : whitePlayer.nickname}
+                            title={whiteIsMonster && adventureMonster ? adventureMonster.name : whiteRoster.nickname}
                         >
-                            {whiteIsMonster && adventureMonster ? adventureMonster.name : whitePlayer.nickname}
+                            {whiteIsMonster && adventureMonster ? adventureMonster.name : whiteRoster.nickname}
                         </p>
                         <p
                             className="font-medium text-slate-300/90"
@@ -1703,14 +1720,16 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
     const showPetXpBarAside = showPetXpAside && !showPetGradeUpgradeInsteadOfXp;
     const isAdventureGame =
         resolveArenaSessionPolicy(session).kind === 'adventure' || isAdventureSessionLike(session);
+    const isTrainingGround = isTrainingGroundSession(session);
     const sessionShowsVipPlayRewardSlot = useMemo(() => {
         if (isSpectator) return false;
+        if (isTrainingGround) return false;
         const cat = session.gameCategory as string | undefined;
         if (cat === 'guildwar') return true;
         if (session.isSinglePlayer || cat === 'tower' || cat === 'singleplayer') return false;
         if (cat === 'adventure') return true;
         return SPECIAL_GAME_MODES.some((m) => m.mode === session.mode) || PLAYFUL_GAME_MODES.some((m) => m.mode === session.mode);
-    }, [isSpectator, session.gameCategory, session.isSinglePlayer, session.mode]);
+    }, [isSpectator, isTrainingGround, session.gameCategory, session.isSinglePlayer, session.mode]);
 
     const vipSlotEffective = useMemo(() => {
         if (!sessionShowsVipPlayRewardSlot) return undefined;
@@ -1786,14 +1805,18 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
             );
         }
         const xpSlotCounts = !isPlayful && (mySummary.xp?.change ?? 0) > 0;
+        const trainingGroundXpSlotCounts =
+            isTrainingGround &&
+            ((mySummary.xp?.change ?? 0) > 0 || (mySummary.pairPetXp?.change ?? 0) > 0);
         return (
             (mySummary.gold ?? 0) > 0 ||
+            (mySummary.diamonds ?? 0) > 0 ||
             xpSlotCounts ||
+            trainingGroundXpSlotCounts ||
             (mySummary.pairPetXp?.change ?? 0) > 0 ||
-            mySummary.pairPetXp != null ||
             (mySummary.items?.length ?? 0) > 0
         );
-    }, [mySummary, isAdventureGame, sessionShowsVipPlayRewardSlot, vipSlotEffective, isPlayful]);
+    }, [mySummary, isAdventureGame, isTrainingGround, sessionShowsVipPlayRewardSlot, vipSlotEffective, isPlayful]);
 
     const displayedMatchGold = useMemo(() => {
         if (!mySummary) return 0;
@@ -2270,11 +2293,11 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-1 sm:gap-2 min-[1024px]:gap-3">
                     <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center gap-2">
                         <ResultModalStoneLabel color="black" className="h-4 w-4 shrink-0" />
-                        <span className="font-semibold truncate" style={contentMetaStyle}>{blackPlayer.nickname}</span>
+                        <span className="font-semibold truncate" style={contentMetaStyle}>{getSessionPlayerDisplayName(session, blackPlayer)}</span>
                     </div>
                     <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center gap-2">
                         <ResultModalStoneLabel color="white" className="h-4 w-4 shrink-0" />
-                        <span className="font-semibold truncate" style={contentMetaStyle}>{whitePlayer.nickname}</span>
+                        <span className="font-semibold truncate" style={contentMetaStyle}>{getSessionPlayerDisplayName(session, whitePlayer)}</span>
                     </div>
                     <div className="bg-gray-800/40 rounded-md px-2 py-1.5 flex justify-between items-center">
                         <span className="text-gray-300" style={contentMetaStyle}>{t('summary.totalMoves')}</span>
@@ -2444,7 +2467,27 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                                 understandingBonus={mySummary.adventureGoldUnderstandingBonus}
                             />
                         )}
-                        {/* 전략/펫 EXP는 상단 경험치 바에서 표시 — 슬롯 배지 중복 제거 */}
+                        {(mySummary.diamonds ?? 0) > 0 && (
+                            <ResultModalDiamondCurrencySlot
+                                amount={mySummary.diamonds ?? 0}
+                                compact={useCompactRewardSlots}
+                            />
+                        )}
+                        {isTrainingGround && (mySummary.xp?.change ?? 0) > 0 ? (
+                            <ResultModalXpRewardBadge
+                                variant="strategy"
+                                amount={mySummary.xp?.change ?? 0}
+                                compact={useCompactRewardSlots}
+                            />
+                        ) : null}
+                        {isTrainingGround && (mySummary.pairPetXp?.change ?? 0) > 0 ? (
+                            <ResultModalXpRewardBadge
+                                variant="pet"
+                                amount={mySummary.pairPetXp?.change ?? 0}
+                                compact={useCompactRewardSlots}
+                            />
+                        ) : null}
+                        {/* 전략/펫 EXP는 상단 경험치 바 + 훈련장 보상 배지에서 표시 */}
                         {mySummary.items &&
                             mySummary.items.length > 0 &&
                             mySummary.items.slice(0, 3).map((item: InventoryItem, idx: number) => {

@@ -576,11 +576,12 @@ const Header: React.FC<HeaderProps> = ({ compact = false }) => {
                             }`}
                         >
                             <ActionPointIcon
-                                size="sm"
+                                size="md"
+                                variant="svg"
                                 className={
                                     isMobile
-                                        ? '!h-[clamp(0.95rem,calc(0.7rem+2.2vw),1.15rem)] !w-[clamp(0.95rem,calc(0.7rem+2.2vw),1.15rem)] shrink-0'
-                                        : 'shrink-0'
+                                        ? '!h-[clamp(1.05rem,calc(0.82rem+2.4vw),1.28rem)] !w-[clamp(1.05rem,calc(0.82rem+2.4vw),1.28rem)] shrink-0'
+                                        : '!h-5 !w-5 sm:!h-[1.35rem] sm:!w-[1.35rem] shrink-0'
                                 }
                             />
                             {`${safeActionPoints.current}/${safeActionPoints.max}`}

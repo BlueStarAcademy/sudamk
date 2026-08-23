@@ -23,6 +23,7 @@ import {
     applySpeedMoveClockEnd,
     applySpeedNextTurnClockStart,
 } from '../shared/utils/speedTimePressureSessionSync.js';
+import { applyKataWinrateBestMovePreference, readKataPreferBestMoveLowWinrate } from '../shared/utils/kataLowWinrateBestMove.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import { applyCastleTerritoryAfterMove } from './modes/castle.js';
 import { enumerateLegalCastleMoves, processCastleMove, sessionUsesCastleGo } from '../shared/utils/castleGoRules.js';
@@ -2086,7 +2087,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap) ?? kataLevel,
         );
         const requestKataLevel = Number.isFinite(requestKataLevelRaw)
-            ? Math.max(-31, Math.min(9, Math.floor(requestKataLevelRaw)))
+            ? Math.max(-31, Math.min(10, Math.floor(requestKataLevelRaw)))
             : -31;
 
         const kataParams = {
@@ -2100,9 +2101,10 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
                 game,
                 `${tagSuffix}-rs${resync}-${randomUUID().slice(0, 8)}`,
             ),
-            // Kata `/move`는 항상 착점만 사용 — PASS·기권은 서버에서 처리하지 않는다.
+            // PASS·기권은 서버에서 처리하지 않는다.
             allowPass: false,
             moveApiRetries,
+            preferBestMoveLowWinrate: readKataPreferBestMoveLowWinrate(game),
         };
 
         let kataDetails: Awaited<ReturnType<typeof generateKataServerMoveCandidateDetails>>;
@@ -2125,6 +2127,12 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
         const kataCandidates = kataDetails.candidates;
         lastCandidates = kataCandidates;
         lastBest = kataDetails.bestMove;
+        const preferBestMove = applyKataWinrateBestMovePreference(game, kataDetails.winrate);
+        if (preferBestMove && kataDetails.winrate != null) {
+            console.log(
+                `[pickKataMoveExclusiveWithBoardResync] low winrate bestMove mode winrate=${kataDetails.winrate} level=${requestKataLevel} game=${game.id}`,
+            );
+        }
 
         if (
             kataCandidates.length === 0 ||
@@ -2140,7 +2148,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             continue;
         }
 
-        // 레벨 보정된 Kata `move`를 최우선으로 둔다. bestMove는 move가 서버 판에서 불법일 때만.
+        // 레벨 보정 `move` 우선. 저승률(<10%) 구간에서는 bestMove 우선.
         const tryPlayPoint = (cand: Point, source: 'move' | 'bestMove' | 'candidate'): KataExclusivePickResult | null => {
             if (cand.x === -1 && cand.y === -1) return null;
             const trial = evaluateAiGoPlacementMove(game, { ...cand, player: aiPlayerEnum });
@@ -2174,17 +2182,24 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             return null;
         };
 
-        if (kataDetails.reportedMove) {
-            const fromMove = tryPlayPoint(kataDetails.reportedMove, 'move');
-            if (fromMove) return fromMove;
-            console.warn(
-                `[pickKataMoveExclusiveWithBoardResync] Kata move (${kataDetails.reportedMove.x},${kataDetails.reportedMove.y}) invalid on server board; trying bestMove/candidates, level=${requestKataLevel} game=${game.id}`,
-            );
-        }
-
-        if (kataDetails.bestMove) {
-            const fromBest = tryPlayPoint(kataDetails.bestMove, 'bestMove');
-            if (fromBest) return fromBest;
+        const orderedPrimary: Array<{ point: Point | null; source: 'move' | 'bestMove' }> = preferBestMove
+            ? [
+                  { point: kataDetails.bestMove, source: 'bestMove' },
+                  { point: kataDetails.reportedMove, source: 'move' },
+              ]
+            : [
+                  { point: kataDetails.reportedMove, source: 'move' },
+                  { point: kataDetails.bestMove, source: 'bestMove' },
+              ];
+        for (const { point, source } of orderedPrimary) {
+            if (!point) continue;
+            const picked = tryPlayPoint(point, source);
+            if (picked) return picked;
+            if (source === 'move') {
+                console.warn(
+                    `[pickKataMoveExclusiveWithBoardResync] Kata move (${point.x},${point.y}) invalid on server board; trying bestMove/candidates, level=${requestKataLevel} game=${game.id}`,
+                );
+            }
         }
 
         for (const cand of kataCandidates) {
@@ -2578,7 +2593,7 @@ export async function makeGoAiBotMove(
               : configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
     {
         const n = Number(resolvedKataLevel);
-        resolvedKataLevel = Number.isFinite(n) ? Math.max(-31, Math.min(9, Math.floor(n))) : -31;
+        resolvedKataLevel = Number.isFinite(n) ? Math.max(-31, Math.min(10, Math.floor(n))) : -31;
     }
     const pairHasFixedScoringTurnLimit =
         pairClassicGame &&

@@ -19,6 +19,7 @@ import {
     getGuildWarParticipationRewardMult,
     scaleGuildWarPersonalRewardAmount,
 } from '../../shared/utils/guildWarParticipationRewards.js';
+import { isGuildWarEndRewardClaimable, isGuildWarEndRewardClaimed } from '../../shared/utils/guildWarEndRewardClaim.js';
 import { guildWarKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
 import { aggregateGuildWarBoardTotals } from '../../shared/utils/guildWarBoardOwner.js';
 import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
@@ -483,6 +484,28 @@ function applyBotGuildWarAttemptScript(war: any, now: number = Date.now()): bool
     const dayMs = 24 * 60 * 60 * 1000;
     const startMs = Number(war.startTime || 0);
     if (!Number.isFinite(startMs) || startMs <= 0) return false;
+
+    const opponentIsGuild2 = war.guild2Id === GUILD_WAR_BOT_GUILD_ID;
+    const totalKey = opponentIsGuild2 ? 'guild2TotalAttempts' : 'guild1TotalAttempts';
+    const boardKey = opponentIsGuild2 ? 'guild2Attempts' : 'guild1Attempts';
+
+    // 월요일 매칭 직후(화 0시 개시 전): 봇 도전·스코어 연출 없음 — 0vs0 유지
+    if (now < startMs) {
+        let changed = false;
+        if (Number(war[totalKey] ?? 0) !== 0) {
+            war[totalKey] = 0;
+            changed = true;
+        }
+        for (const bid of Object.keys(war.boards || {})) {
+            const b = war.boards[bid];
+            if (b && typeof b === 'object' && Number(b[boardKey] ?? 0) !== 0) {
+                b[boardKey] = 0;
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
     const elapsedDays = Math.min(5, Math.max(0, Math.floor(Math.max(0, now - startMs) / dayMs)));
     const perDay: number[] = Array.from({ length: 6 }, (_, i) => {
         const script = (war as any).botAttemptScript?.perDay;
@@ -497,10 +520,6 @@ function applyBotGuildWarAttemptScript(war: any, now: number = Date.now()): bool
         targetUsed += perDay[d] ?? GUILD_WAR_BOT_ATTEMPTS_PER_DAY;
     }
     targetUsed = Math.min(GUILD_WAR_BOT_ATTEMPTS_WAR_TOTAL, targetUsed);
-
-    const opponentIsGuild2 = war.guild2Id === GUILD_WAR_BOT_GUILD_ID;
-    const totalKey = opponentIsGuild2 ? 'guild2TotalAttempts' : 'guild1TotalAttempts';
-    const boardKey = opponentIsGuild2 ? 'guild2Attempts' : 'guild1Attempts';
 
     const currentUsed = Number(war[totalKey] ?? 0) || 0;
     const appliedUsed = Math.max(currentUsed, targetUsed);
@@ -2628,14 +2647,27 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
             let guildWarLatestCompletedRewardClaimed = false;
             let guildWarRewardClaimable = false;
             if (latestCompletedWar?.id) {
-                guildWarLatestCompletedRewardClaimed = !!claimedRewards[latestCompletedWar.id]?.includes(effectiveUserId);
                 const latestCompletedEndMs = parseEpochMs((latestCompletedWar as any).endTime) ?? 0;
                 const rewardAvailableAt =
                     (latestCompletedWar as any).rewardAvailableAt ??
                     latestCompletedEndMs + 60 * 60 * 1000;
-                guildWarRewardClaimable =
-                    !guildWarLatestCompletedRewardClaimed &&
-                    now >= rewardAvailableAt;
+                const participationAttemptsForReward = user.isAdmin
+                    ? GUILD_WAR_PERSONAL_WAR_MAX_ATTEMPTS
+                    : getGuildWarUserTicketsUsedInWar(latestCompletedWar, effectiveUserId);
+                guildWarLatestCompletedRewardClaimed = isGuildWarEndRewardClaimed(
+                    claimedRewards,
+                    String(latestCompletedWar.id),
+                    effectiveUserId,
+                );
+                guildWarRewardClaimable = isGuildWarEndRewardClaimable({
+                    warId: String(latestCompletedWar.id),
+                    claimedRewards,
+                    userId: effectiveUserId,
+                    now,
+                    rewardAvailableAt,
+                    participationAttempts: participationAttemptsForReward,
+                    isAdmin: user.isAdmin,
+                });
             }
             
             // 누적 전쟁 기록 및 마지막 상대 기록 계산

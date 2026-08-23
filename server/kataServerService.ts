@@ -126,6 +126,7 @@ export interface KataServerMoveCandidateDetails {
     candidates: Point[];
     reportedMove: Point | null;
     bestMove: Point | null;
+    winrate?: number;
 }
 
 /** 동일 응답·병합 후보에서 같은 좌표가 여러 번 오면 앞선 것만 유지 (먼저 온 좌표로 착수). */
@@ -141,11 +142,12 @@ function dedupePointsFirstWins(points: Point[]): Point[] {
     return out;
 }
 
-/** KataServer가 레벨에 맞게 보정해 고른 `move` 우선, 그다음 참고용 `bestMove`. */
+/** KataServer가 레벨에 맞게 보정해 고른 `move` 우선, 그다음 참고용 `bestMove`. `preferBestMoveFirst`면 순서를 바꾼다. */
 function buildGtpCandidatesFromKataResponse(
     data: KataMoveApiData,
     allowPass: boolean,
     boardSize: number,
+    preferBestMoveFirst = false,
 ): string[] {
     const best = data.bestMove?.trim();
     const reported = data.move?.trim();
@@ -157,8 +159,13 @@ function buildGtpCandidatesFromKataResponse(
         if (u === 'PASS' && !allowPass) return;
         if (!out.some((g) => g.toUpperCase() === u)) out.push(s);
     };
-    pushUnique(reported);
-    pushUnique(best);
+    if (preferBestMoveFirst) {
+        pushUnique(best);
+        pushUnique(reported);
+    } else {
+        pushUnique(reported);
+        pushUnique(best);
+    }
     // occupied/`move`가 서버 판에서 불법이어도 moveInfos의 다른 착점을 써야 한다.
     // PASS-only일 때만 보면 밀집 따내기(천상의 탑 5 등)에서 후보가 비고 휴리스틱으로 떨어진다.
     const fromInfos = selectKataMoveWithoutPass(data.moveInfos, boardSize, allowPass);
@@ -176,7 +183,7 @@ export interface GenerateKataServerMoveParams {
     boardSize: number;
     player: 'black' | 'white';
     moveHistory: Array<{ x: number; y: number; player: number }>;
-    level: number;      // -31 ~ 9
+    level: number;      // -31 ~ 10
     komi?: number;
     gameId?: string;
     /**
@@ -194,6 +201,8 @@ export interface GenerateKataServerMoveParams {
     moveApiRetries?: number;
     /** 대량 사전 생성용: 응답 후 체감 지연 없이 즉시 후보를 반환한다. */
     skipApplyDelay?: boolean;
+    /** true면 bestMove를 move보다 먼저 후보에 넣는다(저승률 구간). */
+    preferBestMoveLowWinrate?: boolean;
 }
 
 const inFlightKataServerMoveRequests = new Map<string, Promise<KataServerMoveCandidateDetails>>();
@@ -230,7 +239,7 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
         throw new Error(`[KataServer] invalid level=${String(params.level)}`);
     }
     // KataServer levelbot 범위. 프로필 단계(1~10)가 그대로 들어오면 강도가 완전히 어긋난다.
-    const level = Math.max(-31, Math.min(9, Math.floor(levelRaw)));
+    const level = Math.max(-31, Math.min(10, Math.floor(levelRaw)));
     const allowPass = params.allowPass === true;
     for (let i = 0; i < moveHistory.length; i++) {
         const m = moveHistory[i]!;
@@ -309,12 +318,13 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
 
             console.log(`[KataServer] Move response: move=${data.move} strategy=${data.strategy} winrate=${data.winrate} bestMove=${data.bestMove}`);
 
-            const gtps = buildGtpCandidatesFromKataResponse(data, allowPass, boardSize);
+            const preferBestMoveFirst = params.preferBestMoveLowWinrate === true;
+            const gtps = buildGtpCandidatesFromKataResponse(data, allowPass, boardSize, preferBestMoveFirst);
             const best = data.bestMove?.trim();
             const reported = data.move?.trim();
             if (best && reported && best.toUpperCase() !== 'PASS' && reported.toUpperCase() !== 'PASS' && best.toUpperCase() !== reported.toUpperCase()) {
                 console.log(
-                    `[KataServer] candidate order: move=${reported} then bestMove=${best} (strategy=${data.strategy ?? 'n/a'})`,
+                    `[KataServer] candidate order: ${preferBestMoveFirst ? `bestMove=${best} then move=${reported}` : `move=${reported} then bestMove=${best}`} (strategy=${data.strategy ?? 'n/a'} winrate=${data.winrate ?? 'n/a'})`,
                 );
             }
 
@@ -322,7 +332,7 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
                 console.warn(
                     `[KataServer] /move returned no board coordinate (PASS or empty). move=${reported ?? 'n/a'} bestMove=${best ?? 'n/a'} strategy=${data.strategy ?? 'n/a'} level=${level} boardSize=${boardSize} moves=${moves.length} player=${player} gameId=${gameId ?? 'n/a'}`,
                 );
-                return { candidates: [], reportedMove: null, bestMove: null };
+                return { candidates: [], reportedMove: null, bestMove: null, winrate: data.winrate };
             }
 
             const points: Point[] = [];
@@ -343,6 +353,7 @@ async function generateKataServerMoveCandidatesUncached(params: GenerateKataServ
                 candidates: deduped,
                 reportedMove: parseOptionalPoint(reported),
                 bestMove: parseOptionalPoint(best),
+                winrate: typeof data.winrate === 'number' && Number.isFinite(data.winrate) ? data.winrate : undefined,
             };
         } catch (err: any) {
             if (err.name === 'AbortError') {

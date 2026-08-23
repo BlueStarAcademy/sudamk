@@ -19,7 +19,7 @@ export type StrategicRankedMatchArenaProps = {
     onClose?: () => void;
     /** 익명 큐 종류 (미지정 시 내부 탭으로 전환) */
     queueKind?: StrategicMatchQueueKind;
-    /** true면 대국 설정 패널 좌열 상단에 경기 종류 탭 표시 */
+    /** true면 게임 모드 선택 위 타이틀을 랭킹전/일반전 탭으로 표시 */
     showQueueKindTabs?: boolean;
     /** `strategic`: 랭킹전/일반전 — `pair`: 페어랭킹전/페어일반전 */
     arenaScope?: ArenaMatchArenaScope;

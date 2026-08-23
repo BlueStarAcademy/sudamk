@@ -41,8 +41,9 @@ export type LobbyMatchKindPickerProps<T extends string = string> = {
     /**
      * rail: 설정 좌측 세로 버튼(기본)
      * row: 좁은 화면용 가로 세그먼트
+     * title: 게임 모드 선택 위 타이틀을 대체하는 큰 탭
      */
-    layout?: 'rail' | 'row';
+    layout?: 'rail' | 'row' | 'title';
     defaultTone?: LobbyMatchKindTone;
 };
 
@@ -64,12 +65,16 @@ function LobbyMatchKindPicker<T extends string>({
 
     const shellTone = options.find((o) => o.value === value)?.tone ?? defaultTone;
 
-    if (layout === 'row') {
+    if (layout === 'title' || layout === 'row') {
+        const isTitle = layout === 'title';
+        const tabClass = isTitle
+            ? 'rounded-lg px-2 py-2 text-center text-sm font-black leading-tight transition sm:px-3 sm:py-2.5 sm:text-base'
+            : 'rounded-lg px-1.5 py-1.5 text-center text-[0.7rem] font-extrabold leading-tight whitespace-pre-line transition sm:px-2 sm:py-2 sm:text-sm';
         return (
             <div
-                className={`grid shrink-0 gap-1 rounded-xl border bg-black/30 p-1 ${TONE_SHELL[shellTone]} ${
+                className={`grid min-w-0 gap-1 rounded-xl border bg-black/30 p-1 ${TONE_SHELL[shellTone]} ${
                     options.length >= 3 ? 'grid-cols-3' : 'grid-cols-2'
-                } ${className ?? ''}`}
+                } ${isTitle ? 'min-w-0 flex-1' : 'shrink-0'} ${className ?? ''}`}
                 role="tablist"
                 aria-label={ariaLabel}
             >
@@ -88,7 +93,7 @@ function LobbyMatchKindPicker<T extends string>({
                                 if (opt.disabled) return;
                                 onChange(opt.value);
                             }}
-                            className={`rounded-lg px-1.5 py-1.5 text-center text-[0.7rem] font-extrabold leading-tight whitespace-pre-line transition sm:px-2 sm:py-2 sm:text-sm ${
+                            className={`${tabClass} ${
                                 sel
                                     ? TONE_ACTIVE[tone]
                                     : opt.disabled

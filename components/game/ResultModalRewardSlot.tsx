@@ -74,6 +74,42 @@ function imageBoxClass(compact: boolean): string {
         : 'h-[4.75rem] w-[4.75rem] min-[1024px]:h-[5.25rem] min-[1024px]:w-[5.25rem]';
 }
 
+const BOX_DIAMOND =
+    'flex flex-shrink-0 items-center justify-center rounded-lg border-2 border-sky-400/45 bg-gradient-to-br from-sky-950/70 via-cyan-900/35 to-zinc-950/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] ring-1 ring-inset ring-sky-400/20';
+
+/** 통화 다이아: 아이콘 박스 + 수량 */
+export const ResultModalDiamondCurrencySlot: React.FC<{
+    amount: number;
+    compact: boolean;
+    dimmed?: boolean;
+}> = ({ amount, compact, dimmed }) => (
+    <div
+        className={`flex flex-col items-center gap-0.5 ${compact ? 'shrink-0' : ''} ${dimmed ? 'opacity-80' : ''}`}
+        title={tx('common:resources.diamonds') + ` +${amount.toLocaleString()}`}
+    >
+        <div className={`${BOX_DIAMOND} ${imageBoxClass(compact)}`}>
+            <img
+                src="/images/icon/Zem.webp"
+                alt=""
+                className={
+                    compact
+                        ? 'h-7 w-7 min-[360px]:h-8 min-[360px]:w-8 min-[400px]:h-9 min-[400px]:w-9 object-contain p-0.5 sm:h-9 sm:w-9'
+                        : 'h-11 w-11 object-contain p-1 min-[1024px]:h-12 min-[1024px]:w-12'
+                }
+            />
+        </div>
+        <span
+            className={
+                compact
+                    ? 'max-w-[min(100%,11rem)] text-center text-[0.72rem] font-bold tabular-nums text-sky-100'
+                    : 'max-w-[min(100%,12rem)] text-center text-sm font-bold tabular-nums text-sky-100 min-[1024px]:max-w-[14rem] min-[1024px]:text-base'
+            }
+        >
+            {amount.toLocaleString()}
+        </span>
+    </div>
+);
+
 /** 통화 골드: 아이콘 박스 + 수량(아이콘이 종류를 나타내므로 「골드」 라벨 없음) */
 export const ResultModalGoldCurrencySlot: React.FC<{
     amount: number;

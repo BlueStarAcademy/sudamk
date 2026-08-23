@@ -11,6 +11,8 @@ import { syncAiSession } from './aiSessionManager.js';
 import { initializeStrategicGame, updateStrategicGameState } from './modes/standard.js';
 import { applyHumanPvpStrategicSettingsInvariants } from './modes/pvpStrategicPipeline.js';
 import { sanitizePvpGameSettings } from '../shared/utils/sanitizePvpGameSettings.js';
+import { TOWER_AI_BOT_DISPLAY_NAME } from '../constants/towerConstants.js';
+import { PVE_TOWER_BOT_AVATAR_ID } from '../shared/constants/pveBotProfiles.js';
 import { initializePlayfulGame, updatePlayfulGameState } from './modes/playful.js';
 import { randomUUID } from 'crypto';
 import * as db from './db.js';
@@ -1790,7 +1792,11 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                     ? getAiUserForGuildWar(game.mode, guildWarBoardId)
                     : getAiUser(game.mode);
             if (String((game as any).gameCategory ?? '') === 'tower') {
-                aiUserResolved = { ...aiUserResolved, nickname: TOWER_AI_BOT_DISPLAY_NAME };
+                aiUserResolved = {
+                    ...aiUserResolved,
+                    nickname: TOWER_AI_BOT_DISPLAY_NAME,
+                    avatarId: PVE_TOWER_BOT_AVATAR_ID,
+                };
             }
             // 싱글플레이: 봇 닉네임·레벨은 START/CONFIRM에서 스테이지(반·번호) 기준으로 설정되므로
             // 메인 루프가 모드 기본 닉네임(`히든 바둑봇`/`베이스 바둑봇` 등)으로 되돌리지 않도록 보존한다.
@@ -1803,7 +1809,26 @@ const processGame = async (game: LiveGameSession, now: number): Promise<LiveGame
                 const preservedUserLevel = typeof game.player2.userLevel === 'number'
                     ? game.player2.userLevel
                     : aiUserResolved.userLevel;
-                aiUserResolved = { ...aiUserResolved, nickname: preservedNickname, userLevel: preservedUserLevel };
+                const preservedAvatarId = typeof game.player2.avatarId === 'string' && game.player2.avatarId.length > 0
+                    ? game.player2.avatarId
+                    : aiUserResolved.avatarId;
+                aiUserResolved = {
+                    ...aiUserResolved,
+                    nickname: preservedNickname,
+                    userLevel: preservedUserLevel,
+                    avatarId: preservedAvatarId,
+                };
+            }
+            const isTrainingGroundSession = Boolean((game.settings as { trainingGround?: unknown } | undefined)?.trainingGround);
+            if (isTrainingGroundSession && game.player2?.id === aiUserId) {
+                aiUserResolved = {
+                    ...aiUserResolved,
+                    nickname: game.player2.nickname ?? aiUserResolved.nickname,
+                    avatarId: game.player2.avatarId ?? aiUserResolved.avatarId,
+                    borderId: game.player2.borderId ?? aiUserResolved.borderId,
+                    userLevel: typeof game.player2.userLevel === 'number' ? game.player2.userLevel : aiUserResolved.userLevel,
+                    equippedPairPetTemplateId: game.player2.equippedPairPetTemplateId ?? aiUserResolved.equippedPairPetTemplateId,
+                };
             }
 
             if (needsP1Load || needsP2Load) {

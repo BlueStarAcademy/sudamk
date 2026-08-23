@@ -1,35 +1,67 @@
 import { randomUUID } from 'crypto';
 import * as db from '../db.js';
-import type { ServerAction, User, VolatileState, GameSettings, Negotiation } from '../../types/index.js';
+import type { ServerAction, User, VolatileState, Negotiation } from '../../types/index.js';
 import { GameMode } from '../../types/index.js';
-import { DEFAULT_GAME_SETTINGS } from '../../constants';
-import { getAiScoringTurnLimitByBoardSize } from '../../constants/gameSettings.js';
 import { initializeGame } from '../gameModes.js';
 import { getAiUser } from '../aiPlayer.js';
 import { broadcast, broadcastUserUpdate } from '../socket.js';
 import { getCachedUser, updateUserCache } from '../gameCache.js';
 import { calculateTotalStats } from '../statService.js';
-import { getChampionshipAbilityKataLadder } from '../championshipAbilityKataStore.js';
-import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import { setInGameUserStatusForArena } from './socialActions.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
+import { getPairPetDisplayName } from '../../shared/constants/petLobby.js';
+import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
+import { pveBotAvatarIdForMode } from '../../shared/constants/pveBotProfiles.js';
 import {
-    clampTrainingGroundBoardSize,
     isTrainingGroundKataLevel,
     normalizeTrainingGroundKataLevel,
     type TrainingGroundTrack,
 } from '../../shared/constants/trainingGround.js';
+import {
+    buildTrainingGroundGameSettings,
+    resolveTrainingGroundGameMode,
+} from '../../shared/utils/trainingGroundGameSettings.js';
 import {
     getTrainingGroundTrackState,
     grantTrainingGroundAdRestore,
 } from '../../shared/utils/trainingGroundDaily.js';
 import {
     isTrainingGroundStageUnlocked,
-    trainingGroundPetKataLevel,
-    trainingGroundUserKataLevel,
+    trainingGroundPetTotalAbility,
+    trainingGroundUserTotalAbility,
 } from '../../shared/utils/trainingGroundProgress.js';
 
 type HandleResult = { clientResponse?: unknown; error?: string };
+
+function buildTrainingGroundAiOpponent(user: User, track: TrainingGroundTrack, mode: GameMode): User {
+    const base = {
+        ...getAiUser(mode),
+        avatarId: pveBotAvatarIdForMode(mode),
+    };
+    if (track === 'kata') {
+        return {
+            ...base,
+            nickname: user.nickname,
+            avatarId: user.avatarId,
+            borderId: user.borderId,
+            userLevel: user.userLevel,
+            userXp: user.userXp,
+        };
+    }
+    const petRow = getEquippedPairPetInventoryRow(user);
+    const templateId = petRow?.templateId ?? user.equippedPairPetTemplateId;
+    const meta = petRow ? resolvePairPetMetaFromInventoryRow(petRow) : null;
+    const level = meta ? Math.max(1, Math.floor(meta.level) || 1) : 1;
+    const nickname = petRow
+        ? `Lv.${level} ${getPairPetDisplayName(petRow)}`
+        : base.nickname;
+    return {
+        ...base,
+        nickname,
+        userLevel: level,
+        equippedPairPetTemplateId: templateId ?? null,
+    };
+}
 
 function asTrack(raw: unknown): TrainingGroundTrack | null {
     return raw === 'kata' || raw === 'pet' ? raw : null;
@@ -63,12 +95,13 @@ export async function handleTrainingGroundAction(
                 track?: unknown;
                 kataLevel?: unknown;
                 boardSize?: unknown;
+                gameMode?: unknown;
             };
             const track = asTrack(payload.track);
             if (!track) return { error: '잘못된 수련 종류입니다.' };
             const kataLevel = normalizeTrainingGroundKataLevel(Number(payload.kataLevel));
             if (!isTrainingGroundKataLevel(kataLevel)) return { error: '존재하지 않는 스테이지입니다.' };
-            const boardSize = clampTrainingGroundBoardSize(payload.boardSize);
+            const gameMode = resolveTrainingGroundGameMode(payload.gameMode);
 
             const fresh = (await getCachedUser(user.id)) || (await db.getUser(user.id));
             if (!fresh) return { error: '사용자를 찾을 수 없습니다.' };
@@ -80,41 +113,32 @@ export async function handleTrainingGroundAction(
 
             if (track === 'kata') {
                 const stats = calculateTotalStats(fresh);
-                const currentKata = trainingGroundUserKataLevel(stats, getChampionshipAbilityKataLadder());
-                if (!isTrainingGroundStageUnlocked(currentKata, kataLevel)) {
+                const currentTotal = trainingGroundUserTotalAbility(stats);
+                if (!isTrainingGroundStageUnlocked(currentTotal, kataLevel, 'kata')) {
                     return { error: '바둑능력이 부족하여 이 스테이지를 해금할 수 없습니다.' };
                 }
             } else {
                 if (!getEquippedPairPetInventoryRow(fresh)) {
                     return { error: '대표펫을 장착해야 단짝 수련을 할 수 있습니다.' };
                 }
-                const petLadder = getKataServerRuntimeSnapshot().pairPet.abilityKataLadder;
-                const petKata = trainingGroundPetKataLevel(fresh, petLadder);
-                if (!isTrainingGroundStageUnlocked(petKata, kataLevel)) {
+                const petTotal = trainingGroundPetTotalAbility(fresh);
+                if (!isTrainingGroundStageUnlocked(petTotal, kataLevel, 'pet')) {
                     return { error: '대표펫의 바둑능력이 부족하여 이 스테이지를 해금할 수 없습니다.' };
                 }
             }
 
-            const settings: GameSettings = {
-                ...DEFAULT_GAME_SETTINGS,
-                boardSize,
-                timeLimit: 0,
-                byoyomiTime: 0,
-                byoyomiCount: 0,
-                timeIncrement: 0,
-                scoringTurnLimit: getAiScoringTurnLimitByBoardSize(boardSize),
-                kataServerLevel: kataLevel,
-                goAiBotLevel: 5,
-                useClientSideAi: false,
-                trainingGround: { track, kataLevel, boardSize },
-            };
-            delete (settings as { pairGame?: unknown }).pairGame;
+            const settings = buildTrainingGroundGameSettings(
+                gameMode,
+                track,
+                kataLevel,
+                payload.boardSize,
+            );
 
             const negotiation: Negotiation = {
                 id: `neg-tg-${randomUUID()}`,
                 challenger: fresh,
-                opponent: getAiUser(GameMode.Standard),
-                mode: GameMode.Standard,
+                opponent: buildTrainingGroundAiOpponent(fresh, track, gameMode),
+                mode: gameMode,
                 settings,
                 proposerId: fresh.id,
                 status: 'pending',

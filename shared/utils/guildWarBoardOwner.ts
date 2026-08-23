@@ -1,4 +1,5 @@
 import { getGuildWarBoardMode } from '../constants/guildConstants.js';
+import { guildWarIsOpenForPlay } from './guildWarSchedule.js';
 
 /** `shared/constants/auth.ts`의 GUILD_WAR_BOT_GUILD_ID와 동일해야 함 */
 const GUILD_WAR_BOT_GUILD_ID_LITERAL = 'guild-war-bot-guild';
@@ -140,6 +141,8 @@ export function getGuildWarBotBoardDisplayTally(
         guild2Id: string;
         botGuildId: string;
         isBotWar: boolean;
+        /** false면 전쟁 개시 전(월요일 매칭 직후 등) — 봇 연출·합성 스코어 없이 실제 기록만 */
+        isWarOpenForPlay?: boolean;
     },
 ): GuildWarBotBoardDisplayTally {
     const g1s = Number(board?.guild1Stars ?? 0) || 0;
@@ -157,7 +160,7 @@ export function getGuildWarBotBoardDisplayTally(
     let occupierCapturesDisplay: number | undefined;
     let occupierScoreDiffDisplay: number | undefined;
 
-    if (!input.isBotWar || !board) {
+    if (!input.isBotWar || !board || input.isWarOpenForPlay === false) {
         return {
             guild1Stars: outG1,
             guild2Stars: outG2,
@@ -214,19 +217,26 @@ export function getGuildWarBotBoardDisplayTally(
  * 길드전 종료·기록 표시용: 9칸 보드에서 길드1/2 별·집(능력치) 합산.
  * 봇 참전 전(`isBotGuild` 또는 봇 길드 ID)은 UI와 동일하게 `getGuildWarBotBoardDisplayTally`로 합산한다.
  */
-export function aggregateGuildWarBoardTotals(war: {
-    id?: string;
-    boards?: Record<string, GuildWarBoardAttemptsLike> | null;
-    guild1Id: string;
-    guild2Id: string;
-    isBotGuild?: boolean;
-}): { guild1Stars: number; guild2Stars: number; guild1Score: number; guild2Score: number } {
+export function aggregateGuildWarBoardTotals(
+    war: {
+        id?: string;
+        boards?: Record<string, GuildWarBoardAttemptsLike> | null;
+        guild1Id: string;
+        guild2Id: string;
+        isBotGuild?: boolean;
+        startTime?: unknown;
+        endTime?: unknown;
+        status?: string;
+    },
+    now: number = Date.now(),
+): { guild1Stars: number; guild2Stars: number; guild1Score: number; guild2Score: number } {
     const boards = war.boards || {};
     const botInvolved =
         Boolean(war.isBotGuild) ||
         war.guild1Id === GUILD_WAR_BOT_GUILD_ID_LITERAL ||
         war.guild2Id === GUILD_WAR_BOT_GUILD_ID_LITERAL;
     const warId = String(war.id ?? '');
+    const isWarOpenForPlay = guildWarIsOpenForPlay(war, now);
 
     let guild1Stars = 0;
     let guild2Stars = 0;
@@ -243,6 +253,7 @@ export function aggregateGuildWarBoardTotals(war: {
             guild2Id: war.guild2Id,
             botGuildId: GUILD_WAR_BOT_GUILD_ID_LITERAL,
             isBotWar: botInvolved,
+            isWarOpenForPlay,
         });
         guild1Stars += tally.guild1Stars;
         guild2Stars += tally.guild2Stars;

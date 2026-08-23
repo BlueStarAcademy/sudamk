@@ -1951,6 +1951,8 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
         let enemyScore = 0;
         let totalBoards = 0;
 
+        const warOpenForPlay = guildWarIsOpenForPlay(activeWar, Date.now());
+
         Object.entries(activeWar.boards || {}).forEach(([boardId, board]: [string, any]) => {
             totalBoards++;
             if (isBotWar) {
@@ -1961,6 +1963,7 @@ const WarPanel: React.FC<{ guild: GuildType; className?: string; forceDesktopPan
                     guild2Id: activeWar.guild2Id,
                     botGuildId: GUILD_WAR_BOT_GUILD_ID,
                     isBotWar: true,
+                    isWarOpenForPlay: warOpenForPlay,
                 });
                 ourStars += isGuild1 ? tally.guild1Stars : tally.guild2Stars;
                 enemyStars += isGuild1 ? tally.guild2Stars : tally.guild1Stars;

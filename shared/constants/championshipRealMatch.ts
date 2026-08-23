@@ -123,6 +123,7 @@ export type ChampionshipAbilityKataLadderRow = { minAbilityScore: number; kataLe
 
 /** 능력치 가중 점수가 `minAbilityScore` 이상이면 해당 `kataLevel`을 쓴다. 높은 임계값부터 나열한다. */
 export const CHAMPIONSHIP_ABILITY_KATA_LADDER: readonly ChampionshipAbilityKataLadderRow[] = [
+    { minAbilityScore: 1400, kataLevel: 10 },
     { minAbilityScore: 1350, kataLevel: 9 },
     { minAbilityScore: 1300, kataLevel: 8 },
     { minAbilityScore: 1250, kataLevel: 7 },

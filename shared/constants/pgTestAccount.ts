@@ -8,3 +8,7 @@ export const PG_TEST_EMAIL = 'test@sudambaduk.com';
 export const PG_TEST_DEFAULT_PASSWORD = '123456';
 
 export const PG_TEST_NICKNAME = 'PG테스트';
+
+export function isPgTestUserId(userId: string | null | undefined): boolean {
+    return Boolean(userId && userId === PG_TEST_USER_ID);
+}

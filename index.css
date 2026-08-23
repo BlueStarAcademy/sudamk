@@ -1646,6 +1646,10 @@ input, textarea {
   will-change: transform, opacity;
 }
 
+.pet-hint-reward-float.pet-hint-reward-float--item {
+  filter: drop-shadow(0 3px 7px rgba(0, 0, 0, 0.45));
+}
+
 .pet-hint-reward-quantity {
   fill: #fff7ed;
   font-family: "Outfit", "Noto Sans KR", ui-sans-serif, system-ui, sans-serif;

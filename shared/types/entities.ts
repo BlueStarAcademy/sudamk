@@ -1204,7 +1204,7 @@ export type GameSettings = {
   aiDifficulty?: number; // 1-5 (싱글/탑)
   /** Gnugo AI 레벨 1~10 (전략바둑 AI 대국) */
   goAiBotLevel?: number;
-  /** KataServer 레벨봇 레벨 (-31~9). 미설정 시 goAiBotLevel 사용 */
+  /** KataServer 레벨봇 레벨 (-31~10). 미설정 시 goAiBotLevel 사용 */
   kataServerLevel?: number;
   /** PVE 선포석 — settings JSON으로 저장해 DB 재로드 후에도 Kata 접두를 복구 */
   kataStrategicOpeningBoardState?: BoardState;

@@ -172,7 +172,7 @@ interface RankedMatchPanelProps {
     shrinkToContent?: boolean;
     /** 랭크전(기본) / 페어랭킹전 / 페어일반전 / 일반전 매칭 큐 */
     queueKind?: ArenaMatchQueueKind;
-    /** 제공 시 시즌 영역 상단에 경기 종류 탭 표시 */
+    /** 제공 시 게임 모드 선택 위 타이틀이 랭킹전/일반전 탭이 됨 */
     onSelectQueueKind?: (queue: ArenaMatchQueueKind) => void;
     /** `strategic`: 랭킹전/일반전 — `pair`: 페어랭킹전/페어일반전 */
     arenaScope?: ArenaMatchArenaScope;
@@ -484,12 +484,12 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                 ? [
                       {
                           value: 'pairRanked',
-                          label: t('arenaLobby.queuePairRankedTab', '페어\n랭킹전'),
+                          label: t('arenaLobby.queuePairRanked', '페어랭킹전'),
                           tone: 'violet',
                       },
                       {
                           value: 'pairNormal',
-                          label: t('arenaLobby.queuePairNormalTab', '페어\n일반전'),
+                          label: t('arenaLobby.queuePairNormal', '페어일반전'),
                           tone: 'cyan',
                       },
                   ]
@@ -523,24 +523,26 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
         [dedicatedHandheldSeasonTab, queueKindOptions, t],
     );
 
-    const queueKindTabs =
-        typeof onSelectQueueKind === 'function' ? (
-            <LobbyMatchKindPicker
-                layout="row"
-                ariaLabel={t('arenaLobby.matchTypeTitle', '경기 종류')}
-                options={dedicatedChromeOptions}
-                value={dedicatedHandheldSeasonTab ? dedicatedChromeTab : queueKind}
-                defaultTone="amber"
-                onChange={(next) => {
-                    if (next === 'seasonInfo') {
-                        setDedicatedChromeTab('seasonInfo');
-                        return;
-                    }
-                    setDedicatedChromeTab(next);
-                    onSelectQueueKind(next);
-                }}
-            />
-        ) : null;
+    const showQueueKindTitleTabs =
+        typeof onSelectQueueKind === 'function' && (dedicated || panelSection !== 'season');
+
+    const queueKindTitleTabs = showQueueKindTitleTabs ? (
+        <LobbyMatchKindPicker
+            layout="title"
+            ariaLabel={t('arenaLobby.matchTypeTitle', '경기 종류')}
+            options={dedicatedChromeOptions}
+            value={dedicatedHandheldSeasonTab ? dedicatedChromeTab : queueKind}
+            defaultTone="amber"
+            onChange={(next) => {
+                if (next === 'seasonInfo') {
+                    setDedicatedChromeTab('seasonInfo');
+                    return;
+                }
+                setDedicatedChromeTab(next);
+                onSelectQueueKind(next);
+            }}
+        />
+    ) : null;
 
     const dedicatedMobileChrome =
         dedicatedHandheldSeasonTab
@@ -583,28 +585,32 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                     }`}
                 >
                     <div className={`flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2 ${nativeNarrow ? '' : 'gap-3'}`}>
-                        <div className="h-6 w-1 flex-shrink-0 rounded-full bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.5)] sm:h-8"></div>
-                        <h2
-                            className={`min-w-0 truncate font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${
-                                dedicated
-                                    ? 'text-lg sm:text-xl lg:text-2xl'
-                                    : nativeNarrow
-                                      ? 'text-sm leading-tight'
-                                      : 'whitespace-nowrap text-xl lg:text-2xl'
-                            }`}
-                        >
-                            {!dedicated && panelSection === 'season'
-                                ? t('waitingLobby.seasonInfoTab', { ns: 'pair', defaultValue: '시즌정보' })
-                                : dedicated && dedicatedChromeTab === 'seasonInfo'
-                                  ? t('waitingLobby.seasonInfoTab', { ns: 'pair', defaultValue: '시즌정보' })
-                                : isPairNormal
-                                  ? t('arenaLobby.queuePairNormal', '페어일반전')
-                                  : isStrategicNormalQueue
-                                    ? t('ranked.normalPanelTitle', '일반전')
-                                    : isPairRanked
-                                      ? t('arenaLobby.queuePairRanked', '페어랭킹전')
-                                      : t('ranked.panelTitle', '랭킹전')}
-                        </h2>
+                        {queueKindTitleTabs ? (
+                            queueKindTitleTabs
+                        ) : (
+                            <>
+                                <div className="h-6 w-1 flex-shrink-0 rounded-full bg-gradient-to-b from-yellow-400 via-amber-500 to-yellow-400 shadow-[0_0_8px_rgba(234,179,8,0.5)] sm:h-8"></div>
+                                <h2
+                                    className={`min-w-0 truncate font-bold bg-gradient-to-r from-white via-yellow-200 to-white bg-clip-text text-transparent drop-shadow-[0_2px_4px_rgba(0,0,0,0.5)] ${
+                                        dedicated
+                                            ? 'text-lg sm:text-xl lg:text-2xl'
+                                            : nativeNarrow
+                                              ? 'text-sm leading-tight'
+                                              : 'whitespace-nowrap text-xl lg:text-2xl'
+                                    }`}
+                                >
+                                    {!dedicated && panelSection === 'season'
+                                        ? t('waitingLobby.seasonInfoTab', { ns: 'pair', defaultValue: '시즌정보' })
+                                        : isPairNormal
+                                          ? t('arenaLobby.queuePairNormal', '페어일반전')
+                                          : isStrategicNormalQueue
+                                            ? t('ranked.normalPanelTitle', '일반전')
+                                            : isPairRanked
+                                              ? t('arenaLobby.queuePairRanked', '페어랭킹전')
+                                              : t('ranked.panelTitle', '랭킹전')}
+                                </h2>
+                            </>
+                        )}
                     </div>
                     {dedicated ? (
                         isMatching ? (
@@ -686,7 +692,6 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                             ? startPairPetRankedMatching(mode)
                                             : startStrategicRankedMatching([mode]))
                                     }
-                                    seasonColumnHeader={queueKindTabs}
                                     dedicatedMobileChrome={dedicatedMobileChrome}
                                     currentSeasonPanel={
                                         !seasonPanelsAsRanked && isPairNormal ? (
@@ -945,7 +950,6 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                         ) : null}
                         {!dedicated && (showPanelSeasonCards || showPanelMatchBody) ? (
                         <div className="relative z-10 flex flex-shrink-0 flex-col gap-2 overflow-visible">
-                            {showPanelMatchBody ? queueKindTabs : null}
                             {showPanelSeasonCards && isNormalQueue ? (
                                 <div className="flex-shrink-0 rounded-lg border border-cyan-500/40 bg-gradient-to-br from-cyan-950/50 via-slate-900/40 to-teal-950/40 p-2.5 sm:p-3">
                                     <p className="text-[11px] font-bold uppercase tracking-wide text-cyan-300 sm:text-xs">

@@ -156,11 +156,12 @@ export function pairPetKataAbilityScore(
 /**
  * 가중 능력치 점수(`pairPetKataAbilityScore`) → KataServer `level`.
  * `score >= minAbilityScore`이면 해당 `kataLevelOffset`(실제 절대 레벨), 높은 min부터 매칭.
- * 상위 구간: 190→6, 195→7, 200→8, 205→9.
+ * 상위 구간: 190→6, 195→7, 200→8, 205→9, 210→10.
  */
 export type PairPetAbilityKataLadderRow = { minAbilityScore: number; kataLevelOffset: number };
 
 export const DEFAULT_PAIR_PET_ABILITY_KATA_LADDER: readonly PairPetAbilityKataLadderRow[] = [
+    { minAbilityScore: 210, kataLevelOffset: 10 },
     { minAbilityScore: 205, kataLevelOffset: 9 },
     { minAbilityScore: 200, kataLevelOffset: 8 },
     { minAbilityScore: 195, kataLevelOffset: 7 },

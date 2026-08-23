@@ -5,8 +5,10 @@ import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
 import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
-import { aiUserId } from '../constants/index.js';
-import { getAdventureCodexMonsterById, getAdventureMonsterPortraitUrl } from '../constants/adventureMonstersCodex.js';
+import {
+    applyPveAiSeatDisplayToUser,
+    resolvePveAiSeatAvatarUrlOverride,
+} from '../shared/utils/pveOpponentDisplay.js';
 import { modeIncludesBaseCaptureMix } from '../shared/utils/liveSessionArenaKind.js';
 
 interface BaseStartConfirmationModalProps {
@@ -47,20 +49,11 @@ export const BaseStartConfirmationContent: React.FC<BaseStartConfirmationModalPr
     const whiteCaptureTarget = effectiveCaptureTargets?.[Player.White] ?? baseCaptureTarget;
     const captureBidPoints = Math.max(0, baseCaptureTarget - whiteCaptureTarget);
 
-    const monsterEntry =
-        session.gameCategory === 'adventure' && session.adventureMonsterCodexId
-            ? getAdventureCodexMonsterById(session.adventureMonsterCodexId)
-            : undefined;
-    const monsterName = monsterEntry?.name;
-    const monsterPortraitUrl = monsterEntry ? getAdventureMonsterPortraitUrl(monsterEntry) : undefined;
-    const blackUiPlayer =
-        blackPlayer.id === aiUserId && monsterName ? { ...blackPlayer, nickname: monsterName } : blackPlayer;
-    const whiteUiPlayer =
-        whitePlayer.id === aiUserId && monsterName ? { ...whitePlayer, nickname: monsterName } : whitePlayer;
+    const blackUiPlayer = applyPveAiSeatDisplayToUser(session, blackPlayer);
+    const whiteUiPlayer = applyPveAiSeatDisplayToUser(session, whitePlayer);
     const p1Seat = { ...player1, nickname: getSessionPlayerDisplayName(session, player1) };
     const p2Seat = { ...player2, nickname: getSessionPlayerDisplayName(session, player2) };
-    const avatarUrlOverrides =
-        monsterPortraitUrl ? { [aiUserId]: monsterPortraitUrl } satisfies Partial<Record<string, string>> : undefined;
+    const avatarUrlOverrides = resolvePveAiSeatAvatarUrlOverride(session);
 
     const cards = (
         <PreGameColorRoulette

@@ -7,9 +7,9 @@ export type ArenaLobbyNavKind = 'pair' | 'strategic' | 'playful' | 'friendly';
 type TitleBarProps = {
     kind: ArenaLobbyNavKind;
     lobbyIntent?: ArenaLobbyIntent;
-    /** @deprecated 큐 탭은 대국 설정 패널 좌열로 이동됨 — 무시됨 */
+    /** @deprecated 큐 탭은 게임 모드 선택 위 타이틀 탭으로 이동됨 — 무시됨 */
     matchQueueKind?: 'ranked' | 'normal';
-    /** @deprecated 큐 탭은 대국 설정 패널 좌열로 이동됨 — 무시됨 */
+    /** @deprecated 큐 탭은 게임 모드 선택 위 타이틀 탭으로 이동됨 — 무시됨 */
     onSelectMatchQueue?: (queue: 'ranked' | 'normal') => void;
     /** 프로필로 이동(대기실 이탈 로직은 부모에서 비동기 처리) */
     onBackToProfile: () => void;

@@ -25,7 +25,7 @@ const TONE_RING: Record<Exclude<GuildMarkTone, 'none'>, string> = {
 };
 
 /**
- * 길드 마크 — `size` 고정 칸에 에셋을 cover로 채웁니다.
+ * 길드 마크 — `size` 고정 칸에 에셋을 contain으로 맞춥니다.
  * (마크 webp 자체에 금테/부조가 포함되어 있어 이중 메탈 림을 두지 않습니다.)
  */
 const GuildMark: React.FC<GuildMarkProps> = ({
@@ -68,7 +68,7 @@ const GuildMark: React.FC<GuildMarkProps> = ({
         <img
           src={src}
           alt={alt}
-          className="h-full w-full object-cover"
+          className="box-border h-full w-full object-contain p-[3px]"
           decoding="async"
           draggable={false}
           onError={onError}

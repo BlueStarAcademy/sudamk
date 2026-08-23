@@ -228,7 +228,7 @@ export const QUICK_UTILITY_PANEL_CHROME: Record<QuickUtilityPanelKind, QuickUtil
         bodyRingClass: 'ring-fuchsia-400/22',
     },
     guild: {
-        iconUrl: '/images/bg/guildbg1.webp',
+        iconUrl: '/images/button/guild.webp',
         titleChromeClass: 'border-stone-400/50 bg-gradient-to-r from-stone-950/60 via-zinc-900/80 to-amber-950/45',
         titleHeadingClass:
             'bg-gradient-to-r from-stone-50 via-amber-100 to-stone-200/90 bg-clip-text text-base font-black tracking-tight text-transparent sm:text-lg',

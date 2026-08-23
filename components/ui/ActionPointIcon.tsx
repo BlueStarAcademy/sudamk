@@ -57,7 +57,6 @@ const ActionPointIcon: React.FC<ActionPointIconProps> = ({
             className={`inline-block shrink-0 bg-transparent object-contain ${SIZE_CLASS[size]} ${className}`}
             loading="eager"
             decoding="async"
-            fetchPriority="high"
             draggable={false}
             onError={() => {
                 if (src === PNG_SRC) setSrc(WEBP_SRC);

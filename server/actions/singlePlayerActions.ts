@@ -3,7 +3,7 @@ import * as db from '../db.js';
 import { type ServerAction, type User, type VolatileState, LiveGameSession, Player, GameMode, Point, BoardState, SinglePlayerStageInfo, SinglePlayerMissionState, UserStatus, SinglePlayerLevel } from '../../types/index.js';
 import { SINGLE_PLAYER_MISSIONS, SINGLE_PLAYER_CLASS_BAR_REWARDS } from '../../shared/constants/singlePlayerConstants.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
-import { aiUserId, getAiUser } from '../aiPlayer.js';
+import { PVE_SINGLEPLAYER_BOT_AVATAR_ID } from '../../shared/constants/pveBotProfiles.js';
 import { broadcast } from '../socket.js';
 import {
     attachKataOpeningSnapshotToSession,
@@ -479,6 +479,7 @@ const applyLatestPendingSinglePlayerStage = async (
     if (aiSeatUser) {
         aiSeatUser.nickname = getSinglePlayerBotNicknameFromStage(stage);
         aiSeatUser.userLevel = getSinglePlayerBotDisplayLevelFromStage(stage);
+        aiSeatUser.avatarId = PVE_SINGLEPLAYER_BOT_AVATAR_ID;
     }
 };
 
@@ -554,6 +555,7 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
                 nickname: botNickname,
                 userLevel: botLevel,
                 userXp: 0,
+                avatarId: PVE_SINGLEPLAYER_BOT_AVATAR_ID,
             };
             
             let board: BoardState;

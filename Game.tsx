@@ -814,6 +814,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         y: number;
         iconSrc: string;
         quantityLabel: string;
+        transparentIconBackdrop?: boolean;
     } | null>(null);
     const strategicPetHintMoveLenRef = useRef<number | null>(null);
     const strategicPetHintBubbleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -886,6 +887,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 y: bonus.y,
                 iconSrc: strategicPetHintRewardIcon(bonus.reward),
                 quantityLabel: strategicPetHintRewardQuantity(bonus.reward),
+                transparentIconBackdrop: bonus.reward?.kind === 'material',
             });
             strategicPetHintRewardTimerRef.current = setTimeout(() => {
                 setStrategicPetHintRewardAnimation(null);

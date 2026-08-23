@@ -9,6 +9,7 @@ import {
 } from '../../shared/types/quickUtilityPanel.js';
 import { getBlacksmithVisualNameKey } from '../../shared/utils/blacksmithVisualTier.js';
 import { countTradeListingTickets } from '../../shared/utils/tradeListingTicket.js';
+import { resolveGuildIconPath } from '../../shared/utils/guildIconPath.js';
 import ExchangeTradeTicketBadge from '../exchange/ExchangeTradeTicketBadge.js';
 
 const QuestsModal = lazy(() => import('../QuestsModal.js'));
@@ -58,6 +59,7 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
         enhancementOutcome,
         homeBoardPosts,
         unreadHomeBoardPostIds,
+        guilds,
     } = useAppContext();
     const detailedStatsType = modals.detailedStatsType;
 
@@ -68,6 +70,10 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
             ? tBlacksmith(getBlacksmithVisualNameKey(currentUserWithStatus.blacksmithLevel ?? 1))
             : QUICK_UTILITY_PANEL_TITLES[kind];
     const chrome = QUICK_UTILITY_PANEL_CHROME[kind];
+    const titleIconUrl =
+        kind === 'guild' && currentUserWithStatus.guildId
+            ? resolveGuildIconPath(guilds[currentUserWithStatus.guildId]?.icon)
+            : chrome.iconUrl;
 
     const renderBody = () => {
         switch (kind) {
@@ -261,7 +267,7 @@ const QuickUtilityPanel: React.FC<QuickUtilityPanelProps> = ({ kind, onBack, she
                 className={`shrink-0 ${isMobileShell ? 'px-1 pt-0.5' : ''}`}
                 chromeClass={chrome.titleChromeClass}
                 titleHeadingClass={chrome.titleHeadingClass}
-                iconUrl={chrome.iconUrl}
+                iconUrl={titleIconUrl}
                 iconEmoji={chrome.iconEmoji}
                 titleTrailing={
                     kind === 'exchange' ? (

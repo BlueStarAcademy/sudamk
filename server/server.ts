@@ -80,6 +80,7 @@ import { sendEmailVerification, verifyEmailCode } from './services/emailVerifica
 import { getKakaoAuthUrl, getKakaoAccessToken, getKakaoUserInfo } from './services/kakaoAuthService.js';
 import { getGoogleAuthUrl, getGoogleAccessToken, getGoogleUserInfo } from './services/googleAuthService.js';
 import { DEFAULT_REWARD_CONFIG, normalizeRewardConfig } from '../shared/constants/rewardConfig.js';
+import { isPgTestUserId } from '../shared/constants/pgTestAccount.js';
 import { PVP_DISCONNECT_REJOIN_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 import { getEquippedPairPetInventoryRow } from '../shared/utils/pairEquippedPet.js';
 import { isLiveGameHumanParticipant } from './utils/liveGameParticipants.js';
@@ -3143,6 +3144,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const allUsers = await db.getAllUsers({ includeEquipment: false, includeInventory: false, skipCache: true });
             // 월간 도전의 탑 랭킹은 월간 최고 층수가 10층 이상인 유저만 집계한다.
             const eligibleUsers = allUsers
+                .filter((user) => !isPgTestUserId(user.id))
                 .map(user => {
                     const towerFloor = (user as any).towerFloor ?? 0;
                     const monthlyTowerFloor = (user as any).monthlyTowerFloor ?? 0;

@@ -221,7 +221,7 @@ export interface PairPetRankedMatchModeModalProps {
      * `dedicatedHome`: 상단 모드 선택 + 좌(시즌) / 우(설명·설정·매칭) 그리드
      */
     presentation?: 'modal' | 'embedded' | 'dedicatedHome';
-    /** dedicatedHome 좌열 상단 — 랭킹전/일반전 탭 등 (매칭 중에도 조작 가능) */
+    /** dedicatedHome 좌열 상단 슬롯(시즌 카드 위). 랭킹전/일반전 탭은 패널 헤더로 이동함 */
     seasonColumnHeader?: ReactNode;
     /** dedicatedHome 좌열 — 현재 시즌 카드 */
     currentSeasonPanel?: ReactNode;

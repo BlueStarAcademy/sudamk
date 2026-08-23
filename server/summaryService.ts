@@ -2366,6 +2366,8 @@ const processPlayerSummary = async (
         vipGrantedDisplay = undefined;
     }
 
+    let trainingGroundPetGrowthSummary: ReturnType<typeof applyPairPetRewardXp> | undefined;
+
     if (isTrainingGroundGame && player.id !== aiUserId) {
         vipGoldBonus = 0;
         vipGrant = null;
@@ -2383,6 +2385,28 @@ const processPlayerSummary = async (
             rewards.gold = table.gold;
             rewards.diamonds = table.diamonds;
             rewards.items = [];
+            if (meta.track === 'kata' && table.kataUserXp > 0) {
+                const addedXp = table.kataUserXp;
+                let cx = updatedPlayer.userXp + addedXp;
+                let cl = updatedPlayer.userLevel;
+                while (cx >= getXpRequirementForLevel(cl)) {
+                    cx -= getXpRequirementForLevel(cl);
+                    cl += 1;
+                }
+                updatedPlayer.userXp = cx;
+                updatedPlayer.userLevel = cl;
+                xpSummary.change += addedXp;
+                xpSummary.final = cx;
+                levelSummary.final = cl;
+                levelSummary.progress.final = cx;
+                levelSummary.progress.max = getXpRequirementForLevel(cl);
+                if (cl > initialLevel) {
+                    levelSummary.progress.initial = 0;
+                }
+            }
+            if (meta.track === 'pet' && table.petXp > 0) {
+                trainingGroundPetGrowthSummary = applyPairPetRewardXp(updatedPlayer, table.petXp);
+            }
             claimTrainingGroundWin(updatedPlayer, meta.track, meta.kataLevel);
         } else {
             rewards.gold = 0;
@@ -2562,7 +2586,15 @@ const processPlayerSummary = async (
                       ? { pairPetLevelUpCoreBonuses: pairPetStrategicBonusSummary.levelUpCoreBonusesDelta }
                       : {}),
               }
-            : {}),
+            : trainingGroundPetGrowthSummary
+              ? {
+                    pairPetXp: trainingGroundPetGrowthSummary.xp,
+                    pairPetLevel: trainingGroundPetGrowthSummary.level,
+                    ...(trainingGroundPetGrowthSummary.levelUpCoreBonusesDelta
+                        ? { pairPetLevelUpCoreBonuses: trainingGroundPetGrowthSummary.levelUpCoreBonusesDelta }
+                        : {}),
+                }
+              : {}),
     };
 
     return { summary, updatedPlayer };

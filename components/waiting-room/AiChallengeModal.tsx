@@ -143,6 +143,11 @@ interface AiChallengeModalProps {
      * `embeddedPanel` + (`!configureOnly` 또는 `pairRoomEmbeddedRightSlot`)과 함께 쓴다.
      */
     embeddedPanelStackedLayout?: boolean;
+    /**
+     * 훈련 머신 등 임베드 AI 패널: 모바일에서도 게임 모드·대국 설정을 한 화면에 표시(다음 단계 없음).
+     * `embeddedPanelStackedLayout`과 함께 쓴다.
+     */
+    embeddedPanelMobileFlatLayout?: boolean;
     /** 데스크톱 split: 게임 모드 피커를 좌측 패널로 분리했을 때 중앙에서 숨김 */
     hideInlineModePicker?: boolean;
     /** 부모(AiLobbyWorkspace)가 모드 선택 state를 소유할 때 */
@@ -683,6 +688,7 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     onConfigureApply,
     embeddedPanel = false,
     embeddedPanelStackedLayout = false,
+    embeddedPanelMobileFlatLayout = false,
     hideInlineModePicker = false,
     controlledSelectedGameMode,
     onControlledSelectedGameModeChange,
@@ -816,7 +822,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
     const isMobile = isNativeMobile || isCompactViewport;
     /** 페어·전략·놀이 AI 경기장 탭(임베드) — 모바일에서도 단계별(모드 → 설정) 마법사 */
     const isEmbeddedAiLobbyMobileWizard = Boolean(
-        embeddedPanel && embeddedPanelStackedLayout && !configureOnly && !pairRoomEmbeddedRightSlot,
+        embeddedPanel &&
+            embeddedPanelStackedLayout &&
+            !configureOnly &&
+            !pairRoomEmbeddedRightSlot &&
+            !embeddedPanelMobileFlatLayout,
     );
     /** 독립 AI 모달 또는 임베드 AI 로비(모바일). 방 만들기 임베드(`pairRoomEmbeddedRightSlot`)는 별도 2단계 */
     const layoutMobile = Boolean(
