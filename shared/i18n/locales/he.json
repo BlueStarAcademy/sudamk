@@ -880,9 +880,7 @@
       "goldBundleSpaced": "חבילת זהב",
       "goldBundleCompact": "חבילת זהב",
       "noRewardInfo": "אין מידע על פיצויים זמין.",
-      "noRewardsEmpty": "אין פיצוי.",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "אין פיצוי."
     },
     "sidebar": {
       "gameInfo": "מידע על התאמה",

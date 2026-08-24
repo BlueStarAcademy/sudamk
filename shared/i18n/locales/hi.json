@@ -889,9 +889,7 @@
       "goldBundleSpaced": "सोने का पैकेज",
       "goldBundleCompact": "सोने का पैकेज",
       "noRewardInfo": "मुआवज़े की कोई जानकारी उपलब्ध नहीं है.",
-      "noRewardsEmpty": "कोई मुआवज़ा नहीं है.",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "कोई मुआवज़ा नहीं है."
     },
     "sidebar": {
       "gameInfo": "मिलान जानकारी",

@@ -889,9 +889,7 @@
       "goldBundleCompact": "黃金套餐",
       "noRewardInfo": "沒有可用的補償資訊。",
       "noRewardsEmpty": "沒有補償。",
-      "adGoldDoubleHint": "如果您看完廣告，您就可以獲得本場比賽的雙倍金牌。",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "adGoldDoubleHint": "如果您看完廣告，您就可以獲得本場比賽的雙倍金牌。"
     },
     "sidebar": {
       "gameInfo": "比賽資訊",

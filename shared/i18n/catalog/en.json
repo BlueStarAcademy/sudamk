@@ -3340,6 +3340,8 @@
       "boardSize": "Board size",
       "unlockAbilityMin": "Go ability {{n}}+",
       "unlockPreviousStage": "Clear the previous stage",
+      "unlockPreviousStageMarker": "Prev. stage",
+      "unlockAbilityMarker": "Ability {{n}}+",
       "selectedStageUnlock": "Stage {{stage}} · Go ability {{n}}+",
       "stageMarkerTitle": "Stages",
       "stageShort": "S{{n}}",

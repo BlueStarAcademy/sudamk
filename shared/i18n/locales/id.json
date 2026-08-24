@@ -889,9 +889,7 @@
       "goldBundleSpaced": "paket emas",
       "goldBundleCompact": "Paket emas",
       "noRewardInfo": "Tidak ada informasi kompensasi yang tersedia.",
-      "noRewardsEmpty": "Tidak ada kompensasi.",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "Tidak ada kompensasi."
     },
     "sidebar": {
       "gameInfo": "Informasi pertandingan",

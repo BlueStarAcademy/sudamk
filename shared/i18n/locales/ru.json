@@ -889,9 +889,7 @@
       "goldBundleSpaced": "золотой пакет",
       "goldBundleCompact": "Золотой пакет",
       "noRewardInfo": "Информация о компенсации отсутствует.",
-      "noRewardsEmpty": "Компенсации нет.",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "Компенсации нет."
     },
     "sidebar": {
       "gameInfo": "Информация о матче",

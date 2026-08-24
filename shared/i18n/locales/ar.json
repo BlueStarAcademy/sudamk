@@ -889,9 +889,7 @@
       "goldBundleSpaced": "الحزمة الذهبية",
       "goldBundleCompact": "الحزمة الذهبية",
       "noRewardInfo": "لا توجد معلومات التعويض المتاحة.",
-      "noRewardsEmpty": "لا يوجد تعويض.",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "لا يوجد تعويض."
     },
     "sidebar": {
       "gameInfo": "معلومات المباراة",

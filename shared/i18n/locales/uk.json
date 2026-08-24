@@ -880,9 +880,7 @@
       "goldBundleSpaced": "золотий пакет",
       "goldBundleCompact": "Золотий пакет",
       "noRewardInfo": "Інформація про компенсацію відсутня.",
-      "noRewardsEmpty": "Компенсації немає.",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "Компенсації немає."
     },
     "sidebar": {
       "gameInfo": "Інформація про відповідність",

@@ -880,9 +880,7 @@
       "goldBundleSpaced": "bungkusan emas",
       "goldBundleCompact": "Pakej emas",
       "noRewardInfo": "Tiada maklumat pampasan tersedia.",
-      "noRewardsEmpty": "Tiada pampasan.",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "Tiada pampasan."
     },
     "sidebar": {
       "gameInfo": "Maklumat perlawanan",

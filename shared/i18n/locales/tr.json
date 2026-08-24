@@ -880,9 +880,7 @@
       "goldBundleSpaced": "altın paketi",
       "goldBundleCompact": "Altın paketi",
       "noRewardInfo": "Tazminat bilgisi mevcut değil.",
-      "noRewardsEmpty": "Tazminat yok.",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "Tazminat yok."
     },
     "sidebar": {
       "gameInfo": "Maç bilgileri",

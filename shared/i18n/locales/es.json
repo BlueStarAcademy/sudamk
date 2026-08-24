@@ -889,9 +889,7 @@
       "goldBundleSpaced": "paquete de oro",
       "goldBundleCompact": "paquete de oro",
       "noRewardInfo": "No hay información de compensación disponible.",
-      "noRewardsEmpty": "No hay compensación.",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "No hay compensación."
     },
     "sidebar": {
       "gameInfo": "Información del partido",

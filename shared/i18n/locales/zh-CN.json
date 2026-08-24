@@ -889,9 +889,7 @@
       "goldBundleSpaced": "黄金套餐",
       "goldBundleCompact": "黄金套餐",
       "noRewardInfo": "没有可用的补偿信息。",
-      "noRewardsEmpty": "没有补偿。",
-      "detailResultTab": "Details",
-      "rewardsTab": "Rewards"
+      "noRewardsEmpty": "没有补偿。"
     },
     "sidebar": {
       "gameInfo": "比赛信息",

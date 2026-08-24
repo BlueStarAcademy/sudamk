@@ -41,6 +41,12 @@ const TrainingGroundStageCard: React.FC<TrainingGroundStageCardProps> = ({
     const { t } = useTranslation('profile');
     const reward = rewardForKataLevel(kataLevel, boardSize);
     const stageNumber = trainingGroundStageNumber(kataLevel);
+    const showSequentialMarker = stageNumber > 1;
+    const markerBase =
+        'inline-flex max-w-[48%] shrink-0 items-center truncate rounded-md border px-1 py-0.5 text-[9px] font-bold leading-none sm:max-w-none sm:text-[10px]';
+    const markerMet = 'border-emerald-500/40 bg-emerald-950/55 text-emerald-100';
+    const markerUnmet = 'border-rose-500/45 bg-rose-950/55 text-rose-100';
+    const markerNeutral = 'border-amber-500/35 bg-black/45 text-amber-100/90';
 
     return (
         <button
@@ -103,16 +109,25 @@ const TrainingGroundStageCard: React.FC<TrainingGroundStageCardProps> = ({
                         </span>
                     ) : null}
                 </div>
-                <div className={`space-y-0.5 text-[10px] font-semibold ${unlocked ? 'text-amber-100/85' : 'text-rose-200/90'}`}>
-                    {!sequentialUnlocked ? (
-                        <p>{t('trainingGroundUi.unlockPreviousStage')}</p>
+                <div className="flex flex-nowrap items-center gap-1 overflow-hidden">
+                    {showSequentialMarker ? (
+                        <span
+                            className={`${markerBase} ${
+                                sequentialUnlocked ? (unlocked ? markerNeutral : markerMet) : markerUnmet
+                            }`}
+                            title={t('trainingGroundUi.unlockPreviousStage')}
+                        >
+                            {t('trainingGroundUi.unlockPreviousStageMarker')}
+                        </span>
                     ) : null}
-                    {!abilityUnlocked ? (
-                        <p>{t('trainingGroundUi.unlockAbilityMin', { n: unlockAbility.toLocaleString() })}</p>
-                    ) : null}
-                    {unlocked ? (
-                        <p>{t('trainingGroundUi.unlockAbilityMin', { n: unlockAbility.toLocaleString() })}</p>
-                    ) : null}
+                    <span
+                        className={`${markerBase} ${
+                            abilityUnlocked ? (unlocked ? markerNeutral : markerMet) : markerUnmet
+                        }`}
+                        title={t('trainingGroundUi.unlockAbilityMin', { n: unlockAbility.toLocaleString() })}
+                    >
+                        {t('trainingGroundUi.unlockAbilityMarker', { n: unlockAbility.toLocaleString() })}
+                    </span>
                 </div>
             </div>
         </button>
