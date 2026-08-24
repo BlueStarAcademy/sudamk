@@ -69,6 +69,8 @@ import {
     strategicKataLevelFromSnapshot,
     towerKataLevelFromSnapshot,
 } from '../shared/utils/kataServerRuntimeResolvers.js';
+import { resolveTrainingGroundKataLevelFromSession } from '../shared/utils/trainingGroundGameSettings.js';
+import { isTrainingGroundSession, trainingGroundFixedKataLevel } from '../shared/constants/trainingGround.js';
 import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
 import {
@@ -326,15 +328,20 @@ async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession)
     }
     const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
     let configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
-    const authoritativePveKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap);
-    if (authoritativePveKataLevel !== undefined) {
-        configuredKataLevel = authoritativePveKataLevel;
-    } else if (configuredKataLevel === undefined) {
-        const policy = resolveArenaSessionPolicy(game as any);
-        if (policy.kind === 'guildwar') {
-            const boardId = String((game as any).guildWarBoardId ?? '');
-            if (boardId) {
-                configuredKataLevel = guildWarKataLevelFromSnapshot(kataRuntimeSnap, boardId);
+    const trainingGroundKataLevel = resolveTrainingGroundKataLevelFromSession(game);
+    if (trainingGroundKataLevel !== undefined) {
+        configuredKataLevel = trainingGroundKataLevel;
+    } else {
+        const authoritativePveKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap);
+        if (authoritativePveKataLevel !== undefined) {
+            configuredKataLevel = authoritativePveKataLevel;
+        } else if (configuredKataLevel === undefined) {
+            const policy = resolveArenaSessionPolicy(game as any);
+            if (policy.kind === 'guildwar') {
+                const boardId = String((game as any).guildWarBoardId ?? '');
+                if (boardId) {
+                    configuredKataLevel = guildWarKataLevelFromSnapshot(kataRuntimeSnap, boardId);
+                }
             }
         }
     }
@@ -354,6 +361,12 @@ async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession)
     // 바둑학원: 관리자 스테이지 표만 사용. 로비 프로필 매핑으로 떨어지지 않게 한다.
     if (resolveArenaSessionPolicy(game as any).kind === 'singleplayer') {
         return configuredKataLevel ?? -31;
+    }
+    if (isTrainingGroundSession(game)) {
+        return (
+            configuredKataLevel ??
+            trainingGroundFixedKataLevel(game.settings?.trainingGround?.kataLevel ?? -30)
+        );
     }
     return configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
 }
@@ -2547,21 +2560,26 @@ export async function makeGoAiBotMove(
     }
     const configuredKataLevelRaw = Number((game.settings as any)?.kataServerLevel);
     let configuredKataLevel = Number.isFinite(configuredKataLevelRaw) ? configuredKataLevelRaw : undefined;
-    // 도전의 탑·모험·길드전: DB/캐시·병합 등으로 settings.kataServerLevel만 빠지면 프로필 폴백으로 떨어져 체감이 달라짐 → 카테고리별 표로 복구.
-    // 탑/모험은 특히 `settings.kataServerLevel` 오염(층/몬스터 레벨이 levelbot 값으로 들어가는 경우 등)을 막기 위해 매 턴 전용 표에서 재산출한다.
-    // 바둑학원도 관리자 스테이지 표(`ensureSinglePlayerKataServerLevelOnGame`)를 매 턴 권위로 쓴다.
-    const authoritativePveKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap);
-    if (authoritativePveKataLevel !== undefined) {
-        configuredKataLevel = authoritativePveKataLevel;
-    } else if (configuredKataLevel === undefined) {
-        if (arenaPolicy.kind === 'guildwar') {
-            const boardId = String((game as any).guildWarBoardId ?? '');
-            if (boardId) {
-                configuredKataLevel = guildWarKataLevelFromSnapshot(kataRuntimeSnap, boardId);
+    const trainingGroundKataLevel = resolveTrainingGroundKataLevelFromSession(game);
+    if (trainingGroundKataLevel !== undefined) {
+        configuredKataLevel = trainingGroundKataLevel;
+    } else {
+        // 도전의 탑·모험·길드전: DB/캐시·병합 등으로 settings.kataServerLevel만 빠지면 프로필 폴백으로 떨어져 체감이 달라짐 → 카테고리별 표로 복구.
+        // 탑/모험은 특히 `settings.kataServerLevel` 오염(층/몬스터 레벨이 levelbot 값으로 들어가는 경우 등)을 막기 위해 매 턴 전용 표에서 재산출한다.
+        // 바둑학원도 관리자 스테이지 표(`ensureSinglePlayerKataServerLevelOnGame`)를 매 턴 권위로 쓴다.
+        const authoritativePveKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap);
+        if (authoritativePveKataLevel !== undefined) {
+            configuredKataLevel = authoritativePveKataLevel;
+        } else if (configuredKataLevel === undefined) {
+            if (arenaPolicy.kind === 'guildwar') {
+                const boardId = String((game as any).guildWarBoardId ?? '');
+                if (boardId) {
+                    configuredKataLevel = guildWarKataLevelFromSnapshot(kataRuntimeSnap, boardId);
+                }
             }
-        }
-        if (configuredKataLevel !== undefined && game.settings && typeof game.settings === 'object') {
-            (game.settings as any).kataServerLevel = configuredKataLevel;
+            if (configuredKataLevel !== undefined && game.settings && typeof game.settings === 'object') {
+                (game.settings as any).kataServerLevel = configuredKataLevel;
+            }
         }
     }
     const pairValidPlyForNextMove = (game.moveHistory || []).filter((m) => m && m.x !== -1 && m.y !== -1).length + 1;
@@ -2587,7 +2605,10 @@ export async function makeGoAiBotMove(
                   configuredKataLevel,
                   session: game,
               })
-            : arenaPolicy.kind === 'singleplayer'
+            : isTrainingGroundSession(game)
+              ? configuredKataLevel ??
+                trainingGroundFixedKataLevel(game.settings?.trainingGround?.kataLevel ?? -30)
+              : arenaPolicy.kind === 'singleplayer'
               ? // 바둑학원: 로비 AI 프로필 매핑(-25/-21/…)으로 떨어지지 않게 한다.
                 configuredKataLevel ?? -31
               : configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);

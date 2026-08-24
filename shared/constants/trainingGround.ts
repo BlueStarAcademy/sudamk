@@ -75,6 +75,19 @@ export function trainingGroundStageNumber(kataLevel: number): number {
     return trainingGroundStageIndex(kataLevel) + 1;
 }
 
+/** 단계 번호(1~40) → 고정 Kata levelbot 값 */
+export function trainingGroundFixedKataLevelForStageNumber(stageNumber: number): number {
+    const idx = Math.max(0, Math.min(TRAINING_GROUND_KATA_LEVELS.length - 1, Math.floor(stageNumber) - 1));
+    return TRAINING_GROUND_KATA_LEVELS[idx]!;
+}
+
+/** 훈련장 40단계 ladder에 맞는 고정 Kata levelbot 값 (바둑학원·로비 매핑과 무관) */
+export function trainingGroundFixedKataLevel(kataLevel: number): number {
+    const kata = normalizeTrainingGroundKataLevel(kataLevel);
+    if (TRAINING_GROUND_KATA_LEVELS.includes(kata)) return kata;
+    return TRAINING_GROUND_KATA_LEVELS[0]!;
+}
+
 /** 이 카타부터 보상 밴드가 한 단계 올라간다(큰 폭 상승 구간). 단계별 소폭 증가는 {@link TRAINING_GROUND_GOLD_BY_STAGE} 참고. */
 export const TRAINING_GROUND_REWARD_BAND_MIN_KATA = [-25, -18, -10, -5, -1, 1, 3, 5, 7, 9] as const;
 

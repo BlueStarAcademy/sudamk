@@ -16,6 +16,9 @@ import {
 } from '../constants/gameModes.js';
 import {
     clampTrainingGroundBoardSize,
+    isTrainingGroundKataLevel,
+    isTrainingGroundSession,
+    trainingGroundFixedKataLevel,
     type TrainingGroundBoardSize,
     type TrainingGroundGameMeta,
     type TrainingGroundTrack,
@@ -23,12 +26,29 @@ import {
 import { sanitizePairLobbyDraftModeSettings } from './pairLobbyGameSettingRows.js';
 import { sanitizePvpGameSettings } from './sanitizePvpGameSettings.js';
 import { clampAiLobbyStrategicItemCaps } from './strategicAiLobbyItemCaps.js';
-import { profileStepFromKataServerLevel } from './strategicAiDifficulty.js';
 import { mixIncludesCastle, mixIncludesChess } from './mixModeSettings.js';
 
 const TRAINING_GROUND_NINETEEN_LINE = 19;
 
-/** 훈련장 심법/단짝 수련에서 선택 가능한 게임 모드 (표시 순서) */
+/** `trainingGround.kataLevel` → Kata `/move.level` 권위값 (40단계 고정 ladder) */
+export function resolveTrainingGroundKataLevelFromSession(
+    game: { settings?: GameSettings | null },
+): number | undefined {
+    if (!isTrainingGroundSession(game)) return undefined;
+    const meta = game.settings?.trainingGround;
+    if (!meta || typeof meta.kataLevel !== 'number' || !Number.isFinite(meta.kataLevel)) return undefined;
+    const kataLevel = trainingGroundFixedKataLevel(meta.kataLevel);
+    if (!isTrainingGroundKataLevel(kataLevel)) return undefined;
+    if (game.settings && typeof game.settings === 'object') {
+        game.settings.kataServerLevel = kataLevel;
+        game.settings.trainingGround = { ...meta, kataLevel };
+        delete (game.settings as { goAiBotLevel?: number }).goAiBotLevel;
+        delete (game.settings as { aiDifficulty?: number }).aiDifficulty;
+    }
+    return kataLevel;
+}
+
+/** 훈련장 심법·단짝 수련에서 선택 가능한 게임 모드 (표시 순서) */
 export const TRAINING_GROUND_SELECTABLE_GAME_MODE_ORDER: readonly GameMode[] = [
     GameMode.Standard,
     GameMode.Speed,
@@ -122,8 +142,8 @@ export function buildTrainingGroundGameSettings(
     boardSizeInput: unknown,
 ): GameSettings {
     const boardSize = clampTrainingGroundBoardSize(boardSizeInput);
-    const aiProfileStep = profileStepFromKataServerLevel(kataLevel) ?? 5;
-    const trainingGround: TrainingGroundGameMeta = { track, kataLevel, boardSize, gameMode: mode };
+    const fixedKataLevel = trainingGroundFixedKataLevel(kataLevel);
+    const trainingGround: TrainingGroundGameMeta = { track, kataLevel: fixedKataLevel, boardSize, gameMode: mode };
 
     let settings: GameSettings = {
         ...DEFAULT_GAME_SETTINGS,
@@ -132,9 +152,7 @@ export function buildTrainingGroundGameSettings(
         byoyomiTime: 0,
         byoyomiCount: 0,
         timeIncrement: 0,
-        kataServerLevel: kataLevel,
-        goAiBotLevel: aiProfileStep,
-        aiDifficulty: aiProfileStep,
+        kataServerLevel: fixedKataLevel,
         useClientSideAi: false,
         trainingGround,
     };
@@ -147,6 +165,8 @@ export function buildTrainingGroundGameSettings(
     settings = clampAiLobbyStrategicItemCaps(mode, normalizeTrainingGroundScoringTurnLimit(mode, settings));
     settings.trainingGround = trainingGround;
     delete (settings as { pairGame?: unknown }).pairGame;
+    delete (settings as { goAiBotLevel?: number }).goAiBotLevel;
+    delete (settings as { aiDifficulty?: number }).aiDifficulty;
     return settings;
 }
 
@@ -159,10 +179,11 @@ export function refreshTrainingGroundLiveSessionSettings(
 
     const resolvedMode =
         meta.gameMode && isTrainingGroundGameMode(meta.gameMode) ? meta.gameMode : game.mode;
+    const fixedKataLevel = trainingGroundFixedKataLevel(meta.kataLevel);
     const rebuilt = buildTrainingGroundGameSettings(
         resolvedMode,
         meta.track,
-        meta.kataLevel,
+        fixedKataLevel,
         meta.boardSize,
     );
 
@@ -173,6 +194,7 @@ export function refreshTrainingGroundLiveSessionSettings(
         ...preserved,
         trainingGround: {
             ...meta,
+            kataLevel: fixedKataLevel,
             gameMode: resolvedMode,
             boardSize: clampTrainingGroundBoardSize(rebuilt.boardSize ?? meta.boardSize),
         },
@@ -188,9 +210,9 @@ export function refreshTrainingGroundLiveSessionSettings(
         byoyomiTime: rebuilt.byoyomiTime,
         byoyomiCount: rebuilt.byoyomiCount,
         timeIncrement: rebuilt.timeIncrement,
-        kataServerLevel: rebuilt.kataServerLevel,
-        goAiBotLevel: rebuilt.goAiBotLevel,
-        aiDifficulty: rebuilt.aiDifficulty,
-        useClientSideAi: rebuilt.useClientSideAi,
+        kataServerLevel: fixedKataLevel,
+        useClientSideAi: false,
     };
+    delete (game.settings as { goAiBotLevel?: number }).goAiBotLevel;
+    delete (game.settings as { aiDifficulty?: number }).aiDifficulty;
 }

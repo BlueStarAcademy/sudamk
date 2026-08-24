@@ -17,6 +17,8 @@ import {
     normalizeTrainingGroundKataLevel,
     rewardForKataLevel,
     trainingGroundRewardBandIndex,
+    trainingGroundFixedKataLevel,
+    trainingGroundFixedKataLevelForStageNumber,
     trainingGroundStageNumber,
     trainingGroundUnlockTotalAbility,
     trainingGroundKataMirrorBotNickname,
@@ -42,6 +44,7 @@ import {
     buildTrainingGroundGameSettings,
     isTrainingGroundModeCompatibleWithBoard,
     refreshTrainingGroundLiveSessionSettings,
+    resolveTrainingGroundKataLevelFromSession,
     trainingGroundSelectableGameModes,
 } from '../../../shared/utils/trainingGroundGameSettings.js';
 
@@ -72,6 +75,17 @@ describe('trainingGround stages', () => {
         expect(normalizeTrainingGroundKataLevel(0)).toBe(-1);
         expect(trainingGroundUnlockTotalAbility(-1, 'kata')).toBe(940 * 3);
         expect(trainingGroundUnlockTotalAbility(10, 'kata')).toBe(1400 * 3);
+    });
+
+    it('maps each stage number to a fixed kata level from -30 through 10', () => {
+        expect(trainingGroundFixedKataLevelForStageNumber(1)).toBe(-30);
+        expect(trainingGroundFixedKataLevelForStageNumber(30)).toBe(-1);
+        expect(trainingGroundFixedKataLevelForStageNumber(31)).toBe(1);
+        expect(trainingGroundFixedKataLevelForStageNumber(40)).toBe(10);
+        expect(trainingGroundFixedKataLevel(-30)).toBe(-30);
+        expect(trainingGroundFixedKataLevel(10)).toBe(10);
+        expect(trainingGroundStageNumber(-30)).toBe(1);
+        expect(trainingGroundStageNumber(10)).toBe(40);
     });
 
     it('unlocks kata stages when 초·중·종 합산 바둑능력 meets threshold', () => {
@@ -336,6 +350,16 @@ describe('trainingGround game settings', () => {
         });
         expect(standard.scoringTurnLimit).toBe(getAiScoringTurnLimitByBoardSize(19));
 
+        const stageOne = buildTrainingGroundGameSettings(GameMode.Standard, 'kata', -30, 19);
+        expect(stageOne.kataServerLevel).toBe(-30);
+        expect(stageOne.trainingGround?.kataLevel).toBe(-30);
+        expect(stageOne.goAiBotLevel).toBeUndefined();
+        expect(stageOne.aiDifficulty).toBeUndefined();
+
+        const stageForty = buildTrainingGroundGameSettings(GameMode.Standard, 'pet', 10, 13);
+        expect(stageForty.kataServerLevel).toBe(10);
+        expect(stageForty.trainingGround?.kataLevel).toBe(10);
+
         const speed = buildTrainingGroundGameSettings(GameMode.Speed, 'pet', -1, 13);
         expect(speed.boardSize).toBe(13);
         expect(speed.trainingGround?.track).toBe('pet');
@@ -356,5 +380,20 @@ describe('trainingGround game settings', () => {
         expect(game.mode).toBe(GameMode.Missile);
         expect(game.settings.missileCount).toBe(3);
         expect(game.settings.trainingGround?.gameMode).toBe(GameMode.Missile);
+    });
+
+    it('resolveTrainingGroundKataLevelFromSession restores stage kata from trainingGround meta', () => {
+        const game = {
+            mode: GameMode.Standard,
+            settings: {
+                ...buildTrainingGroundGameSettings(GameMode.Standard, 'kata', -30, 19),
+                kataServerLevel: -12,
+                goAiBotLevel: 5,
+            },
+        };
+        expect(resolveTrainingGroundKataLevelFromSession(game)).toBe(-30);
+        expect(game.settings.kataServerLevel).toBe(-30);
+        expect(game.settings.goAiBotLevel).toBeUndefined();
+        expect(game.settings.aiDifficulty).toBeUndefined();
     });
 });

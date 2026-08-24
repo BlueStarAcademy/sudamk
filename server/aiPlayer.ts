@@ -30,6 +30,7 @@ import {
     isPairClassicGame,
 } from '../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { isTrainingGroundSession } from '../shared/constants/trainingGround.js';
 import {
     pveBotAvatarIdForMode,
     PVE_GUILD_WAR_BOT_AVATAR_ID,
@@ -38,6 +39,23 @@ import { ensureSinglePlayerKataServerLevelOnGame } from './singlePlayerStageConf
 
 
 export const aiUserId = 'ai-player-01';
+
+function resolveStrategicAiGoProfileStep(game: LiveGameSession): number {
+    if (isTrainingGroundSession(game)) {
+        // 훈련장 강도는 `kataServerLevel`(단계별 고정 ladder)만 사용한다.
+        return 5;
+    }
+    const ks = (game.settings as { kataServerLevel?: unknown })?.kataServerLevel;
+    if (typeof ks === 'number' && Number.isFinite(ks)) {
+        const fromKata = profileStepFromKataServerLevel(ks, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
+        if (fromKata != null) return fromKata;
+        if (ks >= 1 && ks <= 10) return ks;
+    }
+    if (typeof (game.settings as { goAiBotLevel?: unknown })?.goAiBotLevel === 'number') {
+        return Number((game.settings as { goAiBotLevel: number }).goAiBotLevel) || 1;
+    }
+    return game.settings?.aiDifficulty || 1;
+}
 
 /** AI가 막 표시된 플레이 UI에서 먼저 둘 때: 클라이언트가 갱신·애니메이션을 볼 수 있도록 턴 시작 시각을 지연 */
 export function scheduleAiTurnStartForFreshUi(game: LiveGameSession, now: number) {
@@ -1397,23 +1415,7 @@ export const makeAiMove = async (game: LiveGameSession) => {
                         }
                     }
                 } else {
-                    const ks = (game.settings as any)?.kataServerLevel;
-                    if (typeof ks === 'number' && Number.isFinite(ks)) {
-                        const fromKata = profileStepFromKataServerLevel(ks, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
-                        if (fromKata != null) {
-                            difficulty = fromKata;
-                        } else if (ks >= 1 && ks <= 10) {
-                            difficulty = ks;
-                        } else if ((game.settings as any)?.goAiBotLevel != null) {
-                            difficulty = Number((game.settings as any).goAiBotLevel) || 1;
-                        } else {
-                            difficulty = game.settings.aiDifficulty || 1;
-                        }
-                    } else if ((game.settings as any)?.goAiBotLevel !== undefined) {
-                        difficulty = Number((game.settings as any).goAiBotLevel) || 1;
-                    } else {
-                        difficulty = game.settings.aiDifficulty || 1;
-                    }
+                    difficulty = resolveStrategicAiGoProfileStep(game);
                 }
                 await makeGoAiBotMove(game, Math.max(1, Math.min(10, difficulty)));
                 moveExecuted = true;
@@ -1431,24 +1433,7 @@ export const makeAiMove = async (game: LiveGameSession) => {
                     types.GameMode.Mix
                 ];
                 if (strategicModes.includes(game.mode)) {
-                    let difficulty = 1;
-                    const ks = (game.settings as any)?.kataServerLevel;
-                    if (typeof ks === 'number' && Number.isFinite(ks)) {
-                        const fromKata = profileStepFromKataServerLevel(ks, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
-                        if (fromKata != null) {
-                            difficulty = fromKata;
-                        } else if (ks >= 1 && ks <= 10) {
-                            difficulty = ks;
-                        } else if ((game.settings as any)?.goAiBotLevel != null) {
-                            difficulty = Number((game.settings as any).goAiBotLevel) || 1;
-                        } else {
-                            difficulty = game.settings.aiDifficulty || 1;
-                        }
-                    } else if ((game.settings as any)?.goAiBotLevel !== undefined) {
-                        difficulty = Number((game.settings as any).goAiBotLevel) || 1;
-                    } else {
-                        difficulty = game.settings.aiDifficulty || 1;
-                    }
+                    const difficulty = resolveStrategicAiGoProfileStep(game);
                     await makeGoAiBotMove(game, Math.max(1, Math.min(10, difficulty)));
                     moveExecuted = true;
                 }
