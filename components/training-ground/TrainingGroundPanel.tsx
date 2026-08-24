@@ -168,90 +168,86 @@ const TrainingGroundPanel: React.FC = () => {
                 ) : (
                     <>
                         <div className="flex shrink-0 flex-col gap-2 rounded-xl border border-amber-800/50 bg-black/60 p-2 sm:p-2.5">
-                            <div className="flex flex-col gap-2 lg:flex-row lg:items-start lg:gap-3">
+                            <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2 lg:gap-3">
                                 <TrainingGroundModePicker
                                     selectedMode={selectedMode}
                                     onSelect={setSelectedMode}
                                 />
 
-                                <div className="hidden w-px shrink-0 self-stretch bg-amber-700/40 lg:block" aria-hidden />
-                                <div className="h-px w-full shrink-0 bg-amber-700/40 lg:hidden" aria-hidden />
+                                <div className="hidden w-px shrink-0 self-stretch bg-amber-700/40 sm:block" aria-hidden />
+                                <div className="h-px w-full shrink-0 bg-amber-700/40 sm:hidden" aria-hidden />
 
-                                <div className="flex min-w-0 flex-1 flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2">
-                                    <div className="flex min-w-0 shrink-0 items-stretch gap-1.5 sm:gap-2">
-                                        <div className="flex shrink-0 flex-col justify-center gap-1">
-                                            <p className="px-0.5 text-[10px] font-extrabold tracking-wide text-amber-200/80 sm:text-[11px]">
-                                                {t('trainingGroundUi.boardSize')}
-                                            </p>
-                                            <div className="flex items-center gap-1.5 sm:gap-2.5">
-                                                {TRAINING_GROUND_BOARD_SIZES.map((size) => {
-                                                    const sizeEnabled = isTrainingGroundModeCompatibleWithBoard(
-                                                        selectedMode,
-                                                        size,
-                                                    );
-                                                    const selected = boardSize === size;
-                                                    return (
-                                                        <button
-                                                            key={size}
-                                                            type="button"
-                                                            disabled={!sizeEnabled}
-                                                            onClick={() => sizeEnabled && setBoardSize(size)}
-                                                            className={`flex flex-col items-center gap-1 ${
-                                                                sizeEnabled ? '' : 'cursor-not-allowed opacity-40'
+                                <div className="flex min-w-0 shrink-0 items-stretch gap-1.5 sm:gap-2">
+                                    <div className="flex shrink-0 flex-col justify-center gap-1">
+                                        <p className="px-0.5 text-[10px] font-extrabold tracking-wide text-amber-200/80 sm:text-[11px]">
+                                            {t('trainingGroundUi.boardSize')}
+                                        </p>
+                                        <div className="flex items-center gap-1.5 sm:gap-2.5">
+                                            {TRAINING_GROUND_BOARD_SIZES.map((size) => {
+                                                const sizeEnabled = isTrainingGroundModeCompatibleWithBoard(
+                                                    selectedMode,
+                                                    size,
+                                                );
+                                                const selected = boardSize === size;
+                                                return (
+                                                    <button
+                                                        key={size}
+                                                        type="button"
+                                                        disabled={!sizeEnabled}
+                                                        onClick={() => sizeEnabled && setBoardSize(size)}
+                                                        className={`flex flex-col items-center gap-1 ${
+                                                            sizeEnabled ? '' : 'cursor-not-allowed opacity-40'
+                                                        }`}
+                                                    >
+                                                        <span
+                                                            className={`block overflow-hidden rounded-xl border-2 transition ${
+                                                                selected && sizeEnabled
+                                                                    ? 'border-amber-300 ring-2 ring-amber-300/70'
+                                                                    : sizeEnabled
+                                                                      ? 'border-amber-900/50 hover:border-amber-500/70'
+                                                                      : 'border-stone-700/60 grayscale'
                                                             }`}
                                                         >
-                                                            <span
-                                                                className={`block overflow-hidden rounded-xl border-2 transition ${
-                                                                    selected && sizeEnabled
-                                                                        ? 'border-amber-300 ring-2 ring-amber-300/70'
-                                                                        : sizeEnabled
-                                                                          ? 'border-amber-900/50 hover:border-amber-500/70'
-                                                                          : 'border-stone-700/60 grayscale'
-                                                                }`}
-                                                            >
-                                                                <img
-                                                                    src={TRAINING_GROUND_BOARD_IMAGES[size]}
-                                                                    alt={`${size}`}
-                                                                    className="h-11 w-11 object-cover sm:h-14 sm:w-14"
-                                                                />
-                                                            </span>
-                                                            <span
-                                                                className={`text-[9px] font-bold tabular-nums leading-none sm:text-[10px] ${
-                                                                    !sizeEnabled
-                                                                        ? 'text-stone-500'
-                                                                        : selected
-                                                                          ? 'text-amber-200'
-                                                                          : 'text-amber-100/65'
-                                                                }`}
-                                                            >
-                                                                {size}×{size}
-                                                            </span>
-                                                        </button>
-                                                    );
-                                                })}
-                                            </div>
-                                        </div>
-
-                                        <div className="w-px shrink-0 self-stretch bg-amber-700/40" aria-hidden />
-
-                                        <div className="flex shrink-0 flex-col items-center justify-center self-center">
-                                            <TrainingGroundEnterButton
-                                                variant={enterButtonVariant}
-                                                disabled={!canStartSelected && !canRestoreEntry}
-                                                remaining={ticket.remaining}
-                                                max={ticket.max}
-                                                onClick={() => startStageWithBoard(boardSize)}
-                                            />
+                                                            <img
+                                                                src={TRAINING_GROUND_BOARD_IMAGES[size]}
+                                                                alt={`${size}`}
+                                                                className="h-11 w-11 object-cover sm:h-14 sm:w-14"
+                                                            />
+                                                        </span>
+                                                        <span
+                                                            className={`text-[9px] font-bold tabular-nums leading-none sm:text-[10px] ${
+                                                                !sizeEnabled
+                                                                    ? 'text-stone-500'
+                                                                    : selected
+                                                                      ? 'text-amber-200'
+                                                                      : 'text-amber-100/65'
+                                                            }`}
+                                                        >
+                                                            {size}×{size}
+                                                        </span>
+                                                    </button>
+                                                );
+                                            })}
                                         </div>
                                     </div>
 
-                                    <div className="hidden w-px shrink-0 self-stretch bg-amber-700/40 sm:block" aria-hidden />
+                                    <div className="w-px shrink-0 self-stretch bg-amber-700/40" aria-hidden />
 
-                                    <div className="min-w-0 flex-1 sm:w-[9.5rem] sm:flex-none lg:w-[9.5rem]">
+                                    <div className="shrink-0 w-full sm:w-[8.25rem]">
                                         <TrainingGroundRewardPanel
                                             track={track}
                                             kataLevel={selectedKata}
                                             boardSize={boardSize}
+                                        />
+                                    </div>
+
+                                    <div className="flex shrink-0 flex-col items-center justify-center overflow-visible self-center">
+                                        <TrainingGroundEnterButton
+                                            variant={enterButtonVariant}
+                                            disabled={!canStartSelected && !canRestoreEntry}
+                                            remaining={ticket.remaining}
+                                            max={ticket.max}
+                                            onClick={() => startStageWithBoard(boardSize)}
                                         />
                                     </div>
                                 </div>

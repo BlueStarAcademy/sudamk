@@ -22,7 +22,7 @@ const TrainingGroundModePicker: React.FC<TrainingGroundModePickerProps> = ({
     const { scrollRef, scrollClassName, dragScrollProps } = useHorizontalDragScroll();
 
     return (
-        <div className="flex w-full min-w-0 shrink-0 flex-col justify-center gap-1 lg:w-[8.75rem] lg:max-w-[8.75rem]">
+        <div className="flex w-full min-w-0 flex-col justify-center gap-1 sm:min-w-0 sm:flex-1">
             <p className="px-0.5 text-[10px] font-extrabold tracking-wide text-amber-200/80 sm:text-[11px]">
                 {t('trainingGroundUi.gameKind')}
             </p>

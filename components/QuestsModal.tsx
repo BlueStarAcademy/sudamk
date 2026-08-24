@@ -372,8 +372,12 @@ const QuestClaimStripButton: React.FC<{
             type="button"
             onClick={onClaim}
             disabled={isPending}
-            className={`${base} border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50 hover:border-amber-300/45 hover:from-amber-400/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60`}
+            className={`relative ${base} border-amber-400/30 bg-gradient-to-b from-amber-500/25 via-amber-900/40 to-amber-950/85 text-amber-50 hover:border-amber-300/45 hover:from-amber-400/30 active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-60`}
         >
+            <span
+                className="pointer-events-none absolute right-0.5 top-0.5 h-2 w-2 rounded-full border-2 border-amber-950 bg-red-500 sm:right-1 sm:top-1 sm:h-2.5 sm:w-2.5"
+                aria-hidden
+            />
             {isPending ? t('claim.claiming') : t('claim.claimReward')}
         </button>
     );
@@ -745,7 +749,11 @@ const ActivityPanel: React.FC<{
                                         }
                                     }}
                                     disabled={!canClaim || claimPendingKey === `milestone-${questType}-${index}`}
-                                    className={`relative ${milestoneIcon} rounded-lg border border-slate-500/35 bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed ${canClaim ? 'ring-1 ring-amber-400/40 shadow-[0_0_16px_-6px_rgba(251,191,36,0.55)]' : ''}`}
+                                    className={`relative ${milestoneIcon} rounded-lg bg-gradient-to-b from-slate-800/90 to-slate-950/90 p-0.5 shadow-md transition-transform hover:scale-105 disabled:cursor-not-allowed ${
+                                        canClaim
+                                            ? 'quest-milestone-icon-prism cursor-pointer'
+                                            : 'border border-slate-500/35'
+                                    }`}
                                     title={
                                         isClaimed
                                             ? t('claim.claimedTitle')
@@ -891,6 +899,16 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
                 ? quests.monthly?.quests || []
                 : [];
 
+    const hasClaimableDaily = useMemo(() => {
+        const daily = quests.daily;
+        if (!daily) return false;
+        const questClaimable = (daily.quests || []).some((q: Quest) => q.progress >= q.target && !q.isClaimed);
+        const milestoneClaimable = DAILY_MILESTONE_THRESHOLDS.some(
+            (th, i) => daily.claimedMilestones?.[i] === false && (daily.activityProgress ?? 0) >= th,
+        );
+        return questClaimable || milestoneClaimable;
+    }, [quests.daily]);
+
     // 주간 탭: 수령 가능한 퀘스트 보상 또는 활약도 마일스톤이 있으면 true
     const hasClaimableWeekly = useMemo(() => {
         const weekly = quests.weekly;
@@ -990,6 +1008,9 @@ const QuestsModal: React.FC<QuestsModalProps> = ({
                 }`}
             >
                 {t('tabs.daily')}
+                {hasClaimableDaily && (
+                    <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-red-500 sm:right-1.5 sm:top-1.5 sm:h-2 sm:w-2" aria-hidden />
+                )}
             </button>
             <button
                 type="button"

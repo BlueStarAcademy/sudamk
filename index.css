@@ -785,6 +785,13 @@ input, textarea {
   box-shadow: 0 0 15px rgba(255, 255, 255, 0.5);
 }
 
+/** 퀘스트 활약도 마일스톤 보상 — 수령 가능 시 작은 아이콘용 프리즘 테두리 */
+.quest-milestone-icon-prism {
+  border: 2px solid #ff0000;
+  animation: prism-border 4s linear infinite;
+  box-shadow: 0 0 12px rgba(255, 255, 255, 0.45);
+}
+
 /* 바둑판 패널: 레이아웃 박스(border-4)는 고정, 아이템/히든 연출은 오버레이만 */
 .go-board-panel-fx {
   pointer-events: none;

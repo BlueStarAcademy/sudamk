@@ -1,13 +1,9 @@
-import { GameMode, Player, type GameSettings } from '../../types.js';
-import {
-    DEFAULT_GAME_SETTINGS,
-    DEFAULT_KOMI,
-    PLAYFUL_GAME_MODES,
-    SPECIAL_GAME_MODES,
-} from '../../constants.js';
+import { GameMode, Player } from '../types/enums.js';
+import type { GameSettings } from '../types/entities.js';
+import { DEFAULT_GAME_SETTINGS, DEFAULT_KOMI, getAiScoringTurnLimitByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit, clampChessScoringTurnLimit } from '../constants/gameSettings.js';
+import { PLAYFUL_GAME_MODES, SPECIAL_GAME_MODES } from '../constants/gameModes.js';
 import { isFischerStyleTimeControl } from './gameTimeControl.js';
-import { getRankedGameSettings } from '../../constants/rankedGameSettings.js';
-import { getAiScoringTurnLimitByBoardSize, getDefaultChessKomiByBoardSize, getDefaultChessScoringTurnLimit, clampChessScoringTurnLimit } from '../constants/gameSettings.js';
+import { getRankedGameSettings } from '../constants/rankedGameSettings.js';
 import { formatAlkkagiCurlingGaugeSpeedForLobbyDisplay } from './alkkagiCurlingGaugeLobbyDisplay.js';
 import { mixSubRuleDisplayName } from './mixSubRuleDisplayName.js';
 import { applyMixModeSettingsConstraints } from './mixModeSettings.js';

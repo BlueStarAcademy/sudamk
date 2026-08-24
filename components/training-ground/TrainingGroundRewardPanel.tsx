@@ -24,7 +24,7 @@ const TrainingGroundRewardPanel: React.FC<TrainingGroundRewardPanelProps> = ({
     const reward = rewardForKataLevel(kataLevel, boardSize);
 
     return (
-        <div className="flex h-full w-full min-w-0 flex-col gap-1.5 rounded-lg border border-amber-800/45 bg-gradient-to-b from-amber-950/40 to-black/50 px-2 py-2 sm:px-2.5 lg:w-[9.5rem]">
+        <div className="flex h-full w-full min-w-0 shrink-0 flex-col gap-1.5 rounded-lg border border-amber-800/45 bg-gradient-to-b from-amber-950/40 to-black/50 px-2 py-2 sm:w-[8.25rem] sm:px-2">
             <p className="text-[10px] font-extrabold tracking-wide text-amber-200/85 sm:text-[11px]">
                 {t('trainingGroundUi.rewardPanelTitle')}
             </p>
