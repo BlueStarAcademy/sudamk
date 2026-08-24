@@ -20,6 +20,7 @@ import {
 } from '../../shared/utils/trainingGroundDaily.js';
 import {
     isTrainingGroundStageUnlocked,
+    isTrainingGroundStageUnlockedBySequentialClear,
     trainingGroundPetTotalAbility,
     trainingGroundUserTotalAbility,
 } from '../../shared/utils/trainingGroundProgress.js';
@@ -91,9 +92,11 @@ const TrainingGroundPanel: React.FC = () => {
         ? getTrainingGroundTrackState(user, track)
         : { remaining: 1, max: 1 as const, canWatchAd: false };
     const currentTotalAbility = track === 'pet' ? petTotalAbility : userTotalAbility;
-    const selectedUnlocked = isTrainingGroundStageUnlocked(currentTotalAbility, selectedKata, track);
-    const petLocked = tab === 'pet' && !equippedPet;
     const clearedLevels = track === 'pet' ? cleared.petClearedLevels : cleared.kataClearedLevels;
+    const selectedAbilityUnlocked = isTrainingGroundStageUnlocked(currentTotalAbility, selectedKata, track);
+    const selectedSequentialUnlocked = isTrainingGroundStageUnlockedBySequentialClear(clearedLevels, selectedKata);
+    const selectedUnlocked = selectedAbilityUnlocked && selectedSequentialUnlocked;
+    const petLocked = tab === 'pet' && !equippedPet;
 
     const restoreAd = () => {
         if (!ticket.canWatchAd) return;
@@ -255,11 +258,23 @@ const TrainingGroundPanel: React.FC = () => {
                         </div>
                         <div className={`min-h-0 flex-1 pr-1 ${LOBBY_VERTICAL_AMBER_SCROLL_CLASS}`}>
                             <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-                                {TRAINING_GROUND_KATA_LEVELS.map((level) => (
+                                {TRAINING_GROUND_KATA_LEVELS.map((level) => {
+                                    const abilityUnlocked = isTrainingGroundStageUnlocked(
+                                        currentTotalAbility,
+                                        level,
+                                        track,
+                                    );
+                                    const sequentialUnlocked = isTrainingGroundStageUnlockedBySequentialClear(
+                                        clearedLevels,
+                                        level,
+                                    );
+                                    return (
                                     <TrainingGroundStageCard
                                         key={level}
                                         kataLevel={level}
-                                        unlocked={isTrainingGroundStageUnlocked(currentTotalAbility, level, track)}
+                                        unlocked={abilityUnlocked && sequentialUnlocked}
+                                        abilityUnlocked={abilityUnlocked}
+                                        sequentialUnlocked={sequentialUnlocked}
                                         selected={selectedKata === level}
                                         cleared={clearedLevels.includes(level)}
                                         boardSize={boardSize}
@@ -268,7 +283,8 @@ const TrainingGroundPanel: React.FC = () => {
                                         showPetXp={track === 'pet'}
                                         onSelect={() => setSelectedKata(level)}
                                     />
-                                ))}
+                                    );
+                                })}
                             </div>
                         </div>
                     </>

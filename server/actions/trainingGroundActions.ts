@@ -24,9 +24,11 @@ import {
 import {
     getTrainingGroundTrackState,
     grantTrainingGroundAdRestore,
+    resolveTrainingGroundState,
 } from '../../shared/utils/trainingGroundDaily.js';
 import {
     isTrainingGroundStageUnlocked,
+    isTrainingGroundStageUnlockedBySequentialClear,
     trainingGroundPetTotalAbility,
     trainingGroundUserTotalAbility,
 } from '../../shared/utils/trainingGroundProgress.js';
@@ -109,6 +111,10 @@ export async function handleTrainingGroundAction(
             const fresh = (await getCachedUser(user.id)) || (await db.getUser(user.id));
             if (!fresh) return { error: '사용자를 찾을 수 없습니다.' };
 
+            const trainingState = resolveTrainingGroundState(fresh, now);
+            const clearedLevels =
+                track === 'kata' ? trainingState.kataClearedLevels : trainingState.petClearedLevels;
+
             const ticket = getTrainingGroundTrackState(fresh, track, now);
             if (ticket.remaining < 1) {
                 return { error: '오늘 보상 횟수를 모두 사용했습니다.' };
@@ -117,6 +123,9 @@ export async function handleTrainingGroundAction(
             if (track === 'kata') {
                 const stats = calculateTotalStats(fresh);
                 const currentTotal = trainingGroundUserTotalAbility(stats);
+                if (!isTrainingGroundStageUnlockedBySequentialClear(clearedLevels, kataLevel)) {
+                    return { error: '이전 스테이지를 먼저 클리어해야 합니다.' };
+                }
                 if (!isTrainingGroundStageUnlocked(currentTotal, kataLevel, 'kata')) {
                     return { error: '바둑능력이 부족하여 이 스테이지를 해금할 수 없습니다.' };
                 }
@@ -125,6 +134,9 @@ export async function handleTrainingGroundAction(
                     return { error: '대표펫을 장착해야 단짝 수련을 할 수 있습니다.' };
                 }
                 const petTotal = trainingGroundPetTotalAbility(fresh);
+                if (!isTrainingGroundStageUnlockedBySequentialClear(clearedLevels, kataLevel)) {
+                    return { error: '이전 스테이지를 먼저 클리어해야 합니다.' };
+                }
                 if (!isTrainingGroundStageUnlocked(petTotal, kataLevel, 'pet')) {
                     return { error: '대표펫의 바둑능력이 부족하여 이 스테이지를 해금할 수 없습니다.' };
                 }

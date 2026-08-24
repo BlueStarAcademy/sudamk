@@ -15,7 +15,9 @@ import {
 import { pairPetKataStatsSixFromEquippedUser } from './pairPetKataStatsFromEquippedUser.js';
 import type { TrainingGroundTrack } from '../constants/trainingGround.js';
 import {
+    TRAINING_GROUND_KATA_LEVELS,
     normalizeTrainingGroundKataLevel,
+    trainingGroundStageIndex,
     trainingGroundUnlockTotalAbility,
 } from '../constants/trainingGround.js';
 
@@ -74,6 +76,39 @@ export function isTrainingGroundStageUnlocked(
 ): boolean {
     if (currentTotalAbility == null || !Number.isFinite(currentTotalAbility)) return false;
     return currentTotalAbility >= trainingGroundUnlockTotalAbility(stageKata, track);
+}
+
+export function isTrainingGroundStageCleared(
+    clearedLevels: readonly number[] | undefined,
+    stageKata: number,
+): boolean {
+    const kata = normalizeTrainingGroundKataLevel(stageKata);
+    if (!Array.isArray(clearedLevels)) return false;
+    return clearedLevels.some((level) => normalizeTrainingGroundKataLevel(level) === kata);
+}
+
+/** 1단계는 항상 순차 해금. 이후 단계는 직전 단계 클리어 필요. */
+export function isTrainingGroundStageUnlockedBySequentialClear(
+    clearedLevels: readonly number[] | undefined,
+    stageKata: number,
+): boolean {
+    const stageIndex = trainingGroundStageIndex(stageKata);
+    if (stageIndex <= 0) return true;
+    const previousKata = TRAINING_GROUND_KATA_LEVELS[stageIndex - 1];
+    if (previousKata == null) return true;
+    return isTrainingGroundStageCleared(clearedLevels, previousKata);
+}
+
+export function canPlayTrainingGroundStage(
+    currentTotalAbility: number | null | undefined,
+    stageKata: number,
+    track: TrainingGroundTrack,
+    clearedLevels: readonly number[],
+): boolean {
+    return (
+        isTrainingGroundStageUnlocked(currentTotalAbility, stageKata, track) &&
+        isTrainingGroundStageUnlockedBySequentialClear(clearedLevels, stageKata)
+    );
 }
 
 export function trainingGroundUnlockAbility(

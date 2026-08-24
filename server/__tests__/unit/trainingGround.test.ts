@@ -27,7 +27,9 @@ import {
     grantTrainingGroundAdRestore,
 } from '../../../shared/utils/trainingGroundDaily.js';
 import {
+    canPlayTrainingGroundStage,
     isTrainingGroundStageUnlocked,
+    isTrainingGroundStageUnlockedBySequentialClear,
     trainingGroundUserTotalAbility,
 } from '../../../shared/utils/trainingGroundProgress.js';
 import { isWaitingRoomAiGame } from '../../../shared/utils/strategicAiDifficulty.js';
@@ -78,6 +80,20 @@ describe('trainingGround stages', () => {
         expect(isTrainingGroundStageUnlocked(stageMinus1Total - 1, -1, 'kata')).toBe(false);
         expect(isTrainingGroundStageUnlocked(stageMinus1Total, 1, 'kata')).toBe(false);
         expect(isTrainingGroundStageUnlocked(trainingGroundUnlockTotalAbility(1, 'kata'), 1, 'kata')).toBe(true);
+    });
+
+    it('requires previous stage clear for sequential unlock on kata and pet tracks', () => {
+        expect(isTrainingGroundStageUnlockedBySequentialClear([], -30)).toBe(true);
+        expect(isTrainingGroundStageUnlockedBySequentialClear([], -29)).toBe(false);
+        expect(isTrainingGroundStageUnlockedBySequentialClear([-30], -29)).toBe(true);
+        expect(isTrainingGroundStageUnlockedBySequentialClear([-30], 1)).toBe(false);
+        expect(isTrainingGroundStageUnlockedBySequentialClear([-1], 1)).toBe(true);
+
+        const highAbility = trainingGroundUnlockTotalAbility(10, 'kata');
+        expect(canPlayTrainingGroundStage(highAbility, -29, 'kata', [])).toBe(false);
+        expect(canPlayTrainingGroundStage(highAbility, -29, 'kata', [-30])).toBe(true);
+        expect(canPlayTrainingGroundStage(highAbility, 10, 'pet', [9])).toBe(true);
+        expect(canPlayTrainingGroundStage(highAbility, 10, 'pet', [])).toBe(false);
     });
 
     it('maps pet unlock ability per stage from fixed table (초·중·종 합)', () => {

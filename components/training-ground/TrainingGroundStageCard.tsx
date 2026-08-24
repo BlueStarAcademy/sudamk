@@ -11,6 +11,8 @@ import {
 type TrainingGroundStageCardProps = {
     kataLevel: number;
     unlocked: boolean;
+    abilityUnlocked: boolean;
+    sequentialUnlocked: boolean;
     selected: boolean;
     cleared: boolean;
     boardSize: TrainingGroundBoardSize;
@@ -26,6 +28,8 @@ const ZEM_ICON = '/images/icon/Zem.webp';
 const TrainingGroundStageCard: React.FC<TrainingGroundStageCardProps> = ({
     kataLevel,
     unlocked,
+    abilityUnlocked,
+    sequentialUnlocked,
     selected,
     cleared,
     boardSize,
@@ -99,9 +103,17 @@ const TrainingGroundStageCard: React.FC<TrainingGroundStageCardProps> = ({
                         </span>
                     ) : null}
                 </div>
-                <p className={`text-[10px] font-semibold ${unlocked ? 'text-amber-100/85' : 'text-rose-200/90'}`}>
-                    {t('trainingGroundUi.unlockAbilityMin', { n: unlockAbility.toLocaleString() })}
-                </p>
+                <div className={`space-y-0.5 text-[10px] font-semibold ${unlocked ? 'text-amber-100/85' : 'text-rose-200/90'}`}>
+                    {!sequentialUnlocked ? (
+                        <p>{t('trainingGroundUi.unlockPreviousStage')}</p>
+                    ) : null}
+                    {!abilityUnlocked ? (
+                        <p>{t('trainingGroundUi.unlockAbilityMin', { n: unlockAbility.toLocaleString() })}</p>
+                    ) : null}
+                    {unlocked ? (
+                        <p>{t('trainingGroundUi.unlockAbilityMin', { n: unlockAbility.toLocaleString() })}</p>
+                    ) : null}
+                </div>
             </div>
         </button>
     );

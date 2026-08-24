@@ -3339,6 +3339,7 @@
       "needEquippedPet": "Equip a representative pet to enter partner training.",
       "boardSize": "Board size",
       "unlockAbilityMin": "Go ability {{n}}+",
+      "unlockPreviousStage": "Clear the previous stage",
       "selectedStageUnlock": "Stage {{stage}} · Go ability {{n}}+",
       "stageMarkerTitle": "Stages",
       "stageShort": "S{{n}}",
