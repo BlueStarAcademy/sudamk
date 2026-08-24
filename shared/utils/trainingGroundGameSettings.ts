@@ -174,7 +174,7 @@ export function refreshTrainingGroundLiveSessionSettings(
         trainingGround: {
             ...meta,
             gameMode: resolvedMode,
-            boardSize: rebuilt.boardSize ?? meta.boardSize,
+            boardSize: clampTrainingGroundBoardSize(rebuilt.boardSize ?? meta.boardSize),
         },
         boardSize: rebuilt.boardSize,
         hiddenStoneCount: rebuilt.hiddenStoneCount,

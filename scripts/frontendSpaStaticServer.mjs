@@ -144,6 +144,22 @@ const server = http.createServer((req, res) => {
     }
     const pathname = u.pathname || '/';
 
+    if (pathname === '/api/health') {
+        const body = JSON.stringify({
+            status: 'ok',
+            service: 'frontend',
+            timestamp: new Date().toISOString(),
+            uptime: process.uptime(),
+            pid: process.pid,
+        });
+        res.writeHead(200, {
+            'Content-Type': 'application/json; charset=utf-8',
+            'Cache-Control': 'no-store',
+        });
+        res.end(body);
+        return;
+    }
+
     const abs = safeResolveUnderRoot(DIST_ROOT, pathname);
     if (abs === null) {
         res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
