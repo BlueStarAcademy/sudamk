@@ -11,10 +11,37 @@ import {
 import { applyAdventureRegionalFlatBonusToHumanCaptures } from '../utils/adventureHeadStartCaptures.js';
 import { mixIncludesChess } from '../../shared/utils/mixModeSettings.js';
 import { modeIncludesCaptureRule, modeIncludesCastleRule, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
+import { isTrainingGroundSession } from '../../shared/constants/trainingGround.js';
+import { refreshTrainingGroundLiveSessionSettings } from '../../shared/utils/trainingGroundGameSettings.js';
 
 function normalizeStrategicAiScoringSettings(game: any): void {
   if (!SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)) return;
   const preMergePolicy = resolveArenaSessionPolicy(game);
+
+  if (isTrainingGroundSession(game)) {
+    refreshTrainingGroundLiveSessionSettings(game);
+    const chessRule = game.mode === GameMode.Chess || mixIncludesChess(game.settings?.mixedModes);
+    if (chessRule && !modeIncludesCaptureRule(game.mode, game.settings)) {
+      const chessBoard = game.settings.boardSize === 9 ? 9 : 13;
+      (game.settings as { scoringTurnLimit?: number }).scoringTurnLimit = clampChessScoringTurnLimit(
+        (game.settings as { scoringTurnLimit?: number }).scoringTurnLimit,
+        chessBoard,
+      );
+      return;
+    }
+    if (modeIncludesCaptureRule(game.mode, game.settings) || modeIncludesCastleRule(game.mode, game.settings)) {
+      game.settings.scoringTurnLimit = 0;
+      delete game.settings.autoScoringTurns;
+      return;
+    }
+    const stl = (game.settings as { scoringTurnLimit?: number }).scoringTurnLimit;
+    if (typeof stl !== 'number' || !Number.isFinite(stl) || stl <= 0) {
+      game.settings.scoringTurnLimit = getAiScoringTurnLimitByBoardSize(
+        game.settings.boardSize || DEFAULT_GAME_SETTINGS.boardSize,
+      );
+    }
+    return;
+  }
 
   game.settings = { ...DEFAULT_GAME_SETTINGS, ...(game.settings || {}) };
   const chessRule = game.mode === GameMode.Chess || mixIncludesChess(game.settings?.mixedModes);

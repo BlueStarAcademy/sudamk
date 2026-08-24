@@ -78,6 +78,7 @@ describe('resolvePveAiSeatDisplayProfile', () => {
             player1: {
                 id: 'human-1',
                 nickname: '유저닉',
+                equippedPairPetTemplateId: 'pair-pet-1',
                 inventory: [
                     {
                         id: 'pet-row-1',
@@ -99,8 +100,9 @@ describe('resolvePveAiSeatDisplayProfile', () => {
             settings: { trainingGround: { track: 'pet', kataLevel: -30, boardSize: 19 } },
         });
         const profile = resolvePveAiSeatDisplayProfile(session, session.player2);
-        expect(profile?.nickname).toBe('Lv.7 테스트펫');
+        expect(profile?.nickname).toBe('루미폭스 (봇)');
         expect(profile?.avatarUrl).toBe('/images/pets/pet1.webp');
+        expect(profile?.displayLevelText).toBe('1단계');
     });
 
     it('uses dedicated assets for singleplayer and tower', () => {

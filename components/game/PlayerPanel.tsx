@@ -360,6 +360,8 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const isStrategicAiGame = session.isAiGame && isStrategic && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
     if (opponentMonsterDisplay) {
         levelText = `Lv.${opponentMonsterDisplay.level}`;
+    } else if (pveAiDisplayProfile?.displayLevelText && isAiPlayer) {
+        levelText = pveAiDisplayProfile.displayLevelText;
     } else if (pveAiDisplayProfile?.userLevel != null && isAiPlayer) {
         levelText = `Lv.${pveAiDisplayProfile.userLevel}`;
     } else if (isStrategicAiGame && isAiPlayer) {

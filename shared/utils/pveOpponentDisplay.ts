@@ -3,7 +3,7 @@ import { GameMode } from '../types/enums.js';
 import { aiUserId } from '../constants/auth.js';
 import { getAdventureCodexMonsterById, getAdventureMonsterPortraitUrl } from '../../constants/adventureMonstersCodex.js';
 import { TOWER_AI_BOT_DISPLAY_NAME } from '../../constants/towerConstants.js';
-import { isTrainingGroundSession } from '../constants/trainingGround.js';
+import { isTrainingGroundSession, trainingGroundStageNumber } from '../constants/trainingGround.js';
 import {
     PVE_GUILD_WAR_BOT_AVATAR_URL,
     PVE_SINGLEPLAYER_BOT_AVATAR_URL,
@@ -12,7 +12,6 @@ import {
 } from '../constants/pveBotProfiles.js';
 import { getPairPetDefinition, getPairPetDisplayName } from '../constants/petLobby.js';
 import { getEquippedPairPetInventoryRow } from './pairEquippedPet.js';
-import { resolvePairPetMetaFromInventoryRow } from './pairPetRoll.js';
 import { resolveUserAvatarUrlOrDefault, resolveUserPortraitUrls } from './userPortrait.js';
 
 export type PveAiSeatDisplayProfile = {
@@ -20,6 +19,8 @@ export type PveAiSeatDisplayProfile = {
     avatarUrl: string;
     borderUrl?: string | null;
     userLevel?: number;
+    /** Lv.N 대신 표시할 커스텀 텍스트 (예: 수련장 단짝 수련 N단계) */
+    displayLevelText?: string;
 };
 
 function humanUserFromSession(session: LiveGameSession): User | null {
@@ -39,13 +40,11 @@ function trainingGroundPetPortraitUrl(user: User | null | undefined): string | n
     return getPairPetDefinition(row.templateId)?.image ?? null;
 }
 
-function trainingGroundPetDisplayName(user: User | null | undefined, fallbackNickname: string): string {
-    if (!user) return fallbackNickname;
+function trainingGroundPetBotNickname(user: User | null | undefined, fallbackNickname: string): string {
+    if (!user) return `${fallbackNickname} (봇)`;
     const row = getEquippedPairPetInventoryRow(user);
-    if (!row) return fallbackNickname;
-    const meta = resolvePairPetMetaFromInventoryRow(row);
-    const level = Math.max(1, Math.floor(meta.level) || 1);
-    return `Lv.${level} ${getPairPetDisplayName(row)}`;
+    if (!row) return `${fallbackNickname} (봇)`;
+    return `${getPairPetDisplayName(row)} (봇)`;
 }
 
 /**
@@ -88,21 +87,12 @@ export function resolvePveAiSeatDisplayProfile(
         }
         if (meta?.track === 'pet') {
             const portraitUrl = trainingGroundPetPortraitUrl(aiSeatUser) ?? trainingGroundPetPortraitUrl(human);
-            const nickname =
-                typeof aiSeatUser.nickname === 'string' && aiSeatUser.nickname.length > 0
-                    ? aiSeatUser.nickname
-                    : trainingGroundPetDisplayName(human, aiSeatUser.nickname);
-            const petRow = human ? getEquippedPairPetInventoryRow(human) : null;
-            const level =
-                typeof aiSeatUser.userLevel === 'number'
-                    ? aiSeatUser.userLevel
-                    : petRow
-                      ? resolvePairPetMetaFromInventoryRow(petRow).level
-                      : undefined;
+            const nickname = trainingGroundPetBotNickname(human, aiSeatUser.nickname);
+            const stageNumber = trainingGroundStageNumber(meta.kataLevel);
             return {
                 nickname,
                 avatarUrl: portraitUrl ?? '/images/pets/pet1.webp',
-                userLevel: level,
+                displayLevelText: `${stageNumber}단계`,
             };
         }
     }

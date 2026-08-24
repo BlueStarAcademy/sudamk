@@ -39,6 +39,7 @@ import { getEquippedPairPetInventoryRow } from '../../../shared/utils/pairEquipp
 import {
     buildTrainingGroundGameSettings,
     isTrainingGroundModeCompatibleWithBoard,
+    refreshTrainingGroundLiveSessionSettings,
     trainingGroundSelectableGameModes,
 } from '../../../shared/utils/trainingGroundGameSettings.js';
 
@@ -323,5 +324,21 @@ describe('trainingGround game settings', () => {
         expect(speed.boardSize).toBe(13);
         expect(speed.trainingGround?.track).toBe('pet');
         expect(speed.trainingGround?.gameMode).toBe(GameMode.Speed);
+
+        const hidden = buildTrainingGroundGameSettings(GameMode.Hidden, 'kata', -12, 13);
+        expect(hidden.hiddenStoneCount).toBe(1);
+        expect(hidden.scanCount).toBeLessThanOrEqual(3);
+    });
+
+    it('refreshTrainingGroundLiveSessionSettings restores selected mode and item caps', () => {
+        const game = {
+            mode: GameMode.Standard,
+            settings: buildTrainingGroundGameSettings(GameMode.Missile, 'kata', -5, 13),
+        };
+        game.mode = GameMode.Standard;
+        refreshTrainingGroundLiveSessionSettings(game);
+        expect(game.mode).toBe(GameMode.Missile);
+        expect(game.settings.missileCount).toBe(3);
+        expect(game.settings.trainingGround?.gameMode).toBe(GameMode.Missile);
     });
 });

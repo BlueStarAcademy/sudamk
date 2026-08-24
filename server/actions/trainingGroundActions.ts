@@ -10,11 +10,11 @@ import { calculateTotalStats } from '../statService.js';
 import { setInGameUserStatusForArena } from './socialActions.js';
 import { getEquippedPairPetInventoryRow } from '../../shared/utils/pairEquippedPet.js';
 import { getPairPetDisplayName } from '../../shared/constants/petLobby.js';
-import { resolvePairPetMetaFromInventoryRow } from '../../shared/utils/pairPetRoll.js';
 import { pveBotAvatarIdForMode } from '../../shared/constants/pveBotProfiles.js';
 import {
     isTrainingGroundKataLevel,
     normalizeTrainingGroundKataLevel,
+    trainingGroundStageNumber,
     type TrainingGroundTrack,
 } from '../../shared/constants/trainingGround.js';
 import {
@@ -33,7 +33,12 @@ import {
 
 type HandleResult = { clientResponse?: unknown; error?: string };
 
-function buildTrainingGroundAiOpponent(user: User, track: TrainingGroundTrack, mode: GameMode): User {
+function buildTrainingGroundAiOpponent(
+    user: User,
+    track: TrainingGroundTrack,
+    mode: GameMode,
+    kataLevel: number,
+): User {
     const base = {
         ...getAiUser(mode),
         avatarId: pveBotAvatarIdForMode(mode),
@@ -50,15 +55,13 @@ function buildTrainingGroundAiOpponent(user: User, track: TrainingGroundTrack, m
     }
     const petRow = getEquippedPairPetInventoryRow(user);
     const templateId = petRow?.templateId ?? user.equippedPairPetTemplateId;
-    const meta = petRow ? resolvePairPetMetaFromInventoryRow(petRow) : null;
-    const level = meta ? Math.max(1, Math.floor(meta.level) || 1) : 1;
     const nickname = petRow
-        ? `Lv.${level} ${getPairPetDisplayName(petRow)}`
-        : base.nickname;
+        ? `${getPairPetDisplayName(petRow)} (봇)`
+        : `${base.nickname} (봇)`;
     return {
         ...base,
         nickname,
-        userLevel: level,
+        userLevel: trainingGroundStageNumber(kataLevel),
         equippedPairPetTemplateId: templateId ?? null,
     };
 }
@@ -137,7 +140,7 @@ export async function handleTrainingGroundAction(
             const negotiation: Negotiation = {
                 id: `neg-tg-${randomUUID()}`,
                 challenger: fresh,
-                opponent: buildTrainingGroundAiOpponent(fresh, track, gameMode),
+                opponent: buildTrainingGroundAiOpponent(fresh, track, gameMode, kataLevel),
                 mode: gameMode,
                 settings,
                 proposerId: fresh.id,

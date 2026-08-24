@@ -2460,7 +2460,8 @@ const processPlayerSummary = async (
         const isPveQuestExempt =
             !!game.isSinglePlayer ||
             game.gameCategory === 'tower' ||
-            (game.gameCategory as string) === 'singleplayer';
+            (game.gameCategory as string) === 'singleplayer' ||
+            isTrainingGroundGame;
 
         const questCtx = { gameCategory: game.gameCategory as string | undefined };
         if (!isPveQuestExempt) {
@@ -2474,6 +2475,14 @@ const processPlayerSummary = async (
         }
         if (isWinner && game.gameCategory === 'adventure') {
             updateQuestProgress(updatedPlayer, 'adventure_win', undefined, 1);
+        }
+        if (isWinner && isTrainingGroundGame && player.id !== aiUserId) {
+            const track = game.settings?.trainingGround?.track;
+            if (track === 'kata' || track === 'pet') {
+                updateQuestProgress(updatedPlayer, 'training_ground_win', undefined, 1, {
+                    trainingGroundTrack: track,
+                });
+            }
         }
 
         if (liveSessionHasChampionshipDungeonBot(game)) {

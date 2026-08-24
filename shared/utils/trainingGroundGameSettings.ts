@@ -149,3 +149,48 @@ export function buildTrainingGroundGameSettings(
     delete (settings as { pairGame?: unknown }).pairGame;
     return settings;
 }
+
+/** CONFIRM_AI_GAME_START 등에서 `DEFAULT_GAME_SETTINGS` 병합 전에 모드·룰 필드를 복구한다. */
+export function refreshTrainingGroundLiveSessionSettings(
+    game: { mode: GameMode; settings?: GameSettings | null },
+): void {
+    const meta = game.settings?.trainingGround;
+    if (!meta) return;
+
+    const resolvedMode =
+        meta.gameMode && isTrainingGroundGameMode(meta.gameMode) ? meta.gameMode : game.mode;
+    const rebuilt = buildTrainingGroundGameSettings(
+        resolvedMode,
+        meta.track,
+        meta.kataLevel,
+        meta.boardSize,
+    );
+
+    game.mode = resolvedMode;
+    const preserved = game.settings ?? {};
+    game.settings = {
+        ...rebuilt,
+        ...preserved,
+        trainingGround: {
+            ...meta,
+            gameMode: resolvedMode,
+            boardSize: rebuilt.boardSize ?? meta.boardSize,
+        },
+        boardSize: rebuilt.boardSize,
+        hiddenStoneCount: rebuilt.hiddenStoneCount,
+        scanCount: rebuilt.scanCount,
+        missileCount: rebuilt.missileCount,
+        captureTarget: rebuilt.captureTarget,
+        baseStones: rebuilt.baseStones,
+        scoringTurnLimit: rebuilt.scoringTurnLimit,
+        komi: rebuilt.komi,
+        timeLimit: rebuilt.timeLimit,
+        byoyomiTime: rebuilt.byoyomiTime,
+        byoyomiCount: rebuilt.byoyomiCount,
+        timeIncrement: rebuilt.timeIncrement,
+        kataServerLevel: rebuilt.kataServerLevel,
+        goAiBotLevel: rebuilt.goAiBotLevel,
+        aiDifficulty: rebuilt.aiDifficulty,
+        useClientSideAi: rebuilt.useClientSideAi,
+    };
+}

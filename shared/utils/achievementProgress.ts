@@ -6,6 +6,8 @@ import { getAdventureCodexCompletionBreakdown } from '../../utils/adventureCodex
 import { getAdventureUnderstandingTierFromXp } from '../../constants/adventureConstants.js';
 import { getMaxPairPetGradeIndexAcrossInventory, getMaxPairPetLevelAcrossInventory } from './pairPetAchievementMetrics.js';
 import { pairPetGradeIndex } from '../constants/pairPetGrade.js';
+import { trainingGroundStageNumber } from '../constants/trainingGround.js';
+import { resolveTrainingGroundState } from './trainingGroundDaily.js';
 
 const ADVENTURE_UNDERSTANDING_TIER_INDEX_BY_LABEL: Record<string, number> = {
     편함: 1,
@@ -63,6 +65,19 @@ function equippedMinGradeIndex(user: User): number {
 function strategySeasonScore(user: User): number {
     const diff = user.cumulativeRankingScore?.['standard'] ?? 0;
     return 1200 + diff;
+}
+
+function maxTrainingGroundClearedStage(user: User, track: 'kata' | 'pet'): number {
+    const state = resolveTrainingGroundState(user);
+    const levels = track === 'kata' ? state.kataClearedLevels : state.petClearedLevels;
+    if (!levels?.length) return 0;
+    let max = 0;
+    for (const raw of levels) {
+        const n = Number(raw);
+        if (!Number.isFinite(n)) continue;
+        max = Math.max(max, trainingGroundStageNumber(n));
+    }
+    return max;
 }
 
 /** 업적 단계별 진행 수치 (UI `(현재/목표)`). 던전 1위형은 수치 진행 없음 → null */
@@ -127,6 +142,10 @@ export function getAchievementProgressDisplay(
         case 'pair_pet_soul_converts': {
             const cur = user.quests?.achievements?.totalPairPetSoulConverts ?? 0;
             return { current: Math.min(cur, r.count), target: r.count };
+        }
+        case 'training_ground_stage_clear': {
+            const cur = maxTrainingGroundClearedStage(user, r.track);
+            return { current: Math.min(cur, r.stage), target: r.stage };
         }
         default:
             return null;

@@ -1235,7 +1235,13 @@ export const initializeGame = async (neg: Negotiation): Promise<LiveGameSession>
     const now = Date.now();
     
     const challenger = await db.getUser(neg.challenger.id);
-    const opponent = neg.opponent.id === aiUserId ? getAiUser(neg.mode) : await db.getUser(neg.opponent.id);
+    const isTrainingGroundStart = Boolean((settings as { trainingGround?: unknown } | undefined)?.trainingGround);
+    const opponent =
+        neg.opponent.id === aiUserId
+            ? isTrainingGroundStart
+              ? neg.opponent
+              : getAiUser(neg.mode)
+            : await db.getUser(neg.opponent.id);
 
     if (!challenger || !opponent) {
         throw new Error(`Could not find one or more players to start the game: ${neg.challenger.id}, ${neg.opponent.id}`);

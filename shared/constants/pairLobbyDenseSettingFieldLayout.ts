@@ -33,6 +33,10 @@ export const LOBBY_DENSE_SETTINGS_THREE_COLS_GRID_CLASS =
 export const LOBBY_HORIZONTAL_MODE_PICKER_SCROLL_CLASS =
     'overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.36)_transparent] [&::-webkit-scrollbar]:h-[3px] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-zinc-900/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-0 [&::-webkit-scrollbar-thumb]:bg-amber-500/30 hover:[&::-webkit-scrollbar-thumb]:bg-amber-400/46 active:[&::-webkit-scrollbar-thumb]:bg-amber-400/54';
 
+/** 경기장·훈련장 등 세로 목록 — 얇고 고급스러운 골드 스크롤바(Firefox + WebKit) */
+export const LOBBY_VERTICAL_AMBER_SCROLL_CLASS =
+    'overflow-y-auto overflow-x-hidden overscroll-y-contain [-webkit-overflow-scrolling:touch] [scrollbar-gutter:stable] [scrollbar-width:thin] [scrollbar-color:rgba(251,191,36,0.36)_transparent] [&::-webkit-scrollbar]:w-[3px] [&::-webkit-scrollbar-track]:rounded-full [&::-webkit-scrollbar-track]:bg-zinc-900/20 [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:border-0 [&::-webkit-scrollbar-thumb]:bg-amber-500/30 hover:[&::-webkit-scrollbar-thumb]:bg-amber-400/46 active:[&::-webkit-scrollbar-thumb]:bg-amber-400/54';
+
 /** 가로 모드 카드 줄 레이아웃(스크롤 없음 — 바깥 스크롤 컨테이너와 조합) */
 export const LOBBY_HORIZONTAL_MODE_PICKER_ROW_LAYOUT_CLASS =
     'flex min-h-[7.25rem] flex-nowrap gap-2 pb-0.5 sm:min-h-[7.75rem]';

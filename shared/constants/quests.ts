@@ -4,6 +4,8 @@ export const DAILY_QUESTS: Omit<Quest, 'id' | 'progress' | 'isClaimed'>[] = [
     { title: '출석하기', description: '출석 1회', target: 1, reward: { gold: 100 }, activityPoints: 10 },
     { title: '채팅창에 인사하기', description: '대기실 채팅에 인사 1회', target: 1, reward: { gold: 100 }, activityPoints: 10 },
     { title: '탐험에서 승리하기', description: '탐험에서 3회 승리', target: 3, reward: { gold: 100 }, activityPoints: 10 },
+    { title: '심법 수련 승리하기', description: '심법 수련 1회 승리', target: 1, reward: { gold: 100 }, activityPoints: 10 },
+    { title: '단짝 수련 승리하기', description: '단짝 수련 1회 승리', target: 1, reward: { gold: 100 }, activityPoints: 10 },
     { title: '전략바둑 경기하기(PVP)', description: '전략바둑 PVP 대국 3회', target: 3, reward: { gold: 100 }, activityPoints: 10 },
     { title: '놀이바둑 경기하기(PVP)', description: '놀이바둑 PVP 대국 3회', target: 3, reward: { gold: 100 }, activityPoints: 10 },
     { title: '전략바둑 승리하기', description: '전략바둑 3회 승리 (대기실 AI·일반 대국 포함)', target: 3, reward: { gold: 100 }, activityPoints: 10 },
@@ -21,6 +23,8 @@ export const DAILY_QUESTS: Omit<Quest, 'id' | 'progress' | 'isClaimed'>[] = [
 export const WEEKLY_QUESTS: Omit<Quest, 'id' | 'progress' | 'isClaimed'>[] = [
     { title: '출석하기', description: '출석 5회 (날짜당 1회)', target: 5, reward: { gold: 500 }, activityPoints: 10 },
     { title: '탐험에서 승리하기', description: '탐험에서 15회 승리', target: 15, reward: { gold: 500 }, activityPoints: 10 },
+    { title: '심법 수련 승리하기', description: '심법 수련 5회 승리', target: 5, reward: { gold: 500 }, activityPoints: 10 },
+    { title: '단짝 수련 승리하기', description: '단짝 수련 5회 승리', target: 5, reward: { gold: 500 }, activityPoints: 10 },
     { title: '전략바둑 경기하기(PVP)', description: '전략바둑 PVP 대국 15회', target: 15, reward: { gold: 500 }, activityPoints: 10 },
     { title: '놀이바둑 경기하기(PVP)', description: '놀이바둑 PVP 대국 15회', target: 15, reward: { gold: 500 }, activityPoints: 10 },
     { title: '전략바둑 승리하기', description: '전략바둑 15회 승리 (대기실 AI·일반 대국 포함)', target: 15, reward: { gold: 500 }, activityPoints: 10 },
@@ -39,6 +43,8 @@ export const WEEKLY_QUESTS: Omit<Quest, 'id' | 'progress' | 'isClaimed'>[] = [
 export const MONTHLY_QUESTS: Omit<Quest, 'id' | 'progress' | 'isClaimed'>[] = [
     { title: '출석하기', description: '출석 15회 (날짜당 1회)', target: 15, reward: { gold: 1500 }, activityPoints: 10 },
     { title: '탐험에서 승리하기', description: '탐험에서 30회 승리', target: 30, reward: { gold: 1500 }, activityPoints: 10 },
+    { title: '심법 수련 승리하기', description: '심법 수련 15회 승리', target: 15, reward: { gold: 1500 }, activityPoints: 10 },
+    { title: '단짝 수련 승리하기', description: '단짝 수련 15회 승리', target: 15, reward: { gold: 1500 }, activityPoints: 10 },
     { title: '전략바둑 경기하기(PVP)', description: '전략바둑 PVP 대국 30회', target: 30, reward: { gold: 1500 }, activityPoints: 10 },
     { title: '놀이바둑 경기하기(PVP)', description: '놀이바둑 PVP 대국 30회', target: 30, reward: { gold: 1500 }, activityPoints: 10 },
     { title: '전략바둑 승리하기', description: '전략바둑 30회 승리 (대기실 AI·일반 대국 포함)', target: 30, reward: { gold: 1500 }, activityPoints: 10 },

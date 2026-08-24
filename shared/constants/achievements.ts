@@ -18,7 +18,8 @@ export type AchievementStageDefinition = {
         | { type: 'pair_pet_max_level'; level: number }
         | { type: 'pair_pet_min_grade'; grade: ItemGrade }
         | { type: 'pair_pet_training_claims'; count: number }
-        | { type: 'pair_pet_soul_converts'; count: number };
+        | { type: 'pair_pet_soul_converts'; count: number }
+        | { type: 'training_ground_stage_clear'; track: 'kata' | 'pet'; stage: number };
     rewardDiamonds: number;
 };
 
@@ -48,8 +49,11 @@ export const PAIR_PET_FOREVER_TOGETHER_TRACK_ID = 'pair_pet_soul_convert_forever
 export const NEIGHBORHOOD_LEAGUE_FIRST_PLACE_TRACK_ID = 'neighborhood_league_stage_first_place';
 export const NATIONAL_TOURNAMENT_FIRST_PLACE_TRACK_ID = 'national_tournament_stage_first_place';
 export const WORLD_CHAMPIONSHIP_FIRST_PLACE_TRACK_ID = 'world_championship_stage_first_place';
+export const TRAINING_GROUND_KATA_CLEAR_TRACK_ID = 'training_ground_kata_clear';
+export const TRAINING_GROUND_PET_CLEAR_TRACK_ID = 'training_ground_pet_clear';
 
 const DUNGEON_STAGE_FIRST_PLACE_DIAMONDS = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100] as const;
+const TRAINING_GROUND_CLEAR_STAGE_MILESTONES = [1, 5, 10, 15, 20, 24, 28, 32, 36, 40] as const;
 
 function buildChampionshipDungeonStageFirstStages(
     stageIdPrefix: string,
@@ -66,6 +70,20 @@ function buildChampionshipDungeonStageFirstStages(
             rewardDiamonds,
         };
     });
+}
+
+function buildTrainingGroundStageClearStages(
+    stageIdPrefix: string,
+    track: 'kata' | 'pet',
+    trackLabel: string,
+): AchievementStageDefinition[] {
+    return TRAINING_GROUND_CLEAR_STAGE_MILESTONES.map((stage, i) => ({
+        id: `${stageIdPrefix}-${stage}`,
+        title: `${trackLabel} ${stage}단계 클리어`,
+        description: `${trackLabel} ${stage}단계를 클리어하세요.`,
+        requirement: { type: 'training_ground_stage_clear', track, stage },
+        rewardDiamonds: DUNGEON_STAGE_FIRST_PLACE_DIAMONDS[i],
+    }));
 }
 
 /** 챔피언십 던전(동네/전국/월드) 특정 단계 기록에서 1위(우승) 달성 여부 */
@@ -334,6 +352,16 @@ export const ACHIEVEMENT_TRACKS: AchievementTrackDefinition[] = [
             { id: 'pair-soul-200', title: '펫 영혼변환 200회', description: '펫 영혼변환을 누적 200회 진행하세요.', requirement: { type: 'pair_pet_soul_converts', count: 200 }, rewardDiamonds: 100 },
             { id: 'pair-soul-300', title: '펫 영혼변환 300회', description: '펫 영혼변환을 누적 300회 진행하세요.', requirement: { type: 'pair_pet_soul_converts', count: 300 }, rewardDiamonds: 100 },
         ],
+    },
+    {
+        id: TRAINING_GROUND_KATA_CLEAR_TRACK_ID,
+        title: '자신을 돌아보라',
+        stages: buildTrainingGroundStageClearStages('training-ground-kata-clear', 'kata', '심법 수련'),
+    },
+    {
+        id: TRAINING_GROUND_PET_CLEAR_TRACK_ID,
+        title: '펫과의 수련',
+        stages: buildTrainingGroundStageClearStages('training-ground-pet-clear', 'pet', '단짝 수련'),
     },
 ];
 

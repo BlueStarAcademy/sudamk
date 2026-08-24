@@ -9,6 +9,8 @@ export type QuestProgressContext = {
     gameCategory?: string;
     /** 페어 세션: `pvp`일 때 일반 전략/놀이 승리 퀘스트와 분리(페어 PVP 전용 퀘스트만 진행) */
     pairMode?: 'ai' | 'pvp';
+    /** 수련장: `kata` 심법 / `pet` 단짝 */
+    trainingGroundTrack?: 'kata' | 'pet';
 };
 
 export type QuestProgressEvent =
@@ -33,6 +35,7 @@ export type QuestProgressEvent =
     | 'claim_weekly_milestone_100'
     | 'training_quest_claim'
     | 'tower_challenge'
+    | 'training_ground_win'
     | 'guild_donate'
     | 'guild_boss_participate';
 
@@ -95,6 +98,12 @@ export const updateQuestProgress = (
             case '여행에서 승리하기': // legacy title
             case '모험에서 승리하기': // legacy title
                 if (type === 'adventure_win') shouldUpdate = true;
+                break;
+            case '심법 수련 승리하기':
+                if (type === 'training_ground_win' && questContext?.trainingGroundTrack === 'kata') shouldUpdate = true;
+                break;
+            case '단짝 수련 승리하기':
+                if (type === 'training_ground_win' && questContext?.trainingGroundTrack === 'pet') shouldUpdate = true;
                 break;
             case '액션버튼 사용하기':
             case '매너액션 버튼 사용하기':
