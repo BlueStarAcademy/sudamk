@@ -94,29 +94,25 @@ export function strategicAiDisplayLevelFromProfileStep(profileStep: number): num
 
 /**
  * 모험 몬스터 레벨(1~50) → KataServer levelbot (기획 표 — 로비 1~10단계 테이블과 별도).
- * 1=-31, 2=-30, 3=-29, 4=-28, 5=-27, 6~9=-25, 10=-23, 11~15=-21, 16~19=-19, 20=-18,
- * 21~25=-16, 26~29=-15, 30=-12, 31~35=-10, 36~39=-8, 40=-5, 41~45=-3, 46~49=-1, 50=1.
+ * 1=-31, 2~3=-30, 4~5=-29, 6~9=-27, 10=-25, 11~15=-20, 16~19=-15, 20=-12,
+ * 21~25=-10, 26~29=-7, 30=-5, 31~35=-3, 36~40=-2, 41~45=-1, 46~50=1.
  */
 export function adventureMonsterLevelToKataServerLevel(monsterLevel: number): number {
   const lv = Math.max(1, Math.min(50, Math.floor(monsterLevel)));
   if (lv === 1) return -31;
-  if (lv === 2) return -30;
-  if (lv === 3) return -29;
-  if (lv === 4) return -28;
-  if (lv === 5) return -27;
-  if (lv <= 9) return -25;
-  if (lv === 10) return -23;
-  if (lv <= 15) return -21;
-  if (lv <= 19) return -19;
-  if (lv === 20) return -18;
-  if (lv <= 25) return -16;
-  if (lv <= 29) return -15;
-  if (lv === 30) return -12;
-  if (lv <= 35) return -10;
-  if (lv <= 39) return -8;
-  if (lv === 40) return -5;
-  if (lv <= 45) return -3;
-  if (lv <= 49) return -1;
+  if (lv <= 3) return -30;
+  if (lv <= 5) return -29;
+  if (lv <= 9) return -27;
+  if (lv === 10) return -25;
+  if (lv <= 15) return -20;
+  if (lv <= 19) return -15;
+  if (lv === 20) return -12;
+  if (lv <= 25) return -10;
+  if (lv <= 29) return -7;
+  if (lv === 30) return -5;
+  if (lv <= 35) return -3;
+  if (lv <= 40) return -2;
+  if (lv <= 45) return -1;
   return 1;
 }
 
