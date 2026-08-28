@@ -1,6 +1,7 @@
 import type { LiveGameSession } from '../types/entities.js';
 import { resolveArenaSessionPolicy } from './liveSessionArenaKind.js';
 import { adventureMonsterLevelToKataServerLevel } from './strategicAiDifficulty.js';
+import { clearKataLowWinrateBestMovePreference } from './kataLowWinrateBestMove.js';
 
 export function resolveAdventureMonsterLevelFromSession(
     game: Pick<LiveGameSession, 'adventureMonsterLevel' | 'settings'> | null | undefined,
@@ -40,5 +41,6 @@ export function refreshAdventureKataServerLevelOnSession(
         (game.settings as { adventureMonsterLevel?: number }).adventureMonsterLevel = lv;
     }
     (game as { adventureMonsterLevel?: number }).adventureMonsterLevel = lv;
+    clearKataLowWinrateBestMovePreference(game as { kataPreferBestMoveLowWinrate?: boolean });
     return kataLevel;
 }

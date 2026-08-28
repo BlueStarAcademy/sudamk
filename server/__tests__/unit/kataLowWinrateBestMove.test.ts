@@ -4,6 +4,7 @@ import {
     applyKataWinrateBestMovePreference,
     readKataPreferBestMoveLowWinrate,
     resolveKataPreferBestMoveLowWinrate,
+    shouldApplyKataLowWinrateBestMovePreference,
 } from '../../../shared/utils/kataLowWinrateBestMove.js';
 
 describe('kataLowWinrateBestMove', () => {
@@ -29,5 +30,13 @@ describe('kataLowWinrateBestMove', () => {
 
         expect(applyKataWinrateBestMovePreference(game, 0.12)).toBe(false);
         expect(readKataPreferBestMoveLowWinrate(game)).toBe(false);
+    });
+
+    it('does not enable low-winrate bestMove for fixed-kata PVE like adventure', () => {
+        const game = { gameCategory: 'adventure', isSinglePlayer: false, settings: {} } as const;
+        expect(shouldApplyKataLowWinrateBestMovePreference(game)).toBe(false);
+        const session = { kataPreferBestMoveLowWinrate: true as boolean | undefined };
+        expect(applyKataWinrateBestMovePreference(session, 0.05, { enabled: false })).toBe(false);
+        expect(readKataPreferBestMoveLowWinrate(session)).toBe(false);
     });
 });

@@ -23,7 +23,7 @@ import {
     applySpeedMoveClockEnd,
     applySpeedNextTurnClockStart,
 } from '../shared/utils/speedTimePressureSessionSync.js';
-import { applyKataWinrateBestMovePreference, readKataPreferBestMoveLowWinrate } from '../shared/utils/kataLowWinrateBestMove.js';
+import { applyKataWinrateBestMovePreference, readKataPreferBestMoveLowWinrate, shouldApplyKataLowWinrateBestMovePreference } from '../shared/utils/kataLowWinrateBestMove.js';
 import { generateKataServerMoveCandidateDetails, isKataServerAvailable } from './kataServerService.js';
 import { applyCastleTerritoryAfterMove } from './modes/castle.js';
 import { enumerateLegalCastleMoves, processCastleMove, sessionUsesCastleGo } from '../shared/utils/castleGoRules.js';
@@ -2106,6 +2106,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             ? Math.max(-31, Math.min(10, Math.floor(requestKataLevelRaw)))
             : -31;
 
+        const allowLowWinrateBestMove = shouldApplyKataLowWinrateBestMovePreference(game);
         const kataParams = {
             boardSize: game.settings.boardSize || 19,
             player: (aiPlayerEnum === types.Player.White ? 'white' : 'black') as 'white' | 'black',
@@ -2120,7 +2121,7 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             // PASS·기권은 서버에서 처리하지 않는다.
             allowPass: false,
             moveApiRetries,
-            preferBestMoveLowWinrate: readKataPreferBestMoveLowWinrate(game),
+            preferBestMoveLowWinrate: allowLowWinrateBestMove && readKataPreferBestMoveLowWinrate(game),
         };
 
         let kataDetails: Awaited<ReturnType<typeof generateKataServerMoveCandidateDetails>>;
@@ -2143,7 +2144,9 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
         const kataCandidates = kataDetails.candidates;
         lastCandidates = kataCandidates;
         lastBest = kataDetails.bestMove;
-        const preferBestMove = applyKataWinrateBestMovePreference(game, kataDetails.winrate);
+        const preferBestMove =
+            allowLowWinrateBestMove &&
+            applyKataWinrateBestMovePreference(game, kataDetails.winrate, { enabled: allowLowWinrateBestMove });
         if (preferBestMove && kataDetails.winrate != null) {
             console.log(
                 `[pickKataMoveExclusiveWithBoardResync] low winrate bestMove mode winrate=${kataDetails.winrate} level=${requestKataLevel} game=${game.id}`,
@@ -2203,10 +2206,12 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
                   { point: kataDetails.bestMove, source: 'bestMove' },
                   { point: kataDetails.reportedMove, source: 'move' },
               ]
-            : [
-                  { point: kataDetails.reportedMove, source: 'move' },
-                  { point: kataDetails.bestMove, source: 'bestMove' },
-              ];
+            : allowLowWinrateBestMove
+              ? [
+                    { point: kataDetails.reportedMove, source: 'move' },
+                    { point: kataDetails.bestMove, source: 'bestMove' },
+                ]
+              : [{ point: kataDetails.reportedMove, source: 'move' }];
         for (const { point, source } of orderedPrimary) {
             if (!point) continue;
             const picked = tryPlayPoint(point, source);
@@ -2218,7 +2223,14 @@ async function pickKataMoveExclusiveWithBoardResync(params: {
             }
         }
 
-        for (const cand of kataCandidates) {
+        const secondaryCandidates =
+            !allowLowWinrateBestMove && kataDetails.bestMove
+                ? kataCandidates.filter(
+                      (c) => c.x !== kataDetails.bestMove!.x || c.y !== kataDetails.bestMove!.y,
+                  )
+                : kataCandidates;
+
+        for (const cand of secondaryCandidates) {
             const fromCand = tryPlayPoint(cand, 'candidate');
             if (fromCand) return fromCand;
             console.warn(
