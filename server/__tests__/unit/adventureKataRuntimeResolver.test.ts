@@ -57,13 +57,46 @@ describe('adventureKataLevelFromSnapshot', () => {
     });
 });
 
+describe('getTowerKataServerLevelByFloor', () => {
+    it('matches the planned tower floor kata ladder', () => {
+        const cases: [number, number][] = [
+            [1, -30],
+            [10, -30],
+            [11, -28],
+            [20, -28],
+            [21, -26],
+            [34, -26],
+            [35, -25],
+            [36, -22],
+            [49, -22],
+            [50, -20],
+            [51, -19],
+            [64, -19],
+            [65, -18],
+            [66, -15],
+            [79, -15],
+            [80, -12],
+            [81, -10],
+            [89, -10],
+            [90, -7],
+            [91, -5],
+            [99, -5],
+            [100, -3],
+        ];
+        for (const [floor, kata] of cases) {
+            expect(getTowerKataServerLevelByFloor(floor)).toBe(kata);
+        }
+    });
+});
+
 describe('towerKataLevelFromSnapshot', () => {
     it('uses the tower floor mapping from the runtime snapshot', () => {
         const runtime = buildDefaultKataServerRuntimeSnapshot();
 
         expect(towerKataLevelFromSnapshot(runtime, 1)).toBe(-30);
-        expect(towerKataLevelFromSnapshot(runtime, 20)).toBe(-25);
-        expect(towerKataLevelFromSnapshot(runtime, 100)).toBe(-1);
+        expect(towerKataLevelFromSnapshot(runtime, 20)).toBe(-28);
+        expect(towerKataLevelFromSnapshot(runtime, 35)).toBe(-25);
+        expect(towerKataLevelFromSnapshot(runtime, 100)).toBe(-3);
     });
 
     it('falls back to the planned floor table when a runtime key is missing', () => {
