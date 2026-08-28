@@ -64,11 +64,15 @@ import {
 } from '../shared/utils/removeCapturedBaseStoneMarkers.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../shared/utils/baseHiddenMoveIndex.js';
 import {
-    adventureKataLevelFromSnapshot,
     guildWarKataLevelFromSnapshot,
     strategicKataLevelFromSnapshot,
     towerKataLevelFromSnapshot,
 } from '../shared/utils/kataServerRuntimeResolvers.js';
+import {
+    adventureKataLevelForMonsterLevel,
+    refreshAdventureKataServerLevelOnSession,
+    resolveAdventureMonsterLevelFromSession,
+} from '../shared/utils/adventureKataSession.js';
 import { resolveTrainingGroundKataLevelFromSession } from '../shared/utils/trainingGroundGameSettings.js';
 import { isTrainingGroundSession, trainingGroundFixedKataLevel } from '../shared/constants/trainingGround.js';
 import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
@@ -114,17 +118,10 @@ function shouldAiResignWhenNoLegalBoardMove(game: types.LiveGameSession): boolea
 
 function resolveAdventureKataLevelForSession(
     game: types.LiveGameSession,
-    kataRuntimeSnap = getKataServerRuntimeSnapshot(),
+    _kataRuntimeSnap = getKataServerRuntimeSnapshot(),
 ): number | undefined {
     if (resolveArenaSessionPolicy(game as any).kind !== 'adventure') return undefined;
-    const lvRaw = (game as any).adventureMonsterLevel;
-    const lv = typeof lvRaw === 'number' ? lvRaw : parseInt(String(lvRaw ?? ''), 10);
-    if (!Number.isFinite(lv) || lv < 1) return undefined;
-    const kataLevel = adventureKataLevelFromSnapshot(kataRuntimeSnap, lv);
-    if (game.settings && typeof game.settings === 'object') {
-        (game.settings as any).kataServerLevel = kataLevel;
-    }
-    return kataLevel;
+    return refreshAdventureKataServerLevelOnSession(game);
 }
 
 function resolveTowerKataLevelForSession(
@@ -366,6 +363,12 @@ async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession)
         return (
             configuredKataLevel ??
             trainingGroundFixedKataLevel(game.settings?.trainingGround?.kataLevel ?? -30)
+        );
+    }
+    if (resolveArenaSessionPolicy(game as any).kind === 'adventure') {
+        return (
+            configuredKataLevel ??
+            adventureKataLevelForMonsterLevel(resolveAdventureMonsterLevelFromSession(game) ?? 1)
         );
     }
     return configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
@@ -2611,6 +2614,9 @@ export async function makeGoAiBotMove(
               : arenaPolicy.kind === 'singleplayer'
               ? // 바둑학원: 로비 AI 프로필 매핑(-25/-21/…)으로 떨어지지 않게 한다.
                 configuredKataLevel ?? -31
+              : arenaPolicy.kind === 'adventure'
+                ? configuredKataLevel ??
+                  adventureKataLevelForMonsterLevel(resolveAdventureMonsterLevelFromSession(game) ?? 1)
               : configuredKataLevel ?? strategicKataLevelFromSnapshot(kataRuntimeSnap, goAiProfileLevel);
     {
         const n = Number(resolvedKataLevel);

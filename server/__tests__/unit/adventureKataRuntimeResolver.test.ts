@@ -49,11 +49,11 @@ describe('adventureKataLevelFromSnapshot', () => {
         expect(adventureKataLevelFromSnapshot(runtime, 20)).toBe(adventureMonsterLevelToKataServerLevel(20));
     });
 
-    it('preserves explicit runtime overrides', () => {
+    it('ignores stale runtime snapshot overrides in favor of the code-planned table', () => {
         const runtime = buildDefaultKataServerRuntimeSnapshot();
-        runtime.adventureKataByMonsterLevel['20'] = -5;
+        runtime.adventureKataByMonsterLevel['7'] = -25;
 
-        expect(adventureKataLevelFromSnapshot(runtime, 20)).toBe(-5);
+        expect(adventureKataLevelFromSnapshot(runtime, 7)).toBe(-27);
     });
 });
 

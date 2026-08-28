@@ -30,6 +30,7 @@ import {
     isPairClassicGame,
 } from '../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { refreshAdventureKataServerLevelOnSession } from '../shared/utils/adventureKataSession.js';
 import { isTrainingGroundSession } from '../shared/constants/trainingGround.js';
 import {
     pveBotAvatarIdForMode,
@@ -44,6 +45,10 @@ function resolveStrategicAiGoProfileStep(game: LiveGameSession): number {
     if (isTrainingGroundSession(game)) {
         // 훈련장 강도는 `kataServerLevel`(단계별 고정 ladder)만 사용한다.
         return 5;
+    }
+    if (resolveArenaSessionPolicy(game).kind === 'adventure') {
+        refreshAdventureKataServerLevelOnSession(game);
+        return Number((game.settings as { goAiBotLevel?: number }).goAiBotLevel) || 1;
     }
     const ks = (game.settings as { kataServerLevel?: unknown })?.kataServerLevel;
     if (typeof ks === 'number' && Number.isFinite(ks)) {

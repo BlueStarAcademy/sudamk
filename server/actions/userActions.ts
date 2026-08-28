@@ -24,7 +24,7 @@ import {
     nicknameContainsReservedStaffTerms,
     RESERVED_STAFF_NICKNAME_USER_MESSAGE,
 } from '../../shared/utils/staffNicknameDisplay.js';
-import { adventureKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
+import { adventureKataLevelForMonsterLevel } from '../../shared/utils/adventureKataSession.js';
 import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import type { AdventureMonsterBattleModeKey } from '../../shared/utils/adventureBattleBoard.js';
 import {
@@ -389,7 +389,8 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
 
                 const settings = { ...DEFAULT_GAME_SETTINGS };
                 const lv = effectiveMonsterLevel;
-                settings.kataServerLevel = adventureKataLevelFromSnapshot(getKataServerRuntimeSnapshot(), lv);
+                settings.kataServerLevel = adventureKataLevelForMonsterLevel(lv);
+                (settings as { adventureMonsterLevel?: number }).adventureMonsterLevel = lv;
                 settings.goAiBotLevel = Math.max(1, Math.min(10, Math.ceil(lv / 5)));
                 applyAdventureStrategicGameSettings(settings, boardSize, mode);
                 const scanExtra = getRegionalHiddenScanBonus(user.adventureProfile, stageId!);

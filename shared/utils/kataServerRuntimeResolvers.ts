@@ -13,8 +13,10 @@ export function strategicDisplayLevelFromSnapshot(snap: KataServerRuntimeSnapsho
 }
 
 export function adventureKataLevelFromSnapshot(snap: KataServerRuntimeSnapshot, monsterLevel: number): number {
+    void snap;
     const lv = Math.max(1, Math.min(50, Math.floor(monsterLevel)));
-    return snap.adventureKataByMonsterLevel[String(lv)] ?? adventureMonsterLevelToKataServerLevel(lv);
+    // 탐험 KATA는 코드 기획표가 권위. merge된 runtime 표(KV에 예전 값 전체 저장)는 참고용만.
+    return adventureMonsterLevelToKataServerLevel(lv);
 }
 
 export function towerKataLevelFromSnapshot(snap: KataServerRuntimeSnapshot, floor: number): number {

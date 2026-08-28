@@ -13,6 +13,7 @@ import { mixIncludesChess } from '../../shared/utils/mixModeSettings.js';
 import { modeIncludesCaptureRule, modeIncludesCastleRule, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { isTrainingGroundSession } from '../../shared/constants/trainingGround.js';
 import { refreshTrainingGroundLiveSessionSettings } from '../../shared/utils/trainingGroundGameSettings.js';
+import { refreshAdventureKataServerLevelOnSession } from '../../shared/utils/adventureKataSession.js';
 
 function normalizeStrategicAiScoringSettings(game: any): void {
   if (!SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)) return;
@@ -121,6 +122,9 @@ export async function handleAiAction(
 
   const now = Date.now();
   normalizeStrategicAiScoringSettings(game as any);
+  if (resolveArenaSessionPolicy(game as any).kind === 'adventure') {
+    refreshAdventureKataServerLevelOnSession(game as any);
+  }
 
   // 로비 `START_AI_GAME`는 negotiationActions에서 이미 `pairGame`을 제거한다.
   // 페어 경기장 AI(`PAIR_START_AI_MATCH` → pairMode `ai`, 상대 팀 `pair-opponent-ai`)는 유지해야
