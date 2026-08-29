@@ -15,6 +15,7 @@ import {
     GUILD_BOSS_MAX_DIFFICULTY_STAGE,
     clampGuildBossStage,
     guildBossStatMultiplier,
+    buildGuildBossEquipmentBattleEffects,
 } from '../../../utils/guildBossStageUtils.js';
 import { runGuildBossBattle } from '../../../utils/guildBossSimulator.js';
 import type { Guild, User } from '../../../types/index.js';
@@ -143,6 +144,16 @@ describe('guildBossBalance constants', () => {
         expect(computeGuildBossResearchHitDamageReductionPercent(1)).toBe(0);
         expect(computeGuildBossResearchHitDamageReductionPercent(2)).toBe(5);
         expect(computeGuildBossResearchHitDamageReductionPercent(10)).toBe(45);
+    });
+
+    it('buildGuildBossEquipmentBattleEffects splits gear damage and tier shift metadata', () => {
+        expect(buildGuildBossEquipmentBattleEffects(105_000, 1, { guildBossDamagePercent: 0, guildBossRewardTierShift: 0 })).toBeUndefined();
+        const dmgFx = buildGuildBossEquipmentBattleEffects(105_000, 1, { guildBossDamagePercent: 5, guildBossRewardTierShift: 0 });
+        expect(dmgFx?.baseDamageDealt).toBe(100_000);
+        expect(dmgFx?.gearBonusDamage).toBe(5_000);
+        const tierFx = buildGuildBossEquipmentBattleEffects(50_000, 1, { guildBossDamagePercent: 0, guildBossRewardTierShift: 1 });
+        expect(tierFx?.rewardTierShift).toBe(1);
+        expect(tierFx?.baseRewardTier).toBeGreaterThanOrEqual(1);
     });
 });
 

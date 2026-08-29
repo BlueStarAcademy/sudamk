@@ -224,6 +224,15 @@ export function getGuildWarDisplayCountdownTarget(
     return { kind: 'until_open', targetMs: nextOpen };
 }
 
+/** 매칭 직후·화 0시 개시 전 — 봇 연출·합성 스코어를 쓰지 않음 */
+export function guildWarIsBeforePlayOpens(
+    w: { startTime?: unknown } | null | undefined,
+    now: number,
+): boolean {
+    const startMs = guildWarStartMs(w);
+    return startMs > 0 && now < startMs;
+}
+
 /** 전쟁 개시 시각 이후이고 아직 종료 전인지 (플레이·입장 가능) */
 export function guildWarIsOpenForPlay(
     w: { startTime?: unknown; endTime?: unknown; status?: string } | null | undefined,

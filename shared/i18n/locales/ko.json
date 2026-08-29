@@ -7905,6 +7905,8 @@
       "battleResultTitle": "전투 결과",
       "battleResultHeading": "{{bossName}} 전투 결과",
       "totalDamageDealt": "총 피해량: {{damage}}",
+      "totalDamageWithGearBonus": "총 피해량: {{total}} (+{{bonus}})",
+      "gradeWithEquipmentBoost": "{{final}}({{base}} 등급상승)등급",
       "turnsSurvived": "생존 턴:",
       "turnsUnit": "{{count}} 턴",
       "bossHpRemaining": "보스 남은 체력 ({{percent}}%)",

@@ -1,5 +1,5 @@
 import { getGuildWarBoardMode } from '../constants/guildConstants.js';
-import { guildWarIsOpenForPlay } from './guildWarSchedule.js';
+import { guildWarIsBeforePlayOpens } from './guildWarSchedule.js';
 
 /** `shared/constants/auth.ts`의 GUILD_WAR_BOT_GUILD_ID와 동일해야 함 */
 const GUILD_WAR_BOT_GUILD_ID_LITERAL = 'guild-war-bot-guild';
@@ -141,7 +141,10 @@ export function getGuildWarBotBoardDisplayTally(
         guild2Id: string;
         botGuildId: string;
         isBotWar: boolean;
-        /** false면 전쟁 개시 전(월요일 매칭 직후 등) — 봇 연출·합성 스코어 없이 실제 기록만 */
+        /**
+         * false면 전쟁 개시 전(월요일 매칭 직후 등) — 봇 연출·합성 스코어 없이 실제 기록만.
+         * 종료·완료된 전쟁은 true여야 직전 봇 길드전 기록이 0으로 보이지 않는다.
+         */
         isWarOpenForPlay?: boolean;
     },
 ): GuildWarBotBoardDisplayTally {
@@ -236,7 +239,7 @@ export function aggregateGuildWarBoardTotals(
         war.guild1Id === GUILD_WAR_BOT_GUILD_ID_LITERAL ||
         war.guild2Id === GUILD_WAR_BOT_GUILD_ID_LITERAL;
     const warId = String(war.id ?? '');
-    const isWarOpenForPlay = guildWarIsOpenForPlay(war, now);
+    const allowBotSyntheticDisplay = !guildWarIsBeforePlayOpens(war, now);
 
     let guild1Stars = 0;
     let guild2Stars = 0;
@@ -253,7 +256,7 @@ export function aggregateGuildWarBoardTotals(
             guild2Id: war.guild2Id,
             botGuildId: GUILD_WAR_BOT_GUILD_ID_LITERAL,
             isBotWar: botInvolved,
-            isWarOpenForPlay,
+            isWarOpenForPlay: allowBotSyntheticDisplay,
         });
         guild1Stars += tally.guild1Stars;
         guild2Stars += tally.guild2Stars;

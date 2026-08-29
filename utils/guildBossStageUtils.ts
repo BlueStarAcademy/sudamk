@@ -1,5 +1,5 @@
 // 길드 보스 난이도 단계(1~30): 체력/능력치/보상/등급 컷 스케일
-import type { GuildBossInfo } from '../types/index.js';
+import type { GuildBossInfo, GuildBossEquipmentBattleEffects } from '../types/index.js';
 import { CoreStat, ItemGrade } from '../types/enums.js';
 import {
     GUILD_BOSS_DAMAGE_ABSOLUTE_BOUNDS,
@@ -194,6 +194,34 @@ function calculateGuildBossGrade(damage: number, stage: number): number {
         if (damage < bounds[i]) return i + 1;
     }
     return 12;
+}
+
+/** 피해량·단계 기준 보상 등급(1~12), 장비 보상등급 상승 미적용 */
+export function getGuildBossTierFromDamage(damage: number, stage: number): number {
+    return calculateGuildBossGrade(damage, stage);
+}
+
+export function buildGuildBossEquipmentBattleEffects(
+    finalDamage: number,
+    stage: number,
+    gear: { guildBossDamagePercent: number; guildBossRewardTierShift: number },
+): GuildBossEquipmentBattleEffects | undefined {
+    const gearDamagePercent = gear.guildBossDamagePercent;
+    const rewardTierShift = Math.max(0, Math.floor(gear.guildBossRewardTierShift ?? 0));
+    if (gearDamagePercent <= 0 && rewardTierShift <= 0) return undefined;
+
+    const gearMult = 1 + gearDamagePercent / 100;
+    const baseDamageDealt =
+        gearDamagePercent > 0 ? Math.max(0, Math.round(finalDamage / gearMult)) : finalDamage;
+    const gearBonusDamage = Math.max(0, finalDamage - baseDamageDealt);
+    const baseRewardTier = getGuildBossTierFromDamage(finalDamage, stage);
+
+    return {
+        baseDamageDealt,
+        gearBonusDamage,
+        baseRewardTier,
+        rewardTierShift,
+    };
 }
 
 function adjustEquipmentTableForStage(

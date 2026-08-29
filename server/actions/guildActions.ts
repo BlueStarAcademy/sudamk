@@ -43,6 +43,7 @@ import {
     clampGuildBossStage,
     getCurrentGuildBossStage,
     getScaledGuildBossMaxHp,
+    buildGuildBossEquipmentBattleEffects,
 } from '../../utils/guildBossStageUtils.js';
 import { runGuildBossBattle } from '../../utils/guildBossSimulator.js';
 import { aggregateSpecialOptionGearFromUser } from '../../shared/utils/specialOptionGearEffects.js';
@@ -3828,6 +3829,11 @@ export const handleGuildAction = async (volatileState: VolatileState, action: Se
                 rewardTierShift: gearBoss.guildBossRewardTierShift,
                 duplicateRewardCount: gearBoss.guildBossDuplicateRewardCount,
             });
+            result.equipmentEffects = buildGuildBossEquipmentBattleEffects(
+                fullDamage,
+                bossDifficultyStage,
+                gearBoss,
+            );
 
             const sharedHit = Math.max(
                 0,

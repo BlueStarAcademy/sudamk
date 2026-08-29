@@ -2145,6 +2145,18 @@ export type BattleLogEntry = {
     skillId?: string;
 };
 
+/** 길드 보스전 전투 결과 모달용 — 장비 스페셜 옵션 적용 전·후 비교 */
+export type GuildBossEquipmentBattleEffects = {
+    /** 장비 추가 피해% 미적용 추정 피해량 */
+    baseDamageDealt: number;
+    /** 장비 추가 피해로 인한 피해량 */
+    gearBonusDamage: number;
+    /** 장비 보상등급 상승 미적용 등급(1~12) */
+    baseRewardTier: number;
+    /** 장비로 올린 보상 등급 단계 수 */
+    rewardTierShift: number;
+};
+
 export type GuildBossBattleResult = {
     damageDealt: number;
     turnsSurvived: number;
@@ -2161,6 +2173,8 @@ export type GuildBossBattleResult = {
         locked: boolean;
         grantedItem?: { name: string; quantity: number; image?: string };
     };
+    /** 장비 스페셜 옵션(추가 피해·보상등급 상승) 적용 내역 */
+    equipmentEffects?: GuildBossEquipmentBattleEffects;
     rewards: {
         tier: number;
         guildXp: number;

@@ -26,7 +26,7 @@ import compression from 'compression';
 import { randomUUID, timingSafeEqual } from 'crypto';
 import process from 'process';
 import http from 'http';
-import { createWebSocketServer, broadcast, broadcastUserUpdate, sendToUser } from './socket.js';
+import { createWebSocketServer, broadcast, broadcastUserUpdate, broadcastUserStatusSnapshot, sendToUser } from './socket.js';
 import { startServerLoadMonitoring, buildAdminServerMetricsPayload } from './serverLoadMetrics.js';
 
 // Railway 환경 자동 감지
@@ -2347,6 +2347,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
             // Handle user timeouts and disconnections (타임아웃 추가)
             const onlineUserIdsBeforeTimeoutCheck = Object.keys(volatileState.userConnections);
+            let presenceChangedFromTimeout = false;
             for (const userId of onlineUserIdsBeforeTimeoutCheck) {
                 try {
                     // Re-check if user is still connected, as they might have been removed by a previous iteration
@@ -2400,6 +2401,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                         releaseIpBindingForUser(volatileState, userId);
                         delete volatileState.userConnections[userId];
                         delete volatileState.userStatuses[userId];
+                        presenceChangedFromTimeout = true;
                         continue;
                     }
 
@@ -2467,6 +2469,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     // 개별 사용자 타임아웃 처리 실패는 조용히 무시
                     console.warn(`[MainLoop] Timeout processing user ${userId} for timeout check:`, timeoutError?.message);
                 }
+            }
+            if (presenceChangedFromTimeout) {
+                broadcastUserStatusSnapshot();
             }
             
             // Cleanup expired negotiations - 에러 핸들링 추가
@@ -2647,8 +2652,11 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     delete volatileState.userStatuses[uid];
                     removed++;
                 }
-                if (removed > 0 && process.env.NODE_ENV === 'development') {
-                    console.log(`[MainLoop] Cleaned ${removed} stale userStatuses`);
+                if (removed > 0) {
+                    broadcastUserStatusSnapshot();
+                    if (process.env.NODE_ENV === 'development') {
+                        console.log(`[MainLoop] Cleaned ${removed} stale userStatuses`);
+                    }
                 }
             }
 
@@ -4050,6 +4058,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     status: types.UserStatus.Online,
                 });
             }
+
+            volatileState.userConnections[userForLogin.id] = Date.now();
+            broadcastUserStatusSnapshot();
             
             // 최종 응답 전송: 반드시 실행되도록 보장
             try {
@@ -4314,6 +4325,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // 로그인 처리
             volatileState.userConnections[user.id] = Date.now();
             setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: types.UserStatus.Online });
+            broadcastUserStatusSnapshot();
 
             res.json({ user });
         } catch (e: any) {
@@ -4396,6 +4408,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             // 로그인 처리
             volatileState.userConnections[user.id] = Date.now();
             setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: types.UserStatus.Online });
+            broadcastUserStatusSnapshot();
 
             res.json({ user });
         } catch (e: any) {
@@ -4911,6 +4924,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
             // Re-establish connection if user is valid but not in volatile memory (e.g., after server restart)
             let didReconnect = false;
+            let addedOnlinePresence = false;
             if (!volatileState.userConnections[userId]) {
                 didReconnect = true;
                 if (isDev) console.log(`[API/State] User ${user.nickname}: Re-establishing connection.`);
@@ -4921,6 +4935,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                     setUserStatusPreservingLobbyChannel(volatileState, userId, {
                         status: types.UserStatus.Online,
                     });
+                    addedOnlinePresence = true;
                 }
             }
 
@@ -5055,6 +5070,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
             // Combine persisted state with in-memory volatile state
             if (isDev) console.log(`[API/State] User ${user.nickname}: Combining states and sending response.`);
+            if (addedOnlinePresence) {
+                broadcastUserStatusSnapshot();
+            }
             const fullState = {
                 ...dbState,
                 userConnections: volatileState.userConnections,
@@ -5245,12 +5263,14 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             }
 
             // Re-establish connection if needed
+            let reEstablishedPresence = false;
             if (!volatileState.userConnections[userId]) {
                 console.log(`[Auth] Re-establishing connection on action for user: ${user.nickname} (${userId})`);
                 volatileState.userConnections[userId] = Date.now();
                 setUserStatusPreservingLobbyChannel(volatileState, userId, {
                     status: types.UserStatus.Online,
                 });
+                reEstablishedPresence = true;
                 const loginAt = Date.now();
                 user.lastLoginAt = loginAt;
                 // 프로세스별 userConnections — 다른 인스턴스/재접속마다 캐시 user 전체 persist는
@@ -5273,6 +5293,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 await clearPvpDisconnectOnPlayerReconnectByStatus(volatileState, userId);
             } catch (reconnectClearErr: any) {
                 console.warn(`[/api/action] clearPvpDisconnectOnPlayerReconnectByStatus failed for ${userId}:`, reconnectClearErr?.message);
+            }
+            if (reEstablishedPresence) {
+                broadcastUserStatusSnapshot();
             }
 
             // 반복 액션 로그는 필요할 때만 켠다. 예: DEBUG_ACTION_LOGS=1 npm run start-server

@@ -7876,6 +7876,8 @@
       "battleResultTitle": "Battle result",
       "battleResultHeading": "{{bossName}} battle result",
       "totalDamageDealt": "Total damage: {{damage}}",
+      "totalDamageWithGearBonus": "Total damage: {{total}} (+{{bonus}})",
+      "gradeWithEquipmentBoost": "{{final}} ({{base}} grade up) grade",
       "turnsSurvived": "Turns survived:",
       "turnsUnit": "{{count}} turns",
       "bossHpRemaining": "Boss HP remaining ({{percent}}%)",

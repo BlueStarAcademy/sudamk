@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { getGuildWarBotBoardDisplayTally } from '../../../shared/utils/guildWarBoardOwner.js';
+import {
+    aggregateGuildWarBoardTotals,
+    getGuildWarBotBoardDisplayTally,
+} from '../../../shared/utils/guildWarBoardOwner.js';
 import { GUILD_WAR_BOT_GUILD_ID } from '../../../shared/constants/auth.js';
 
 const baseInput = {
@@ -44,5 +47,32 @@ describe('getGuildWarBotBoardDisplayTally pre-start', () => {
         });
         expect(tally.guild2Stars).toBeGreaterThan(0);
         expect(tally.guild2HouseTally).toBeGreaterThan(0);
+    });
+
+    it('완료된 봇 길드전 합산에도 봇 별·집 연출 반영', () => {
+        const startTime = Date.now() - 7 * 24 * 60 * 60 * 1000;
+        const endTime = Date.now() - 24 * 60 * 60 * 1000;
+        const totals = aggregateGuildWarBoardTotals(
+            {
+                id: 'war-completed',
+                status: 'completed',
+                isBotGuild: true,
+                guild1Id: 'human-guild',
+                guild2Id: GUILD_WAR_BOT_GUILD_ID,
+                startTime,
+                endTime,
+                boards: {
+                    'top-left': {
+                        guild1Attempts: 0,
+                        guild2Attempts: 6,
+                        guild1Stars: 0,
+                        guild2Stars: 0,
+                    },
+                },
+            },
+            Date.now(),
+        );
+        expect(totals.guild2Stars).toBeGreaterThan(0);
+        expect(totals.guild2Score).toBeGreaterThan(0);
     });
 });

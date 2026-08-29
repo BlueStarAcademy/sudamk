@@ -34,6 +34,7 @@ import {
     guildBossStatMultiplier,
     scaleGuildBossForStage,
     GUILD_BOSS_MAX_DIFFICULTY_STAGE,
+    buildGuildBossEquipmentBattleEffects,
 } from './guildBossStageUtils.js';
 import { isRewardVipActive } from '../shared/utils/rewardVip.js';
 import { rollVipPlayRewardOutcome } from '../shared/utils/rewardVipPlayRoll.js';
@@ -622,6 +623,7 @@ export const runGuildBossBattle = (
         finalStage: activeStage,
         phasesCleared,
         sharedPoolDamage: Math.max(0, Math.round(sharedPoolDamage)),
+        equipmentEffects: buildGuildBossEquipmentBattleEffects(finalDamage, startStage, gear),
         vipPlayRewardSlot: {
             locked: !isRewardVipActive(user),
             ...(vipSimGranted ? { grantedItem: vipSimGranted } : {}),

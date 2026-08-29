@@ -38,6 +38,7 @@ function scheduleInGameDisconnectAfterWsClose(userId: string): void {
                     if (!handled) {
                         if (!isInGameStatus) {
                             schedulePairWaitingRoomLeaveWithGrace(userId);
+                            removeOfflinePresenceIfDisconnected(userId);
                         }
                     }
                     if (handled) {
@@ -109,6 +110,33 @@ const pendingPairWaitingRoomLeaveTimers = new Map<string, ReturnType<typeof setT
 /** 인증된 WebSocket 활동 시 HTTP 세션 타임아웃 오탐 방지 */
 function touchUserConnectionFromWebSocket(userId: string): void {
     volatileState.userConnections[userId] = Date.now();
+}
+
+/** AUTH 완료된 WebSocket이 하나라도 열려 있으면 true (브라우저 탭/기기 접속 중). */
+export function hasAuthenticatedWebSocket(userId: string): boolean {
+    const set = userIdToClients.get(userId);
+    if (!set || set.size === 0) return false;
+    for (const client of set) {
+        if (client.readyState === WebSocket.OPEN) return true;
+    }
+    return false;
+}
+
+/** 접속자 목록(userStatuses) 변경 시 전 클라이언트에 동기화 */
+export function broadcastUserStatusSnapshot(): void {
+    broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+}
+
+function removeOfflinePresenceIfDisconnected(userId: string): void {
+    if (hasAuthenticatedWebSocket(userId)) return;
+    const status = volatileState.userStatuses[userId];
+    if (!status) return;
+    const inGame = status.status === 'in-game' && Boolean(status.gameId);
+    if (inGame) return;
+    delete volatileState.userStatuses[userId];
+    delete volatileState.userConnections[userId];
+    releaseIpBindingForUser(volatileState, userId);
+    broadcastUserStatusSnapshot();
 }
 
 function stopWebSocketHeartbeat(): void {
@@ -312,10 +340,10 @@ export const createWebSocketServer = (server: Server) => {
                         const st = volatileState.userStatuses[uid];
                         if (!st) {
                             setUserStatusPreservingLobbyChannel(volatileState, uid, { status: UserStatus.Online });
-                            broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                            broadcastUserStatusSnapshot();
                         } else if (!isValidLobbyChannel(st.lobbyChannel)) {
                             setUserStatusPreservingLobbyChannel(volatileState, uid, { ...st });
-                            broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+                            broadcastUserStatusSnapshot();
                         }
                     }
                     void import('./actions/socialActions.js')
@@ -887,11 +915,6 @@ export const sendToUser = (userId: string, message: any) => {
         }
     }
 };
-
-/** AUTH 완료된 WebSocket이 하나라도 있으면 true (브라우저 탭/기기 접속 중). */
-export function hasAuthenticatedWebSocket(userId: string): boolean {
-    return (userIdToClients.get(userId)?.size ?? 0) > 0;
-}
 
 /** 관리자 강제 로그아웃 등: 해당 유저의 모든 WS를 닫아 클라이언트 루프·재연결 루프를 끊는다. */
 export const closeWebSocketsForUser = (userId: string): void => {

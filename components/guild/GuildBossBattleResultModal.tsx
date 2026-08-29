@@ -302,6 +302,30 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         return label ? t('boss.gradeSuffix', { label }) : t('boss.gradeE');
     };
 
+    const equipmentFx = result.equipmentEffects;
+    const tierDisplay = (() => {
+        if (
+            equipmentFx?.rewardTierShift &&
+            equipmentFx.rewardTierShift > 0 &&
+            equipmentFx.baseRewardTier < tier
+        ) {
+            const finalLabel = GUILD_BOSS_GRADE_NAMES[tier - 1] ?? '';
+            const baseLabel = GUILD_BOSS_GRADE_NAMES[equipmentFx.baseRewardTier - 1] ?? '';
+            return t('boss.gradeWithEquipmentBoost', { final: finalLabel, base: baseLabel });
+        }
+        return getTierName(tier);
+    })();
+
+    const damageDisplay = (() => {
+        if (equipmentFx?.gearBonusDamage && equipmentFx.gearBonusDamage > 0) {
+            return t('boss.totalDamageWithGearBonus', {
+                total: result.damageDealt.toLocaleString(),
+                bonus: equipmentFx.gearBonusDamage.toLocaleString(),
+            });
+        }
+        return t('boss.totalDamageDealt', { damage: result.damageDealt.toLocaleString() });
+    })();
+
     const getTierColor = (tier: number) => {
         const colors: Record<number, string> = {
             1: 'from-gray-500 to-gray-600',
@@ -346,9 +370,9 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                         <div
                             className={`guild-boss-result-tier rounded-full border border-amber-400/40 bg-gradient-to-r px-2.5 py-0.5 text-xs font-bold text-white shadow-lg sm:px-4 sm:py-1.5 sm:text-lg ${getTierColor(tier)}`}
                         >
-                            {getTierName(tier)}
+                            {tierDisplay}
                         </div>
-                        <span className="text-xs text-amber-100/90 sm:text-sm">{t('boss.totalDamageDealt', { damage: result.damageDealt.toLocaleString() })}</span>
+                        <span className="text-xs text-amber-100/90 sm:text-sm">{damageDisplay}</span>
                     </div>
                 </div>
                 
