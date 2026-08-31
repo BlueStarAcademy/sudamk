@@ -7,7 +7,7 @@ import {
     PAIR_WELCOME_EGG_TEMPLATE_ID,
     pairEggTemplateIdForHatch,
 } from '../../../shared/constants/petLobby.js';
-import { hatcheryEndsAt } from '../../../shared/constants/pairHatchery.js';
+import { hatcheryEndsAt, getPairHatcheryDurationMs } from '../../../shared/constants/pairHatchery.js';
 
 describe('pair egg hatch template resolution', () => {
     it('treats welcome eggs identified by name as welcome template eggs', () => {
@@ -31,11 +31,14 @@ describe('pair egg hatch template resolution', () => {
     it('keeps welcome eggs on the short level 10 hatch rule', () => {
         expect(PAIR_WELCOME_EGG_HATCH_LEVEL).toBe(10);
         expect(
+            getPairHatcheryDurationMs(0, { eggTemplateId: PAIR_WELCOME_EGG_TEMPLATE_ID }, null),
+        ).toBe(60_000);
+        expect(
             hatcheryEndsAt(
                 1_000,
                 0,
                 { slotIndex: 0, startedAt: 1_000, eggTemplateId: PAIR_WELCOME_EGG_TEMPLATE_ID },
             ),
-        ).toBe(9_000);
+        ).toBe(61_000);
     });
 });

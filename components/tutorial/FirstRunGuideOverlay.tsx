@@ -1,16 +1,20 @@
-import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import {
     firstRunGuideAnchorForStep,
     firstUnequippedPairPet,
     resolveFirstRunGuideStep,
+    type FirstRunGuideAnchorId,
     type FirstRunGuideStep,
 } from '../../shared/utils/firstRunGuide.js';
 import { useFirstRunGuide } from './FirstRunGuideContext.js';
 
 const OVERLAY_Z = 80_000;
 const HOLE_PAD = 8;
+
+/** Pan/zoom map viewport anchors — scrollIntoView distorts the stage map transform. */
+const SKIP_SCROLL_INTO_VIEW_ANCHORS = new Set<FirstRunGuideAnchorId>(['sp-stage-입문-1']);
 
 function isPetPanelOpen(modals: {
     isPetManagementModalOpen?: boolean;
@@ -118,6 +122,19 @@ const FirstRunGuideOverlay: React.FC = () => {
         return () => window.clearInterval(id);
     }, [step]);
 
+    const openPetPanelInline = useCallback(() => {
+        handlers.closePairPetDetailModal?.();
+        handlers.closePetManagementModal?.();
+        handlers.openPetManagementModal?.();
+    }, [handlers]);
+
+    const openSinglePlayerInline = useCallback(() => {
+        handlers.closePairPetDetailModal?.();
+        handlers.closePetManagementModal?.();
+        handlers.closeQuickUtilityPanel?.();
+        handlers.openSinglePlayerLobby?.();
+    }, [handlers]);
+
     useEffect(() => {
         if (!guideReady || step !== 'equipPet' || obtainModalOpen || !currentUserWithStatus) return;
         const pet = firstUnequippedPairPet(currentUserWithStatus);
@@ -125,11 +142,32 @@ const FirstRunGuideOverlay: React.FC = () => {
     }, [step, obtainModalOpen, currentUserWithStatus, handlers, guideReady]);
 
     useEffect(() => {
+        if (!guideReady) return;
+        if (modals.isPetManagementModalOpen && modals.activeQuickUtilityPanel !== 'pet') {
+            openPetPanelInline();
+        }
+    }, [guideReady, modals.activeQuickUtilityPanel, modals.isPetManagementModalOpen, openPetPanelInline]);
+
+    useEffect(() => {
+        if (!guideReady) return;
+        if ((step === 'openPet' || step === 'claimPet') && !petPanelOpen) {
+            openPetPanelInline();
+        }
+    }, [step, guideReady, petPanelOpen, openPetPanelInline]);
+
+    useEffect(() => {
         if (!guideReady || step !== 'openAdventure') return;
-        handlers.closePairPetDetailModal?.();
-        handlers.closePetManagementModal?.();
-        if (petPanelOpen) handlers.closeQuickUtilityPanel?.();
-    }, [step, handlers, guideReady, petPanelOpen]);
+        if (!singlePlayerLobbyOpen) {
+            openSinglePlayerInline();
+        }
+    }, [step, guideReady, singlePlayerLobbyOpen, openSinglePlayerInline]);
+
+    const showShortcut =
+        (step === 'openPet' && !petPanelOpen) || (step === 'openAdventure' && !singlePlayerLobbyOpen);
+    const onShortcut = () => {
+        if (step === 'openPet') openPetPanelInline();
+        else if (step === 'openAdventure') openSinglePlayerInline();
+    };
 
     const anchorId = firstRunGuideAnchorForStep(step);
 
@@ -152,7 +190,9 @@ const FirstRunGuideOverlay: React.FC = () => {
         };
         const attach = (el: HTMLElement) => {
             attached = el;
-            el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+            if (!SKIP_SCROLL_INTO_VIEW_ANCHORS.has(anchorId)) {
+                el.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'smooth' });
+            }
             update();
             ro = new ResizeObserver(update);
             ro.observe(el);
@@ -249,10 +289,22 @@ const FirstRunGuideOverlay: React.FC = () => {
                 {step === 'welcome' ? (
                     <button
                         type="button"
-                        onClick={() => guide.acknowledgeWelcome()}
+                        onClick={() => {
+                            guide.acknowledgeWelcome();
+                            openPetPanelInline();
+                        }}
                         className="mt-3 w-full rounded-xl bg-gradient-to-b from-amber-200 via-amber-400 to-amber-700 py-2 text-sm font-black text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
                     >
                         {t('firstRunGuide.start')}
+                    </button>
+                ) : null}
+                {showShortcut ? (
+                    <button
+                        type="button"
+                        onClick={onShortcut}
+                        className="mt-3 w-full rounded-xl bg-gradient-to-b from-amber-200 via-amber-400 to-amber-700 py-2 text-sm font-black text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                    >
+                        {t('firstRunGuide.shortcut')}
                     </button>
                 ) : null}
                 <button

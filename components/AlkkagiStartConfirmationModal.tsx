@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import PreGameColorRoulette from './PreGameColorRoulette.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
-import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS, preGameCountdownDurationSeconds } from '../shared/constants/preGameCountdown.js';
 import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 
 interface AlkkagiStartConfirmationModalProps {
@@ -21,15 +21,21 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
     const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);
     const [rouletteDone, setRouletteDone] = useState(false);
 
+    const countdownDurationSeconds = useMemo(() => preGameCountdownDurationSeconds(session), [
+        session.revealEndTime,
+        session.preGameCountdownStartAt,
+        session.nigiriStartTime,
+    ]);
+
     useEffect(() => {
-        const deadline = revealEndTime || (Date.now() + PRE_GAME_PVP_COUNTDOWN_SECONDS * 1000);
+        const deadline = revealEndTime || (Date.now() + countdownDurationSeconds * 1000);
         const timerId = setInterval(() => {
             const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
             setCountdown(remaining);
         }, 1000);
 
         return () => clearInterval(timerId);
-    }, [revealEndTime]);
+    }, [revealEndTime, countdownDurationSeconds]);
 
     if (!blackPlayerId || !whitePlayerId) return null;
     
@@ -77,7 +83,7 @@ const AlkkagiStartConfirmationModal: React.FC<AlkkagiStartConfirmationModalProps
                 </p>
                 <RoundCountdownIndicator
                     deadline={revealEndTime}
-                    durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
+                    durationSeconds={countdownDurationSeconds}
                     label={t('autoProceed', { ns: 'common' })}
                     labelShort={t('autoProceedShort', { ns: 'common' })}
                 />

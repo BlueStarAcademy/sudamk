@@ -4,6 +4,7 @@ import { type ServerAction, type User, type VolatileState, LiveGameSession, Play
 import { SINGLE_PLAYER_MISSIONS, SINGLE_PLAYER_CLASS_BAR_REWARDS } from '../../shared/constants/singlePlayerConstants.js';
 import { addItemsToInventory, createItemInstancesFromReward } from '../../utils/inventoryUtils.js';
 import { PVE_SINGLEPLAYER_BOT_AVATAR_ID } from '../../shared/constants/pveBotProfiles.js';
+import { aiUserId, getAiUser } from '../aiPlayer.js';
 import { broadcast } from '../socket.js';
 import {
     attachKataOpeningSnapshotToSession,

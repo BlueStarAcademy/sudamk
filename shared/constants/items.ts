@@ -204,7 +204,7 @@ export const MATERIAL_ITEMS: Record<string, Omit<InventoryItem, 'id'|'createdAt'
     [PAIR_WELCOME_EGG_MATERIAL_NAME]: {
         name: PAIR_WELCOME_EGG_MATERIAL_NAME,
         description:
-            '특별한 금빛 장식의 알로, 어떤 부화 슬롯에서든 부화 시간이 약 8초이며 부화 시 레벨 10 AI 펫이 나옵니다.',
+            '특별한 금빛 장식의 알로, 어떤 부화 슬롯에서든 부화 시간이 약 1분이며 부화 시 레벨 10 AI 펫이 나옵니다.',
         type: 'material',
         slot: null,
         image: PAIR_WELCOME_EGG_DISPLAY_IMAGE,

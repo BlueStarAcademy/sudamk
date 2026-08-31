@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GameMode, SinglePlayerLevel, SinglePlayerStageInfo, UserWithStatus } from '../../types.js';
 import { SPECIAL_GAME_MODES } from '../../constants/gameModes.js';
@@ -157,6 +157,7 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
         });
 
     const reportSelectedStageId = firstRunGuide?.setSelectedStageId;
+    const tutorialMapFocusedRef = useRef(false);
     useEffect(() => {
         reportSelectedStageId?.(selectedStageId);
         return () => reportSelectedStageId?.(null);
@@ -166,19 +167,25 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
         setSelectedStageId(null);
         setEditRoad(null);
         setPathEditMode(false);
+        tutorialMapFocusedRef.current = false;
     }, [selectedClass]);
 
     useEffect(() => {
         if (pathEditMode) return;
         fitToWorld({ overscan: 1 });
-        if (!isFirstRunGuideEligible(currentUser)) return;
+        if (!isFirstRunGuideEligible(currentUser)) {
+            tutorialMapFocusedRef.current = false;
+            return;
+        }
+        if (tutorialMapFocusedRef.current) return;
         const idx = stages.findIndex((s) => s.id === FIRST_RUN_FIRST_STAGE_ID);
         const point = worldPoints[idx];
         if (!point) return;
+        tutorialMapFocusedRef.current = true;
         const t = window.setTimeout(() => focusWorldPoint(point.x, point.y, { animate: true }), 120);
         return () => window.clearTimeout(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional
-    }, [selectedClass, pathEditMode, stages, worldPoints, currentUser]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- tutorial focus once per class tab; avoid refit on every user patch
+    }, [selectedClass, pathEditMode, stages, worldPoints]);
 
     const selectedStage = useMemo(
         () => stages.find((s) => s.id === selectedStageId) ?? null,

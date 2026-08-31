@@ -70,6 +70,58 @@ export function profileStepFromKataServerLevel(kataLevel: number, strategicLobby
   return entry ? Math.max(1, Math.min(10, parseInt(entry[0], 10))) : undefined;
 }
 
+function lobbyKataForProfileStep(step: number, strategicLobbyKataByStep?: Record<string, number>): number {
+  const s = Math.max(1, Math.min(10, Math.round(step)));
+  return strategicLobbyKataByStep?.[String(s)] ?? KATA_SERVER_LEVEL_BY_PROFILE_STEP[s] ?? -31;
+}
+
+/**
+ * 전략 대기실·훈련 머신 AI: `kataServerLevel` 권위값으로 정규화한다.
+ * UI 단계 번호(1~10)가 kata 필드에 들어가면 Kata `/move.level`이 최고 난이도로 오인된다.
+ */
+export function normalizeStrategicLobbyKataServerLevelForLobbyAi(
+  raw: unknown,
+  strategicLobbyKataByStep?: Record<string, number>,
+): number {
+  const ks = Math.round(Number(raw));
+  if (!Number.isFinite(ks)) return lobbyKataForProfileStep(5, strategicLobbyKataByStep);
+  const fromTable = profileStepFromKataServerLevel(ks, strategicLobbyKataByStep);
+  if (fromTable != null) {
+    const expected = lobbyKataForProfileStep(fromTable, strategicLobbyKataByStep);
+    if (ks === expected) return ks;
+  }
+  if (ks >= 1 && ks <= 10) {
+    return lobbyKataForProfileStep(ks, strategicLobbyKataByStep);
+  }
+  return Math.max(-31, Math.min(10, ks));
+}
+
+/** 대기실 AI 설정 — kataServerLevel ↔ goAiBotLevel/aiDifficulty 일치 (Kata 강도 권위) */
+export function syncStrategicLobbyAiSettingsFromKataAuthority(
+  settings: {
+    kataServerLevel?: number;
+    goAiBotLevel?: number;
+    aiDifficulty?: number;
+  },
+  strategicLobbyKataByStep?: Record<string, number>,
+): void {
+  if (typeof settings.kataServerLevel === 'number' && Number.isFinite(settings.kataServerLevel)) {
+    const kata = normalizeStrategicLobbyKataServerLevelForLobbyAi(
+      settings.kataServerLevel,
+      strategicLobbyKataByStep,
+    );
+    settings.kataServerLevel = kata;
+    const step = profileStepFromKataServerLevel(kata, strategicLobbyKataByStep) ?? 5;
+    settings.goAiBotLevel = step;
+    settings.aiDifficulty = step;
+    return;
+  }
+  const step = resolveAiLobbyProfileStepFromSettings(settings, strategicLobbyKataByStep);
+  settings.kataServerLevel = lobbyKataForProfileStep(step, strategicLobbyKataByStep);
+  settings.goAiBotLevel = step;
+  settings.aiDifficulty = step;
+}
+
 /**
  * 전략바둑 AI: 대기실 1~10 단계 → 경기장 패널에 보이는 “레벨” 숫자.
  * (실제 강도는 Kata/단계 설정과 동일하고, 표기만 유저 레벨 스케일에 맞춤)
@@ -135,9 +187,9 @@ export function resolveAiLobbyProfileStepFromSettings(
 ): number {
   const ks = settings.kataServerLevel;
   if (typeof ks === 'number' && Number.isFinite(ks)) {
-    const fromKata = profileStepFromKataServerLevel(ks, strategicLobbyKataByStep);
+    const normalized = normalizeStrategicLobbyKataServerLevelForLobbyAi(ks, strategicLobbyKataByStep);
+    const fromKata = profileStepFromKataServerLevel(normalized, strategicLobbyKataByStep);
     if (fromKata != null) return fromKata;
-    if (ks >= 1 && ks <= 10) return ks;
   }
   if (typeof settings.goAiBotLevel === 'number' && Number.isFinite(settings.goAiBotLevel)) {
     const g = Math.round(settings.goAiBotLevel);

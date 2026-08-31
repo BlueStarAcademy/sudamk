@@ -1,6 +1,6 @@
 
 import * as types from '../../types/index.js';
-import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
+import { assignPreGamePvpCountdownDeadline } from '../../shared/constants/preGameCountdown.js';
 import { transitionToPlaying, transitionToPlayingOrUniformRoulette } from './shared.js';
 import { startChessPlacementAfterNigiri } from './chessPlacementFlow.js';
 import { sessionUsesChessGo } from '../../shared/utils/chessGoRules.js';
@@ -25,8 +25,8 @@ export const enterNigiriRevealWithAssignedColors = (game: types.LiveGameSession,
         result: null,
     };
     game.gameStatus = 'nigiri_reveal';
-    /** PVP: 30초 내 미확인 시 자동 시작(클라 카운트다운·서버 tick). AI 대국은 수동 확인만 */
-    game.revealEndTime = game.isAiGame ? undefined : now + PRE_GAME_PVP_COUNTDOWN_MS;
+    /** PVP: 준비시간 내 미확인 시 자동 시작(클라 카운트다운·서버 tick). AI 대국은 수동 확인만 */
+    game.revealEndTime = game.isAiGame ? undefined : assignPreGamePvpCountdownDeadline(game, now, true);
     game.preGameConfirmations = {
         [game.player1.id]: false,
         [game.player2.id]: false,

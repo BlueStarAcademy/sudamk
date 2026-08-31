@@ -56,7 +56,7 @@ function writeWelcomeAck(userId: string | null): void {
 }
 
 export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { currentUserWithStatus, handlers } = useAppContext();
+    const { currentUserWithStatus, handlers, firstRunGuideResetNonce } = useAppContext();
     const userId = currentUserWithStatus?.id ?? null;
     const registryRef = useRef<Registry>(new Map());
     const [version, setVersion] = useState(0);
@@ -69,6 +69,21 @@ export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ child
         setWelcomeAcknowledged(readWelcomeAck(userId));
         setSkipped(false);
     }, [userId]);
+
+    useLayoutEffect(() => {
+        if (!firstRunGuideResetNonce) return;
+        setWelcomeAcknowledged(false);
+        setSkipped(false);
+        setHatchConfirmOpen(false);
+        setSelectedStageId(null);
+        if (userId) {
+            try {
+                sessionStorage.removeItem(welcomeAckKey(userId));
+            } catch {
+                // ignore
+            }
+        }
+    }, [firstRunGuideResetNonce, userId]);
 
     const bump = useCallback(() => {
         setVersion((n) => n + 1);

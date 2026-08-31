@@ -6,7 +6,7 @@ import { aiUserId } from '../aiPlayer.js';
 import { modeIncludesBaseCaptureMix } from '../../shared/utils/liveSessionArenaKind.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { finalizeBaseCaptureBidResolution, baseHttpGameSnapshot } from './base.js';
-import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
+import { assignPreGamePvpCountdownDeadline } from '../../shared/constants/preGameCountdown.js';
 import { shouldTreatTurnDeadlineExpiryAsTimeForfeit } from '../../shared/utils/speedTimePressureSessionSync.js';
 
 const getCaptureBidMax = (game: types.LiveGameSession): number => {
@@ -78,7 +78,7 @@ const enterCaptureReveal = (
     status: 'capture_reveal' | 'capture_tiebreaker',
 ) => {
     game.gameStatus = status;
-    game.revealEndTime = shouldUseCaptureCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
+    game.revealEndTime = assignPreGamePvpCountdownDeadline(game, now, shouldUseCaptureCountdown(game));
     game.preGameConfirmations = getAiRevealConfirmations(game);
 };
 
@@ -130,7 +130,7 @@ export const initializeCapture = (game: types.LiveGameSession, now: number) => {
     game.bids = { [p1Id]: null, [p2Id]: null };
     game.biddingRound = 1;
     game.captureFirstRoundTieBidSnapshot = undefined;
-    game.captureBidDeadline = shouldUseCaptureCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
+    game.captureBidDeadline = assignPreGamePvpCountdownDeadline(game, now, shouldUseCaptureCountdown(game));
 };
 
 export const updateCaptureState = (game: types.LiveGameSession, now: number) => {
@@ -176,7 +176,7 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
                         game.captureFirstRoundTieBidSnapshot = { [p1Id]: p1Bid, [p2Id]: p2Bid };
                         game.biddingRound = 2;
                         game.bids = { [p1Id]: null, [p2Id]: null };
-                        game.captureBidDeadline = shouldUseCaptureCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
+                        game.captureBidDeadline = assignPreGamePvpCountdownDeadline(game, now, shouldUseCaptureCountdown(game));
                         game.gameStatus = 'capture_bidding';
                         game.preGameConfirmations = {};
                         game.revealEndTime = undefined;
@@ -218,7 +218,7 @@ export const updateCaptureState = (game: types.LiveGameSession, now: number) => 
                     game.captureFirstRoundTieBidSnapshot = { [p1Id]: p1Bid, [p2Id]: p2Bid };
                     game.biddingRound = 2;
                     game.bids = { [p1Id]: null, [p2Id]: null };
-                    game.captureBidDeadline = shouldUseCaptureCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
+                    game.captureBidDeadline = assignPreGamePvpCountdownDeadline(game, now, shouldUseCaptureCountdown(game));
                     game.gameStatus = 'capture_bidding';
                     game.preGameConfirmations = {};
                     game.revealEndTime = undefined;

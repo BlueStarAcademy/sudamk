@@ -3257,7 +3257,9 @@ const PairPetLobbyPanel: React.FC<PairPetLobbyPanelProps> = ({
                         const sessionM = si !== null ? sessionsM[si] : null;
                         const nowM = Date.now();
                         const endM =
-                            sessionM && si !== null ? hatcheryEndsAt(sessionM.startedAt, si, sessionM) : 0;
+                            sessionM && si !== null
+                                ? hatcheryEndsAt(sessionM.startedAt, si, sessionM, currentUser)
+                                : 0;
                         const canClaimM = Boolean(sessionM && nowM >= endM);
                         const remainMsM = sessionM && !canClaimM ? Math.max(0, endM - nowM) : 0;
                         const costM =

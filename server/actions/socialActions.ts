@@ -153,6 +153,7 @@ import { getPairPetXpRequirementForLevel } from '../../shared/utils/strategyLeve
 import {
     resolveAiLobbyProfileStepFromSettings,
     rollPairAiOpponentPetDisplayLevelForProfileStep,
+    syncStrategicLobbyAiSettingsFromKataAuthority,
 } from '../../shared/utils/strategicAiDifficulty.js';
 import { strategicKataLevelFromSnapshot } from '../../shared/utils/kataServerRuntimeResolvers.js';
 import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
@@ -5891,6 +5892,12 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             };
             delete (target.settings as any).autoScoringTurns;
             target.settings = clampAiLobbyStrategicItemCaps(selectedMode, target.settings);
+            if (SPECIAL_GAME_MODES.some((m) => m.mode === selectedMode)) {
+                syncStrategicLobbyAiSettingsFromKataAuthority(
+                    target.settings,
+                    getKataServerRuntimeSnapshot().strategicLobbyKataByStep,
+                );
+            }
 
             const ownerPetPartnerActive = isTeamPairAiDuel && teamPairUsesOwnerPetPartner(target);
             const partnerUser = isFriendlyFourAi

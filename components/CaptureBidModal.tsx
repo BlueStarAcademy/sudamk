@@ -5,7 +5,7 @@ import { LiveGameSession, User, ServerAction } from '../types.js';
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
-import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS, preGameCountdownDurationSeconds } from '../shared/constants/preGameCountdown.js';
 import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 
 interface CaptureBidModalProps {
@@ -74,6 +74,11 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
     const myBid = bids?.[myBidSubjectId];
     const opponentBid = bids?.[opponentSubjectId];
     const bothHaveBid = typeof myBid === 'number' && typeof opponentBid === 'number';
+    const countdownTotalSeconds = useMemo(() => preGameCountdownDurationSeconds(session), [
+        session.captureBidDeadline,
+        session.preGameCountdownStartAt,
+        session.nigiriStartTime,
+    ]);
     const hasBidCountdown = Boolean(captureBidDeadline) && resolveArenaSessionPolicy(session).matchAxis === 'pvp';
     
     const handleBidSubmit = useCallback(() => {
@@ -124,8 +129,8 @@ const CaptureBidModal: React.FC<CaptureBidModalProps> = (props) => {
     }, [myBid, settings.captureTarget]);
 
     const progressPercent = useMemo(
-        () => Math.max(0, Math.min(100, (countdown / PRE_GAME_PVP_COUNTDOWN_SECONDS) * 100)),
-        [countdown],
+        () => Math.max(0, Math.min(100, (countdown / countdownTotalSeconds) * 100)),
+        [countdown, countdownTotalSeconds],
     );
     const baseTarget = settings.captureTarget || 20;
     const maxBid = Math.max(1, baseTarget - 1);

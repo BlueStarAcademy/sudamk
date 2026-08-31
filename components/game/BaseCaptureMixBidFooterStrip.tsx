@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { LiveGameSession, ServerAction, User } from '../../types.js';
 import Button from '../Button.js';
 import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
-import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../../shared/constants/preGameCountdown.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS, preGameCountdownDurationSeconds } from '../../shared/constants/preGameCountdown.js';
 
 type BaseCaptureMixBidFooterStripProps = {
     session: LiveGameSession;
@@ -63,6 +63,11 @@ const BaseCaptureMixBidFooterStrip: React.FC<BaseCaptureMixBidFooterStripProps> 
     const myBid = bids?.[myBidSubjectId];
     const opponentBid = bids?.[opponentSubjectId];
     const bothHaveBid = typeof myBid === 'number' && typeof opponentBid === 'number';
+    const countdownTotalSeconds = useMemo(() => preGameCountdownDurationSeconds(session), [
+        session.captureBidDeadline,
+        session.preGameCountdownStartAt,
+        session.nigiriStartTime,
+    ]);
     const hasBidCountdown = Boolean(captureBidDeadline) && resolveArenaSessionPolicy(session).matchAxis === 'pvp';
 
     const baseTarget = settings.captureTarget || 20;
@@ -114,8 +119,8 @@ const BaseCaptureMixBidFooterStrip: React.FC<BaseCaptureMixBidFooterStripProps> 
     );
 
     const progressPercent = useMemo(
-        () => Math.max(0, Math.min(100, (countdown / PRE_GAME_PVP_COUNTDOWN_SECONDS) * 100)),
-        [countdown],
+        () => Math.max(0, Math.min(100, (countdown / countdownTotalSeconds) * 100)),
+        [countdown, countdownTotalSeconds],
     );
 
     const viewerInGame = currentUser.id === player1.id || currentUser.id === player2.id || Boolean(myPairTeam);

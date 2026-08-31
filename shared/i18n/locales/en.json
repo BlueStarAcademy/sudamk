@@ -3064,6 +3064,7 @@
       "welcomeBody": "{{name}}, a partner who plays Go is waiting. Shall we hatch the special egg?",
       "start": "Start",
       "skip": "Skip",
+      "shortcut": "Go there",
       "openPet": "Tap Pet in the quick menu to open the hatchery.",
       "startHatch": "Put the special egg in hatchery slot 1 and start hatching.",
       "confirmHatch": "One special egg brings your first partner.",
@@ -3537,6 +3538,8 @@
     "coreStatsTotal": "Sum of 6 core stats",
     "adventureUnlockModal": "Exploration unlock modal",
     "gameResultDemo": "Match result demo",
+    "firstRunTutorialTest": "Tutorial test",
+    "firstRunTutorialTestConfirm": "Restart the first-run pet hatch and adventure guide from the beginning. This grants welcome eggs and resets pet/hatchery state. Continue?",
     "quickMenuAria": "Quick menu",
     "playGoSuffix": " Go",
     "notEnhanced": "Not enhanced",
@@ -5270,7 +5273,7 @@
       },
       "pet_egg-special": {
         "name": "Mysterious Egg (Special)",
-        "description": "A specially adorned golden egg. Hatches in about 8 seconds in any hatchery slot and yields a level 10 AI pet."
+        "description": "A specially adorned golden egg. Hatches in about 1 minute in any hatchery slot and yields a level 10 AI pet."
       },
       "pet_soulstone1": {
         "name": "Sprout Soul Stone",
@@ -5506,7 +5509,7 @@
           "soulGradeUpgrade": "[Pet · Grade up] {{fromGrade}}→{{toGrade}} (Pet Lv.{{minLevel}}+)",
           "soulGradeUpgradeGeneric": "[Pet · Grade up] Used to raise pair arena AI pet grade",
           "eggHatchRandom": "[Pet · Incubator] Place in a slot to hatch a random AI pet",
-          "welcomeEggHatch": "[Pet · Incubator] ~8 sec hatch — level 10 AI pet"
+          "welcomeEggHatch": "[Pet · Incubator] ~1 min hatch — level 10 AI pet"
         }
       },
       "enhanceRange": {

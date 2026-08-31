@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LiveGameSession, Player, ServerAction, User } from '../types.js';
 import Avatar from './Avatar.js';
@@ -8,7 +8,7 @@ import PreGameColorRoulette from './PreGameColorRoulette.js';
 import { getSessionPlayerDisplayName } from '../utils/gameDisplayNames.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
 import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
-import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS, preGameCountdownDurationSeconds } from '../shared/constants/preGameCountdown.js';
 import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 
 interface CaptureTiebreakerModalProps {
@@ -38,6 +38,11 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
     const isTiebreaker = gameStatus === 'capture_tiebreaker';
     const isBaseStartConfirmation = gameStatus === 'base_game_start_confirmation';
     const hasRevealCountdown = Boolean(revealEndTime) && resolveArenaSessionPolicy(session).matchAxis === 'pvp';
+    const countdownDurationSeconds = useMemo(() => preGameCountdownDurationSeconds(session), [
+        session.revealEndTime,
+        session.preGameCountdownStartAt,
+        session.nigiriStartTime,
+    ]);
     const [rouletteDone, setRouletteDone] = useState(() => !isTiebreaker);
 
     useEffect(() => {
@@ -55,7 +60,7 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
             setCountdown(0);
             return;
         }
-        const deadline = revealEndTime || (Date.now() + PRE_GAME_PVP_COUNTDOWN_SECONDS * 1000);
+        const deadline = revealEndTime || (Date.now() + countdownDurationSeconds * 1000);
         const timerId = setInterval(() => {
             const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
             setCountdown(remaining);
@@ -64,7 +69,7 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
         return () => {
             clearInterval(timerId);
         };
-    }, [hasRevealCountdown, revealEndTime]);
+    }, [hasRevealCountdown, revealEndTime, countdownDurationSeconds]);
 
     const handleStartConfirm = useCallback(() => {
         if (hasConfirmed || (isTiebreaker && !rouletteDone)) return;
@@ -318,7 +323,7 @@ const CaptureTiebreakerModal: React.FC<CaptureTiebreakerModalProps> = ({ session
                 {hasRevealCountdown && showAssignmentGrid ? (
                     <RoundCountdownIndicator
                         deadline={revealEndTime}
-                        durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
+                        durationSeconds={countdownDurationSeconds}
                         label={tCommon('autoProceed')}
                         labelShort={tCommon('autoProceedShort')}
                     />

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SUDAMR_MOBILE_MODAL_STICKY_FOOTER_CLASS } from './DraggableWindow.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS, resolvePreGameCountdownTotalSeconds } from '../shared/constants/preGameCountdown.js';
 
 type Props = {
     hasConfirmed: boolean;
@@ -27,7 +28,7 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
     rouletteBlockingStart = false,
     variant = 'sticky',
     countdownDeadline,
-    countdownSeconds = 30,
+    countdownSeconds = PRE_GAME_PVP_COUNTDOWN_SECONDS,
     showCountdown = false,
 }) => {
     const { t } = useTranslation('game');
@@ -43,6 +44,11 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
         if (countdownDeadline != null && Number.isFinite(countdownDeadline)) return countdownDeadline;
         return Date.now() + countdownSeconds * 1000;
     }, [showCountdown, countdownDeadline, countdownSeconds]);
+
+    const effectiveDurationSeconds = useMemo(
+        () => resolvePreGameCountdownTotalSeconds(effectiveDeadline, countdownSeconds),
+        [effectiveDeadline, countdownSeconds],
+    );
 
     useEffect(() => {
         autoConfirmSentRef.current = false;
@@ -73,7 +79,7 @@ export const ColorAssignmentStickyFooter: React.FC<Props> = ({
                 {showCountdown && effectiveDeadline != null ? (
                     <RoundCountdownIndicator
                         deadline={effectiveDeadline}
-                        durationSeconds={countdownSeconds}
+                        durationSeconds={effectiveDurationSeconds}
                         label={t('colorSticky.autoProgress')}
                         labelShort={t('colorSticky.autoProgressShort')}
                     />

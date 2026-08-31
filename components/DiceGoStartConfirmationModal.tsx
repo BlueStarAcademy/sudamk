@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, ServerAction, Player } from '../types.js';
 import Avatar from './Avatar.js';
@@ -7,7 +7,7 @@ import DraggableWindow from './DraggableWindow.js';
 import { AVATAR_POOL, BORDER_POOL } from '../constants';
 import Dice from './Dice.js';
 import RoundCountdownIndicator from './RoundCountdownIndicator.js';
-import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS, preGameCountdownDurationSeconds } from '../shared/constants/preGameCountdown.js';
 
 interface DiceGoStartConfirmationModalProps {
     session: LiveGameSession;
@@ -22,15 +22,21 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
     const hasConfirmed = preGameConfirmations?.[currentUser.id];
     const [countdown, setCountdown] = useState(PRE_GAME_PVP_COUNTDOWN_SECONDS);
 
+    const countdownDurationSeconds = useMemo(() => preGameCountdownDurationSeconds(session), [
+        session.revealEndTime,
+        session.preGameCountdownStartAt,
+        session.nigiriStartTime,
+    ]);
+
     useEffect(() => {
-        const deadline = revealEndTime || (Date.now() + PRE_GAME_PVP_COUNTDOWN_SECONDS * 1000);
+        const deadline = revealEndTime || (Date.now() + countdownDurationSeconds * 1000);
         const timerId = setInterval(() => {
             const remaining = Math.max(0, Math.ceil((deadline - Date.now()) / 1000));
             setCountdown(remaining);
         }, 1000);
 
         return () => clearInterval(timerId);
-    }, [revealEndTime]);
+    }, [revealEndTime, countdownDurationSeconds]);
 
     if (!blackPlayerId || !whitePlayerId) return null;
     
@@ -69,7 +75,7 @@ const DiceGoStartConfirmationModal: React.FC<DiceGoStartConfirmationModalProps> 
                 <p className="text-center text-gray-400 mb-4 text-sm">{t('diceGo.autoStart')}</p>
                 <RoundCountdownIndicator
                     deadline={revealEndTime}
-                    durationSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
+                    durationSeconds={countdownDurationSeconds}
                     label={t('autoProceed', { ns: 'common' })}
                     labelShort={t('autoProceedShort', { ns: 'common' })}
                 />

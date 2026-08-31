@@ -278,7 +278,7 @@ export const initializeAlkkagi = (game: types.LiveGameSession, neg: types.Negoti
         }
 
     } else {
-        startColorConfirmation(game, now, 'alkkagi_start_confirmation', 30000);
+        startColorConfirmation(game, now, 'alkkagi_start_confirmation');
     }
 };
 

@@ -307,7 +307,7 @@ export const initializeCurling = (game: types.LiveGameSession, neg: types.Negoti
         }
 
     } else {
-        startColorConfirmation(game, now, 'curling_start_confirmation', 30000);
+        startColorConfirmation(game, now, 'curling_start_confirmation');
     }
 };
 

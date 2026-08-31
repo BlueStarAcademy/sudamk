@@ -31,7 +31,7 @@ import {
 } from '../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { refreshAdventureKataServerLevelOnSession } from '../shared/utils/adventureKataSession.js';
-import { isTrainingGroundSession } from '../shared/constants/trainingGround.js';
+import { isTrainingGroundSession, trainingGroundStageNumber } from '../shared/constants/trainingGround.js';
 import {
     pveBotAvatarIdForMode,
     PVE_GUILD_WAR_BOT_AVATAR_ID,
@@ -43,8 +43,17 @@ export const aiUserId = 'ai-player-01';
 
 function resolveStrategicAiGoProfileStep(game: LiveGameSession): number {
     if (isTrainingGroundSession(game)) {
-        // 훈련장 강도는 `kataServerLevel`(단계별 고정 ladder)만 사용한다.
-        return 5;
+        const meta = game.settings?.trainingGround;
+        if (meta && typeof meta.kataLevel === 'number' && Number.isFinite(meta.kataLevel)) {
+            const stageNum = trainingGroundStageNumber(meta.kataLevel);
+            return Math.max(1, Math.min(10, Math.ceil(stageNum / 4)));
+        }
+        const ks = (game.settings as { kataServerLevel?: unknown })?.kataServerLevel;
+        if (typeof ks === 'number' && Number.isFinite(ks)) {
+            const fromKata = profileStepFromKataServerLevel(ks, getKataServerRuntimeSnapshot().strategicLobbyKataByStep);
+            if (fromKata != null) return fromKata;
+        }
+        return 1;
     }
     if (resolveArenaSessionPolicy(game).kind === 'adventure') {
         refreshAdventureKataServerLevelOnSession(game);

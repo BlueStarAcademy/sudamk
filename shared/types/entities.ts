@@ -80,7 +80,7 @@ export type PairPetHatcherySession = {
     startedAt: number;
     /** 부화 시작 시 차감한 알 인벤 행 id (취소 시 복구) */
     eggItemId?: string;
-    /** 부화에 사용한 알의 templateId (예: `pair-egg-welcome` → 8초·레벨 10) */
+    /** 부화에 사용한 알의 templateId (예: `pair-egg-welcome` → 1분·레벨 10) */
     eggTemplateId?: string;
 };
 
@@ -1500,6 +1500,8 @@ export type LiveGameSession = {
   turnDeadline?: number;
   turnStartTime?: number;
   nigiriStartTime?: number;
+  /** PVP 준비·확인 카운트다운 시작 시각 (`revealEndTime` 등과 짝) */
+  preGameCountdownStartAt?: number;
   canRequestNoContest?: { [playerId: string]: boolean };
   pausedTurnTimeLeft?: number;
   itemUseDeadline?: number;

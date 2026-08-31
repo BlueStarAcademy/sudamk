@@ -1,12 +1,10 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, Player, ServerAction } from '../types.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
-import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { preGameCountdownDurationSeconds } from '../shared/constants/preGameCountdown.js';
 import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 import { getEffectivePairLobbyOwnerId } from '../shared/utils/effectivePairLobbyOwnerId.js';
-
-const COLOR_CHOICE_SEC = PRE_GAME_PVP_COUNTDOWN_SECONDS;
 
 const komiWindowShell =
     'rounded-xl border border-amber-400/20 bg-gradient-to-b from-slate-900/95 via-slate-950/98 to-black/90 shadow-[0_0_0_1px_rgba(255,255,255,0.06),0_20px_50px_-20px_rgba(0,0,0,0.85)]';
@@ -35,7 +33,12 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
     const choiceP1 = session.baseStoneColorChoices?.[player1.id] ?? null;
     const choiceP2 = session.baseStoneColorChoices?.[player2.id] ?? null;
     const myChoice = isPairHostChoice ? null : session.baseStoneColorChoices?.[currentUser.id] ?? null;
-    const [timer, setTimer] = useState(COLOR_CHOICE_SEC);
+    const countdownTotalSeconds = useMemo(() => preGameCountdownDurationSeconds(session), [
+        session.baseColorChoiceDeadline,
+        session.preGameCountdownStartAt,
+        session.nigiriStartTime,
+    ]);
+    const [timer, setTimer] = useState(countdownTotalSeconds);
 
     const colorChoicePhaseDone = isPairHostChoice ? choiceP1 != null && choiceP2 != null : myChoice != null;
 
@@ -46,14 +49,14 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
         }
         const d = session.baseColorChoiceDeadline;
         if (!d || !showCountdown) {
-            setTimer(COLOR_CHOICE_SEC);
+            setTimer(countdownTotalSeconds);
             return;
         }
         const tick = () => setTimer(Math.max(0, Math.ceil((d - Date.now()) / 1000)));
         tick();
         const id = setInterval(tick, 250);
         return () => clearInterval(id);
-    }, [colorChoicePhaseDone, session.baseColorChoiceDeadline, showCountdown]);
+    }, [colorChoicePhaseDone, session.baseColorChoiceDeadline, showCountdown, countdownTotalSeconds]);
 
     const autoPickColor = useCallback(() => {
         if (colorChoicePhaseDone || isPairHostChoice) return;
@@ -130,7 +133,7 @@ const BaseStoneColorChoicePanel: React.FC<Props> = ({
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10">
                         <div
                             className="h-full rounded-full bg-gradient-to-r from-amber-500 to-yellow-300"
-                            style={{ width: `${(timer / COLOR_CHOICE_SEC) * 100}%`, transition: 'width 0.35s linear' }}
+                            style={{ width: `${(timer / countdownTotalSeconds) * 100}%`, transition: 'width 0.35s linear' }}
                         />
                     </div>
                     <p className="text-center font-mono text-lg font-bold tabular-nums text-amber-100">{timer}</p>

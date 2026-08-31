@@ -1,11 +1,9 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { LiveGameSession, User, Player, ServerAction } from '../types.js';
 import Button from './Button.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
-import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
-
-const BID_SEC = PRE_GAME_PVP_COUNTDOWN_SECONDS;
+import { preGameCountdownDurationSeconds } from '../shared/constants/preGameCountdown.js';
 
 interface Props {
     session: LiveGameSession;
@@ -35,7 +33,12 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
     const myBid = komiBids?.[currentUser.id];
     const activeBidSubjectEarly = isPairHostBid ? (!bidP1 ? player1.id : !bidP2 ? player2.id : null) : null;
     const [komiValue, setKomiValue] = useState(0);
-    const [timer, setTimer] = useState(BID_SEC);
+    const countdownTotalSeconds = useMemo(() => preGameCountdownDurationSeconds(session), [
+        session.komiBiddingDeadline,
+        session.preGameCountdownStartAt,
+        session.nigiriStartTime,
+    ]);
+    const [timer, setTimer] = useState(countdownTotalSeconds);
     const [submitBusy, setSubmitBusy] = useState(false);
     const isSubmittingRef = useRef(false);
     const latest = useRef({ session, onAction, currentUser, komiValue });
@@ -55,14 +58,14 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
             return;
         }
         if (!showCountdown || !komiBiddingDeadline) {
-            setTimer(BID_SEC);
+            setTimer(countdownTotalSeconds);
             return;
         }
         const id = setInterval(() => {
             setTimer(Math.max(0, Math.ceil((komiBiddingDeadline - Date.now()) / 1000)));
         }, 250);
         return () => clearInterval(id);
-    }, [timerPaused, komiBiddingDeadline, showCountdown]);
+    }, [timerPaused, komiBiddingDeadline, showCountdown, countdownTotalSeconds]);
 
     useEffect(() => {
         setKomiValue(0);
@@ -172,7 +175,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10">
                         <div
                             className="h-full rounded-full bg-gradient-to-r from-amber-500 to-lime-300"
-                            style={{ width: `${(timer / BID_SEC) * 100}%`, transition: 'width 0.35s linear' }}
+                            style={{ width: `${(timer / countdownTotalSeconds) * 100}%`, transition: 'width 0.35s linear' }}
                         />
                     </div>
                     <p className="text-center font-mono text-lg font-bold tabular-nums text-amber-100">{timer}</p>

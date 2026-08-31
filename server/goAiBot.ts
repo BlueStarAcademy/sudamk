@@ -75,6 +75,11 @@ import {
 } from '../shared/utils/adventureKataSession.js';
 import { resolveTrainingGroundKataLevelFromSession } from '../shared/utils/trainingGroundGameSettings.js';
 import { isTrainingGroundSession, trainingGroundFixedKataLevel } from '../shared/constants/trainingGround.js';
+import {
+    isWaitingRoomAiGame,
+    normalizeStrategicLobbyKataServerLevelForLobbyAi,
+    syncStrategicLobbyAiSettingsFromKataAuthority,
+} from '../shared/utils/strategicAiDifficulty.js';
 import { getKataServerRuntimeSnapshot } from './kataServerRuntimeStore.js';
 import { broadcastPlayingSnapshotBeforeScoring } from './utils/broadcastPlayingBeforeScoring.js';
 import {
@@ -328,6 +333,18 @@ async function resolveKataLevelForHiddenRevealPrime(game: types.LiveGameSession)
     const trainingGroundKataLevel = resolveTrainingGroundKataLevelFromSession(game);
     if (trainingGroundKataLevel !== undefined) {
         configuredKataLevel = trainingGroundKataLevel;
+    } else if (isWaitingRoomAiGame(game)) {
+        syncStrategicLobbyAiSettingsFromKataAuthority(
+            game.settings as types.GameSettings,
+            kataRuntimeSnap.strategicLobbyKataByStep,
+        );
+        const lobbyKataRaw = Number((game.settings as any)?.kataServerLevel);
+        configuredKataLevel = Number.isFinite(lobbyKataRaw)
+            ? normalizeStrategicLobbyKataServerLevelForLobbyAi(
+                  lobbyKataRaw,
+                  kataRuntimeSnap.strategicLobbyKataByStep,
+              )
+            : undefined;
     } else {
         const authoritativePveKataLevel = resolveAuthoritativePveKataLevelForSession(game, kataRuntimeSnap);
         if (authoritativePveKataLevel !== undefined) {
@@ -2578,6 +2595,18 @@ export async function makeGoAiBotMove(
     const trainingGroundKataLevel = resolveTrainingGroundKataLevelFromSession(game);
     if (trainingGroundKataLevel !== undefined) {
         configuredKataLevel = trainingGroundKataLevel;
+    } else if (isWaitingRoomAiGame(game)) {
+        syncStrategicLobbyAiSettingsFromKataAuthority(
+            game.settings as types.GameSettings,
+            kataRuntimeSnap.strategicLobbyKataByStep,
+        );
+        const lobbyKataRaw = Number((game.settings as any)?.kataServerLevel);
+        configuredKataLevel = Number.isFinite(lobbyKataRaw)
+            ? normalizeStrategicLobbyKataServerLevelForLobbyAi(
+                  lobbyKataRaw,
+                  kataRuntimeSnap.strategicLobbyKataByStep,
+              )
+            : undefined;
     } else {
         // 도전의 탑·모험·길드전: DB/캐시·병합 등으로 settings.kataServerLevel만 빠지면 프로필 폴백으로 떨어져 체감이 달라짐 → 카테고리별 표로 복구.
         // 탑/모험은 특히 `settings.kataServerLevel` 오염(층/몬스터 레벨이 levelbot 값으로 들어가는 경우 등)을 막기 위해 매 턴 전용 표에서 재산출한다.

@@ -11,7 +11,7 @@ import {
     attachKataOpeningSnapshotToSession,
 } from '../kataCaptureSetupEncoding.js';
 import { modeIncludesBaseCaptureMix, resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
-import { PRE_GAME_PVP_COUNTDOWN_MS } from '../../shared/constants/preGameCountdown.js';
+import { assignPreGamePvpCountdownDeadline } from '../../shared/constants/preGameCountdown.js';
 
 const DEFAULT_BASE_AI_KOMI_MIN = 5;
 const DEFAULT_BASE_AI_KOMI_MAX = 20;
@@ -124,7 +124,9 @@ const enterBaseGameStartConfirmation = (game: types.LiveGameSession, now: number
     const p1Id = game.player1.id;
     const p2Id = game.player2.id;
     game.gameStatus = 'base_game_start_confirmation';
-    game.revealEndTime = skipBaseStartConfirmationDeadline(game) ? undefined : now + PRE_GAME_PVP_COUNTDOWN_MS;
+    game.revealEndTime = skipBaseStartConfirmationDeadline(game)
+        ? undefined
+        : assignPreGamePvpCountdownDeadline(game, now, true);
     game.preGameConfirmations = { [p1Id]: false, [p2Id]: false };
     if (game.isAiGame) {
         const aiId = resolveAiParticipantId(game);
@@ -139,7 +141,7 @@ export const enterBaseCaptureStartConfirmation = enterBaseGameStartConfirmation;
 
 export const initializeBase = (game: types.LiveGameSession, now: number) => {
     game.gameStatus = 'base_placement';
-    game.basePlacementDeadline = shouldUseBaseSetupCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
+    game.basePlacementDeadline = assignPreGamePvpCountdownDeadline(game, now, shouldUseBaseSetupCountdown(game));
     game.baseStones_p1 = [];
     game.baseStones_p2 = [];
     const p1Id = game.player1.id;
@@ -582,7 +584,7 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
         game.bids = { [game.player1.id]: null, [game.player2.id]: null };
         game.biddingRound = 1;
         game.captureFirstRoundTieBidSnapshot = undefined;
-        game.captureBidDeadline = shouldUseBaseSetupCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
+        game.captureBidDeadline = assignPreGamePvpCountdownDeadline(game, now, shouldUseBaseSetupCountdown(game));
         game.baseStoneColorChoices = undefined;
         game.baseColorChoiceDeadline = undefined;
         game.baseSameColorTieColor = undefined;
@@ -597,7 +599,7 @@ const resolveBasePlacementAndTransition = (game: types.LiveGameSession, now: num
 
     game.gameStatus = 'base_stone_color_choice';
     game.baseStoneColorChoices = { [game.player1.id]: null, [game.player2.id]: null };
-    game.baseColorChoiceDeadline = shouldUseBaseSetupCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
+    game.baseColorChoiceDeadline = assignPreGamePvpCountdownDeadline(game, now, shouldUseBaseSetupCountdown(game));
     game.baseSameColorTieColor = undefined;
     game.komiBids = undefined;
     game.komiBiddingDeadline = undefined;
@@ -754,7 +756,7 @@ const resolveBaseStoneColorChoicePhase = (game: types.LiveGameSession, now: numb
         game.baseSameColorTieColor = c1;
         game.gameStatus = 'base_same_color_points_bid';
         game.komiBids = { [p1]: null, [p2]: null };
-        game.komiBiddingDeadline = shouldUseBaseSetupCountdown(game) ? now + PRE_GAME_PVP_COUNTDOWN_MS : undefined;
+        game.komiBiddingDeadline = assignPreGamePvpCountdownDeadline(game, now, shouldUseBaseSetupCountdown(game));
         game.komiBiddingRound = 1;
         game.turnDeadline = undefined;
         game.turnStartTime = undefined;

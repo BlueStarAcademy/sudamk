@@ -11,7 +11,7 @@ import {
     applyPveAiSeatDisplayToUser,
     resolvePveAiSeatAvatarUrlOverride,
 } from '../shared/utils/pveOpponentDisplay.js';
-import { PRE_GAME_PVP_COUNTDOWN_SECONDS } from '../shared/constants/preGameCountdown.js';
+import { PRE_GAME_PVP_COUNTDOWN_SECONDS, preGameCountdownDurationSeconds } from '../shared/constants/preGameCountdown.js';
 import { usePreGameDeadlineAutoSubmit } from '../hooks/usePreGameDeadlineAutoSubmit.js';
 
 interface NigiriModalProps {
@@ -31,12 +31,16 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
     }, [gameId, blackPlayerId, whitePlayerId]);
 
     const showCountdown = resolveArenaSessionPolicy(session).matchAxis === 'pvp';
+    const countdownSeconds = useMemo(
+        () => preGameCountdownDurationSeconds(session),
+        [session.revealEndTime, session.preGameCountdownStartAt, session.nigiriStartTime],
+    );
     const countdownDeadline = useMemo(() => {
         if (!showCountdown) return undefined;
         const serverDeadline = session.revealEndTime;
         if (serverDeadline != null && Number.isFinite(serverDeadline)) return serverDeadline;
-        return Date.now() + PRE_GAME_PVP_COUNTDOWN_SECONDS * 1000;
-    }, [showCountdown, session.revealEndTime, gameId]);
+        return Date.now() + countdownSeconds * 1000;
+    }, [showCountdown, session.revealEndTime, gameId, countdownSeconds]);
 
     const handleConfirm = useCallback(() => {
         onAction({ type: 'CONFIRM_COLOR_START', payload: { gameId } });
@@ -78,7 +82,7 @@ const NigiriModal: React.FC<NigiriModalProps> = ({ session, currentUser, onActio
             rouletteBlockingStart={!colorRouletteDone}
             showCountdown={showCountdown}
             countdownDeadline={countdownDeadline}
-            countdownSeconds={PRE_GAME_PVP_COUNTDOWN_SECONDS}
+            countdownSeconds={countdownSeconds}
             onConfirm={handleConfirm}
         />
     );

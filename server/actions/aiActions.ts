@@ -14,6 +14,8 @@ import { modeIncludesCaptureRule, modeIncludesCastleRule, resolveArenaSessionPol
 import { isTrainingGroundSession } from '../../shared/constants/trainingGround.js';
 import { refreshTrainingGroundLiveSessionSettings } from '../../shared/utils/trainingGroundGameSettings.js';
 import { refreshAdventureKataServerLevelOnSession } from '../../shared/utils/adventureKataSession.js';
+import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
+import { syncStrategicLobbyAiSettingsFromKataAuthority } from '../../shared/utils/strategicAiDifficulty.js';
 
 function normalizeStrategicAiScoringSettings(game: any): void {
   if (!SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)) return;
@@ -45,6 +47,12 @@ function normalizeStrategicAiScoringSettings(game: any): void {
   }
 
   game.settings = { ...DEFAULT_GAME_SETTINGS, ...(game.settings || {}) };
+  if (SPECIAL_GAME_MODES.some((m) => m.mode === game.mode)) {
+    syncStrategicLobbyAiSettingsFromKataAuthority(
+      game.settings,
+      getKataServerRuntimeSnapshot().strategicLobbyKataByStep,
+    );
+  }
   const chessRule = game.mode === GameMode.Chess || mixIncludesChess(game.settings?.mixedModes);
   if (chessRule && !modeIncludesCaptureRule(game.mode, game.settings)) {
     const chessBoard = game.settings.boardSize === 9 ? 9 : 13;

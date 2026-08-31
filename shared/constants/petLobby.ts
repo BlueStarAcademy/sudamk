@@ -98,7 +98,7 @@ export function isPairLobbyPetInventoryFull(user: {
 
 export const PAIR_EGG_TEMPLATE_ID = 'pair-egg-mystery';
 
-/** 환영 우편 등: 전용 이미지, 부화 시 슬롯 무관 약 8초·레벨 10 펫 */
+/** 환영 우편 등: 전용 이미지, 부화 시 슬롯 무관 약 1분·레벨 10 펫 */
 export const PAIR_WELCOME_EGG_TEMPLATE_ID = 'pair-egg-welcome';
 export const PAIR_WELCOME_EGG_HATCH_LEVEL = 10;
 
@@ -206,8 +206,8 @@ export const PAIR_PET_SHOP_SKUS: PairPetShopSku[] = [
         dailyLimit: 1,
         image: PAIR_WELCOME_EGG_DISPLAY_IMAGE,
         description:
-            '특별한 금빛 장식의 알로, 어떤 부화 슬롯에서든 부화 시간이 약 8초이며 부화 시 레벨 10 AI 펫이 나옵니다.',
-        shortDescription: '10레벨 펫이 약 8초 만에 부화하는 알',
+            '특별한 금빛 장식의 알로, 어떤 부화 슬롯에서든 부화 시간이 약 1분이며 부화 시 레벨 10 AI 펫이 나옵니다.',
+        shortDescription: '10레벨 펫이 약 1분 만에 부화하는 알',
     },
     {
         id: 'pair_shop_soul_1',

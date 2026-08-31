@@ -22,7 +22,10 @@ import {
   getChessScoringTurnLimitOptions, clampChessScoringTurnLimit,
   getChessPieceTotalScoreOptions, getDefaultChessPieceTotalScore, clampChessPieceTotalScore,
 } from '../../constants/gameSettings.js';
-import { profileStepFromKataServerLevel } from '../../shared/utils/strategicAiDifficulty.js';
+import {
+    profileStepFromKataServerLevel,
+    normalizeStrategicLobbyKataServerLevelForLobbyAi,
+} from '../../shared/utils/strategicAiDifficulty.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import {
     clampAiLobbyStrategicItemCaps,
@@ -404,7 +407,7 @@ function finalizeNonDuoLobbyDraftForApply(
     const defaultKataWhenUnset = -12;
     const kataResolved =
         typeof draft.kataServerLevel === 'number' && Number.isFinite(draft.kataServerLevel)
-            ? draft.kataServerLevel
+            ? normalizeStrategicLobbyKataServerLevelForLobbyAi(draft.kataServerLevel)
             : defaultKataWhenUnset;
     const aiProfileStep =
         profileStepFromKataServerLevel(kataResolved) ??
@@ -1058,6 +1061,18 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             }
             if (selectedGameMode === GameMode.Mix && key === 'mixedModes') {
                 newSettings = applyMixModeSettingsConstraints(newSettings);
+            }
+            if (lobbyType === 'strategic' && key === 'kataServerLevel') {
+                const kata = normalizeStrategicLobbyKataServerLevelForLobbyAi(value);
+                const step =
+                    profileStepFromKataServerLevel(kata) ??
+                    (typeof newSettings.goAiBotLevel === 'number' ? newSettings.goAiBotLevel : 5);
+                newSettings = {
+                    ...newSettings,
+                    kataServerLevel: kata,
+                    goAiBotLevel: step,
+                    aiDifficulty: step,
+                };
             }
             if (selectedGameMode && (key === 'boardSize' || key === 'mixedModes')) {
                 newSettings = normalizeAiScoringTurnLimit(selectedGameMode, newSettings);

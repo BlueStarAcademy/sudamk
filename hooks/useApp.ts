@@ -44,7 +44,7 @@ import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js
 import type { MobileViewportEntry } from '../shared/types/mobileViewportStack.js';
 import { getAppRouteNavigationKey } from '../shared/types/navigation.js';
 import { getQuickUtilityKindFromStack } from '../shared/utils/mobileViewportStackUtils.js';
-import { syncDismissedScreenGuidesFromUser } from '../utils/screenGuideDismiss.js';
+import { syncDismissedScreenGuidesFromUser, resetAllScreenGuides } from '../utils/screenGuideDismiss.js';
 import { normalizeDismissedScreenGuides } from '../shared/constants/screenGuideDismiss.js';
 import {
     useIsHandheldDevice,
@@ -3781,6 +3781,7 @@ export const useApp = () => {
     }, []);
 
     const [adminGameResultDemoSession, setAdminGameResultDemoSession] = useState<LiveGameSession | null>(null);
+    const [firstRunGuideResetNonce, setFirstRunGuideResetNonce] = useState(0);
 
     /** 관리자 홈: PVP 경기 결과 모달 데모 */
     const previewAdminGameResultModal = useCallback(() => {
@@ -9384,6 +9385,22 @@ export const useApp = () => {
         }
     }, [currentUser?.id, aiLobbyStartConfirmGameId, applyOptimisticTowerClearOnBlackWin, guilds, markConnectionRestored, setConnectionNotice]);
 
+    /** 관리자 홈: 첫 접속 펫·부화·모험 튜토리얼을 처음부터 다시 진행 */
+    const startAdminFirstRunTutorialTest = useCallback(async () => {
+        const u = currentUserRef.current;
+        if (!u?.isAdmin) return;
+        try {
+            sessionStorage.removeItem(`sudamr.firstRunGuide.welcomeAck.v1:${u.id}`);
+        } catch {
+            // ignore
+        }
+        resetAllScreenGuides(u.id);
+        setFirstRunGuideResetNonce((n) => n + 1);
+        setIsPetManagementModalOpen(false);
+        setActiveQuickUtilityPanel(null);
+        await handleAction({ type: 'ADMIN_RESET_FIRST_RUN_TUTORIAL' });
+    }, [handleAction]);
+
     const handleActionRef = useRef(handleAction);
     handleActionRef.current = handleAction;
     earlyHandleActionRef.current = handleAction;
@@ -14698,6 +14715,7 @@ export const useApp = () => {
             previewAdminContentUnlockNoticeModal,
             previewAdminGameResultModal,
             closeAdminGameResultDemoModal,
+            startAdminFirstRunTutorialTest,
             closeClaimAllSummary,
             openViewingUser: handleViewUser,
             closeViewingUser: () => {
@@ -14882,5 +14900,6 @@ export const useApp = () => {
             closeGuildShop: () => setIsGuildShopOpen(false),
         },
         guilds,
+        firstRunGuideResetNonce,
     };
 };

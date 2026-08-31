@@ -7,8 +7,8 @@ import { PAIR_WELCOME_EGG_TEMPLATE_ID } from './petLobby.js';
 /** 부화 펫 수령·즉시 완료 시 펫 로비 인벤 슬롯 부족 — 서버·클라 동일 문자열 */
 export const PAIR_HATCHERY_PET_INVENTORY_FULL_MESSAGE = '펫 인벤토리 공간이 부족합니다.';
 
-/** 환영 (특)알: 부화 UI는 보여 주되 첫 가이드가 끊기지 않도록 짧게 */
-export const PAIR_WELCOME_EGG_HATCH_DURATION_MS = 8_000;
+/** 환영 (특)알: 튜토리얼·첫 부화 — 슬롯 기본 1시간과 무관하게 1분 */
+export const PAIR_WELCOME_EGG_HATCH_DURATION_MS = 60 * 1000;
 
 /** 기본 부화 슬롯(1번) */
 export const PAIR_HATCHERY_MAIN_SLOT_INDEX = 0;
@@ -194,12 +194,16 @@ export function getPairHatcherySlotDef(slotIndex: number, user?: User | null): P
     return undefined;
 }
 
+export function isWelcomeHatcheryEggTemplateId(templateId: unknown): boolean {
+    return typeof templateId === 'string' && templateId === PAIR_WELCOME_EGG_TEMPLATE_ID;
+}
+
 export function getPairHatcheryDurationMs(
     slotIndex: number,
     session?: Pick<PairPetHatcherySession, 'eggTemplateId'> | null,
     user?: User | null,
 ): number {
-    if (session?.eggTemplateId === PAIR_WELCOME_EGG_TEMPLATE_ID) {
+    if (isWelcomeHatcheryEggTemplateId(session?.eggTemplateId)) {
         return PAIR_WELCOME_EGG_HATCH_DURATION_MS;
     }
     if (slotIndex === PAIR_HATCHERY_MAIN_SLOT_INDEX) {

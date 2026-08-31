@@ -23,6 +23,7 @@ const RoundCountdownIndicator: React.FC<RoundCountdownIndicatorProps> = ({
     labelShort,
 }) => {
     const [remainingMs, setRemainingMs] = useState(() => enabled ? getRemainingMs(deadline, durationSeconds) : 0);
+    const totalMsRef = React.useRef(durationSeconds * 1000);
 
     useEffect(() => {
         if (!enabled) {
@@ -31,7 +32,9 @@ const RoundCountdownIndicator: React.FC<RoundCountdownIndicatorProps> = ({
         }
 
         const updateRemaining = () => {
-            setRemainingMs(getRemainingMs(deadline, durationSeconds));
+            const nextRemaining = getRemainingMs(deadline, durationSeconds);
+            totalMsRef.current = Math.max(durationSeconds * 1000, nextRemaining);
+            setRemainingMs(nextRemaining);
         };
 
         updateRemaining();
@@ -44,7 +47,7 @@ const RoundCountdownIndicator: React.FC<RoundCountdownIndicatorProps> = ({
     }
 
     const displaySeconds = Math.ceil(remainingMs / 1000);
-    const progressPercent = Math.max(0, Math.min(100, (remainingMs / (durationSeconds * 1000)) * 100));
+    const progressPercent = Math.max(0, Math.min(100, (remainingMs / totalMsRef.current) * 100));
 
     return (
         <div className="mt-1.5 sm:mt-2">

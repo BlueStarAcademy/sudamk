@@ -49,6 +49,12 @@ import { applyRankedMatchStatsFullResetToUser } from '../rankedMatchStatsReset.j
 import type { KataServerRuntimeOverrides } from '../../shared/types/kataServerRuntime.js';
 import { resetKataServerRuntimeOverrides, saveKataServerRuntimePatch } from '../kataServerRuntimeStore.js';
 import { CASH_SHOP_PACKAGE_IDS, type CashShopPackageId } from '../../shared/constants/cashShopPackages.js';
+import { PAIR_HATCHERY_SESSION_SLOT_COUNT } from '../../shared/constants/pairHatchery.js';
+import { isPairEggItem, isPairPetMaterial } from '../../shared/constants/petLobby.js';
+import { normalizeDismissedScreenGuides } from '../../shared/constants/screenGuideDismiss.js';
+import { FIRST_RUN_WALKTHROUGH_GUIDE_ID } from '../../shared/utils/firstRunGuide.js';
+import { createPairPetOnboardingStarterItems } from '../pairPetOnboardingStarter.js';
+import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 
 type HandleActionResult = { 
     clientResponse?: any;
@@ -166,6 +172,43 @@ export const handleAdminAction = async (volatileState: VolatileState, action: Se
             const saved = await setSinglePlayerStagesOverride(DEFAULT_SINGLE_PLAYER_STAGES);
             broadcast({ type: 'SINGLE_PLAYER_STAGES_UPDATE', payload: { singlePlayerStages: saved } });
             return { clientResponse: { singlePlayerStages: saved } };
+        }
+        case 'ADMIN_RESET_FIRST_RUN_TUTORIAL': {
+            const tutorialGuideIds = new Set([
+                FIRST_RUN_WALKTHROUGH_GUIDE_ID,
+                'home',
+                'petManagement',
+                'singlePlayerAcademy',
+                'sp_tutorial_pet_hint',
+            ]);
+            user.pairPetOnboarding = {};
+            user.dismissedScreenGuides = normalizeDismissedScreenGuides(user.dismissedScreenGuides).filter(
+                (id) => !tutorialGuideIds.has(id),
+            );
+            if (Array.isArray(user.clearedSinglePlayerStages)) {
+                user.clearedSinglePlayerStages = [];
+            }
+            user.pairPetHatcherySessions = Array(PAIR_HATCHERY_SESSION_SLOT_COUNT).fill(null);
+            user.equippedPairPetInventoryItemId = null;
+            user.equippedPairPetTemplateId = null;
+            const keptInventory = (user.inventory ?? []).filter(
+                (it) => !isPairPetMaterial(it) && !isPairEggItem(it),
+            );
+            user.inventory = [...keptInventory, ...createPairPetOnboardingStarterItems()];
+            user.inventory = JSON.parse(JSON.stringify(user.inventory));
+            await db.updateUser(user);
+            const updatedUser = getSelectiveUserUpdate(user, 'ADMIN_RESET_FIRST_RUN_TUTORIAL', { includeAll: true });
+            const { broadcastUserUpdate } = await import('../socket.js');
+            broadcastUserUpdate(user, [
+                'inventory',
+                'pairPetOnboarding',
+                'dismissedScreenGuides',
+                'clearedSinglePlayerStages',
+                'pairPetHatcherySessions',
+                'equippedPairPetInventoryItemId',
+                'equippedPairPetTemplateId',
+            ]);
+            return { clientResponse: { updatedUser } };
         }
         case 'ADMIN_APPLY_SANCTION': {
             const { targetUserId, sanctionType, durationMinutes, reason, reasonDetail } = payload as {

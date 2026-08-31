@@ -159,6 +159,15 @@ export function getSelectiveUserUpdate(
         
         // 싱글플레이어 관련
         'START_SINGLE_PLAYER_GAME': ['actionPoints', 'singlePlayerProgress', 'pairPetOnboarding', 'dismissedScreenGuides'],
+        'ADMIN_RESET_FIRST_RUN_TUTORIAL': [
+            'inventory',
+            'pairPetOnboarding',
+            'dismissedScreenGuides',
+            'clearedSinglePlayerStages',
+            'pairPetHatcherySessions',
+            'equippedPairPetInventoryItemId',
+            'equippedPairPetTemplateId',
+        ],
         
         // 길드 관련
         'GUILD_DONATE_GOLD': ['gold', 'guildCoins', 'dailyDonations', 'quests'],

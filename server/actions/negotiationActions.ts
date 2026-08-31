@@ -16,6 +16,8 @@ import {
     effectiveAiLobbyApCostForUser,
     effectiveNegotiationApCostForUser,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
+import { syncStrategicLobbyAiSettingsFromKataAuthority } from '../../shared/utils/strategicAiDifficulty.js';
+import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import { setInGameUserStatusForArena } from './socialActions.js';
 
 type HandleActionResult = { 
@@ -498,6 +500,12 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                           }, { isAiGame: true }),
                       )
                     : incomingSettings;
+                if (SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
+                    syncStrategicLobbyAiSettingsFromKataAuthority(
+                        settings,
+                        getKataServerRuntimeSnapshot().strategicLobbyKataByStep,
+                    );
+                }
                 // 대기실 AI 대국은 페어 전용 `pairGame` 메타와 무관 — 잔존 시 인게임 분기 오류 방지
                 delete (settings as { pairGame?: unknown }).pairGame;
                 const cost = effectiveAiLobbyApCostForUser(user, mode, settings);

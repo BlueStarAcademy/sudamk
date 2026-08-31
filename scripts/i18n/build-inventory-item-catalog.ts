@@ -123,7 +123,7 @@ const CONSUMABLE_EN: Record<string, { name: string; description: string }> = {
     '(특)신비로운 알': {
         name: 'Mysterious Egg (Special)',
         description:
-            'A specially adorned golden egg. Hatches in about 8 seconds in any hatchery slot and yields a level 10 AI pet.',
+            'A specially adorned golden egg. Hatches in about 1 minute in any hatchery slot and yields a level 10 AI pet.',
     },
 };
 
@@ -143,7 +143,7 @@ const MATERIAL_EN: Record<string, { name: string; description: string }> = {
     '(특)신비로운 알': {
         name: 'Mysterious Egg (Special)',
         description:
-            'A specially adorned golden egg. Hatches in about 8 seconds in any hatchery slot and yields a level 10 AI pet.',
+            'A specially adorned golden egg. Hatches in about 1 minute in any hatchery slot and yields a level 10 AI pet.',
     },
 };
 
