@@ -51,6 +51,20 @@ export type FirstRunGuideStep =
     | 'startFirstStage'
     | 'done';
 
+/** 관리자 수순 미리보기용 — 실제 온보딩과 같은 안내 순서(데이터 초기화 없음). */
+export const FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS: readonly Exclude<FirstRunGuideStep, 'done'>[] = [
+    'welcome',
+    'openPet',
+    'startHatch',
+    'confirmHatch',
+    'waitHatch',
+    'claimPet',
+    'equipPet',
+    'openAdventure',
+    'selectFirstStage',
+    'startFirstStage',
+] as const;
+
 export type FirstRunGuideUser = Pick<
     User,
     | 'nickname'

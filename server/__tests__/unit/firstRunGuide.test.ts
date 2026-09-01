@@ -3,6 +3,7 @@ import { PAIR_WELCOME_EGG_TEMPLATE_ID } from '../../../shared/constants/petLobby
 import { PAIR_WELCOME_EGG_HATCH_DURATION_MS } from '../../../shared/constants/pairHatchery.js';
 import {
     FIRST_RUN_FIRST_STAGE_ID,
+    FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS,
     FIRST_RUN_WALKTHROUGH_GUIDE_ID,
     firstRunGuideAnchorForStep,
     isFirstRunGuideComplete,
@@ -180,5 +181,20 @@ describe('first run guide steps', () => {
         expect(shouldSuppressScreenGuideForFirstRun('petManagement', user())).toBe(true);
         expect(shouldSuppressScreenGuideForFirstRun('tower', user())).toBe(false);
         expect(shouldSuppressScreenGuideForFirstRun('home', user({ clearedSinglePlayerStages: ['입문-1'] }))).toBe(false);
+    });
+
+    it('lists the admin sequence-preview steps in walkthrough order', () => {
+        expect([...FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS]).toEqual([
+            'welcome',
+            'openPet',
+            'startHatch',
+            'confirmHatch',
+            'waitHatch',
+            'claimPet',
+            'equipPet',
+            'openAdventure',
+            'selectFirstStage',
+            'startFirstStage',
+        ]);
     });
 });

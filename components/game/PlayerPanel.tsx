@@ -43,6 +43,7 @@ import {
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { resolvePveAiSeatDisplayProfile, applyPveAiSeatDisplayToUser } from '../../shared/utils/pveOpponentDisplay.js';
+import { isTrainingGroundSession } from '../../shared/constants/trainingGround.js';
 const formatTime = (seconds: number) => {
     if (seconds < 0) seconds = 0;
     const total = Math.floor(seconds);
@@ -321,6 +322,7 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
         showWinLossOnPanel = true,
     } = props;
     const { t } = useTranslation('game');
+    const { t: tLobby } = useTranslation('lobby');
     const { gameStatus, winner, blackPlayerId, whitePlayerId } = session;
 
     /** PVE AI 좌석: 모드·훈련장·싱글 등 전용 프로필 이미지 */
@@ -356,18 +358,31 @@ const SinglePlayerPanel: React.FC<SinglePlayerPanelProps> = (props) => {
     const levelToDisplay = user.userLevel;
     let levelText = `Lv.${levelToDisplay}`;
 
-    // 전략바둑 AI 대국: 봇 패널에는 AI 난이도 표시 레벨만(단계 1~10 → 1,3,5,…,50)
-    const isStrategicAiGame = session.isAiGame && isStrategic && !session.isSinglePlayer && session.gameCategory !== 'tower' && session.gameCategory !== 'singleplayer';
+    // 전략바둑 AI 대국: 봇 패널에는 AI 난이도 표시
+    // 훈련 머신(friendlyLobbyMatch): 1~10단계 / 그 외 대기실 AI: 표시 Lv(1,3,5,…,50)
+    const isStrategicAiGame =
+        session.isAiGame &&
+        isStrategic &&
+        !session.isSinglePlayer &&
+        session.gameCategory !== 'tower' &&
+        session.gameCategory !== 'singleplayer' &&
+        session.gameCategory !== 'adventure' &&
+        session.gameCategory !== 'guildwar' &&
+        !isTrainingGroundSession(session);
     if (opponentMonsterDisplay) {
         levelText = `Lv.${opponentMonsterDisplay.level}`;
     } else if (pveAiDisplayProfile?.displayLevelText && isAiPlayer) {
         levelText = pveAiDisplayProfile.displayLevelText;
-    } else if (pveAiDisplayProfile?.userLevel != null && isAiPlayer) {
-        levelText = `Lv.${pveAiDisplayProfile.userLevel}`;
     } else if (isStrategicAiGame && isAiPlayer) {
         const profileStep = resolveAiLobbyProfileStepFromSettings(session.settings as GameSettings);
-        const displayAiLevel = strategicAiDisplayLevelFromProfileStep(profileStep);
-        levelText = `Lv.${displayAiLevel}`;
+        if (session.settings?.friendlyLobbyMatch) {
+            levelText = tLobby('aiChallengeModal.aiLevelStep', { step: profileStep });
+        } else {
+            const displayAiLevel = strategicAiDisplayLevelFromProfileStep(profileStep);
+            levelText = `Lv.${displayAiLevel}`;
+        }
+    } else if (pveAiDisplayProfile?.userLevel != null && isAiPlayer) {
+        levelText = `Lv.${pveAiDisplayProfile.userLevel}`;
     }
 
     const orderClass = isLeft ? 'flex-row' : 'flex-row-reverse';

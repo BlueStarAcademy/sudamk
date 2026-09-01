@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } fro
 import { useTranslation } from 'react-i18next';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import {
+    FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS,
     firstRunGuideAnchorForStep,
     firstUnequippedPairPet,
     resolveFirstRunGuideStep,
@@ -79,7 +80,9 @@ const FirstRunGuideOverlay: React.FC = () => {
     const petPanelOpen = isPetPanelOpen(modals);
     const singlePlayerLobbyOpen = isSinglePlayerLobbyOpen(modals);
     const obtainModalOpen = Boolean(modals.pairPetDetailModal);
-    const guideReady = Boolean(guide) && !guide?.skipped;
+    const sequencePreviewStep = guide?.sequencePreviewStep ?? null;
+    const isSequencePreview = sequencePreviewStep != null;
+    const guideReady = Boolean(guide) && (isSequencePreview || !guide?.skipped);
     const welcomeAcknowledged = guide?.welcomeAcknowledged ?? false;
     const hatchConfirmOpen = guide?.hatchConfirmOpen ?? false;
     const selectedStageId = guide?.selectedStageId ?? null;
@@ -95,6 +98,7 @@ const FirstRunGuideOverlay: React.FC = () => {
 
     const step = useMemo(() => {
         if (hiddenByRoute) return 'done' as const;
+        if (sequencePreviewStep) return sequencePreviewStep;
         return resolveFirstRunGuideStep(currentUserWithStatus, {
             welcomeAcknowledged,
             petPanelOpen,
@@ -107,6 +111,7 @@ const FirstRunGuideOverlay: React.FC = () => {
     }, [
         currentUserWithStatus,
         hiddenByRoute,
+        sequencePreviewStep,
         welcomeAcknowledged,
         hatchConfirmOpen,
         obtainModalOpen,
@@ -117,10 +122,11 @@ const FirstRunGuideOverlay: React.FC = () => {
     ]);
 
     useEffect(() => {
+        if (isSequencePreview) return;
         if (step !== 'waitHatch' && step !== 'claimPet') return;
         const id = window.setInterval(() => setNow(Date.now()), 250);
         return () => window.clearInterval(id);
-    }, [step]);
+    }, [step, isSequencePreview]);
 
     const openPetPanelInline = useCallback(() => {
         handlers.closePairPetDetailModal?.();
@@ -136,40 +142,49 @@ const FirstRunGuideOverlay: React.FC = () => {
     }, [handlers]);
 
     useEffect(() => {
-        if (!guideReady || step !== 'equipPet' || obtainModalOpen || !currentUserWithStatus) return;
+        if (isSequencePreview || !guideReady || step !== 'equipPet' || obtainModalOpen || !currentUserWithStatus) {
+            return;
+        }
         const pet = firstUnequippedPairPet(currentUserWithStatus);
         if (pet) handlers.openPairPetDetailModal?.(pet, 'obtain');
-    }, [step, obtainModalOpen, currentUserWithStatus, handlers, guideReady]);
+    }, [step, obtainModalOpen, currentUserWithStatus, handlers, guideReady, isSequencePreview]);
 
     useEffect(() => {
-        if (!guideReady) return;
+        if (isSequencePreview || !guideReady) return;
         if (modals.isPetManagementModalOpen && modals.activeQuickUtilityPanel !== 'pet') {
             openPetPanelInline();
         }
-    }, [guideReady, modals.activeQuickUtilityPanel, modals.isPetManagementModalOpen, openPetPanelInline]);
+    }, [
+        guideReady,
+        isSequencePreview,
+        modals.activeQuickUtilityPanel,
+        modals.isPetManagementModalOpen,
+        openPetPanelInline,
+    ]);
 
     useEffect(() => {
-        if (!guideReady) return;
+        if (isSequencePreview || !guideReady) return;
         if ((step === 'openPet' || step === 'claimPet') && !petPanelOpen) {
             openPetPanelInline();
         }
-    }, [step, guideReady, petPanelOpen, openPetPanelInline]);
+    }, [step, guideReady, petPanelOpen, openPetPanelInline, isSequencePreview]);
 
     useEffect(() => {
-        if (!guideReady || step !== 'openAdventure') return;
+        if (isSequencePreview || !guideReady || step !== 'openAdventure') return;
         if (!singlePlayerLobbyOpen) {
             openSinglePlayerInline();
         }
-    }, [step, guideReady, singlePlayerLobbyOpen, openSinglePlayerInline]);
+    }, [step, guideReady, singlePlayerLobbyOpen, openSinglePlayerInline, isSequencePreview]);
 
     const showShortcut =
-        (step === 'openPet' && !petPanelOpen) || (step === 'openAdventure' && !singlePlayerLobbyOpen);
+        !isSequencePreview &&
+        ((step === 'openPet' && !petPanelOpen) || (step === 'openAdventure' && !singlePlayerLobbyOpen));
     const onShortcut = () => {
         if (step === 'openPet') openPetPanelInline();
         else if (step === 'openAdventure') openSinglePlayerInline();
     };
 
-    const anchorId = firstRunGuideAnchorForStep(step);
+    const anchorId = isSequencePreview ? null : firstRunGuideAnchorForStep(step);
 
     useLayoutEffect(() => {
         if (!getElement || !anchorId) {
@@ -224,7 +239,13 @@ const FirstRunGuideOverlay: React.FC = () => {
     const copy = tooltipForStep(step, t, currentUserWithStatus?.nickname ?? '');
     if (!copy) return null;
 
-    const hole = holeRect && holeRect.width > 2 && holeRect.height > 2 ? holeRect : null;
+    const previewIndex = isSequencePreview
+        ? FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS.indexOf(sequencePreviewStep)
+        : -1;
+    const previewTotal = FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS.length;
+    const isLastPreviewStep = isSequencePreview && previewIndex >= previewTotal - 1;
+
+    const hole = !isSequencePreview && holeRect && holeRect.width > 2 && holeRect.height > 2 ? holeRect : null;
     const bubbleStyle: React.CSSProperties = hole
         ? (() => {
               const below = hole.bottom + HOLE_PAD + 12;
@@ -274,7 +295,9 @@ const FirstRunGuideOverlay: React.FC = () => {
                 </>
             ) : (
                 <div
-                    className={`absolute inset-0 bg-black/65 ${step === 'welcome' ? 'pointer-events-auto' : 'pointer-events-none'}`}
+                    className={`absolute inset-0 bg-black/65 ${
+                        step === 'welcome' || isSequencePreview ? 'pointer-events-auto' : 'pointer-events-none'
+                    }`}
                 />
             )}
 
@@ -282,38 +305,67 @@ const FirstRunGuideOverlay: React.FC = () => {
                 className="pointer-events-auto absolute rounded-2xl border border-amber-300/40 bg-zinc-950/95 px-4 py-3 shadow-[0_18px_40px_-12px_rgba(0,0,0,0.8)] ring-1 ring-amber-200/20"
                 style={bubbleStyle}
             >
+                {isSequencePreview ? (
+                    <p className="mb-1 text-[11px] font-bold text-teal-300/90">
+                        {t('firstRunGuide.previewBadge', { current: previewIndex + 1, total: previewTotal })}
+                    </p>
+                ) : null}
                 {copy.title ? (
                     <p className="mb-1 text-sm font-black tracking-tight text-amber-100">{copy.title}</p>
                 ) : null}
                 <p className="text-sm font-semibold leading-snug text-stone-100">{copy.body}</p>
-                {step === 'welcome' ? (
-                    <button
-                        type="button"
-                        onClick={() => {
-                            guide.acknowledgeWelcome();
-                            openPetPanelInline();
-                        }}
-                        className="mt-3 w-full rounded-xl bg-gradient-to-b from-amber-200 via-amber-400 to-amber-700 py-2 text-sm font-black text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
-                    >
-                        {t('firstRunGuide.start')}
-                    </button>
-                ) : null}
-                {showShortcut ? (
-                    <button
-                        type="button"
-                        onClick={onShortcut}
-                        className="mt-3 w-full rounded-xl bg-gradient-to-b from-amber-200 via-amber-400 to-amber-700 py-2 text-sm font-black text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
-                    >
-                        {t('firstRunGuide.shortcut')}
-                    </button>
-                ) : null}
-                <button
-                    type="button"
-                    onClick={() => guide.skipWalkthrough()}
-                    className="mt-2 w-full text-center text-[11px] text-slate-400 underline hover:text-slate-200"
-                >
-                    {t('firstRunGuide.skip')}
-                </button>
+                {isSequencePreview ? (
+                    <>
+                        <button
+                            type="button"
+                            onClick={() => {
+                                if (isLastPreviewStep) guide.endSequencePreview();
+                                else guide.advanceSequencePreview();
+                            }}
+                            className="mt-3 w-full rounded-xl bg-gradient-to-b from-amber-200 via-amber-400 to-amber-700 py-2 text-sm font-black text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                        >
+                            {isLastPreviewStep ? t('firstRunGuide.previewDone') : t('firstRunGuide.previewNext')}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={() => guide.endSequencePreview()}
+                            className="mt-2 w-full text-center text-[11px] text-slate-400 underline hover:text-slate-200"
+                        >
+                            {t('firstRunGuide.previewClose')}
+                        </button>
+                    </>
+                ) : (
+                    <>
+                        {step === 'welcome' ? (
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    guide.acknowledgeWelcome();
+                                    openPetPanelInline();
+                                }}
+                                className="mt-3 w-full rounded-xl bg-gradient-to-b from-amber-200 via-amber-400 to-amber-700 py-2 text-sm font-black text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                            >
+                                {t('firstRunGuide.start')}
+                            </button>
+                        ) : null}
+                        {showShortcut ? (
+                            <button
+                                type="button"
+                                onClick={onShortcut}
+                                className="mt-3 w-full rounded-xl bg-gradient-to-b from-amber-200 via-amber-400 to-amber-700 py-2 text-sm font-black text-amber-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.4)]"
+                            >
+                                {t('firstRunGuide.shortcut')}
+                            </button>
+                        ) : null}
+                        <button
+                            type="button"
+                            onClick={() => guide.skipWalkthrough()}
+                            className="mt-2 w-full text-center text-[11px] text-slate-400 underline hover:text-slate-200"
+                        >
+                            {t('firstRunGuide.skip')}
+                        </button>
+                    </>
+                )}
             </div>
         </div>
     );

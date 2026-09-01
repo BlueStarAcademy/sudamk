@@ -3669,12 +3669,18 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             
             volatileState.rankedMatchingQueue[matchLobbyKey]![user.id] = {
                 userId: user.id,
-                lobbyType: matchLobbyKey === 'normal' ? ('strategic' as const) : 'strategic',
+                lobbyType: 'strategic',
                 selectedModes,
                 startTime: now,
                 rating: userRating,
                 modeRatings,
             };
+
+            // 반대 큐에 있으면 제거 — 랭킹전/일반전 동시 대기·교차 매칭 방지
+            const otherLobby: RankedLobbyType = matchLobbyKey === 'normal' ? 'strategic' : 'normal';
+            if (volatileState.rankedMatchingQueue[otherLobby]?.[user.id]) {
+                delete volatileState.rankedMatchingQueue[otherLobby]![user.id];
+            }
             
             volatileState.userStatuses[user.id] = { 
                 ...volatileState.userStatuses[user.id],
@@ -5009,6 +5015,17 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     return { error: '진행 중인 대국이 있습니다.' };
                 }
                 if (existingRoom.phase === 'matching') {
+                    const requestedMode = resolvePairWaitingRoomSelectedGameMode(existingRoom, modePayload);
+                    if (pairModeOrDefault(existingRoom.selectedGameMode) !== requestedMode) {
+                        existingRoom.selectedGameMode = requestedMode;
+                        existingRoom.settings = {
+                            ...DEFAULT_GAME_SETTINGS,
+                            ...getRankedGameSettings(requestedMode),
+                        };
+                        refreshPairRoomTeams(existingRoom);
+                        await tryMatchPairPetRankedRooms(volatileState);
+                        await tryMatchDuoPairRankedRooms(volatileState);
+                    }
                     broadcastPairRooms(volatileState);
                     return {
                         clientResponse: {
@@ -5109,6 +5126,17 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     return { error: '진행 중인 대국이 있습니다.' };
                 }
                 if (existingRoom.phase === 'matching') {
+                    const requestedMode = resolvePairWaitingRoomSelectedGameMode(existingRoom, modePayload);
+                    if (pairModeOrDefault(existingRoom.selectedGameMode) !== requestedMode) {
+                        existingRoom.selectedGameMode = requestedMode;
+                        existingRoom.settings = {
+                            ...DEFAULT_GAME_SETTINGS,
+                            ...getRankedGameSettings(requestedMode),
+                        };
+                        refreshPairRoomTeams(existingRoom);
+                        await tryMatchPairPetRankedRooms(volatileState);
+                        await tryMatchDuoPairRankedRooms(volatileState);
+                    }
                     broadcastPairRooms(volatileState);
                     return {
                         clientResponse: {
@@ -5553,13 +5581,16 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
         case 'PAIR_CANCEL_PAIR_PET_MATCHING': {
             if (!volatileState.pairRooms) volatileState.pairRooms = {};
             const target = Object.values(volatileState.pairRooms).find((room) => userInActivePairLobbyRoom(room, user.id));
-            if (!target) return { error: '참여 중인 페어 방이 없습니다.' };
+            // CANCEL_RANKED_MATCHING 과 같이 멱등: 방/매칭이 없어도 성공 (전략 랭킹·일반전 이탈 시에도 호출됨)
+            if (!target) {
+                return { clientResponse: { success: true, pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) } };
+            }
             const cancelLobby = (target as { lobbyChannel?: string }).lobbyChannel ?? 'pair';
             const isArenaDuoRanked =
                 target.roomKind === 'duo_match' &&
                 (cancelLobby === 'strategic' || cancelLobby === 'playful' || cancelLobby === 'pair');
             if (target.roomKind !== 'ai_duel' && !isArenaDuoRanked) {
-                return { error: '펫 페어 또는 경기장 2인 페어 랭킹전에서만 사용할 수 있습니다.' };
+                return { clientResponse: { success: true, pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) } };
             }
             if (!canUserCancelPairPetOrDuoRankedMatching(target, user.id)) {
                 return { error: '매칭을 취소할 권한이 없습니다.' };
@@ -5570,7 +5601,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 broadcastPairRooms(volatileState);
                 return { clientResponse: { pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) } };
             }
-            if (target.phase !== 'matching') return { error: '매칭 중이 아닙니다.' };
+            if (target.phase !== 'matching') {
+                return { clientResponse: { success: true, pairRooms: enrichPairRoomsForClientPayload(volatileState.pairRooms) } };
+            }
             delete target.pairPetMatchingQueuedAt;
             if (target.pairPetRankedQueueShell) {
                 clearPairInvitesForRoom(volatileState, target.id);
@@ -6994,12 +7027,18 @@ function restoreAcceptedUsersToRankedQueue(
     const requeuedUserIds: string[] = [];
     if (!prop.acceptUser1 && !prop.acceptUser2) return requeuedUserIds;
 
-    if (!volatileState.rankedMatchingQueue) volatileState.rankedMatchingQueue = { strategic: {} };
-    if (!volatileState.rankedMatchingQueue.strategic) volatileState.rankedMatchingQueue.strategic = {};
-    const queue = volatileState.rankedMatchingQueue.strategic;
+    const lobbyType: RankedLobbyType = prop.lobbyType === 'normal' ? 'normal' : 'strategic';
+    if (!volatileState.rankedMatchingQueue) volatileState.rankedMatchingQueue = { strategic: {}, normal: {} };
+    if (!volatileState.rankedMatchingQueue[lobbyType]) volatileState.rankedMatchingQueue[lobbyType] = {};
+    const queue = volatileState.rankedMatchingQueue[lobbyType]!;
 
     const restoreOne = (userId: string, accepted: boolean, queueEntry: RankedQueueEntry | undefined) => {
         if (!accepted || !queueEntry) return;
+        // 반대 큐에 남아 있으면 제거 — 랭킹전/일반전 교차 매칭 방지
+        const otherLobby: RankedLobbyType = lobbyType === 'normal' ? 'strategic' : 'normal';
+        if (volatileState.rankedMatchingQueue?.[otherLobby]?.[userId]) {
+            delete volatileState.rankedMatchingQueue[otherLobby]![userId];
+        }
         requeuedUserIds.push(userId);
         queue[userId] = {
             ...cloneRankedQueueEntry(queueEntry),
@@ -7013,7 +7052,7 @@ function restoreAcceptedUsersToRankedQueue(
 
     if (requeuedUserIds.length > 0) {
         broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
-        void tryMatchPlayers(volatileState, 'strategic');
+        void tryMatchPlayers(volatileState, lobbyType);
     }
     return requeuedUserIds;
 }
@@ -7298,8 +7337,10 @@ const tryMatchPlayersUnlocked = async (volatileState: VolatileState, lobbyType: 
             const entry1 = entries[i];
             const entry2 = entries[j];
             
-            // 공통 모드가 있는지 확인
-            const commonModes = entry1.selectedModes.filter(m => entry2.selectedModes.includes(m));
+            // 공통 모드가 있는지 확인 — 서로 다른 게임 모드만 고른 경우 매칭하지 않음
+            const commonModes = entry1.selectedModes.filter(
+                (m) => entry2.selectedModes.includes(m) && typeof m === 'string' && m.length > 0,
+            );
             if (commonModes.length === 0) continue;
             
             for (const mode of commonModes) {

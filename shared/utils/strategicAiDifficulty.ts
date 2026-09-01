@@ -24,6 +24,33 @@ export const KATA_SERVER_LEVEL_BY_PROFILE_STEP: Readonly<Record<number, number>>
   10: 5,
 };
 
+/**
+ * 전략바둑 AI: 대기실 1~10 단계 → 경기장 패널에 보이는 “레벨” 숫자.
+ * (실제 강도는 Kata/단계 설정과 동일하고, 표기만 유저 레벨 스케일에 맞춤)
+ */
+export const STRATEGIC_AI_DISPLAY_LEVEL_BY_PROFILE_STEP: Readonly<Record<number, number>> = {
+  1: 1,
+  2: 3,
+  3: 5,
+  4: 10,
+  5: 15,
+  6: 20,
+  7: 25,
+  8: 30,
+  9: 40,
+  10: 50,
+};
+
+/** 표시 Lv(15~50 등)이 kataServerLevel에 잘못 들어간 경우 → 프로필 단계 복원. 3·5는 Kata 값과 겹쳐 제외. */
+const STRATEGIC_AI_DISPLAY_LEVEL_TO_PROFILE_STEP: Readonly<Record<number, number>> = {
+  15: 5,
+  20: 6,
+  25: 7,
+  30: 8,
+  40: 9,
+  50: 10,
+};
+
 /** 바둑학원 싱글 Kata level(전략 대기실 표와 별도) → 프로필 단계 1~5 */
 const SINGLE_PLAYER_ACADEMY_KATA_TO_PROFILE_STEP: Record<number, number> = {
   [-31]: 1,
@@ -77,7 +104,7 @@ function lobbyKataForProfileStep(step: number, strategicLobbyKataByStep?: Record
 
 /**
  * 전략 대기실·훈련 머신 AI: `kataServerLevel` 권위값으로 정규화한다.
- * UI 단계 번호(1~10)가 kata 필드에 들어가면 Kata `/move.level`이 최고 난이도로 오인된다.
+ * UI 단계 번호(1~10)나 표시 Lv(15~50)이 kata 필드에 들어가면 Kata `/move.level`이 최고 난이도로 오인된다.
  */
 export function normalizeStrategicLobbyKataServerLevelForLobbyAi(
   raw: unknown,
@@ -90,10 +117,18 @@ export function normalizeStrategicLobbyKataServerLevelForLobbyAi(
     const expected = lobbyKataForProfileStep(fromTable, strategicLobbyKataByStep);
     if (ks === expected) return ks;
   }
+  const fromDisplay = STRATEGIC_AI_DISPLAY_LEVEL_TO_PROFILE_STEP[ks];
+  if (fromDisplay != null) {
+    return lobbyKataForProfileStep(fromDisplay, strategicLobbyKataByStep);
+  }
   if (ks >= 1 && ks <= 10) {
     return lobbyKataForProfileStep(ks, strategicLobbyKataByStep);
   }
-  return Math.max(-31, Math.min(10, ks));
+  // 알 수 없는 값(예: 구형 표시 Lv를 잘못 clamp)은 기본 5단계로 — Math.min(10, ks)는 Kata 10(최강)이 되어 위험
+  if (ks < -31 || ks > 5) {
+    return lobbyKataForProfileStep(5, strategicLobbyKataByStep);
+  }
+  return ks;
 }
 
 /** 대기실 AI 설정 — kataServerLevel ↔ goAiBotLevel/aiDifficulty 일치 (Kata 강도 권위) */
@@ -126,19 +161,6 @@ export function syncStrategicLobbyAiSettingsFromKataAuthority(
  * 전략바둑 AI: 대기실 1~10 단계 → 경기장 패널에 보이는 “레벨” 숫자.
  * (실제 강도는 Kata/단계 설정과 동일하고, 표기만 유저 레벨 스케일에 맞춤)
  */
-export const STRATEGIC_AI_DISPLAY_LEVEL_BY_PROFILE_STEP: Readonly<Record<number, number>> = {
-  1: 1,
-  2: 3,
-  3: 5,
-  4: 10,
-  5: 15,
-  6: 20,
-  7: 25,
-  8: 30,
-  9: 40,
-  10: 50,
-};
-
 export function strategicAiDisplayLevelFromProfileStep(profileStep: number): number {
   const s = Math.max(1, Math.min(10, Math.round(profileStep)));
   return STRATEGIC_AI_DISPLAY_LEVEL_BY_PROFILE_STEP[s] ?? s;
@@ -255,12 +277,14 @@ export function isWaitingRoomAiGame(game: {
   isAiGame?: boolean;
   isSinglePlayer?: boolean;
   gameCategory?: string;
-  settings?: { trainingGround?: unknown } | null;
+  settings?: { trainingGround?: unknown; friendlyLobbyMatch?: boolean } | null;
 }): boolean {
-  if (game.settings?.trainingGround) return false;
   if (!game.isAiGame || game.isSinglePlayer) return false;
   const c = game.gameCategory;
   if (c === 'tower' || c === 'singleplayer' || c === 'guildwar' || c === 'adventure') return false;
+  // 훈련 머신: friendlyLobbyMatch면 심법/단짝 trainingGround 메타가 있어도 대기실 AI 맵핑
+  if (game.settings?.friendlyLobbyMatch) return true;
+  if (game.settings?.trainingGround) return false;
   return true;
 }
 

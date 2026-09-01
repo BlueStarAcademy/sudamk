@@ -122,10 +122,10 @@ export function resolvePveAiSeatDisplayProfile(
     }
 
     const mode = session.mode ?? GameMode.Standard;
+    // 대기실·훈련 머신 AI: userLevel(기본 50)을 넘기지 않음 — PlayerPanel이 AI 단계 표시 Lv를 씀
     return {
         nickname: aiSeatUser.nickname,
         avatarUrl: pveBotAvatarUrlForMode(mode),
-        userLevel: aiSeatUser.userLevel,
     };
 }
 

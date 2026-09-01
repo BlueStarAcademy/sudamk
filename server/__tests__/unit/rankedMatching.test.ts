@@ -157,6 +157,101 @@ describe('ranked matching', () => {
         expect(proposal?.selectedMode).toBe(GameMode.Capture);
     });
 
+    it('tryMatchPlayers does not match players with no common game mode', async () => {
+        volatileState.rankedMatchingQueue!.strategic!['user-1'] = {
+            userId: 'user-1',
+            lobbyType: 'strategic',
+            selectedModes: [GameMode.Standard],
+            startTime: Date.now(),
+            rating: 1200,
+            modeRatings: { [GameMode.Standard]: 1200 },
+        };
+        volatileState.rankedMatchingQueue!.strategic!['user-2'] = {
+            userId: 'user-2',
+            lobbyType: 'strategic',
+            selectedModes: [GameMode.Capture],
+            startTime: Date.now(),
+            rating: 1250,
+            modeRatings: { [GameMode.Capture]: 1250 },
+        };
+
+        const { tryMatchPlayers } = await import('../../actions/socialActions.js');
+        await tryMatchPlayers(volatileState, 'strategic');
+
+        expect(Object.keys(volatileState.rankedMatchingQueue!.strategic!)).toHaveLength(2);
+        expect(Object.keys(volatileState.rankedMatchProposals ?? {})).toHaveLength(0);
+    });
+
+    it('tryMatchPlayers keeps ranked and normal queues separate', async () => {
+        volatileState.rankedMatchingQueue = {
+            strategic: {
+                'user-1': {
+                    userId: 'user-1',
+                    lobbyType: 'strategic',
+                    selectedModes: [GameMode.Standard],
+                    startTime: Date.now(),
+                    rating: 1200,
+                    modeRatings: { [GameMode.Standard]: 1200 },
+                },
+            },
+            normal: {
+                'user-2': {
+                    userId: 'user-2',
+                    lobbyType: 'strategic',
+                    selectedModes: [GameMode.Standard],
+                    startTime: Date.now(),
+                    rating: 1250,
+                    modeRatings: { [GameMode.Standard]: 1250 },
+                },
+            },
+        };
+
+        const { tryMatchPlayers } = await import('../../actions/socialActions.js');
+        await tryMatchPlayers(volatileState, 'strategic');
+        await tryMatchPlayers(volatileState, 'normal');
+
+        expect(volatileState.rankedMatchingQueue!.strategic!['user-1']).toBeDefined();
+        expect(volatileState.rankedMatchingQueue!.normal!['user-2']).toBeDefined();
+        expect(Object.keys(volatileState.rankedMatchProposals ?? {})).toHaveLength(0);
+    });
+
+    it('expireStaleRankedMatchProposals re-queues accepted normal-queue user into normal', async () => {
+        const originalStart = Date.now() - 120_000;
+        volatileState.rankedMatchingQueue = { strategic: {}, normal: {} };
+        volatileState.rankedMatchingQueue.normal!['user-1'] = {
+            userId: 'user-1',
+            lobbyType: 'strategic',
+            selectedModes: [GameMode.Standard],
+            startTime: originalStart,
+            rating: 1200,
+            modeRatings: { [GameMode.Standard]: 1200 },
+        };
+        volatileState.rankedMatchingQueue.normal!['user-2'] = {
+            userId: 'user-2',
+            lobbyType: 'strategic',
+            selectedModes: [GameMode.Standard],
+            startTime: Date.now() - 30_000,
+            rating: 1250,
+            modeRatings: { [GameMode.Standard]: 1250 },
+        };
+
+        const { tryMatchPlayers, expireStaleRankedMatchProposals } = await import('../../actions/socialActions.js');
+        await tryMatchPlayers(volatileState, 'normal');
+
+        const proposalId = Object.keys(volatileState.rankedMatchProposals ?? {})[0];
+        expect(proposalId).toBeTruthy();
+        expect(volatileState.rankedMatchProposals![proposalId].lobbyType).toBe('normal');
+        volatileState.rankedMatchProposals![proposalId].acceptUser1 = true;
+
+        expireStaleRankedMatchProposals(volatileState, Date.now() + 60_000);
+
+        expect(volatileState.rankedMatchProposals?.[proposalId]).toBeUndefined();
+        expect(volatileState.rankedMatchingQueue!.normal!['user-1']).toBeDefined();
+        expect(volatileState.rankedMatchingQueue!.normal!['user-1']!.startTime).toBe(originalStart);
+        expect(volatileState.rankedMatchingQueue!.strategic!['user-1']).toBeUndefined();
+        expect(volatileState.rankedMatchingQueue!.normal!['user-2']).toBeUndefined();
+    });
+
     it('tryMatchPlayers does nothing when only one user in queue', async () => {
         volatileState.rankedMatchingQueue!.strategic!['user-1'] = {
             userId: 'user-1',

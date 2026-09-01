@@ -8,8 +8,11 @@ import React, {
     useState,
     type ReactNode,
 } from 'react';
-import type { FirstRunGuideAnchorId } from '../../shared/utils/firstRunGuide.js';
-import { FIRST_RUN_WALKTHROUGH_GUIDE_ID } from '../../shared/utils/firstRunGuide.js';
+import type { FirstRunGuideAnchorId, FirstRunGuideStep } from '../../shared/utils/firstRunGuide.js';
+import {
+    FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS,
+    FIRST_RUN_WALKTHROUGH_GUIDE_ID,
+} from '../../shared/utils/firstRunGuide.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { dismissScreenGuide } from '../../utils/screenGuideDismiss.js';
 
@@ -29,6 +32,10 @@ export type FirstRunGuideContextValue = {
     acknowledgeWelcome: () => void;
     skipped: boolean;
     skipWalkthrough: () => void;
+    /** 관리자 수순 미리보기 중이면 강제 스텝(데이터·dismiss 변경 없음). */
+    sequencePreviewStep: Exclude<FirstRunGuideStep, 'done'> | null;
+    advanceSequencePreview: () => void;
+    endSequencePreview: () => void;
 };
 
 const FirstRunGuideContext = createContext<FirstRunGuideContextValue | null>(null);
@@ -56,7 +63,7 @@ function writeWelcomeAck(userId: string | null): void {
 }
 
 export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
-    const { currentUserWithStatus, handlers, firstRunGuideResetNonce } = useAppContext();
+    const { currentUserWithStatus, handlers, firstRunGuideResetNonce, firstRunGuidePreviewNonce } = useAppContext();
     const userId = currentUserWithStatus?.id ?? null;
     const registryRef = useRef<Registry>(new Map());
     const [version, setVersion] = useState(0);
@@ -64,10 +71,14 @@ export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ child
     const [selectedStageId, setSelectedStageId] = useState<string | null>(null);
     const [welcomeAcknowledged, setWelcomeAcknowledged] = useState(() => readWelcomeAck(userId));
     const [skipped, setSkipped] = useState(false);
+    const [sequencePreviewStep, setSequencePreviewStep] = useState<Exclude<FirstRunGuideStep, 'done'> | null>(
+        null,
+    );
 
     useLayoutEffect(() => {
         setWelcomeAcknowledged(readWelcomeAck(userId));
         setSkipped(false);
+        setSequencePreviewStep(null);
     }, [userId]);
 
     useLayoutEffect(() => {
@@ -76,6 +87,7 @@ export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ child
         setSkipped(false);
         setHatchConfirmOpen(false);
         setSelectedStageId(null);
+        setSequencePreviewStep(null);
         if (userId) {
             try {
                 sessionStorage.removeItem(welcomeAckKey(userId));
@@ -84,6 +96,12 @@ export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ child
             }
         }
     }, [firstRunGuideResetNonce, userId]);
+
+    useLayoutEffect(() => {
+        if (!firstRunGuidePreviewNonce) return;
+        setSkipped(false);
+        setSequencePreviewStep(FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS[0] ?? null);
+    }, [firstRunGuidePreviewNonce]);
 
     const bump = useCallback(() => {
         setVersion((n) => n + 1);
@@ -128,6 +146,19 @@ export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ child
         }
     }, [handlers, userId]);
 
+    const advanceSequencePreview = useCallback(() => {
+        setSequencePreviewStep((cur) => {
+            if (!cur) return null;
+            const idx = FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS.indexOf(cur);
+            if (idx < 0) return null;
+            return FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS[idx + 1] ?? null;
+        });
+    }, []);
+
+    const endSequencePreview = useCallback(() => {
+        setSequencePreviewStep(null);
+    }, []);
+
     const value = useMemo<FirstRunGuideContextValue>(
         () => ({
             version,
@@ -141,13 +172,19 @@ export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ child
             acknowledgeWelcome,
             skipped,
             skipWalkthrough,
+            sequencePreviewStep,
+            advanceSequencePreview,
+            endSequencePreview,
         }),
         [
             acknowledgeWelcome,
+            advanceSequencePreview,
+            endSequencePreview,
             getElement,
             hatchConfirmOpen,
             register,
             selectedStageId,
+            sequencePreviewStep,
             skipWalkthrough,
             skipped,
             version,

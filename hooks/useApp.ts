@@ -44,7 +44,7 @@ import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js
 import type { MobileViewportEntry } from '../shared/types/mobileViewportStack.js';
 import { getAppRouteNavigationKey } from '../shared/types/navigation.js';
 import { getQuickUtilityKindFromStack } from '../shared/utils/mobileViewportStackUtils.js';
-import { syncDismissedScreenGuidesFromUser, resetAllScreenGuides } from '../utils/screenGuideDismiss.js';
+import { syncDismissedScreenGuidesFromUser } from '../utils/screenGuideDismiss.js';
 import { normalizeDismissedScreenGuides } from '../shared/constants/screenGuideDismiss.js';
 import {
     useIsHandheldDevice,
@@ -3781,7 +3781,8 @@ export const useApp = () => {
     }, []);
 
     const [adminGameResultDemoSession, setAdminGameResultDemoSession] = useState<LiveGameSession | null>(null);
-    const [firstRunGuideResetNonce, setFirstRunGuideResetNonce] = useState(0);
+    const [firstRunGuideResetNonce] = useState(0);
+    const [firstRunGuidePreviewNonce, setFirstRunGuidePreviewNonce] = useState(0);
 
     /** 관리자 홈: PVP 경기 결과 모달 데모 */
     const previewAdminGameResultModal = useCallback(() => {
@@ -9385,21 +9386,14 @@ export const useApp = () => {
         }
     }, [currentUser?.id, aiLobbyStartConfirmGameId, applyOptimisticTowerClearOnBlackWin, guilds, markConnectionRestored, setConnectionNotice]);
 
-    /** 관리자 홈: 첫 접속 펫·부화·모험 튜토리얼을 처음부터 다시 진행 */
-    const startAdminFirstRunTutorialTest = useCallback(async () => {
+    /** 관리자 홈: 첫 접속 가이드 안내 문구 수순만 미리보기(데이터·알·펫 초기화 없음) */
+    const startAdminFirstRunTutorialTest = useCallback(() => {
         const u = currentUserRef.current;
         if (!u?.isAdmin) return;
-        try {
-            sessionStorage.removeItem(`sudamr.firstRunGuide.welcomeAck.v1:${u.id}`);
-        } catch {
-            // ignore
-        }
-        resetAllScreenGuides(u.id);
-        setFirstRunGuideResetNonce((n) => n + 1);
         setIsPetManagementModalOpen(false);
         setActiveQuickUtilityPanel(null);
-        await handleAction({ type: 'ADMIN_RESET_FIRST_RUN_TUTORIAL' });
-    }, [handleAction]);
+        setFirstRunGuidePreviewNonce((n) => n + 1);
+    }, []);
 
     const handleActionRef = useRef(handleAction);
     handleActionRef.current = handleAction;
@@ -14901,5 +14895,6 @@ export const useApp = () => {
         },
         guilds,
         firstRunGuideResetNonce,
+        firstRunGuidePreviewNonce,
     };
 };

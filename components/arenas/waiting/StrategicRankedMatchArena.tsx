@@ -195,10 +195,13 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
     ]);
 
     const leaveQueueAndLobby = useCallback(() => {
-        void handlers.handleAction({ type: 'CANCEL_RANKED_MATCHING' }).catch(() => undefined);
-        void handlers.handleAction({ type: 'PAIR_CANCEL_PAIR_PET_MATCHING' }).catch(() => undefined);
+        if (isPairPetQueue) {
+            void handlers.handleAction({ type: 'PAIR_CANCEL_PAIR_PET_MATCHING' }).catch(() => undefined);
+        } else {
+            void handlers.handleAction({ type: 'CANCEL_RANKED_MATCHING' }).catch(() => undefined);
+        }
         void handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' }).catch(() => undefined);
-    }, [handlers]);
+    }, [handlers, isPairPetQueue]);
 
     const leaveToHome = useCallback(() => {
         leaveQueueAndLobby();
@@ -245,13 +248,16 @@ const StrategicRankedMatchArena: React.FC<StrategicRankedMatchArenaProps> = ({
     const selectQueueKind = useCallback(
         (next: StrategicMatchQueueKind) => {
             if (next === queueKind) return;
-            void handlers.handleAction({ type: 'CANCEL_RANKED_MATCHING' }).catch(() => undefined);
-            void handlers.handleAction({ type: 'PAIR_CANCEL_PAIR_PET_MATCHING' }).catch(() => undefined);
+            if (isPairPetQueue) {
+                void handlers.handleAction({ type: 'PAIR_CANCEL_PAIR_PET_MATCHING' }).catch(() => undefined);
+            } else {
+                void handlers.handleAction({ type: 'CANCEL_RANKED_MATCHING' }).catch(() => undefined);
+            }
             setIsMatching(false);
             setMatchingStartTime(0);
             setQueueKindState(next);
         },
-        [queueKind, handlers],
+        [queueKind, handlers, isPairPetQueue],
     );
 
     if (!currentUserWithStatus) {

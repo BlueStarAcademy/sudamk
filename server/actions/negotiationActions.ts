@@ -16,7 +16,7 @@ import {
     effectiveAiLobbyApCostForUser,
     effectiveNegotiationApCostForUser,
 } from '../../shared/utils/pairPetArenaApDiscount.js';
-import { syncStrategicLobbyAiSettingsFromKataAuthority } from '../../shared/utils/strategicAiDifficulty.js';
+import { syncStrategicLobbyAiSettingsFromKataAuthority, strategicAiDisplayLevelFromProfileStep, resolveAiLobbyProfileStepFromSettings } from '../../shared/utils/strategicAiDifficulty.js';
 import { getKataServerRuntimeSnapshot } from '../kataServerRuntimeStore.js';
 import { setInGameUserStatusForArena } from './socialActions.js';
 
@@ -508,6 +508,8 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                 }
                 // 대기실 AI 대국은 페어 전용 `pairGame` 메타와 무관 — 잔존 시 인게임 분기 오류 방지
                 delete (settings as { pairGame?: unknown }).pairGame;
+                delete (settings as { trainingGround?: unknown }).trainingGround;
+                delete (settings as { adventureMonsterLevel?: unknown }).adventureMonsterLevel;
                 const cost = effectiveAiLobbyApCostForUser(user, mode, settings);
                 await applyPassiveActionPointRegenToUser(user, now);
                 if (user.actionPoints.current < cost && !user.isAdmin) {
@@ -525,11 +527,20 @@ export const handleNegotiationAction = async (volatileState: VolatileState, acti
                         return { error: aiGate.error };
                     }
                 }
+
+                const aiOpponent = getAiUser(mode);
+                if (SPECIAL_GAME_MODES.some((m) => m.mode === mode)) {
+                    const step = resolveAiLobbyProfileStepFromSettings(
+                        settings,
+                        getKataServerRuntimeSnapshot().strategicLobbyKataByStep,
+                    );
+                    aiOpponent.userLevel = strategicAiDisplayLevelFromProfileStep(step);
+                }
             
                 const negotiation: Negotiation = {
                     id: `neg-ai-${randomUUID()}`,
                     challenger: user,
-                    opponent: getAiUser(mode),
+                    opponent: aiOpponent,
                     mode, settings,
                     proposerId: user.id,
                     status: 'pending', deadline: 0,

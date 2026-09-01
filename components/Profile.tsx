@@ -2476,8 +2476,7 @@ const Profile: React.FC<ProfileProps> = () => {
                                         colorScheme="none"
                                         bare
                                         onClick={() => {
-                                            if (!window.confirm(t('firstRunTutorialTestConfirm'))) return;
-                                            void handlers.startAdminFirstRunTutorialTest();
+                                            handlers.startAdminFirstRunTutorialTest();
                                             setAdminModalPreviewMenuOpen(false);
                                         }}
                                         className="!justify-start !rounded-md !border !border-teal-400/45 !bg-teal-950/85 !px-2 !py-1 !text-[11px] !font-bold !text-teal-100"

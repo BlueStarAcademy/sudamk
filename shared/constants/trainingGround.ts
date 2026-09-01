@@ -275,8 +275,10 @@ export function trainingGroundUnlockTotalAbility(
 }
 
 export function isTrainingGroundSession(game: {
-    settings?: { trainingGround?: unknown } | null;
+    settings?: { trainingGround?: unknown; friendlyLobbyMatch?: boolean } | null;
 } | null | undefined): boolean {
+    // 훈련 머신(대기실 AI)은 friendlyLobbyMatch 로 심법/단짝 수련 메타와 구분
+    if (game?.settings?.friendlyLobbyMatch) return false;
     return Boolean(game?.settings?.trainingGround);
 }
 

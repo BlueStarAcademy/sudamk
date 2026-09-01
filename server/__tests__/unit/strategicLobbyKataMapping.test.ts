@@ -14,6 +14,12 @@ describe('strategic lobby kata mapping', () => {
         expect(normalizeStrategicLobbyKataServerLevelForLobbyAi(5)).toBe(5);
     });
 
+    it('maps mistaken display levels (Lv.50) to lobby kata instead of clamping to kata 10', () => {
+        expect(normalizeStrategicLobbyKataServerLevelForLobbyAi(50)).toBe(KATA_SERVER_LEVEL_BY_PROFILE_STEP[10]);
+        expect(normalizeStrategicLobbyKataServerLevelForLobbyAi(15)).toBe(KATA_SERVER_LEVEL_BY_PROFILE_STEP[5]);
+        expect(normalizeStrategicLobbyKataServerLevelForLobbyAi(99)).toBe(KATA_SERVER_LEVEL_BY_PROFILE_STEP[5]);
+    });
+
     it('syncs goAiBotLevel from authoritative kataServerLevel', () => {
         const settings: {
             kataServerLevel?: number;

@@ -25,6 +25,8 @@ import {
 import {
     profileStepFromKataServerLevel,
     normalizeStrategicLobbyKataServerLevelForLobbyAi,
+    KATA_SERVER_LEVEL_BY_PROFILE_STEP,
+    syncStrategicLobbyAiSettingsFromKataAuthority,
 } from '../../shared/utils/strategicAiDifficulty.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import {
@@ -909,6 +911,9 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                     parsed.alkkagiAimingLineItemCount = parsed.alkkagiItemCount;
                 }
                 const mergedPrefs = clampAiLobbyStrategicItemCaps(selectedGameMode, { ...DEFAULT_GAME_SETTINGS, ...parsed });
+                if (lobbyType === 'strategic') {
+                    syncStrategicLobbyAiSettingsFromKataAuthority(mergedPrefs);
+                }
                 setSettings(normalizeAiScoringTurnLimit(selectedGameMode, mergedPrefs));
             } catch {
                 setSettings(
@@ -1483,8 +1488,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                   ? 'grid-cols-2'
                   : 'grid-cols-1';
 
-        const AI_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((step, i) => ({
-            value: [-31, -25, -21, -15, -12, -8, -3, -1, 3, 5][i],
+                const AI_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((step) => ({
+            value: KATA_SERVER_LEVEL_BY_PROFILE_STEP[step],
             label: t('aiChallengeModal.aiLevelStep', { step }),
         }));
 
