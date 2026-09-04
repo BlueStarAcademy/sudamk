@@ -3632,7 +3632,7 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                 const locked = selectedModes.filter((m) => !isRankedModeUnlockedForUser(user, m));
                 if (locked.length > 0) {
                     return {
-                        error: `일색·캐슬·체스 바둑은 친선전에서 해당 모드 ${RANKED_MODE_FRIENDLY_UNLOCK_GAMES}판 완료 후 랭킹전에서 선택할 수 있습니다.`,
+                        error: `일색·캐슬·체스 바둑은 친선전 또는 훈련 머신(AI대전)에서 해당 모드 ${RANKED_MODE_FRIENDLY_UNLOCK_GAMES}판 완료 후 랭킹전에서 선택할 수 있습니다.`,
                     };
                 }
             }

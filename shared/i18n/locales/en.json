@@ -107,14 +107,14 @@
       "label": "Manner",
       "infoTitle": "Manner grade info",
       "infoButton": "Info",
-      "scoreTitle": "{{score}} pts 路 {{rank}}"
+      "scoreTitle": "{{score}} pts 脗路 {{rank}}"
     },
     "diamondAria": "Diamonds {{amount}}",
     "ads": {
       "label": "Ad",
-      "bannerPlaceholder": "Ad area ({{width}}脳{{height}})",
-      "interstitialPlaceholder": "Interstitial ad (336脳280)",
-      "rewardedPlaceholder": "Rewarded ad area (336脳280)",
+      "bannerPlaceholder": "Ad area ({{width}}脙聴{{height}})",
+      "interstitialPlaceholder": "Interstitial ad (336脙聴280)",
+      "rewardedPlaceholder": "Rewarded ad area (336脙聴280)",
       "loadingAd": "Loading ad??,
       "playingAd": "Ad playing",
       "watchToEarnHint": "Complete the ad to receive your reward.",
@@ -168,7 +168,7 @@
     "countUnit": "{{count}}",
     "piecesUnit": "{{count}}",
     "pointsUnit": "{{count}} pts",
-    "timesUnit": "{{count}}脳",
+    "timesUnit": "{{count}}脙聴",
     "quickMenuAria": "Quick menu",
     "helpCenter": "Help center",
     "helpCenterHint": "You can view this again anytime in the Help center.",
@@ -197,8 +197,8 @@
     "white": "White",
     "blackShort": "B",
     "whiteShort": "W",
-    "blackFirst": "First 路 Black",
-    "whiteSecond": "Second 路 White",
+    "blackFirst": "First 脗路 Black",
+    "whiteSecond": "Second 脗路 White",
     "blackStone": "Black stone",
     "whiteStone": "White stone",
     "blackWin": "Black wins",
@@ -311,8 +311,8 @@
     "colorRouletteHint": "Black and white stones flash rapidly until one is chosen.",
     "colorRouletteEnd": "The game starts automatically after the draw.",
     "colorRouletteProceed": "Proceeds automatically after the draw.",
-    "blackRoleThief": "Thief 路 Black",
-    "whiteRolePolice": "Police 路 White",
+    "blackRoleThief": "Thief 脗路 Black",
+    "whiteRolePolice": "Police 脗路 White",
     "deathmatchRoleTitle": "Deathmatch roles",
     "deathmatchRoleSubtitle": "Thief (black) and police (white) are assigned randomly. RPS decides who starts.",
     "roleDecidedTitle": "Roles decided",
@@ -338,7 +338,7 @@
     "hiddenBonus": "Hidden+{{bonus}}",
     "itemBonus": "Item+{{bonus}}",
     "scoreLine": "{{label}} {{score}} pts",
-    "scoreDetailsLine": "{{blackLine}} 路 {{whiteLine}}",
+    "scoreDetailsLine": "{{blackLine}} 脗路 {{whiteLine}}",
     "successLabel": "Success:",
     "secondsShort": "sec",
     "helpCenterEyebrow": "Help",
@@ -590,10 +590,10 @@
       "standard": "Standard classic Go.",
       "capture": "First to capture the set number of stones wins.",
       "speed": "You have {{seconds}} seconds per move; time resets when you play in time. Each overrun gives your opponent 1 point.",
-      "base": "Set komi after seeing base stone placement, then play with your chosen color?攖ests positional reading.",
+      "base": "Set komi after seeing base stone placement, then play with your chosen color?聰tests positional reading.",
       "hidden": "Turn the game with hidden moves! Hidden and scan items demand mind games and reading.",
       "missile": "Move your stones with missile items to create new variations.",
-      "uniform": "All stones look the same color?攎emory is key.",
+      "uniform": "All stones look the same color?聰memory is key.",
       "castle": "Use randomly placed castles to secure territory; capturing one stone can win.",
       "chess": "Chess pieces meet Go: move a piece, then place a stone to finish your turn.",
       "mix": "A match combining two or more special rules.",
@@ -698,13 +698,13 @@
       "highDiceUseTitle": "Use high dice",
       "highDiceUseBody": "Use 1 high dice item (4, 5, or 6 only). Continue?",
       "oddDiceAria": "Odd dice item, {{count}} left",
-      "oddDiceTitle": "Odd dice (1路3路5). {{count}} left",
+      "oddDiceTitle": "Odd dice (1脗路3脗路5). {{count}} left",
       "evenDiceAria": "Even dice item, {{count}} left",
-      "evenDiceTitle": "Even dice (2路4路6). {{count}} left",
+      "evenDiceTitle": "Even dice (2脗路4脗路6). {{count}} left",
       "lowDiceAria": "Low dice item, {{count}} left",
-      "lowDiceTitle": "Low dice (1路2路3). {{count}} left",
+      "lowDiceTitle": "Low dice (1脗路2脗路3). {{count}} left",
       "highDiceAria": "High dice item, {{count}} left",
-      "highDiceTitle": "High dice (4路5路6). {{count}} left",
+      "highDiceTitle": "High dice (4脗路5脗路6). {{count}} left",
       "oddDiceUse": "Use odd dice",
       "evenDiceUse": "Use even dice",
       "lowDiceUse": "Use low dice",
@@ -721,9 +721,9 @@
       "rematch": "Rematch",
       "rematchApplying": "Pending",
       "thiefHigh36Aria": "High dice (3??) item, {{count}} left",
-      "thiefHigh36Title": "Dice showing 3路4路5路6 only. {{count}} left",
+      "thiefHigh36Title": "Dice showing 3脗路4脗路5脗路6 only. {{count}} left",
       "thiefNoOneAria": "No-one (2??) dice item, {{count}} left",
-      "thiefNoOneTitle": "Dice without 1 (2路3路4路5). {{count}} left",
+      "thiefNoOneTitle": "Dice without 1 (2脗路3脗路4脗路5). {{count}} left",
       "thiefHigh36UseTitle": "Use high dice (3??)",
       "thiefHigh36UseBody": "Use 1 high dice item (3, 4, 5, or 6 only). On police turn both dice use this range. Continue?",
       "thiefNoOneUseTitle": "Use no-one dice",
@@ -732,7 +732,7 @@
     "board": {
       "rotateSpectatorBlack": "View from Black's perspective",
       "rotateSpectatorWhite": "View from White's perspective",
-      "rotate180": "Rotate board 180掳",
+      "rotate180": "Rotate board 180脗掳",
       "paused": "Paused",
       "resumeIn": "Resumes in {{seconds}}s",
       "turnSwitchIn": "Turn switch in"
@@ -756,7 +756,7 @@
       "nigiriInProgress": "Nigiri in progress??,
       "adventureNigiriConfirm": "Confirm Black/White, then press Start Game.",
       "uniformRoulette": "Uniform Go ??color roulette in progress??,
-      "basePlacement": "Place base stones 路 {{count}} each",
+      "basePlacement": "Place base stones 脗路 {{count}} each",
       "baseStoneColorChoice": "Choose your preferred color (Black/White).",
       "baseSameColorBid": "Same color chosen ??set komi for your opponent.",
       "baseGameStartConfirm": "Press Start Game to begin play.",
@@ -800,18 +800,18 @@
       "startNextRound": "Start next round",
       "autoFinalResultIn": "Final result in {{sec}}s",
       "autoNextRoundIn": "Next round in {{sec}}s",
-      "castleGuidance": "Capture one stone to win instantly 路 cannot play in completed territory.",
+      "castleGuidance": "Capture one stone to win instantly 脗路 cannot play in completed territory.",
       "dicePlacingGuidance": "Place stones to capture more than your opponent.",
       "itemUseTime": "Item time",
       "hiddenUseTime": "Hidden time",
       "scanUseTime": "Scan time",
       "missileSelectPrompt": "Select a stone to launch, then choose a direction.",
       "itemTimeSec": "{{label}} {{sec}}s",
-      "basePlacementSpectator": "Placing base stones 路 Black {{black}}/{{count}} 路 White {{white}}/{{count}}",
+      "basePlacementSpectator": "Placing base stones 脗路 Black {{black}}/{{count}} 脗路 White {{white}}/{{count}}",
       "baseStonesRemaining": "Base stones left ({{remaining}}/{{total}})",
-      "timeRemainingShort": " 路 {{sec}}s left",
-      "confirmPlacement": " 路 Press confirm placement",
-      "waitingOpponent": " 路 Waiting for opponent",
+      "timeRemainingShort": " 脗路 {{sec}}s left",
+      "confirmPlacement": " 脗路 Press confirm placement",
+      "waitingOpponent": " 脗路 Waiting for opponent",
       "bothBasePlacing": "Both sides placing base stones"
     },
     "baseSameColorPoints": {
@@ -986,7 +986,7 @@
         "none": "None",
         "byoyomi": "Byoyomi",
         "byoyomiFischer": "{{seconds}}s Fischer",
-        "byoyomiCount": "{{seconds}}s 脳 {{count}}",
+        "byoyomiCount": "{{seconds}}s 脙聴 {{count}}",
         "mixRules": "Mix rules",
         "forbid33": "Double-three",
         "forbidOverline": "Overline",
@@ -1233,9 +1233,9 @@
       "myColor": "My color",
       "time": "Time",
       "timeNone": "None",
-      "timeFischer": "{{minutes}} min 路 Fischer {{increment}}s",
-      "timeByoyomi": "{{minutes}} min 路 Byoyomi {{byoyomi}}s 脳 {{count}}",
-      "boardSizeValue": "{{size}}脳{{size}}",
+      "timeFischer": "{{minutes}} min 脗路 Fischer {{increment}}s",
+      "timeByoyomi": "{{minutes}} min 脗路 Byoyomi {{byoyomi}}s 脙聴 {{count}}",
+      "boardSizeValue": "{{size}}脙聴{{size}}",
       "komiValue": "{{komi}} points",
       "countUnit": "{{count}}",
       "roundValue": "{{round}}R",
@@ -1257,7 +1257,7 @@
       "mixRulesHint": "Classic Go is included. Pick additional rules. Capture and Castle cannot be combined.",
       "mixCaptureCastleConflict": "Capture and Castle cannot be selected together.",
       "mixRulesMinHint": "Select at least 2 rules.",
-      "boardKomiCapture": "Board 路 scoring 路 komi 路 capture",
+      "boardKomiCapture": "Board 脗路 scoring 脗路 komi 脗路 capture",
       "boardSize": "Board",
       "boardLines": "{{size}} lines",
       "komiWhite": "Komi (White)",
@@ -1266,7 +1266,7 @@
       "capturePoints": "{{count}} pts",
       "captureCount": "{{count}}",
       "speedTimeRules": "Speed time rules",
-      "timeByoyomi": "Time limit 路 byoyomi",
+      "timeByoyomi": "Time limit 脗路 byoyomi",
       "baseGo": "Base Go",
       "baseStones": "Base stones",
       "castleGo": "Castle Go",
@@ -1290,7 +1290,7 @@
       "lowDice": "Low dice",
       "thiefGo": "Thief Go",
       "blockDice": "Block dice",
-      "omokTtamok": "Omok 路 Ttamok",
+      "omokTtamok": "Omok 脗路 Ttamok",
       "forbid33": "3-3 forbidden",
       "forbidOverline": "Overline forbidden",
       "alkkagi": "Alkkagi",
@@ -1335,9 +1335,9 @@
       "insufficientAp": {
         "title": "Insufficient action points",
         "rechargeMethods": "How to recharge",
-        "shopConsumables": "Shop 路 consumables",
+        "shopConsumables": "Shop 脗路 consumables",
         "buyPotion": "Buy AP recovery items",
-        "buyPotionLimit": " 路 one per type per day",
+        "buyPotionLimit": " 脗路 one per type per day",
         "diamondInstant": "Instant diamond recharge",
         "diamondInstantHint": "Fill action points whenever you need.",
         "goShopConsumables": "Buy recovery items (shop consumables)",
@@ -1368,9 +1368,9 @@
       "hostPlacesBoth": "Host places base stones for both sides.",
       "basePlacementPhase": "Base stone placement phase.",
       "hostPlacementSide": "Host placing: {{side}} base stones",
-      "confirmPlacementFull": "Remaining base stones (0/{{total}}) 路 press Confirm placement",
-      "proceedingNext": "Remaining base stones (0/{{total}}) 路 proceeding??,
-      "waitingOpponentShort": "Remaining base stones (0/{{total}}) 路 waiting for opponent??,
+      "confirmPlacementFull": "Remaining base stones (0/{{total}}) 脗路 press Confirm placement",
+      "proceedingNext": "Remaining base stones (0/{{total}}) 脗路 proceeding??,
+      "waitingOpponentShort": "Remaining base stones (0/{{total}}) 脗路 waiting for opponent??,
       "placeVisibleAdventure": "Place base stones on the board",
       "placeHidden": "Place base stones hidden from opponent",
       "timeRemainingSec": "{{sec}}s remaining"
@@ -1459,19 +1459,19 @@
       "availableRewards": "Possible rewards",
       "summary": {
         "loseTerritory": "Lose if territory is lower at scoring (or tie rules favor opponent)",
-        "loseTerritoryAuto": "{{base}} 路 lose if you cannot win by {{auto}}",
-        "loseCaptureRace": "Lose if opponent reaches {{t}} capture points first 路 otherwise lose if territory is lower at scoring",
+        "loseTerritoryAuto": "{{base}} 脗路 lose if you cannot win by {{auto}}",
+        "loseCaptureRace": "Lose if opponent reaches {{t}} capture points first 脗路 otherwise lose if territory is lower at scoring",
         "loseMix": "Lose if opponent meets win conditions first or you are worse off when capture/scoring ends",
         "basePlacementAnalysis": "Base stones revealed, then position analysis",
-        "baseKomiSelect": "Set komi for opponent 路 choose your stones",
+        "baseKomiSelect": "Set komi for opponent 脗路 choose your stones",
         "autoScoringCaptureTurn": "Auto scoring at {{n}} turns (moves)",
         "autoScoringTerritoryWin": "Win by scoring after {{n}} moves (turns)",
         "autoScoringTerritoryLose": "Lose at auto scoring after {{n}} moves (turns)",
         "fischerOnly": "Fischer {{sec}}s",
-        "byoyomiOnly": "Byoyomi only 路 {{time}}s脳{{count}}",
+        "byoyomiOnly": "Byoyomi only 脗路 {{time}}s脙聴{{count}}",
         "noTimeLimit": "No time limit",
-        "limitFischer": "{{min}} min limit 路 Fischer {{sec}}s",
-        "limitByoyomi": "{{min}} min limit 路 byoyomi {{time}}s脳{{count}}",
+        "limitFischer": "{{min}} min limit 脗路 Fischer {{sec}}s",
+        "limitByoyomi": "{{min}} min limit 脗路 byoyomi {{time}}s脙聴{{count}}",
         "limitNoByoyomi": "{{min}} min limit (no byoyomi)",
         "factorTerritory": "Territory",
         "factorCaptured": "Captured stones",
@@ -1484,11 +1484,11 @@
         "factorCaptureScore": "Capture score",
         "factorMixFallback": "Depends on mode mix",
         "factorCaptureNoTerritory": "Capture score (no territory scoring)",
-        "factorCastle": "Fixed territory 路 captures 路 komi (White)",
-        "factorChess": "Territory 路 captures 路 dead stones 路 piece captures 路 komi (White)",
+        "factorCastle": "Fixed territory 脗路 captures 脗路 komi (White)",
+        "factorChess": "Territory 脗路 captures 脗路 dead stones 脗路 piece captures 脗路 komi (White)",
         "factorOmok": "Five in a row ??no territory scoring",
         "factorTtamok": "Five in a row or capture score",
-        "factorDice": "Per-round White capture score 路 last-capture bonus",
+        "factorDice": "Per-round White capture score 脗路 last-capture bonus",
         "factorThief": "Sum of per-round scores",
         "factorAlkkagi": "Opponent stones knocked off the board",
         "factorCurling": "Stones closer to the house score",
@@ -1496,8 +1496,8 @@
         "factorStageDefault": "Depends on stage and mode",
         "factorStageCapture": "Capture score",
         "factorStageCapturePattern": "Capture score\nPattern stones 2 pts",
-        "factorStageSpeed": "Territory 路 captures 路 dead stones 路 komi\nTime bonus",
-        "factorAdventureCaptureShort": "Capture 路 pattern 2 pts",
+        "factorStageSpeed": "Territory 脗路 captures 脗路 dead stones 脗路 komi\nTime bonus",
+        "factorAdventureCaptureShort": "Capture 脗路 pattern 2 pts",
         "factorAdventureBase": "Standard scoring",
         "factorAdventureBaseStone5": "Base stones 5 pts",
         "factorAdventureHidden": "Hidden",
@@ -1507,23 +1507,23 @@
         "itemScan": "Scan {{n}}",
         "itemMissile": "Missile {{n}}",
         "itemSpecialDice": "Special dice {{summary}}",
-        "itemSlowAim": "Slow {{slow}} 路 Aim {{aim}}",
-        "mixCaptureWin": "Instant win at {{t}} capture points 路 else compare territory after scoring",
-        "mixCaptureWinWithAuto": "Instant win at {{t}} capture points 路 else compare territory after scoring 路 {{auto}}",
+        "itemSlowAim": "Slow {{slow}} 脗路 Aim {{aim}}",
+        "mixCaptureWin": "Instant win at {{t}} capture points 脗路 else compare territory after scoring",
+        "mixCaptureWinWithAuto": "Instant win at {{t}} capture points 脗路 else compare territory after scoring 脗路 {{auto}}",
         "mixAutoTerritoryWin": "{{auto}} ??more territory wins",
         "mixComboTail": "Mix ({{modes}}) ??outcome by combined rules at end",
         "mixDefaultEnd": "Outcome decided by rules at end",
         "highlightPatternStone2": "Pattern stone capture worth 2",
-        "highlightHiddenScan": "Hidden moves 路 scan to find",
+        "highlightHiddenScan": "Hidden moves 脗路 scan to find",
         "highlightMissileMove": "Move a stone in a straight line with missile",
-        "speedPvpHighlight": "10s per move byoyomi 路 opponent +1 per 10s over 路 time forfeit when main time runs out",
-        "highlightSurvival": "Survival go 路 block White goal within {{n}} turns",
+        "speedPvpHighlight": "10s per move byoyomi 脗路 opponent +1 per 10s over 脗路 time forfeit when main time runs out",
+        "highlightSurvival": "Survival go 脗路 block White goal within {{n}} turns",
         "highlightAutoScoring": "Auto scoring after {{n}} moves",
         "highlightBlackTurnLimit": "Black limited to {{n}} turns",
         "highlightTurnAdd": "Turn add {{n}}",
         "highlightMissile": "Missile {{n}}",
-        "highlightHiddenScanCounts": "Hidden {{hidden}} 路 Scan {{scan}}",
-        "spTimeMainFischer": "Main {{min}} min 路 {{sec}}s per-move byoyomi",
+        "highlightHiddenScanCounts": "Hidden {{hidden}} 脗路 Scan {{scan}}",
+        "spTimeMainFischer": "Main {{min}} min 脗路 {{sec}}s per-move byoyomi",
         "spTimeFischerOnly": "{{sec}}s per-move byoyomi",
         "spTimeUnlimited": "No limit",
         "goalSurvivalWinLabel": "Block White",
@@ -1562,31 +1562,31 @@
         "guideTurnAddBody": "Extend turn limit",
         "guideMissileTitle": "Missile",
         "guideMissileBody": "Pick a stone and push in a line",
-        "guideHiddenScanTitle": "Hidden 路 Scan",
-        "guideHiddenScanBody": "Hide {{hidden}} 路 Find {{scan}}",
+        "guideHiddenScanTitle": "Hidden 脗路 Scan",
+        "guideHiddenScanBody": "Hide {{hidden}} 脗路 Find {{scan}}",
         "advCaptureWin": "Win by capture",
-        "advCaptureLose": "Lose by capture 路 time out",
+        "advCaptureLose": "Lose by capture 脗路 time out",
         "advTerritoryWin": "Win by scoring",
-        "advTerritoryWinAuto": "Win by scoring 路 auto at {{n}} moves",
-        "advTerritoryLose": "Lose by scoring 路 time out",
+        "advTerritoryWinAuto": "Win by scoring 脗路 auto at {{n}} moves",
+        "advTerritoryLose": "Lose by scoring 脗路 time out",
         "advTimeLimit": "{{mins}} min limit",
         "gwCaptureWinAuto": "First to {{cap}} pts or win scoring at {{limit}} turns",
         "gwCaptureWin": "First to {{cap}} capture points wins",
         "gwCaptureLose": "Opponent reaches {{cap}} first",
-        "gwTerritoryWinAuto": "Win scoring with more territory 路 auto at {{limit}} moves",
+        "gwTerritoryWinAuto": "Win scoring with more territory 脗路 auto at {{limit}} moves",
         "gwTerritoryWin": "Win if you have more territory at scoring",
-        "gwTerritoryLose": "Lose scoring 路 time out",
+        "gwTerritoryLose": "Lose scoring 脗路 time out",
         "captureWin": "Capture {{t}} opponent points first",
-        "captureWinWithAuto": "Capture {{t}} opponent points first 路 {{auto}}",
+        "captureWinWithAuto": "Capture {{t}} opponent points first 脗路 {{auto}}",
         "territoryWinDefault": "More territory wins after scoring",
         "speedTerritoryWinDefault": "Higher total score wins after scoring",
         "speedTerritoryLoseDefault": "Lose if total score is lower after scoring",
-        "castleWin": "Instant win capturing ?? opponent stone 路 else territory scoring if no valid move",
-        "castleLose": "Lose if any stone is captured 路 or lower territory at scoring",
-        "castleHighlightCount": "{{castles}} castles 路 completed territory cannot be entered",
+        "castleWin": "Instant win capturing ?? opponent stone 脗路 else territory scoring if no valid move",
+        "castleLose": "Lose if any stone is captured 脗路 or lower territory at scoring",
+        "castleHighlightCount": "{{castles}} castles 脗路 completed territory cannot be entered",
         "castleHighlightCapture": "Instant win on 1-stone capture",
         "chessWin": "Scoring after set sequence",
-        "chessLose": "Lose at scoring 路 instant loss if king is captured",
+        "chessLose": "Lose at scoring 脗路 instant loss if king is captured",
         "chessHighlightBudget": "Place pieces within {{budget}} total points (king fixed center on 2nd rank)",
         "chessHighlightMovement": "Move piece stones like chess once per turn (limited uses)",
         "omokWin": "First five in a row (horizontal, vertical, diagonal)",
@@ -1600,16 +1600,16 @@
         "ttamokHighlightCapture": "Win at {{cap}} capture points",
         "diceWin": "Higher total score after {{r}} rounds",
         "diceLose": "Lose if total score is lower after {{r}} rounds",
-        "diceHighlightRules": "Black plays dice count 路 White only on marked points",
-        "thiefWin": "Higher total after 5 turns 脳 rounds",
+        "diceHighlightRules": "Black plays dice count 脗路 White only on marked points",
+        "thiefWin": "Higher total after 5 turns 脙聴 rounds",
         "thiefLose": "Lose if total score is lower after rounds",
         "thiefHighlightRoles": "Thief (Black) and police (White) roles alternate",
         "alkkagiWin": "Knock all opponent stones off",
         "alkkagiLose": "Lose if all your stones are knocked off",
-        "alkkagiHighlightGauge": "Gauge power 路 wall bounce",
+        "alkkagiHighlightGauge": "Gauge power 脗路 wall bounce",
         "curlingWin": "Higher combined round score wins",
         "curlingLose": "Lose if combined score is lower",
-        "curlingHighlightRules": "Slide stones 路 round-based",
+        "curlingHighlightRules": "Slide stones 脗路 round-based",
         "fallbackWin": "Outcome follows match progress",
         "fallbackLose": "Lose when match rules declare defeat",
         "spDefaultWin": "Win when stage conditions are met",
@@ -1631,7 +1631,7 @@
         "spAutoScoringLose": "Lose after scoring at {{n}} moves",
         "spLegacyTurnWin": "At least {{target}} pts within {{limit}} turns",
         "spLegacyTurnLose": "Miss goal within {{limit}} turns",
-        "spLegacyTerritoryWin": "Scoring: Black {{black}}+ 路 White {{white}}+",
+        "spLegacyTerritoryWin": "Scoring: Black {{black}}+ 脗路 White {{white}}+",
         "spLegacyTerritoryLose": "Below target territory",
         "spTerritoryWin": "Win if you have more territory at scoring",
         "spTerritoryLose": "Lose at scoring"
@@ -1682,7 +1682,7 @@
     },
     "baseCaptureMix": {
       "round1": "Round 1 bid",
-      "round2Suffix": " 路 R2",
+      "round2Suffix": " 脗路 R2",
       "waitingBothBids": "Waiting for both Black (first) bids??,
       "winnerLine": "{{name}} {{bid}} pts ??Black, White target {{target}} pts",
       "tieRandomBoth": "Same bids ??randomizing Black/White.",
@@ -1712,11 +1712,11 @@
       "knight": "Knight",
       "bishop": "Bishop",
       "queen": "Queen",
-      "pieceTitle": "{{label}} 路 {{moves}} moves 路 {{cost}} pts",
+      "pieceTitle": "{{label}} 脗路 {{moves}} moves 脗路 {{cost}} pts",
       "hostPlacing": "Host is placing pieces",
       "hostPlacingHint": "You join the attack turn after placement.",
-      "completeStarting": "Placement complete 路 starting game??,
-      "completeWaiting": "Placement complete 路 waiting for opponent??,
+      "completeStarting": "Placement complete 脗路 starting game??,
+      "completeWaiting": "Placement complete 脗路 waiting for opponent??,
       "secondsLeft": "{{sec}}s",
       "opponentReady": "??Opponent ready",
       "opponentPlacing": "??Opponent placing",
@@ -1778,7 +1778,7 @@
     },
     "captureBid": {
       "title": "Black bid",
-      "titleReroll": "Black bid 路 reroll round",
+      "titleReroll": "Black bid 脗路 reroll round",
       "winnerBid": "{{name}} bid {{bid}} and takes Black. White target is {{target}}.",
       "tieReroll": "Tied again ??decided randomly.",
       "tieReset": "Tie ??resetting!",
@@ -1797,7 +1797,7 @@
       "aiAutoBidHint": "AI bids 1?? automatically. No time limit.",
       "baseTargetLabel": "Base target",
       "waitingCaptain": "Waiting for team captain bid.",
-      "titleRerollSuffix": "路 Rebid round"
+      "titleRerollSuffix": "脗路 Rebid round"
     },
     "captureTiebreaker": {
       "rouletteTitle": "Nigiri roulette",
@@ -1811,7 +1811,7 @@
       "tiebreakerDesc": "Nigiri decided by roulette.",
       "basePlusKomiDesc": "Check conditions on cards below.",
       "basePrepDesc": "Check nigiri and komi below.",
-      "resultDesc": "{{name}} 路 Black wins 路 bid {{bid}}",
+      "resultDesc": "{{name}} 脗路 Black wins 脗路 bid {{bid}}",
       "blackWinCondition": "Black win condition",
       "whiteWinCondition": "White win condition",
       "blackRole": "Black role",
@@ -1830,9 +1830,9 @@
       "basePrepTitle2": "Base game prep",
       "basePrepDesc2": "Confirm black, white, and komi below.",
       "colorDecideTitle": "Black/white decided",
-      "colorDecideDesc": "{{name}} 路 Black 路 bid {{bid}} pts",
-      "blackFirstSuffix": " 路 First",
-      "whiteSecondSuffix": " 路 Second",
+      "colorDecideDesc": "{{name}} 脗路 Black 脗路 bid {{bid}} pts",
+      "blackFirstSuffix": " 脗路 First",
+      "whiteSecondSuffix": " 脗路 Second",
       "myWinCondition": "My win condition",
       "myRole": "My role",
       "role": "Role",
@@ -1878,8 +1878,8 @@
       "smoothEnd": "Stones flash until one is chosen.",
       "blackShort": "Black",
       "whiteShort": "White",
-      "blackRole": "First 路 Black",
-      "whiteRole": "Second 路 White",
+      "blackRole": "First 脗路 Black",
+      "whiteRole": "Second 脗路 White",
       "finalCardAlt": "Final first/second shown on left and right cards.",
       "fastFlashAlt": "Black/white flash in each slot, then lock to final layout.",
       "smoothEndAlt": "Black and white flash quickly until random stop.",
@@ -1904,7 +1904,7 @@
       "goShop": "Go to shop",
       "usePotion": "Use potion",
       "recoveryTitle": "Condition recovery",
-      "potionTitle": "{{name}} 路 recovery {{min}}??{max}} 路 owned {{count}}",
+      "potionTitle": "{{name}} 脗路 recovery {{min}}??{max}} 脗路 owned {{count}}",
       "currentLabel": "Current condition",
       "expectedLabel": "Expected after recovery",
       "expectedMobile": "After recovery (est.)",
@@ -1955,7 +1955,7 @@
       "autoProgressShort": "Auto-pick"
     },
     "turnRoulette": {
-      "title": "First 路 Second",
+      "title": "First 脗路 Second",
       "subtitle": "Same choice ??random first (Black) and second (White).",
       "proceed": "Proceeds automatically after draw."
     },
@@ -2090,7 +2090,7 @@
           "step2Body": "Use scan on suspicious areas to reveal hidden stones.",
           "step2BodyItem": "You have {{count}} scan(s) to reveal hidden stones in suspicious areas.",
           "step3Title": "Use items wisely",
-          "step3Body": "Hidden and scan are limited?攑ick the right moment to use them."
+          "step3Body": "Hidden and scan are limited?聰pick the right moment to use them."
         },
         "capture": {
           "step1Title": "Capture win",
@@ -2168,7 +2168,7 @@
       "alkkagiTitle": "Round {{round}} summary",
       "curlingBlack": "Black",
       "curlingWhite": "White",
-      "curlingTieTitle": "Round {{round}} 路 tie",
+      "curlingTieTitle": "Round {{round}} 脗路 tie",
       "curlingTitle": "Round {{round}} result",
       "diceTitle": "Round {{round}} summary",
       "deathmatchStart": "Start deathmatch",
@@ -2270,7 +2270,7 @@
     "nigiriInProgress": "Nigiri in progress??,
     "adventureNigiriConfirm": "Confirm Black/White, then press Start Game.",
     "uniformRoulette": "Uniform Go ??color roulette in progress??,
-    "basePlacement": "Place base stones 路 {{count}} each",
+    "basePlacement": "Place base stones 脗路 {{count}} each",
     "baseStoneColorChoice": "Choose your preferred color (Black/White).",
     "baseSameColorBid": "Same color chosen ??set komi for your opponent.",
     "baseGameStartConfirm": "Press Start Game to begin play.",
@@ -2310,10 +2310,10 @@
       "headlineSurvival": "Survive {{turns}} turns without losing {{count}}",
       "headlineAutoScoring": "Hold more territory by turn {{turns}}",
       "headlineTerritory": "Win by territory at scoring",
-      "itemMissile": "Missile 脳{{count}}",
-      "itemHidden": "Hidden 脳{{count}}",
-      "itemScan": "Scan 脳{{count}}",
-      "itemBase": "Base stones 脳{{count}}",
+      "itemMissile": "Missile 脙聴{{count}}",
+      "itemHidden": "Hidden 脙聴{{count}}",
+      "itemScan": "Scan 脙聴{{count}}",
+      "itemBase": "Base stones 脙聴{{count}}",
       "itemHintLabel": "Items",
       "exit": "Leave",
       "start": "Start",
@@ -2336,7 +2336,7 @@
       "tutorialHiddenPlaceHint": "Place a hidden stone on the glowing point to put White in atari",
       "tutorialHiddenWhiteHint": "Play White's move elsewhere on the glowing point",
       "tutorialHiddenCaptureHint": "Fill the last liberty to capture ??your hidden stone is revealed",
-      "tutorialHiddenRevealFlash": "Capture 路 Hidden revealed!",
+      "tutorialHiddenRevealFlash": "Capture 脗路 Hidden revealed!",
       "tutorialHiddenRevealHint": "Capturing the ataried stone reveals your hidden stone.",
       "tutorialHiddenOpponentFlash": "Opponent uses Hidden",
       "tutorialHiddenOpponentHint": "The opponent plays a hidden move you cannot see.",
@@ -2347,18 +2347,18 @@
       "tutorialScanFoundHint": "The scanned hidden stone appears translucent.",
       "tutorialBaseShowHint": "Check the pre-placed base stones and their marks.",
       "tutorialBaseChooseHint": "Tap the glowing Black stone",
-      "tutorialBaseDiffFlash": "Different colors 路 start with 0.5 komi!",
+      "tutorialBaseDiffFlash": "Different colors 脗路 start with 0.5 komi!",
       "tutorialBaseDiffHint": "If you pick different colors, the game starts right away with 0.5 komi.",
       "tutorialBaseSameHint": "If you pick the same color, you bid komi to claim it.",
       "tutorialBaseBidHint": "The higher komi bid plays that color.",
-      "tutorialBaseBidWinFlash": "Higher bid 路 play as Black!",
+      "tutorialBaseBidWinFlash": "Higher bid 脗路 play as Black!",
       "tutorialBaseBidWinHint": "Your higher komi bid lets you play as Black.",
       "tutorialBaseBidSubmit": "Submit komi",
       "tutorialBaseBlack": "Black",
       "tutorialBaseWhite": "White",
       "tutorialBaseYou": "You",
       "tutorialBaseOpponent": "Opponent",
-      "tutorialBaseContested": "Claim {{color}} 路 komi bid",
+      "tutorialBaseContested": "Claim {{color}} 脗路 komi bid",
       "tutorialSpeedYou": "You",
       "tutorialSpeedOpponent": "Opponent",
       "tutorialSpeedScore": "Score",
@@ -2474,15 +2474,15 @@
       "withdrawLine1": "All data will be deleted and cannot be recovered",
       "withdrawLine2": "Re-registration with the same email blocked for 1 week",
       "withdrawPasswordConfirm": "Confirm password",
-      "withdrawTextConfirm": "Type confirmation: \"?岇洂?堩嚧\"",
-      "withdrawPlaceholder": "?岇洂?堩嚧",
+      "withdrawTextConfirm": "Type confirmation: \"?聦矛聸聬?聢铆聡麓\"",
+      "withdrawPlaceholder": "?聦矛聸聬?聢铆聡麓",
       "withdrawSubmit": "Delete account",
       "errors": {
         "usernameRequired": "Enter a new username and your current password.",
         "passwordRequired": "Enter your current and new password.",
         "passwordTooShort": "New password must be at least 6 characters.",
         "withdrawRequired": "Enter your password and confirmation text.",
-        "withdrawConfirmMismatch": "Confirmation text is incorrect. Type \"?岇洂?堩嚧\" exactly.",
+        "withdrawConfirmMismatch": "Confirmation text is incorrect. Type \"?聦矛聸聬?聢铆聡麓\" exactly.",
         "usernameChangeFailed": "Failed to change username.",
         "passwordChangeFailed": "Failed to change password.",
         "withdrawFailed": "Failed to delete account."
@@ -2495,31 +2495,31 @@
       }
     },
     "languageOptions": {
-      "ko": "?滉淡??,
+      "ko": "?聹锚碌颅??,
       "en": "English",
-      "ja": "?ユ湰瑾?,
-      "zh-CN": "绠�浣撲腑??,
-      "zh-TW": "绻侀珨涓?枃",
-      "es": "Espa帽ol",
-      "fr": "Fran莽ais",
+      "ja": "?楼忙聹卢猫陋?,
+      "zh-CN": "莽庐聙盲陆聯盲赂颅??,
+      "zh-TW": "莽鹿聛茅芦聰盲赂?聳聡",
+      "es": "Espa脙卤ol",
+      "fr": "Fran脙搂ais",
       "de": "Deutsch",
-      "pt": "Portugu锚s",
-      "ru": "????泻懈泄",
-      "vi": "Ti岷縩g Vi峄噒",
-      "th": "喙勦笚喔?,
+      "pt": "Portugu脙陋s",
+      "ru": "????脨潞脨赂脨鹿",
+      "vi": "Ti谩潞驴ng Vi谩禄聡t",
+      "th": "脿鹿聞脿赂聴脿赂?,
       "id": "Bahasa Indonesia",
-      "ar": "丕?毓乇亘?丞",
-      "hi": "啶灌た啶ㄠ啶︵?",
-      "tr": "T眉rk莽e",
+      "ar": "脴搂?脴鹿脴卤脴篓?脴漏",
+      "hi": "脿陇鹿脿陇驴脿陇篓脿楼聧脿陇娄脿?",
+      "tr": "T脙录rk脙搂e",
       "it": "Italiano",
       "pl": "Polski",
       "nl": "Nederlands",
       "ms": "Bahasa Melayu",
-      "uk": "校泻?邪?薪??泻邪",
+      "uk": "脨拢脨潞?脨掳?脨陆??脨潞脨掳",
       "sv": "Svenska",
-      "cs": "膶e拧tina",
-      "ro": "Rom芒n膬",
-      "he": "注?专?转",
+      "cs": "脛聦e脜隆tina",
+      "ro": "Rom脙垄n脛聝",
+      "he": "脳垄?脳篓?脳陋",
       "fil": "Filipino"
     }
   },
@@ -2593,7 +2593,7 @@
     "chat": {
       "global": "Global chat",
       "guild": "Guild chat",
-      "securityBanner": "AI moderation is watching for inappropriate language. ?殦",
+      "securityBanner": "AI moderation is watching for inappropriate language. ?職聯",
       "noMessages": "No chat messages yet.",
       "noGuildMessages": "No guild chat messages yet.",
       "placeholder": "[Type a message]",
@@ -2744,13 +2744,13 @@
       "seasonSuffix": "{{year}}-{{season}} Season",
       "firstSeason": " (first season)",
       "sameScore": " (same)",
-      "scoreBonusWin": "2脳 on win, half on loss",
+      "scoreBonusWin": "2脙聴 on win, half on loss",
       "applied": "On",
       "notApplied": "Off",
       "fischerIncrement": "Fischer +{{seconds}}s",
-      "byoyomiFormat": "{{seconds}}s 脳 {{count}}",
+      "byoyomiFormat": "{{seconds}}s 脙聴 {{count}}",
       "minutesFormat": "{{minutes}} min",
-      "gaugeFast": "Fast 脳{{speed}}",
+      "gaugeFast": "Fast 脙聴{{speed}}",
       "rulesTitle": "Ranked match rules",
       "gameSettingsTitle": "Game settings",
       "noRulesToShow": "No rules to display.",
@@ -2786,7 +2786,7 @@
       "notAggregated": "Not ranked yet",
       "allTimeBestTier": "All-time best tier",
       "firstSeasonNone": "First season (none)",
-      "winsLossesWinRate": "{{wins}}W {{losses}}L 路 Win rate",
+      "winsLossesWinRate": "{{wins}}W {{losses}}L 脗路 Win rate",
       "scorePoints": "{{score}} pts",
       "myRanking": "My ranking",
       "allRanking": "Full ranking",
@@ -2801,7 +2801,7 @@
       "multiSelectTitle": "Select game modes (multi-select)",
       "selectedCount": "Selected: {{count}}",
       "priorityTitle": "Selected mode priority (1 = highest)",
-      "priorityAdjustTip": "Use ?戔啌 to adjust priority, or 脳 to remove a mode.",
+      "priorityAdjustTip": "Use ?聭芒聠聯 to adjust priority, or 脙聴 to remove a mode.",
       "gameDescription": "Game description",
       "selectModeLeftPrompt": "Select a game mode on the left.",
       "startMatching": "Start matching ({{count}} selected)",
@@ -2824,7 +2824,10 @@
         "anonymousOpponent": "Anonymous opponent",
         "ready": "Accept when ready"
       },
-      "normalMatchTitle": "Normal Match"
+      "normalMatchTitle": "Normal Match",
+      "friendlyUnlockTitle": "Mode unlock required",
+      "friendlyUnlockHint": "{{current}}/{{need}}",
+      "friendlyUnlockBody": "Uniform, Castle, and Chess Go unlock in ranked after completing {{need}} games of that mode in Friendly matches or the Training Machine (AI).\nProgress: {{current}}/{{need}}"
     },
     "aiChallengeModal": {
       "titleDefault": "Challenge AI",
@@ -2958,7 +2961,7 @@
       "classBarRewardAria": "{{milestone}}-point reward",
       "cleared": "Cleared",
       "enterStage": "Challenge",
-      "enterStageTitle": "Challenge 路 {{cost}} AP",
+      "enterStageTitle": "Challenge 脗路 {{cost}} AP",
       "locked": "Locked",
       "unlockRequired": "Requires {{stageId}}",
       "claimAll": "Claim all ({{count}})",
@@ -2989,7 +2992,7 @@
       "nextLevelEffectsCompact": "Lv.{{level}} effects",
       "enhanceAfterClear": "Upgrade after clearing {{stageId}}",
       "enhanceAfterClearFull": "You must clear gate {{stageId}}.",
-      "enhanceTitle": "{{missionName}} 路 Upgrade",
+      "enhanceTitle": "{{missionName}} 脗路 Upgrade",
       "enhanceTitlePc": "Upgrade {{missionName}}",
       "startMissionTitle": "Start {{missionName}}",
       "claimAllModalTitle": "Claim all training rewards",
@@ -3026,7 +3029,7 @@
       },
       "startMessageDefault": "You're ready to begin a new training quest.",
       "rewardsTableSection": {
-        "classBarBonus": "{{classLabel}} 路 Bonus clears (claim from lobby bar)",
+        "classBarBonus": "{{classLabel}} 脗路 Bonus clears (claim from lobby bar)",
         "milestoneCount": "{{count}} stages",
         "stageIdColumn": "Gate ID",
         "firstClearColumn": "First clear (gold, EXP, gear, etc.)",
@@ -3037,11 +3040,11 @@
       "trainingQuestTab": "Training quests",
       "stageTab": "Gates",
       "trainingQuestRewardAria": "Training quests ??rewards available to claim",
-      "claimAllItemCycles": "{{name}} 脳{{cycles}}",
+      "claimAllItemCycles": "{{name}} 脙聴{{cycles}}",
       "claimAllAdDoubleAria": "Watch ad for 2x reward",
       "claimAllObtainedItems": "Rewards earned",
-      "claimAllRandomItems": "Random {{name}} 脳{{cycles}}",
-      "claimAllItemQty": "脳{{quantity}}",
+      "claimAllRandomItems": "Random {{name}} 脙聴{{cycles}}",
+      "claimAllItemQty": "脙聴{{quantity}}",
       "classBarClearRewardLabel": "Clear reward",
       "enhanceStone": "Enhance stone",
       "equipmentBox": "Equipment box",
@@ -3072,8 +3075,8 @@
       "openPet": "Tap Pet in the quick menu to open the hatchery.",
       "startHatch": "Put the special egg in hatchery slot 1 and start hatching.",
       "confirmHatch": "One special egg brings your first partner.",
-      "waitHatch": "Just a moment ??they?檙e about to wake.",
-      "claimPet": "They?檙e here! Claim your pet.",
+      "waitHatch": "Just a moment ??they?聶re about to wake.",
+      "claimPet": "They?聶re here! Claim your pet.",
       "equipPet": "Set them as your representative pet to adventure together.",
       "equipCta": "Set as representative pet",
       "openAdventure": "Head to Adventure ??Sprout Forest ??with your partner.",
@@ -3113,7 +3116,7 @@
       "monsterWindowTabsAria": "Monster window tabs",
       "monsterSituation": "Monster status",
       "monsterSituationAria": "Monster status",
-      "appearWaitTime": "Spawn 路 wait time",
+      "appearWaitTime": "Spawn 脗路 wait time",
       "comprehensionChapterTabsAria": "Comprehension chapters",
       "comprehensionEffects": "Monster comprehension effects",
       "comprehensionGoldBonus": "Exploration gold +{{percent}}%",
@@ -3135,7 +3138,7 @@
       "adventureExclusive": "Exploration only: {{label}} +{{percent}}%",
       "adventureGoldOnly": " (adventure win gold only)",
       "comprehensionXp": "Comprehension XP",
-      "comprehensionXpMax": "Max 路 {{wins}} wins",
+      "comprehensionXpMax": "Max 脗路 {{wins}} wins",
       "firstLevelWins": "First Lv {{wins}}/1 win",
       "nextLevelProgress": "Next {{wins}}/{{nextAt}} wins",
       "thresholdRange": " ({{from}}~)",
@@ -3148,11 +3151,11 @@
       "regionalExplorationTabsAria": "Regional exploration tabs",
       "enhancePoints": "Enhancement points",
       "enhancePointsCount": "Enhancement points {{remaining}} / {{grant}}",
-      "slot1LockedChapterOpen": "Slot 1 locked 路 Chapter {{stageIndex}} open",
-      "slotLockedTier": "Slot {{slot}} locked 路 {{tier}}+ required",
+      "slot1LockedChapterOpen": "Slot 1 locked 脗路 Chapter {{stageIndex}} open",
+      "slotLockedTier": "Slot {{slot}} locked 脗路 {{tier}}+ required",
       "effectSelecting": "Selecting effect...",
       "applying": "Applying??,
-      "slotAvailable": "?敁 Available",
+      "slotAvailable": "?聰聯 Available",
       "gainEffect": "Gain effect",
       "gainEffectFree": "Gain effect (free)",
       "changeEffect": "Change",
@@ -3171,7 +3174,7 @@
       "confirmChangeEnhanced": "Changing an enhanced effect resets it to tier 1 and refunds enhancement points spent on it. Continue?",
       "regionalEffect": "Regional effect",
       "regionalEffectAria": "{{title}} regional effect",
-      "regionalEffectModalTitle": "CH.{{chapter}} {{title}} 路 Regional effect",
+      "regionalEffectModalTitle": "CH.{{chapter}} {{title}} 脗路 Regional effect",
       "slotEffectsTitle": "Effects that can appear in slots",
       "goldRewardRangeAria": "Gold reward range",
       "gold": "Gold",
@@ -3239,7 +3242,7 @@
       "remainingTime": "Time left",
       "comprehensionLevel": "Comprehension level",
       "comprehensionXpLabel": "Comprehension XP",
-      "comprehensionXpMaxShort": "Max 路 {{wins}}",
+      "comprehensionXpMaxShort": "Max 脗路 {{wins}}",
       "actionPointsTitle": "Action points {{cost}}",
       "attack": "Attack",
       "chapterMonsters": "Chapter monsters",
@@ -3367,7 +3370,7 @@
       "kataPractice": "Kata Training",
       "petPractice": "Partner Training",
       "trainingMachine": "Training Machine",
-      "homeTickets": "Kata {{kata}}/1 路 Partner {{pet}}/1",
+      "homeTickets": "Kata {{kata}}/1 脗路 Partner {{pet}}/1",
       "remainingRewards": "Rewards left {{remaining}}/{{max}}",
       "needEquippedPet": "Equip a representative pet to enter partner training.",
       "boardSize": "Board size",
@@ -3375,7 +3378,7 @@
       "unlockPreviousStage": "Clear the previous stage",
       "unlockPreviousStageMarker": "Prev. stage",
       "unlockAbilityMarker": "Ability {{n}}+",
-      "selectedStageUnlock": "Stage {{stage}} 路 Go ability {{n}}+",
+      "selectedStageUnlock": "Stage {{stage}} 脗路 Go ability {{n}}+",
       "stageMarkerTitle": "Stages",
       "stageShort": "S{{n}}",
       "rewardPanelTitle": "Rewards",
@@ -3402,7 +3405,7 @@
       "startNow": "Start now",
       "waitingRoomHint": "Pick a strategy mode in the training ground and start immediately.",
       "waitingRoomCta": "Go to training ground",
-      "abilityTriple": "Open {{opening}} 路 Mid {{midgame}} 路 End {{endgame}} 路 Kata {{kata}}"
+      "abilityTriple": "Open {{opening}} 脗路 Mid {{midgame}} 脗路 End {{endgame}} 脗路 Kata {{kata}}"
     },
     "guildHomeTile": "Guild",
     "rankTierLabel": "Rank",
@@ -3479,7 +3482,7 @@
     "guildCreate": "Create guild",
     "guildJoin": "Join guild",
     "guildLocked": "Guild",
-    "guildLockedLevel": "[Guild] ?敀 Lv.{{level}}",
+    "guildLockedLevel": "[Guild] ?聰聮 Lv.{{level}}",
     "guildLevelHint": "Guild home unlocks at combined Lv.{{level}}+.",
     "guildLevelNotice": "Guild features unlock at user Lv.{{level}}+. (Current Lv.{{current}})",
     "stageLabels": {
@@ -3513,7 +3516,7 @@
     "mannerGradeModal": "Manner grade modal",
     "towerUnlockModal": "Tower unlock modal",
     "statBaseDisplay": "Base {{base}} ??shown {{display}} (gear/bonus +{{bonus}})",
-    "statBaseOnly": "Base {{base}} 路 includes gear/bonus",
+    "statBaseOnly": "Base {{base}} 脗路 includes gear/bonus",
     "presetDefault": "Equipment Set {{index}}",
     "coreStats": {
       "concentration": "Focus",
@@ -3574,7 +3577,7 @@
       "pairAiRecord": "Pair AI: {{wins}}W {{losses}}L ({{winRate}}%)",
       "modeRecord": "{{wins}}W {{losses}}L ({{winRate}}%)",
       "pvpRecord": "PVP record: {{wins}}W {{losses}}L ({{winRate}}%)",
-      "aiRecordSuffix": "路 AI {{wins}}W {{losses}}L ({{winRate}}%)",
+      "aiRecordSuffix": "脗路 AI {{wins}}W {{losses}}L ({{winRate}}%)",
       "pvpModeRecord": "PVP {{wins}}W {{losses}}L ({{winRate}}%)",
       "aiModeRecord": "AI {{wins}}W {{losses}}L ({{winRate}}%)",
       "adminPanel": "Admin tools",
@@ -3641,7 +3644,7 @@
       "tierShort": "{{tier}} tier",
       "borderCategoryAria": "Border category",
       "newNickname": "New nickname",
-      "nicknameHint": "2?? chars 路 no profanity 路 costs diamonds to change",
+      "nicknameHint": "2?? chars 脗路 no profanity 脗路 costs diamonds to change",
       "nicknamePlaceholder": "Enter nickname",
       "changeCost": "Change cost",
       "ownedDiamonds": "Diamonds owned",
@@ -3825,7 +3828,7 @@
       "mbtiExplain1": "MBTI (Myers-Briggs Type Indicator) helps understand personality types from preferences.",
       "mbtiExplain2": "It can help you understand yourself and improve relationships with others.",
       "setupMbti": "Set up MBTI",
-      "questionProgress": "Question {{current}} / {{total}} 路 Answer each axis to determine your type",
+      "questionProgress": "Question {{current}} / {{total}} 脗路 Answer each axis to determine your type",
       "yourMbtiIs": "Your MBTI is {{mbti}}!",
       "setupAgain": "Set up again",
       "myMbtiLabel": "My MBTI:"
@@ -4165,7 +4168,7 @@
       "coreTotal": "6 core stats total",
       "bonusPoints": "Bonus: {{points}}P",
       "statBreakdown": "Base {{base}} ??{{shown}} (gear/bonus +{{bonus}})",
-      "statBaseOnly": "Base {{base}} 路 gear/bonus applied",
+      "statBaseOnly": "Base {{base}} 脗路 gear/bonus applied",
       "phaseScoreAria": "Championship phase ability scores",
       "equipmentEffects": "Gear effects",
       "allocate": "Allocate",
@@ -4250,21 +4253,21 @@
     "diamondPackageBlocked": "Cannot buy while a diamond package purchase is in progress.",
     "monthlyLimitReached": "Monthly purchase limit reached.",
     "dailyMail": "Daily mail",
-    "daysMultiplier": "脳 {{days}} days",
+    "daysMultiplier": "脙聴 {{days}} days",
     "instantGrant": "Instant grant",
     "equipmentWord": "Equipment",
     "quantityAria": "Quantity {{count}}",
-    "diamondPackageNoDup": "Diamond packages I?揑II cannot be purchased twice",
+    "diamondPackageNoDup": "Diamond packages I?聯III cannot be purchased twice",
     "monthlyPurchaseLimit": "Monthly limit ({{remaining}}/{{limit}})",
-    "accountOncePermanent": "Once per account 路 permanent",
+    "accountOncePermanent": "Once per account 脗路 permanent",
     "includedBenefitsAria": "Included benefits",
     "owned": "Owned",
     "purchasing": "Purchasing??,
     "priceKrw": "??{price}}",
     "duplicateExtends": "Repurchase extends duration",
-    "autoRenewActive": "Auto-renew on 路 extends 30 days at same price",
+    "autoRenewActive": "Auto-renew on 脗路 extends 30 days at same price",
     "oneTimePayment": "One-time payment",
-    "oneTimePriceDays": "??{price}} 路 {{days}} days",
+    "oneTimePriceDays": "??{price}} 脗路 {{days}} days",
     "subscription": "Subscription (auto-renew every 30 days)",
     "subscriptionCharge": "Charged ??{price}} at renewal to extend",
     "cancelSubscription": "Cancel subscription",
@@ -4290,8 +4293,8 @@
       "vipSummary": "VIP benefits apply for 30 days."
     },
     "adRewardDescriptions": {
-      "equipment": "1 equipment (Normal?揈pic)",
-      "materials": "5 enhancement stones (Low?揌igh)",
+      "equipment": "1 equipment (Normal?聯Epic)",
+      "materials": "5 enhancement stones (Low?聯High)",
       "diamonds": "10 diamonds",
       "actionPoint": "1 AP recovery (+10)"
     },
@@ -4306,12 +4309,12 @@
         "benefitFooter": "VIP reward slot: gold / equipment box / material box / legendary gear (pick 1)",
         "benefits": {
           "0": "VIP reward slot unlocked",
-          "1": "2脳 strategic win rewards",
-          "2": "2脳 pair win rewards",
-          "3": "2脳 casual win rewards",
-          "4": "2脳 guild coin rewards",
-          "5": "2脳 daily/weekly/monthly quest rewards",
-          "6": "2脳 quest activity rewards",
+          "1": "2脙聴 strategic win rewards",
+          "2": "2脙聴 pair win rewards",
+          "3": "2脙聴 casual win rewards",
+          "4": "2脙聴 guild coin rewards",
+          "5": "2脙聴 daily/weekly/monthly quest rewards",
+          "6": "2脙聴 quest activity rewards",
           "7": "Open 2 adventure treasure chests"
         }
       },
@@ -4355,14 +4358,14 @@
       "diamond_instant_100": "100 diamonds instantly",
       "diamond_instant_250": "250 diamonds instantly",
       "diamond_instant_750": "750 diamonds instantly",
-      "equip_pkg1_boxes": "Equipment box V 脳1",
-      "equip_pkg1_mat": "Material box VI 脳1",
+      "equip_pkg1_boxes": "Equipment box V 脙聴1",
+      "equip_pkg1_mat": "Material box VI 脙聴1",
       "equip_pkg1_bonus": "+ guaranteed Epic equipment",
-      "equip_pkg2_boxes": "Equipment box V 脳2",
-      "equip_pkg2_mat": "Material box VI 脳2",
+      "equip_pkg2_boxes": "Equipment box V 脙聴2",
+      "equip_pkg2_mat": "Material box VI 脙聴2",
       "equip_pkg2_bonus": "+ guaranteed Legendary equipment",
-      "equip_pkg3_boxes": "Equipment box VI 脳2",
-      "equip_pkg3_mat": "Material box VI 脳5",
+      "equip_pkg3_boxes": "Equipment box VI 脙聴2",
+      "equip_pkg3_mat": "Material box VI 脙聴5",
       "equip_pkg3_bonus": "+ guaranteed Mythic equipment",
       "remove_ads_1": "Hide in-game banner and interstitial ads",
       "remove_ads_2": "Same shop ad rewards without watching ads (daily limit applies)"
@@ -4370,51 +4373,51 @@
     "items": {
       "equipment_box_1": {
         "name": "Equipment Box I",
-        "description": "Random gear: Normal?揜are"
+        "description": "Random gear: Normal?聯Rare"
       },
       "equipment_box_2": {
         "name": "Equipment Box II",
-        "description": "Random gear: Normal?揈pic"
+        "description": "Random gear: Normal?聯Epic"
       },
       "equipment_box_3": {
         "name": "Equipment Box III",
-        "description": "Random gear: Advanced?揕egendary"
+        "description": "Random gear: Advanced?聯Legendary"
       },
       "equipment_box_4": {
         "name": "Equipment Box IV",
-        "description": "Random gear: Rare?揗ythic"
+        "description": "Random gear: Rare?聯Mythic"
       },
       "equipment_box_5": {
         "name": "Equipment Box V",
-        "description": "Random gear: Epic?揗ythic"
+        "description": "Random gear: Epic?聯Mythic"
       },
       "equipment_box_6": {
         "name": "Equipment Box VI",
-        "description": "Random gear: Legendary?揗ythic"
+        "description": "Random gear: Legendary?聯Mythic"
       },
       "material_box_1": {
         "name": "Material Box I",
-        "description": "5 stones: Low?揌igh grade"
+        "description": "5 stones: Low?聯High grade"
       },
       "material_box_2": {
         "name": "Material Box II",
-        "description": "5 stones: Low?揌igh grade"
+        "description": "5 stones: Low?聯High grade"
       },
       "material_box_3": {
         "name": "Material Box III",
-        "description": "5 stones: Low?揌igh grade"
+        "description": "5 stones: Low?聯High grade"
       },
       "material_box_4": {
         "name": "Material Box IV",
-        "description": "5 stones: Mid?揟op grade"
+        "description": "5 stones: Mid?聯Top grade"
       },
       "material_box_5": {
         "name": "Material Box V",
-        "description": "5 stones: High?揗ystic grade"
+        "description": "5 stones: High?聯Mystic grade"
       },
       "material_box_6": {
         "name": "Material Box VI",
-        "description": "5 stones: High?揗ystic grade"
+        "description": "5 stones: High?聯Mystic grade"
       },
       "equipment_unbind_ticket": {
         "name": "Unbind ticket",
@@ -4475,7 +4478,7 @@
     "guildCoins": "{{count}} guild coins",
     "gold": "{{amount}} gold",
     "diamonds": "{{amount}} diamonds",
-    "packageLine": "Package {{name}} 脳 {{quantity}}",
+    "packageLine": "Package {{name}} 脙聴 {{quantity}}",
     "delete": "Delete",
     "deleting": "Deleting??,
     "claim": "Claim",
@@ -4675,10 +4678,10 @@
       "checkout": "Checkout",
       "bagFull": "Bag full. Clear space and try again.",
       "bagFullPartial": "Bag full. You can buy up to {{max}}.",
-      "typeDivider": "Type 路 {{type}}",
-      "gradeDivider": "Grade 路 {{grade}}",
+      "typeDivider": "Type 脗路 {{type}}",
+      "gradeDivider": "Grade 脗路 {{grade}}",
       "purchaseQty": "Purchase quantity",
-      "ownedTotalLine": "{{label}} 路 {{count}} owned",
+      "ownedTotalLine": "{{label}} 脗路 {{count}} owned",
       "unitPriceLabel": "Unit price",
       "checkoutAmount": "Checkout amount",
       "ownedCapLine": "Owned cap: max {{max}}",
@@ -4710,7 +4713,7 @@
       "bulkSellTitle": "Bulk sell",
       "pickAmount": "Choose sell amount",
       "sellCount": "Sell {{count}}",
-      "ownedTotalLine": "{{label}} 路 {{count}} owned",
+      "ownedTotalLine": "{{label}} 脗路 {{count}} owned",
       "unitPriceLabel": "Unit price"
     },
     "sellConfirm": {
@@ -4724,12 +4727,12 @@
       "enhanceStars": "+{{stars}} enhance",
       "ownedQty": "{{count}}",
       "materialQty": "{{count}}",
-      "consumablePartial": "路 Consumables sold in part.",
+      "consumablePartial": "脗路 Consumables sold in part.",
       "settlementNotice": "Settlement notice",
       "receiveGold": "Gold received",
-      "deleteOnlyHint": "0 gold 路 removed from inventory only.",
+      "deleteOnlyHint": "0 gold 脗路 removed from inventory only.",
       "afterSell": "Paid after sale",
-      "consumableSellAll": "路 All consumables will be sold",
+      "consumableSellAll": "脗路 All consumables will be sold",
       "thisSaleLabel": "This sale:"
     },
     "obtained": {
@@ -4768,7 +4771,7 @@
       "downgradeJackpotTitle": "Disassembly jackpot!",
       "upgradeTitle": "Upgrade result",
       "downgradeTitle": "Disassembly result",
-      "jackpotHeading": "?帀 Jackpot! ?帀",
+      "jackpotHeading": "?聨聣 Jackpot! ?聨聣",
       "jackpotBody": "You received double materials!",
       "convertedBody": "Your items were converted as shown below.",
       "quantityUnit": ""
@@ -5104,96 +5107,96 @@
         "description": "Transcendent stones forged from dawn-star fragments to dominate the board in a single move."
       },
       "box_equipmentbox1": {
-        "name": "?ル箘 ?侅瀽 I",
-        "description": "?茧皹~?? ?标笁 ?ル箘 ?嶋摑"
+        "name": "?楼毛鹿聞 ?聛矛聻聬 I",
+        "description": "?录毛掳聵~?卢锚? ?卤锚赂聣 ?楼毛鹿聞 ?聧毛聯聺"
       },
       "box_equipmentbox2": {
-        "name": "?ル箘 ?侅瀽 II",
-        "description": "?茧皹~?愴斀 ?标笁 ?ル箘 ?嶋摑"
+        "name": "?楼毛鹿聞 ?聛矛聻聬 II",
+        "description": "?录毛掳聵~?聬铆聰陆 ?卤锚赂聣 ?楼毛鹿聞 ?聧毛聯聺"
       },
       "box_equipmentbox3": {
-        "name": "?ル箘 ?侅瀽 III",
-        "description": "瓿犼笁~?勳劋 ?标笁 ?ル箘 ?嶋摑"
+        "name": "?楼毛鹿聞 ?聛矛聻聬 III",
+        "description": "锚鲁聽锚赂聣~?聞矛聞陇 ?卤锚赂聣 ?楼毛鹿聞 ?聧毛聯聺"
       },
       "box_equipmentbox4": {
-        "name": "?ル箘 ?侅瀽 IV",
-        "description": "??~?犿檾 ?标笁 ?ル箘 ?嶋摑"
+        "name": "?楼毛鹿聞 ?聛矛聻聬 IV",
+        "description": "?卢锚?~?聽铆聶聰 ?卤锚赂聣 ?楼毛鹿聞 ?聧毛聯聺"
       },
       "box_equipmentbox5": {
-        "name": "?ル箘 ?侅瀽 V",
-        "description": "?愴斀~?犿檾 ?标笁 ?ル箘 ?嶋摑"
+        "name": "?楼毛鹿聞 ?聛矛聻聬 V",
+        "description": "?聬铆聰陆~?聽铆聶聰 ?卤锚赂聣 ?楼毛鹿聞 ?聧毛聯聺"
       },
       "box_equipmentbox6": {
-        "name": "?ル箘 ?侅瀽 VI",
-        "description": "?勳劋~?犿檾 ?标笁 ?ル箘 ?嶋摑"
+        "name": "?楼毛鹿聞 ?聛矛聻聬 VI",
+        "description": "?聞矛聞陇~?聽铆聶聰 ?卤锚赂聣 ?楼毛鹿聞 ?聧毛聯聺"
       },
       "box_resourcebox1": {
-        "name": "? ?侅瀽 I",
-        "description": "?橁笁 ~ ?侁笁 臧曧檾??5臧??嶋摑"
+        "name": "?卢毛拢聦 ?聛矛聻聬 I",
+        "description": "?聵锚赂聣 ~ ?聛锚赂聣 锚掳聲铆聶聰??5锚掳??聧毛聯聺"
       },
       "box_resourcebox2": {
-        "name": "? ?侅瀽 II",
-        "description": "?橁笁 ~ ?侁笁 臧曧檾??5臧??嶋摑"
+        "name": "?卢毛拢聦 ?聛矛聻聬 II",
+        "description": "?聵锚赂聣 ~ ?聛锚赂聣 锚掳聲铆聶聰??5锚掳??聧毛聯聺"
       },
       "box_resourcebox3": {
-        "name": "? ?侅瀽 III",
-        "description": "?橁笁 ~ ?侁笁 臧曧檾??5臧??嶋摑"
+        "name": "?卢毛拢聦 ?聛矛聻聬 III",
+        "description": "?聵锚赂聣 ~ ?聛锚赂聣 锚掳聲铆聶聰??5锚掳??聧毛聯聺"
       },
       "box_resourcebox4": {
-        "name": "? ?侅瀽 IV",
-        "description": "欷戧笁 ~ 斓滌儊旮?臧曧檾??5臧??嶋摑"
+        "name": "?卢毛拢聦 ?聛矛聻聬 IV",
+        "description": "矛陇聭锚赂聣 ~ 矛碌聹矛聝聛锚赂?锚掳聲铆聶聰??5锚掳??聧毛聯聺"
       },
       "box_resourcebox5": {
-        "name": "? ?侅瀽 V",
-        "description": "?侁笁 ~ ?犽箘??臧曧檾??5臧??嶋摑"
+        "name": "?卢毛拢聦 ?聛矛聻聬 V",
+        "description": "?聛锚赂聣 ~ ?聽毛鹿聞??锚掳聲铆聶聰??5锚掳??聧毛聯聺"
       },
       "box_resourcebox6": {
-        "name": "? ?侅瀽 VI",
-        "description": "?侁笁 ~ ?犽箘??臧曧檾??5臧??嶋摑"
+        "name": "?卢毛拢聦 ?聛矛聻聬 VI",
+        "description": "?聛锚赂聣 ~ ?聽毛鹿聞??锚掳聲铆聶聰??5锚掳??聧毛聯聺"
       },
       "box_goldbox1": {
-        "name": "瓿摐 昃鸽煬氙?I",
-        "description": "10 ~ 500 瓿摐 ?嶋摑"
+        "name": "锚鲁篓毛聯聹 锚戮赂毛聼卢毛炉?I",
+        "description": "10 ~ 500 锚鲁篓毛聯聹 ?聧毛聯聺"
       },
       "box_goldbox2": {
-        "name": "瓿摐 昃鸽煬氙?II",
-        "description": "100 ~ 1,000 瓿摐 ?嶋摑"
+        "name": "锚鲁篓毛聯聹 锚戮赂毛聼卢毛炉?II",
+        "description": "100 ~ 1,000 锚鲁篓毛聯聹 ?聧毛聯聺"
       },
       "box_goldbox3": {
-        "name": "瓿摐 昃鸽煬氙?III",
-        "description": "500 ~ 3,000 瓿摐 ?嶋摑"
+        "name": "锚鲁篓毛聯聹 锚戮赂毛聼卢毛炉?III",
+        "description": "500 ~ 3,000 锚鲁篓毛聯聹 ?聧毛聯聺"
       },
       "box_goldbox4": {
-        "name": "瓿摐 昃鸽煬氙?IV",
-        "description": "1,000 ~ 10,000 瓿摐 ?嶋摑"
+        "name": "锚鲁篓毛聯聹 锚戮赂毛聼卢毛炉?IV",
+        "description": "1,000 ~ 10,000 锚鲁篓毛聯聹 ?聧毛聯聺"
       },
       "box_diabox1": {
-        "name": "?れ澊??昃鸽煬氙?I",
-        "description": "1 ~ 20 ?れ澊???嶋摑"
+        "name": "?陇矛聺麓??锚戮赂毛聼卢毛炉?I",
+        "description": "1 ~ 20 ?陇矛聺麓???聧毛聯聺"
       },
       "box_diabox2": {
-        "name": "?れ澊??昃鸽煬氙?II",
-        "description": "10 ~ 30 ?れ澊???嶋摑"
+        "name": "?陇矛聺麓??锚戮赂毛聼卢毛炉?II",
+        "description": "10 ~ 30 ?陇矛聺麓???聧毛聯聺"
       },
       "box_diabox3": {
-        "name": "?れ澊??昃鸽煬氙?III",
-        "description": "20 ~ 50 ?れ澊???嶋摑"
+        "name": "?陇矛聺麓??锚戮赂毛聼卢毛炉?III",
+        "description": "20 ~ 50 ?陇矛聺麓???聧毛聯聺"
       },
       "box_diabox4": {
-        "name": "?れ澊??昃鸽煬氙?IV",
-        "description": "30 ~ 100 ?れ澊???嶋摑"
+        "name": "?陇矛聺麓??锚戮赂毛聼卢毛炉?IV",
+        "description": "30 ~ 100 ?陇矛聺麓???聧毛聯聺"
       },
       "use_con1": {
-        "name": "旎敂?橅殞氤奠牅(??",
-        "description": "旮挫灔臧愳潉 ?勴檾?滌紲欤茧姅 旎敂???岆车??
+        "name": "矛禄篓毛聰聰?聵铆職聦毛鲁碌矛聽聹(??",
+        "description": "锚赂麓矛聻楼锚掳聬矛聺聞 ?聞铆聶聰?聹矛录聹矛拢录毛聤聰 矛禄篓毛聰聰???聦毛鲁碌??
       },
       "use_con2": {
-        "name": "旎敂?橅殞氤奠牅(欷?",
-        "description": "毹鸽Μ臧� 毵戩晞歆�???愲倢??旎敂???岆车??
+        "name": "矛禄篓毛聰聰?聵铆職聦毛鲁碌矛聽聹(矛陇?",
+        "description": "毛篓赂毛娄卢锚掳聙 毛搂聭矛聲聞矛搂聙???聬毛聜聦??矛禄篓毛聰聰???聦毛鲁碌??
       },
       "use_con3": {
-        "name": "旎敂?橅殞氤奠牅(?�)",
-        "description": "?る姌???�?岆? ?标车?侅溂搿?旃橂? 瓴?臧欖? 旎敂???岆车??
+        "name": "矛禄篓毛聰聰?聵铆職聦毛鲁碌矛聽聹(?聙)",
+        "description": "?陇毛聤聵???聙?聦毛? ?卤锚鲁碌?聛矛聹录毛隆?矛鹿聵毛? 锚虏?锚掳聶矛? 矛禄篓毛聰聰???聦毛鲁碌??
       },
       "btn_addturn": {
         "name": "Extra Turn",
@@ -5216,16 +5219,16 @@
         "description": "Reposition item for Tower of Challenge."
       },
       "use_ap_potion_10": {
-        "name": "?夒彊???岆车??+10)",
-        "description": "氕旉? ?橁碃?鹅? ?橃殨???濌复??"
+        "name": "?聣毛聫聶???聦毛鲁碌??+10)",
+        "description": "毛颅聰锚? ?聵锚鲁聽?露矛? ?聵矛職聲???聺锚赂麓??"
       },
       "use_ap_potion_20": {
-        "name": "?夒彊???岆车??+20)",
-        "description": "氕旉? ?挫暭 ??瓴?臧欕嫟."
+        "name": "?聣毛聫聶???聦毛鲁碌??+20)",
+        "description": "毛颅聰锚? ?麓矛聲录 ??锚虏?锚掳聶毛聥陇."
       },
       "use_ap_potion_30": {
-        "name": "?夒彊???岆车??+30)",
-        "description": "氚旊 瓴疥赴毳??橂煬 臧�??"
+        "name": "?聣毛聫聶???聦毛鲁碌??+30)",
+        "description": "毛掳聰毛隆聹 锚虏陆锚赂掳毛楼??聵毛聼卢 锚掳聙??"
       },
       "use_refine": {
         "name": "Refinement Charm",
@@ -5236,20 +5239,20 @@
         "description": "Permit to register additional items for sale on the exchange."
       },
       "use_belong": {
-        "name": "攴�???挫牅甓?,
-        "description": "攴�?嶋悳 ?ル箘毳?瓯半灅臧�???來儨搿?氤�瓴?
+        "name": "锚路聙???麓矛聽聹锚露?,
+        "description": "锚路聙?聧毛聬聹 ?楼毛鹿聞毛楼?锚卤掳毛聻聵锚掳聙???聛铆聝聹毛隆?毛鲁聙锚虏?
       },
       "use_change1": {
-        "name": "?奠厴 膦呺 氤�瓴疥秾",
-        "description": "?ル箘??欤检樀?? 攵�?奠厴, ?轨垬?奠厴 欷??橂倶毳??るジ 膦呺???奠厴?茧 氤�瓴巾暊 ???堧姅 ?勳澊?滌瀰?堧嫟."
+        "name": "?碌矛聟聵 矛垄聟毛楼聵 毛鲁聙锚虏陆锚露聦",
+        "description": "?楼毛鹿聞??矛拢录矛聵碌?? 毛露聙?碌矛聟聵, ?鹿矛聢聵?碌矛聟聵 矛陇??聵毛聜聵毛楼??陇毛楼赂 矛垄聟毛楼聵???碌矛聟聵?录毛隆聹 毛鲁聙锚虏陆铆聲聽 ???聢毛聤聰 ?聞矛聺麓?聹矛聻聟?聢毛聥陇."
       },
       "use_change2": {
-        "name": "?奠厴 ?橃箻 氤�瓴疥秾",
-        "description": "?ル箘??攵�?奠厴 ?愲姅 ?轨垬?奠厴 欷??橂倶???橃箻毳?氤�瓴巾暊 ???堧姅 ?勳澊?滌瀰?堧嫟."
+        "name": "?碌矛聟聵 ?聵矛鹿聵 毛鲁聙锚虏陆锚露聦",
+        "description": "?楼毛鹿聞??毛露聙?碌矛聟聵 ?聬毛聤聰 ?鹿矛聢聵?碌矛聟聵 矛陇??聵毛聜聵???聵矛鹿聵毛楼?毛鲁聙锚虏陆铆聲聽 ???聢毛聤聰 ?聞矛聺麓?聹矛聻聟?聢毛聥陇."
       },
       "use_change3": {
-        "name": "?ろ帢???奠厴 氤�瓴疥秾",
-        "description": "?犿檾 ?愲姅 齑堨洈 ?ル箘???ろ帢???奠厴???るジ ?ろ帢???奠厴?茧 氤�瓴巾暊 ???堧姅 ?勳澊?滌瀰?堧嫟."
+        "name": "?陇铆聨聵???碌矛聟聵 毛鲁聙锚虏陆锚露聦",
+        "description": "?聽铆聶聰 ?聬毛聤聰 矛麓聢矛聸聰 ?楼毛鹿聞???陇铆聨聵???碌矛聟聵???陇毛楼赂 ?陇铆聨聵???碌矛聟聵?录毛隆聹 毛鲁聙锚虏陆铆聲聽 ???聢毛聤聰 ?聞矛聺麓?聹矛聻聟?聢毛聥陇."
       },
       "mat_materials1": {
         "name": "Low Enhancement Stone",
@@ -5301,7 +5304,7 @@
       },
       "shop_equipment_box_1": {
         "name": "Equipment Box I",
-        "description": "Random gear: Normal?揜are"
+        "description": "Random gear: Normal?聯Rare"
       },
       "shop_mythic_option_change_ticket": {
         "name": "Special option change ticket",
@@ -5309,47 +5312,47 @@
       },
       "shop_equipment_box_2": {
         "name": "Equipment Box II",
-        "description": "Random gear: Normal?揈pic"
+        "description": "Random gear: Normal?聯Epic"
       },
       "shop_equipment_box_3": {
         "name": "Equipment Box III",
-        "description": "Random gear: Advanced?揕egendary"
+        "description": "Random gear: Advanced?聯Legendary"
       },
       "shop_equipment_box_4": {
         "name": "Equipment Box IV",
-        "description": "Random gear: Rare?揗ythic"
+        "description": "Random gear: Rare?聯Mythic"
       },
       "shop_equipment_box_5": {
         "name": "Equipment Box V",
-        "description": "Random gear: Epic?揗ythic"
+        "description": "Random gear: Epic?聯Mythic"
       },
       "shop_equipment_box_6": {
         "name": "Equipment Box VI",
-        "description": "Random gear: Legendary?揗ythic"
+        "description": "Random gear: Legendary?聯Mythic"
       },
       "shop_material_box_1": {
         "name": "Material Box I",
-        "description": "5 stones: Low?揌igh grade"
+        "description": "5 stones: Low?聯High grade"
       },
       "shop_material_box_2": {
         "name": "Material Box II",
-        "description": "5 stones: Low?揌igh grade"
+        "description": "5 stones: Low?聯High grade"
       },
       "shop_material_box_3": {
         "name": "Material Box III",
-        "description": "5 stones: Low?揌igh grade"
+        "description": "5 stones: Low?聯High grade"
       },
       "shop_material_box_4": {
         "name": "Material Box IV",
-        "description": "5 stones: Mid?揟op grade"
+        "description": "5 stones: Mid?聯Top grade"
       },
       "shop_material_box_5": {
         "name": "Material Box V",
-        "description": "5 stones: High?揗ystic grade"
+        "description": "5 stones: High?聯Mystic grade"
       },
       "shop_material_box_6": {
         "name": "Material Box VI",
-        "description": "5 stones: High?揗ystic grade"
+        "description": "5 stones: High?聯Mystic grade"
       },
       "shop_equipment_unbind_ticket": {
         "name": "Unbind ticket",
@@ -5510,10 +5513,10 @@
           "range": "[{{gradeLabel}}] Gear: {{rangeLabel}}"
         },
         "pet": {
-          "soulGradeUpgrade": "[Pet 路 Grade up] {{fromGrade}}??{toGrade}} (Pet Lv.{{minLevel}}+)",
-          "soulGradeUpgradeGeneric": "[Pet 路 Grade up] Used to raise pair arena AI pet grade",
-          "eggHatchRandom": "[Pet 路 Incubator] Place in a slot to hatch a random AI pet",
-          "welcomeEggHatch": "[Pet 路 Incubator] ~1 min hatch ??level 10 AI pet"
+          "soulGradeUpgrade": "[Pet 脗路 Grade up] {{fromGrade}}??{toGrade}} (Pet Lv.{{minLevel}}+)",
+          "soulGradeUpgradeGeneric": "[Pet 脗路 Grade up] Used to raise pair arena AI pet grade",
+          "eggHatchRandom": "[Pet 脗路 Incubator] Place in a slot to hatch a random AI pet",
+          "welcomeEggHatch": "[Pet 脗路 Incubator] ~1 min hatch ??level 10 AI pet"
         }
       },
       "enhanceRange": {
@@ -5522,13 +5525,13 @@
       },
       "acquire": {
         "gold": {
-          "line1": "[Matches 路 Content] PvP, singleplayer, dungeons, leagues, etc.",
-          "line2": "[Quests 路 Adventure] Daily/weekly/monthly quests, treasure boxes, VIP slots",
-          "line3": "[Trade 路 Disassembly] Exchange sales, gear disassembly, some shop sales"
+          "line1": "[Matches 脗路 Content] PvP, singleplayer, dungeons, leagues, etc.",
+          "line2": "[Quests 脗路 Adventure] Daily/weekly/monthly quests, treasure boxes, VIP slots",
+          "line3": "[Trade 脗路 Disassembly] Exchange sales, gear disassembly, some shop sales"
         },
         "diamond": {
           "line1": "[Shop] Diamond packages, consumables, materials tabs",
-          "line2": "[Payment 路 Events] Top-ups, promo mail from operations",
+          "line2": "[Payment 脗路 Events] Top-ups, promo mail from operations",
           "line3": "[Features] Bag expansion and other premium features"
         },
         "tower": {
@@ -5537,47 +5540,47 @@
         },
         "actionPoint": {
           "line1": "[Shop] Gold shop ??AP potions (+10/+20/+30), daily limits",
-          "line2": "[Mail 路 Events] Operations rewards and promotions",
+          "line2": "[Mail 脗路 Events] Operations rewards and promotions",
           "line3": "[Function VIP] Daily AP potion III mail while active"
         },
         "condition": {
           "line1": "[Shop] Diamond shop (consumables) or related packages",
-          "line2": "[Quests 路 Events] Some reward sources"
+          "line2": "[Quests 脗路 Events] Some reward sources"
         },
         "guildEquipBox": {
           "line1": "[Guild shop] Guild coins only",
-          "line2": "[Shop 路 Quests] Use from bag like normal equipment boxes"
+          "line2": "[Shop 脗路 Quests] Use from bag like normal equipment boxes"
         },
         "equipBox": {
           "line1": "[Shop] Gold shop (gear), ad rewards, some cash packages",
-          "line2": "[Quests 路 VIP] Daily/weekly/monthly quests, reward VIP slots",
-          "line3": "[Adventure 路 Guild] Treasure boxes, guild boss rewards, etc."
+          "line2": "[Quests 脗路 VIP] Daily/weekly/monthly quests, reward VIP slots",
+          "line3": "[Adventure 脗路 Guild] Treasure boxes, guild boss rewards, etc."
         },
         "materialBox": {
           "line1": "[Shop] Gold/diamond shops (materials), ads, packages",
-          "line2": "[Quests 路 VIP] Daily/weekly/monthly quests, reward VIP slots"
+          "line2": "[Quests 脗路 VIP] Daily/weekly/monthly quests, reward VIP slots"
         },
         "goldBundle": {
           "line1": "[Shop] Diamond shop (consumables), ad rewards",
-          "line2": "[Quests 路 Adventure] Various rewards and treasure boxes"
+          "line2": "[Quests 脗路 Adventure] Various rewards and treasure boxes"
         },
         "diamondBundle": {
           "line1": "[Shop] Diamond shop (consumables), ad rewards",
-          "line2": "[Quests 路 Events] Some rewards"
+          "line2": "[Quests 脗路 Events] Some rewards"
         },
         "bonusStat": {
           "line1": "[Guild shop] Guild coins (account limit)",
           "line2": "[Growth] Some grants on strategy/play level-ups"
         },
         "enhancementStone": {
-          "line1": "[Guild shop] Exchange low?搈ystic enhancement stones",
+          "line1": "[Guild shop] Exchange low?聯mystic enhancement stones",
           "line2": "[Material boxes] From shops, quests, VIP, etc.",
           "line3": "[Blacksmith] Synthesis, disassembly, enhancement costs",
-          "line4": "[Adventure 路 Rank 路 Guild] Wins, tower, boss war rewards"
+          "line4": "[Adventure 脗路 Rank 脗路 Guild] Wins, tower, boss war rewards"
         },
         "material": {
           "line1": "[Shop] Gold/diamond material shops, guild shop (some)",
-          "line2": "[Quests 路 Adventure 路 Events] Daily/weekly/monthly, boxes, ops rewards",
+          "line2": "[Quests 脗路 Adventure 脗路 Events] Daily/weekly/monthly, boxes, ops rewards",
           "line3": "[Mail] Crafting/enhancement results, event grants"
         },
         "equipment": {
@@ -5586,19 +5589,19 @@
           "line3": "[Exchange] Buy listed items from other players",
           "line4": "[Crafting] Blacksmith combine, transcendent crafting, etc."
         },
-        "consumableGeneric": "[Shop 路 Quests 路 Mail] Shops, events, operations rewards",
+        "consumableGeneric": "[Shop 脗路 Quests 脗路 Mail] Shops, events, operations rewards",
         "pet": {
-          "soulTraining": "[Pet 路 Training rewards] Slots {{slots}}",
-          "soulConvert": "[Pet 路 Soul convert] From disassembling {{grades}} pets",
-          "soulShopDiamond": "[Pet 路 Pet shop] {{amount}} diamonds",
-          "soulShopGold": "[Pet 路 Pet shop] {{amount}} gold",
-          "soulShopDiamondDaily": "[Pet 路 Pet shop] {{amount}} diamonds, {{limit}}/day",
-          "soulShopGoldDaily": "[Pet 路 Pet shop] {{amount}} gold, {{limit}}/day",
+          "soulTraining": "[Pet 脗路 Training rewards] Slots {{slots}}",
+          "soulConvert": "[Pet 脗路 Soul convert] From disassembling {{grades}} pets",
+          "soulShopDiamond": "[Pet 脗路 Pet shop] {{amount}} diamonds",
+          "soulShopGold": "[Pet 脗路 Pet shop] {{amount}} gold",
+          "soulShopDiamondDaily": "[Pet 脗路 Pet shop] {{amount}} diamonds, {{limit}}/day",
+          "soulShopGoldDaily": "[Pet 脗路 Pet shop] {{amount}} gold, {{limit}}/day",
           "soulFallback": "[Pet] Pair arena and incubator content",
-          "eggShop": "[Pet 路 Pet shop] Buy with gold/diamonds (daily limit)",
-          "eggRewards": "[Pet 路 Training 路 Events] Some reward sources",
+          "eggShop": "[Pet 脗路 Pet shop] Buy with gold/diamonds (daily limit)",
+          "eggRewards": "[Pet 脗路 Training 脗路 Events] Some reward sources",
           "welcomeEggMail": "[Mail] Welcome grants, operations mail, etc.",
-          "welcomeEggShop": "[Pet 路 Pet shop] Diamonds (1/day)"
+          "welcomeEggShop": "[Pet 脗路 Pet shop] Diamonds (1/day)"
         }
       }
     }
@@ -5659,7 +5662,7 @@
       "refresh": "Refresh",
       "selectGearHint": "Select gear",
       "selectGearSub": "Tap an item below, then review price and fee on the right.",
-      "newGearHint": "Use ?淪elect gear??to list new gear. Check listed items above.",
+      "newGearHint": "Use ?聹Select gear??to list new gear. Check listed items above.",
       "myListing": "Your listing",
       "salePriceLabel": "Sale price",
       "registrationFee": "Listing fee (10%)",
@@ -5777,8 +5780,8 @@
       "alerts": {
         "invalidAmount": "Enter an amount to convert.",
         "instantTooSmall": "Amount is below the minimum for instant convert.",
-        "instantMinDiamonds": "Diamond?抔old instant convert requires at least {{count}} diamonds.",
-        "instantMinGold": "Gold?抎iamond instant convert requires at least {{count}} gold.",
+        "instantMinDiamonds": "Diamond?聮gold instant convert requires at least {{count}} diamonds.",
+        "instantMinGold": "Gold?聮diamond instant convert requires at least {{count}} gold.",
         "dailyInstantLimitExceeded": "Daily instant convert limit exceeded.",
         "maxOpenOrders": "You can have at most {{count}} open convert requests.",
         "cannotFulfillOwn": "You cannot fill your own convert request."
@@ -5821,9 +5824,9 @@
     "condition": "Condition",
     "badukAbility": "Go ability",
     "winRate": "Win rate",
-    "winRateRecord": "Win rate 路 Record",
+    "winRateRecord": "Win rate 脗路 Record",
     "championshipAbility": "Championship stats",
-    "userPetAbility": "User 路 Pet stats",
+    "userPetAbility": "User 脗路 Pet stats",
     "playerAbility": "{{name}} stats",
     "viewProfile": "View {{name}} profile",
     "equipment": "Gear",
@@ -6124,11 +6127,11 @@
         "progressMidgame": "Midgame (16??5s): midgame stats matter",
         "progressEndgame": "Endgame (36??0s): endgame stats matter",
         "progressScoring": "Score accumulates by phase stats",
-        "openingFormula": "Opening: Concentration脳0.4 + Thinking脳0.3 + Judgment脳0.4 + Calc脳0.3 + Combat脳0.1 + Stability脳0.5",
-        "midgameFormula": "Midgame: Concentration脳0.3 + Thinking脳0.3 + Judgment脳0.4 + Calc脳0.1 + Combat脳0.8 + Stability脳0.1",
-        "endgameFormula": "Endgame: Concentration脳0.3 + Thinking脳0.4 + Judgment脳0.1 + Calc脳0.6 + Combat脳0.1 + Stability脳0.5",
+        "openingFormula": "Opening: Concentration脙聴0.4 + Thinking脙聴0.3 + Judgment脙聴0.4 + Calc脙聴0.3 + Combat脙聴0.1 + Stability脙聴0.5",
+        "midgameFormula": "Midgame: Concentration脙聴0.3 + Thinking脙聴0.3 + Judgment脙聴0.4 + Calc脙聴0.1 + Combat脙聴0.8 + Stability脙聴0.1",
+        "endgameFormula": "Endgame: Concentration脙聴0.3 + Thinking脙聴0.4 + Judgment脙聴0.1 + Calc脙聴0.6 + Combat脙聴0.1 + Stability脙聴0.5",
         "randomEvent1": "30% chance every 5 seconds",
-        "randomEvent2": "Four types: ?抍oncentration, +thinking, +combat, +stability",
+        "randomEvent2": "Four types: ?聮concentration, +thinking, +combat, +stability",
         "randomEvent3": "Higher stats increase positive event odds",
         "randomEvent4": "Score changes by 2??0% of current total",
         "critical1": "Judgment affects crit rate",
@@ -6198,7 +6201,7 @@
     "center": "Center",
     "randomEquipment": "Random equipment",
     "randomChangeTicket": "Random change ticket",
-    "randomChangeTicketHint": "Random change ticket 路 granted by match result 路 up to {{count}} by stage",
+    "randomChangeTicketHint": "Random change ticket 脗路 granted by match result 脗路 up to {{count}} by stage",
     "matchInProgress": "Match in progress??,
     "waitingForMatchStart": "Waiting for match to start??,
     "processing": "Processing??,
@@ -6242,12 +6245,12 @@
       "thirdPlace": "Advanced to 3rd-place match"
     },
     "matchRewardIndex": "Match {{index}} reward",
-    "champCoinTimes": "Champ coins 脳{{amount}}",
+    "champCoinTimes": "Champ coins 脙聴{{amount}}",
     "champCoinPending": "Champ coins {{label}} (confirmed on claim)",
-    "rankRewardTitle": "Rank {{rank}} reward 路 {{item}} 脳{{qty}}",
+    "rankRewardTitle": "Rank {{rank}} reward 脗路 {{item}} 脙聴{{qty}}",
     "matchRoundResult": "Match {{round}} {{outcome}}! ({{wins}}W {{losses}}L)",
     "statusRecordRank": "{{wins}}W {{losses}}L! Rank {{rank}}",
-    "championTitle": "?弳 Champion!",
+    "championTitle": "?聫聠 Champion!",
     "runnerUp": "Runner-up!",
     "thirdPlace": "3rd place",
     "fourthPlace": "4th place",
@@ -6294,7 +6297,7 @@
     "clearLowerFirst": "Clear lower floors first",
     "rewardClaimed": "Reward claimed",
     "board": "Board",
-    "boardSize": "Board {{size}}脳{{size}}",
+    "boardSize": "Board {{size}}脙聴{{size}}",
     "goal": "Goal",
     "limit": "Limit",
     "scoring": "Scoring",
@@ -6364,7 +6367,7 @@
     "closePanelAria": "Close panel",
     "openSideMenuAria": "Open side menu",
     "closeSideMenuAria": "Close side menu",
-    "sideMenuTitle": "Record 路 Ranking 路 Items",
+    "sideMenuTitle": "Record 脗路 Ranking 脗路 Items",
     "close": "Close",
     "allTimeBest": "All-time best",
     "currentFloorLabel": "Current floor",
@@ -6374,7 +6377,7 @@
     "rewardFromFloor10Short": "Clear floor 10+ to earn monthly rewards.",
     "stages": "Stages",
     "rankingTop100": "Ranking Top 100",
-    "rewardTierLine": "Floor {{floor}} tier reward 路 paid at month end",
+    "rewardTierLine": "Floor {{floor}} tier reward 脗路 paid at month end",
     "unranked": "Unranked",
     "noOtherRanked": "No other players shown in Top 100.",
     "rewardModalTitle": "Challenge Tower rewards",
@@ -6547,7 +6550,7 @@
       "remainingTime": "Time remaining",
       "diamondsUsed": "Diamonds to use",
       "ownedLabel": "Owned",
-      "mysteriousEgg": "Mysterious egg 脳1",
+      "mysteriousEgg": "Mysterious egg 脙聴1",
       "upgradeTier1": "Upgrade I",
       "upgradeTier2": "Upgrade II",
       "upgradeTier3": "Upgrade III"
@@ -6593,7 +6596,7 @@
       "soulInsufficient": "Not enough {{name}}. Need {{need}} (owned {{owned}})",
       "soulInsufficientShort": "Not enough {{name}}. (need {{need}}, owned {{owned}})",
       "soulStoneFallback": "Soul stone",
-      "soulCostTitle": "Uses {{count}} {{name}} 路 grade up",
+      "soulCostTitle": "Uses {{count}} {{name}} 脗路 grade up",
       "soulCostTitleMinLevel": "Grade upgrade available at Lv.{{level}}+.",
       "cannotWhileTraining": "Pets in training cannot be upgraded. Finish training first.",
       "cannotWhileTrainingShort": "Pets in training cannot be upgraded.",
@@ -6630,7 +6633,7 @@
       "randomQty": "You receive <range>{{min}}??{max}}</range> at random. Final amount is decided on conversion."
     },
     "soulStone": {
-      "ownedQty": "Owned 脳{{qty}}",
+      "ownedQty": "Owned 脙聴{{qty}}",
       "usage": "Used for",
       "acquire": "Obtained from",
       "petTag": "[Pet]",
@@ -6640,7 +6643,7 @@
       "petShopTag": "[Pet shop]",
       "noMatchingSlot": "No matching slot",
       "usedForGradeUpgrade": "Used for grade upgrade",
-      "petLevelMin": "路 Pet Lv.{{level}}+",
+      "petLevelMin": "脗路 Pet Lv.{{level}}+",
       "noMatchingGrade": "No matching grade",
       "notSold": "Not sold here",
       "sell": "Sell",
@@ -6669,13 +6672,13 @@
       "roomKindChecking": "Checking room type",
       "visibilityPrivate": "Private",
       "visibilityPublic": "Public",
-      "passwordSuffix": " 路 Password",
+      "passwordSuffix": " 脗路 Password",
       "roomLoading": "Loading room info or not synced yet.",
       "gameMode": "Game mode",
       "detailConditions": "Details",
       "noDetailConditions": "No details",
       "inviteExpired": "Invite expired.",
-      "responseWaiting": "Awaiting response 路 auto-cancel in {{seconds}}s"
+      "responseWaiting": "Awaiting response 脗路 auto-cancel in {{seconds}}s"
     },
     "room": {
       "hostAria": "Host",
@@ -6747,7 +6750,7 @@
       "noRepresentativePet": "No representative pet",
       "levelUpCoreDeltaDefault": "Level-up stats",
       "dispositionAllStats": "All stats +{{pct}}%",
-      "dispositionConvert": "{{from}} {{pct}}% ??{{to}} (2脳)",
+      "dispositionConvert": "{{from}} {{pct}}% ??{{to}} (2脙聴)",
       "dispositionSingle": "{{stat}} +{{pct}}%",
       "dispositionUpgradeAll": "All stats +{{from}}% ??{{to}}%",
       "dispositionUpgradeConvert": "{{from}}??{to}} +{{fromPct}}% ??{{toPct}}%",
@@ -6783,7 +6786,7 @@
       "strategicRoomTitle": "{{name}}'s strategy room",
       "playfulRoomTitle": "{{name}}'s casual room",
       "pairRoomTitle": "{{name}}'s pair room",
-      "aiStartRestricted": "AI matches can only start from pet pair (existing room), strategic/casual friendly (duo), or arena AI rooms. Create a new pet pair room from ?孭air AI match??at the top of the user list.",
+      "aiStartRestricted": "AI matches can only start from pet pair (existing room), strategic/casual friendly (duo), or arena AI rooms. Create a new pet pair room from ?聦Pair AI match??at the top of the user list.",
       "alreadyInRoomForRanked": "You are already in a room. Leave your pair room first, then start pet pair ranked from the user list."
     },
     "loading": "Loading??,
@@ -6797,7 +6800,7 @@
       "currentSeason": "Current season",
       "firstSeasonSuffix": " (first season)",
       "currentScore": "Current score",
-      "recordWinRate": "{{wins}}W {{losses}}L 路 Win rate",
+      "recordWinRate": "{{wins}}W {{losses}}L 脗路 Win rate",
       "seasonBest": "Season best",
       "sameScoreSuffix": " (same)",
       "bestSeason": "Best season",
@@ -6879,7 +6882,7 @@
       "pairRoomList": "Pair room list",
       "onlineUserList": "Online users",
       "userList": "User list",
-      "userListPairAi": "Users 路 Pair AI match",
+      "userListPairAi": "Users 脗路 Pair AI match",
       "aiSettingsTitle": "AI match settings",
       "rankedMatchTitle": "Ranked matching",
       "seasonInfoTab": "Season",
@@ -7086,22 +7089,22 @@
       "disassemble": "Disassemble",
       "quantityAria": "{{action}} count",
       "processing": "Processing??,
-      "actionCount": "{{count}}脳 {{action}}",
+      "actionCount": "{{count}}脙聴 {{action}}",
       "selectMaterialAria": "Select enhancement stone",
       "yieldSingle": "{{count}}",
       "yieldRange": "{{min}}??{max}}",
-      "timesSuffix": "{{count}}脳"
+      "timesSuffix": "{{count}}脙聴"
     },
     "disassemble": {
       "deselect": "Deselect",
       "deselectAria": "Deselect {{name}}",
       "selectedGear": "Selected gear",
-      "jackpotHint": "{{rate}}% chance for jackpot (2脳 materials)",
+      "jackpotHint": "{{rate}}% chance for jackpot (2脙聴 materials)",
       "reopenHint": "Reopen blacksmith picker to choose gear to disassemble.",
       "pickHint": "Select gear to disassemble in inventory below.",
       "previewHint": "Select gear to preview expected materials.",
       "noReward": "No materials from disassembly.",
-      "jackpotTitle": "Jackpot disassembly gives 2脳 materials",
+      "jackpotTitle": "Jackpot disassembly gives 2脙聴 materials",
       "disassembling": "Disassembling??,
       "disassembleBtn": "Disassemble ({{count}})",
       "autoSelectTitle": "Auto-select for disassembly",
@@ -7157,7 +7160,7 @@
       "mythicValue": "Mythic value change",
       "refinementCountSlot": "Refinement charges",
       "oneDecrease": "Uses 1",
-      "countTimes": "{{count}}脳",
+      "countTimes": "{{count}}脙聴",
       "resultTitle": "Refinement result",
       "resultBadge": "Refine",
       "done": "Done",
@@ -7211,7 +7214,7 @@
       "success": "Combine success",
       "expGain": "Blacksmith XP",
       "expGainLabel": "Blacksmith XP:",
-      "refinementTimes": "{{count}}脳"
+      "refinementTimes": "{{count}}脙聴"
     },
     "levelEffects": {
       "effects": "Effects",
@@ -7454,7 +7457,7 @@
       "maxInput": "Set to max",
       "donationTitle": "{{type}} Donation",
       "coinAlt": "Coin",
-      "logTooltip": "{{nickname}} 路 Gold {{goldCount}}x 路 Diamond {{diamondCount}}x 路 Guild coins {{coins}} 路 RP {{research}}"
+      "logTooltip": "{{nickname}} 脗路 Gold {{goldCount}}x 脗路 Diamond {{diamondCount}}x 脗路 Guild coins {{coins}} 脗路 RP {{research}}"
     },
     "info": {
       "title": "Guild Info",
@@ -7628,7 +7631,7 @@
     "homeChat": {
       "globalTab": "Global chat",
       "guildTab": "Guild chat",
-      "securityBanner": "AI moderation is monitoring inappropriate language. ?殦",
+      "securityBanner": "AI moderation is monitoring inappropriate language. ?職聯",
       "noGuildMessages": "No guild chat messages.",
       "noGlobalMessages": "No global chat messages.",
       "banPlaceholder": "Chat banned ({{minutes}} min left)",
@@ -7667,7 +7670,7 @@
       "periodFriSun": "Fri 0:00 ??Sun 23:59",
       "settling": "Guild war settling",
       "restPeriod": "Guild war rest period",
-      "participationRewardHint": "{{attempts}} attempts 路 personal reward {{percent}}%",
+      "participationRewardHint": "{{attempts}} attempts 脗路 personal reward {{percent}}%",
       "victory": "Guild War Victory!",
       "victoryShort": "Guild War Victory",
       "defeat": "Guild War Defeat",
@@ -7681,7 +7684,7 @@
       "guildXp": "Guild EXP",
       "researchPoints": "Research points",
       "houseLabel": "Terr. {{score}}",
-      "dominanceTooltip": "Left advantage ~{{percent}}% (stars 路 territory)",
+      "dominanceTooltip": "Left advantage ~{{percent}}% (stars 脗路 territory)",
       "loadingWarInfo": "Loading guild war info??,
       "noActiveWar": "No active guild war.",
       "notStartedYet": "Guild war has not started yet.\nEntry available from {{date}} (KST).",
@@ -7758,7 +7761,7 @@
       "turnsUnit": "{{count}} turns",
       "scoringTurns": "Scoring after {{count}} turns",
       "clock": "Clock",
-      "clockMainByoyomi": "{{minutes}} min 路 10s per move",
+      "clockMainByoyomi": "{{minutes}} min 脗路 10s per move",
       "clockFischer": "{{minutes}} min (Fischer {{increment}}s)",
       "starConditions": "Star conditions",
       "initialStonesAria": "Initial setup: B {{blackPlain}}, W {{whitePlain}}, marked B {{blackMarked}}, marked W {{whiteMarked}}",
@@ -7781,13 +7784,13 @@
       "boardAlt": "Go board",
       "blueTeamAlt": "Blue team guild",
       "redTeamAlt": "Red team guild",
-      "myArenaTitle": "This war 路 My arenas",
+      "myArenaTitle": "This war 脗路 My arenas",
       "attemptsLabel": "Attempts",
       "myArenaHint": "Finished games per board this war. In-progress games appear in details after they end.",
       "boardPerformance": "Performance by board",
       "inProgress": "In progress",
-      "gameSummary": "{{games}} finished 路 W {{wins}} 路 D {{draws}} 路 L {{losses}}{{stars}}",
-      "starsEarnedSum": " 路 Stars {{count}}",
+      "gameSummary": "{{games}} finished 脗路 W {{wins}} 脗路 D {{draws}} 脗路 L {{losses}}{{stars}}",
+      "starsEarnedSum": " 脗路 Stars {{count}}",
       "noBoardRecord": "No record for this board this war",
       "finishedGamesDetail": "Finished game details",
       "noFinishedGames": "No finished guild war games yet.",
@@ -7814,7 +7817,7 @@
       "daysHoursRemaining": "{{prefix}} {{days}}d {{hours}}h",
       "hoursMinutesRemaining": "{{prefix}} {{hours}}h {{minutes}}m",
       "minutesRemaining": "{{prefix}} {{minutes}}m",
-      "mainTimeByoyomi": "{{minutes}} min 路 10s per move",
+      "mainTimeByoyomi": "{{minutes}} min 脗路 10s per move",
       "attemptsCount": "{{count}}x"
     },
     "boss": {
@@ -7842,7 +7845,7 @@
       "ticketAlt": "Boss ticket",
       "enter": "Enter",
       "participantRecords": "Participant records",
-      "rankNickname": "#{{rank}} 路 {{nickname}}",
+      "rankNickname": "#{{rank}} 脗路 {{nickname}}",
       "noParticipantRecords": "No participant records yet.",
       "strategyGuide": "Strategy guide",
       "mainSkills": "Main skills",
@@ -8045,8 +8048,8 @@
       "closeAria": "Close {{title}}",
       "effectiveDate": "Effective date: {{date}}",
       "articleHeading": "Article {{num}}. {{title}}",
-      "footerRepresentative": "Representative {{representative}} 路 Business registration number {{businessNumber}} 路 Mail order business report {{mailOrderNumber}}",
-      "footerContact": "{{address}} 路 Customer Center {{phone}} 路 {{email}}"
+      "footerRepresentative": "Representative {{representative}} 脗路 Business registration number {{businessNumber}} 脗路 Mail order business report {{mailOrderNumber}}",
+      "footerContact": "{{address}} 脗路 Customer Center {{phone}} 脗路 {{email}}"
     },
     "termsOfService": {
       "title": "Terms of Use",
@@ -8056,16 +8059,16 @@
         {
           "title": "purpose",
           "paragraphs": [
-            "The purpose of these Terms and Conditions is to stipulate the rights, obligations and responsibilities of the Company and its members in relation to the use of {{serviceName}} and related services (hereinafter ?淪ervices?? provided by {{companyName}} (hereinafter ?淐ompany??."
+            "The purpose of these Terms and Conditions is to stipulate the rights, obligations and responsibilities of the Company and its members in relation to the use of {{serviceName}} and related services (hereinafter ?聹Services?? provided by {{companyName}} (hereinafter ?聹Company??."
           ]
         },
         {
           "title": "Definition of Terms",
           "bullets": [
-            "?淪ervice??means all multiplayer Go and additional features provided by the Company.",
-            "?淢ember??refers to a person who agrees to these Terms and Conditions and enters into a service use agreement with the Company.",
-            "?淎ccount??means the email or social login information registered by the member for member identification and service use.",
-            "?淧aid content??refers to all digital goods, items, and services provided for a fee, such as diamonds, gold, and VIP membership."
+            "?聹Service??means all multiplayer Go and additional features provided by the Company.",
+            "?聹Member??refers to a person who agrees to these Terms and Conditions and enters into a service use agreement with the Company.",
+            "?聹Account??means the email or social login information registered by the member for member identification and service use.",
+            "?聹Paid content??refers to all digital goods, items, and services provided for a fee, such as diamonds, gold, and VIP membership."
           ]
         },
         {
@@ -8096,14 +8099,14 @@
           "title": "Paid payments and refunds",
           "paragraphs": [
             "Members can purchase paid content using the payment method determined by the company.",
-            "Cancellation and refund of purchased paid content are subject to separate ?渃ancellation and refund regulations.??
+            "Cancellation and refund of purchased paid content are subject to separate ?聹cancellation and refund regulations.??
           ]
         },
         {
           "title": "Member Obligations",
           "bullets": [
             "Obligation to comply with these Terms and Conditions, related laws and operating policies announced by the Company",
-            "Obligation not to steal another person?檚 name or payment information",
+            "Obligation not to steal another person?聶s name or payment information",
             "Obligation not to interfere with the operation of the service or use it in an abnormal manner",
             "Obligation not to engage in profanity, spam, obscenity, discrimination, or criminal behavior in in-game chats or bulletin boards, etc.",
             "Obligation not to access, reverse engineer, copy, or distribute clients and data provided by the company without permission."
@@ -8161,7 +8164,7 @@
         {
           "title": "Personal information items collected",
           "paragraphs": [
-            "{{companyName}} (hereinafter referred to as ?淐ompany?? collects the following minimum personal information to provide {{serviceName}} service."
+            "{{companyName}} (hereinafter referred to as ?聹Company?? collects the following minimum personal information to provide {{serviceName}} service."
           ],
           "bullets": [
             "When signing up: email address, password (encrypted storage), nickname",
@@ -8213,7 +8216,7 @@
             "Railway (service hosting/infrastructure operation)",
             "Payment agency (PG company): Payletter ??Card payment/regular payment approval and settlement",
             "Google AdSense: Ad delivery and traffic analysis",
-            "Google路Kakao: Social login authentication"
+            "Google脗路Kakao: Social login authentication"
           ]
         },
         {
@@ -8268,8 +8271,8 @@
           "bullets": [
             "Personal Information Dispute Mediation Committee: 1833-6972 (privacy.go.kr)",
             "Personal Information Infringement Reporting Center: 118 (privacy.kisa.or.kr)",
-            "Supreme Prosecutors' Office Cyber ?嬧�婭nvestigation Division: 1301 (spo.go.kr)",
-            "National Police Agency Cyber ?嬧�婭nvestigation Bureau: 182 (ecrm.cyber.go.kr)"
+            "Supreme Prosecutors' Office Cyber ?聥芒聙聥Investigation Division: 1301 (spo.go.kr)",
+            "National Police Agency Cyber ?聥芒聙聥Investigation Bureau: 182 (ecrm.cyber.go.kr)"
           ]
         },
         {
@@ -8288,7 +8291,7 @@
         {
           "title": "Effect of subscription withdrawal",
           "paragraphs": [
-            "In accordance with the Act on Consumer Protection in Electronic Commerce, etc. (hereinafter referred to as the ?淓lectronic Commerce Act??, members may cancel their subscription within 7 days from the date of payment or availability of paid content.",
+            "In accordance with the Act on Consumer Protection in Electronic Commerce, etc. (hereinafter referred to as the ?聹Electronic Commerce Act??, members may cancel their subscription within 7 days from the date of payment or availability of paid content.",
             "The cancellation of subscription will take effect when the notice of intention to withdraw subscription reaches the company."
           ]
         },
@@ -8332,7 +8335,7 @@
             "Regular payment products such as VIP membership are automatically renewed every payment cycle unless the member directly cancels the subscription."
           ],
           "bullets": [
-            "You can cancel at any time through My Page within the service or the ?淪ubscription Management??menu in the store.",
+            "You can cancel at any time through My Page within the service or the ?聹Subscription Management??menu in the store.",
             "If cancellation is difficult, request a customer service center email ({{email}}) or phone ({{phone}})",
             "Cancellation requests must be completed at least 24 hours prior to the next payment date to avoid being charged the next payment.",
             "Even after cancellation, VIP benefits will remain for the period already paid."

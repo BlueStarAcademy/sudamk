@@ -132,10 +132,10 @@ export const USER_PROGRESSION_ARENA_BLOCK_MESSAGE: Partial<Record<ArenaEntranceK
 export const USER_PROGRESSION_QUEST_BLOCK_MESSAGE = `퀘스트는 유저 Lv.${QUEST_MIN_STRATEGY_LEVEL} 이상에서 이용할 수 있습니다.`;
 export const USER_PROGRESSION_BLACKSMITH_BLOCK_MESSAGE = `대장간은 바둑 능력치 합 ${BLACKSMITH_MIN_BADUK_ABILITY_TOTAL} 이상에서 이용할 수 있습니다.`;
 
-/** 랭킹전 일색/캐슬/체스: 친선전(해당 모드) 완료 판수 */
+/** 랭킹전 일색/캐슬/체스: 친선전·훈련 머신(AI대전) 해당 모드 완료 판수 */
 export const RANKED_MODE_FRIENDLY_UNLOCK_GAMES = 5;
 
-/** 친선전 완료 후 랭킹전에서 해금되는 모드 */
+/** 친선전·훈련 머신 완료 후 랭킹전에서 해금되는 모드 */
 export const RANKED_FRIENDLY_UNLOCK_MODES: readonly GameMode[] = [
     GameMode.Uniform,
     GameMode.Castle,
@@ -146,6 +146,10 @@ export function isRankedFriendlyUnlockMode(mode: GameMode | string | null | unde
     return RANKED_FRIENDLY_UNLOCK_MODES.includes(mode as GameMode);
 }
 
+/**
+ * 랭킹전 모드 해금용 완료 판수.
+ * `stats[mode].friendlyCompletions` — 친선전·훈련 머신(AI대전) 완료가 합산됨.
+ */
 export function getFriendlyModeCompletions(
     user: Pick<User, 'stats' | 'isAdmin'> | null | undefined,
     mode: GameMode | string,
@@ -156,12 +160,20 @@ export function getFriendlyModeCompletions(
     return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
 }
 
-/** 관리자는 즉시 해금. 그 외는 친선전 해당 모드 완료 5판. */
+/** @see getFriendlyModeCompletions */
+export function getRankedModeUnlockCompletions(
+    user: Pick<User, 'stats' | 'isAdmin'> | null | undefined,
+    mode: GameMode | string,
+): number {
+    return getFriendlyModeCompletions(user, mode);
+}
+
+/** 관리자는 즉시 해금. 그 외는 친선전·훈련 머신(AI대전) 해당 모드 완료 5판. */
 export function isRankedModeUnlockedForUser(
     user: Pick<User, 'stats' | 'isAdmin'> | null | undefined,
     mode: GameMode | string,
 ): boolean {
     if (!isRankedFriendlyUnlockMode(mode)) return true;
     if (user?.isAdmin) return true;
-    return getFriendlyModeCompletions(user, mode) >= RANKED_MODE_FRIENDLY_UNLOCK_GAMES;
+    return getRankedModeUnlockCompletions(user, mode) >= RANKED_MODE_FRIENDLY_UNLOCK_GAMES;
 }

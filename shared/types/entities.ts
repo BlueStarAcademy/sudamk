@@ -679,7 +679,7 @@ export type User = {
     rankingScore?: number;
     aiWins?: number;
     aiLosses?: number;
-    /** 친선전(유저·AI) 해당 모드 완료 판수 — 랭킹전 모드 해금용 */
+    /** 친선전·훈련 머신(AI대전) 해당 모드 완료 판수 — 랭킹전 일색/캐슬/체스 해금용 */
     friendlyCompletions?: number;
   }>;
   chatBanUntil?: number | null;
@@ -1075,7 +1075,7 @@ export type GameSettings = {
   byoyomiTime: number; // in seconds
   byoyomiCount: number;
   /**
-   * 친선전(홈 친선 로비)에서 시작한 대국 — 모드별 `friendlyCompletions` 집계용.
+   * 친선전·훈련 머신(AI대전) 대국 — 모드별 `friendlyCompletions`(랭킹전 해금) 집계용.
    * pairGame.lobbyChannel === 'friendly' 인 경우에도 동일하게 취급한다.
    */
   friendlyLobbyMatch?: boolean;

@@ -154,7 +154,7 @@ describe('adventure chapter unlock', () => {
         ).toBe(true);
     });
 
-    it('unlocks Uniform/Castle/Chess in ranked after 5 friendly completions', () => {
+    it('unlocks Uniform/Castle/Chess in ranked after 5 friendly or training-machine completions', () => {
         expect(RANKED_MODE_FRIENDLY_UNLOCK_GAMES).toBe(5);
         const locked = baseUser({ stats: { [GameMode.Uniform]: { wins: 0, losses: 0, friendlyCompletions: 4 } } });
         expect(getFriendlyModeCompletions(locked, GameMode.Uniform)).toBe(4);

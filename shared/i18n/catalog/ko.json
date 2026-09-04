@@ -2825,7 +2825,10 @@
         "anonymousOpponent": "익명 상대",
         "ready": "준비되면 수락하세요"
       },
-      "normalMatchTitle": "일반전 매칭"
+      "normalMatchTitle": "일반전 매칭",
+      "friendlyUnlockTitle": "모드 해금 필요",
+      "friendlyUnlockHint": "{{current}}/{{need}}",
+      "friendlyUnlockBody": "일색·캐슬·체스 바둑은 친선전 또는 훈련 머신(AI대전)에서 해당 모드 {{need}}판을 완료해야 랭킹전에서 선택할 수 있습니다.\n현재 진행: {{current}}/{{need}}"
     },
     "aiChallengeModal": {
       "titleDefault": "AI와 대결하기",

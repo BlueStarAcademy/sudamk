@@ -2796,7 +2796,10 @@
         "anonymousOpponent": "Anonymous opponent",
         "ready": "Accept when ready"
       },
-      "normalMatchTitle": "Normal Match"
+      "normalMatchTitle": "Normal Match",
+      "friendlyUnlockTitle": "Mode unlock required",
+      "friendlyUnlockHint": "{{current}}/{{need}}",
+      "friendlyUnlockBody": "Uniform, Castle, and Chess Go unlock in ranked after completing {{need}} games of that mode in Friendly matches or the Training Machine (AI).\nProgress: {{current}}/{{need}}"
     },
     "aiChallengeModal": {
       "titleDefault": "Challenge AI",

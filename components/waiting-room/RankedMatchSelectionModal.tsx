@@ -1,15 +1,16 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import DraggableWindow from '../DraggableWindow.js';
 import Button from '../Button.js';
-import { GameMode, GameSettings } from '../../types.js';
+import AlertModal from '../AlertModal.js';
+import { GameMode } from '../../types.js';
 import { SPECIAL_GAME_MODES, RANKED_STRATEGIC_MODES, STRATEGIC_ACTION_POINT_COST } from '../../constants/index.js';
 import { ActionPointLabelWithCost } from '../ui/ActionPointIcon.js';
 import { RANKED_GAME_SETTINGS } from '../../constants/rankedGameSettings.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import { effectiveStrategicRankedQueueApCostForUser } from '../../shared/utils/pairPetArenaApDiscount.js';
 import {
-    getFriendlyModeCompletions,
+    getRankedModeUnlockCompletions,
     isRankedModeUnlockedForUser,
     RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
 } from '../../shared/utils/contentProgressionGates.js';
@@ -36,18 +37,17 @@ const GameCard: React.FC<{
         <button
             type="button"
             data-lobby-mode-card
-            disabled={locked}
             title={locked ? lockTitle : undefined}
+            aria-disabled={locked || undefined}
             className={`bg-panel text-on-panel touch-manipulation flex w-full flex-col items-center rounded-lg text-center appearance-none border-0 outline-none transition-all transform relative ${
                 locked
-                    ? 'cursor-not-allowed opacity-55'
+                    ? 'cursor-pointer opacity-55 hover:-translate-y-0.5 shadow-lg active:scale-[0.98]'
                     : isSelected
                       ? 'ring-2 ring-green-500 hover:-translate-y-1 shadow-lg bg-green-900/20 cursor-pointer active:scale-[0.98]'
                       : 'hover:-translate-y-1 shadow-lg cursor-pointer active:scale-[0.98]'
             }`}
             style={{ padding: '8px', gap: '4px' }}
             onClick={() => {
-                if (locked) return;
                 onToggle(mode);
             }}
         >
@@ -79,7 +79,7 @@ const GameCard: React.FC<{
                     <img 
                         src={image} 
                         alt={name} 
-                        className="w-full h-full object-contain"
+                        className={`w-full h-full object-contain ${locked ? 'grayscale-[35%]' : ''}`}
                         onError={() => setImgError(true)} 
                     />
                 ) : (
@@ -117,6 +117,21 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
     const [selectedMode, setSelectedMode] = useState<GameMode | null>(null);
     const [windowWidth, setWindowWidth] = useState(window.innerWidth);
     const [windowHeight, setWindowHeight] = useState(window.innerHeight);
+    const [unlockAlert, setUnlockAlert] = useState<{ title: string; message: string } | null>(null);
+
+    const showRankedModeUnlockAlert = useCallback(
+        (mode: GameMode) => {
+            const completions = getRankedModeUnlockCompletions(currentUser, mode);
+            setUnlockAlert({
+                title: t('ranked.friendlyUnlockTitle'),
+                message: t('ranked.friendlyUnlockBody', {
+                    need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
+                    current: Math.min(completions, RANKED_MODE_FRIENDLY_UNLOCK_GAMES),
+                }),
+            });
+        },
+        [currentUser, t],
+    );
 
     const moveModeUp = (mode: GameMode) => {
         setSelectedModes(prev => {
@@ -157,7 +172,10 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
     }, [availableGameDefinitions, selectedMode]);
 
     const handleModeToggle = (mode: GameMode) => {
-        if (!isRankedModeUnlockedForUser(currentUser, mode)) return;
+        if (!isRankedModeUnlockedForUser(currentUser, mode)) {
+            showRankedModeUnlockAlert(mode);
+            return;
+        }
         setSelectedModes(prev => 
             prev.includes(mode) 
                 ? prev.filter(m => m !== mode)
@@ -178,11 +196,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
         }
         const locked = selectedModes.filter((m) => !isRankedModeUnlockedForUser(currentUser, m));
         if (locked.length > 0) {
-            alert(
-                t('ranked.friendlyUnlockTitle', {
-                    need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
-                }),
-            );
+            showRankedModeUnlockAlert(locked[0]);
             return;
         }
         onStartMatching(selectedModes);
@@ -271,6 +285,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
     };
 
     return (
+        <>
         <DraggableWindow 
             title={t('ranked.selectTitle')} 
             onClose={onClose} 
@@ -289,7 +304,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                         {availableGameDefinitions.map((game) => {
                             const isSelected = selectedModes.includes(game.mode);
                             const unlocked = isRankedModeUnlockedForUser(currentUser, game.mode);
-                            const completions = getFriendlyModeCompletions(currentUser, game.mode);
+                            const completions = getRankedModeUnlockCompletions(currentUser, game.mode);
                             return (
                                 <div key={game.mode} className="relative">
                                     <GameCard
@@ -303,9 +318,7 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                                             current: Math.min(completions, RANKED_MODE_FRIENDLY_UNLOCK_GAMES),
                                             need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
                                         })}
-                                        lockTitle={t('ranked.friendlyUnlockTitle', {
-                                            need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
-                                        })}
+                                        lockTitle={t('ranked.friendlyUnlockTitle')}
                                     />
                                 </div>
                             );
@@ -471,6 +484,16 @@ const RankedMatchSelectionModal: React.FC<RankedMatchSelectionModalProps> = ({ o
                 </div>
             </div>
         </DraggableWindow>
+        {unlockAlert ? (
+            <AlertModal
+                title={unlockAlert.title}
+                message={unlockAlert.message}
+                onClose={() => setUnlockAlert(null)}
+                windowId="ranked-mode-unlock-alert"
+                isTopmost
+            />
+        ) : null}
+        </>
     );
 };
 

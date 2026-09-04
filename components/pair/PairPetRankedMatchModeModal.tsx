@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState, type ReactNode } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { createPortal } from 'react-dom';
 import Button from '../Button.js';
+import AlertModal from '../AlertModal.js';
 import { GameMode, type User } from '../../types.js';
 import {
     RANKING_TIERS,
@@ -18,6 +19,7 @@ import {
 } from '../../shared/utils/pairPetArenaApDiscount.js';
 import { RANKED_STRATEGIC_MODES } from '../../constants/rankedGameSettings.js';
 import {
+    getRankedModeUnlockCompletions,
     isRankedModeUnlockedForUser,
     RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
 } from '../../shared/utils/contentProgressionGates.js';
@@ -145,11 +147,13 @@ const ModePickCard: React.FC<{
     queueCount: number;
     isSelected: boolean;
     disabled: boolean;
+    locked?: boolean;
+    lockHint?: string;
     compact: boolean;
     scrollStripItem?: boolean;
     hideQueueCount?: boolean;
     onSelect: () => void;
-}> = ({ def, queueCount, isSelected, disabled, compact, scrollStripItem, hideQueueCount, onSelect }) => {
+}> = ({ def, queueCount, isSelected, disabled, locked, lockHint, compact, scrollStripItem, hideQueueCount, onSelect }) => {
     const { t } = useTranslation('pair');
     const [imgError, setImgError] = useState(false);
     const imgH = compact ? 70 : 88;
@@ -159,17 +163,26 @@ const ModePickCard: React.FC<{
             type="button"
             disabled={disabled}
             data-lobby-mode-card
+            title={locked ? lockHint : undefined}
+            aria-disabled={locked || undefined}
             onClick={onSelect}
-            className={`bg-panel text-on-panel flex touch-manipulation flex-col items-center gap-1 rounded-lg p-2 text-center text-sm transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45 ${
+            className={`bg-panel text-on-panel relative flex touch-manipulation flex-col items-center gap-1 rounded-lg p-2 text-center text-sm transition-all active:scale-[0.98] disabled:pointer-events-none disabled:opacity-45 ${
                 scrollStripItem ? 'w-max max-w-none' : 'w-full'
             } ${
-                isSelected
+                locked
+                    ? 'cursor-pointer opacity-55 shadow-lg hover:ring-1 hover:ring-amber-400/40'
+                    : isSelected
                     ? compact
                         ? 'ring-2 ring-violet-400/85 ring-offset-2 ring-offset-zinc-950 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_0_0_1px_rgba(167,139,250,0.35),0_10px_28px_-8px_rgba(139,92,246,0.45)]'
                         : 'cursor-pointer ring-2 ring-purple-500 shadow-lg'
                     : 'cursor-pointer shadow-lg hover:ring-1 hover:ring-purple-400/40'
             }`}
         >
+            {locked && lockHint ? (
+                <div className="absolute top-1 right-1 z-10 rounded-full border border-amber-400/50 bg-black/80 px-1.5 py-0.5 text-[9px] font-extrabold text-amber-200 shadow-lg">
+                    {lockHint}
+                </div>
+            ) : null}
             <div
                 className="bg-tertiary text-tertiary relative flex w-full flex-shrink-0 items-center justify-center overflow-hidden rounded-md p-1 shadow-inner"
                 style={{ height: `${imgH}px` }}
@@ -179,7 +192,9 @@ const ModePickCard: React.FC<{
                         src={def.image}
                         alt=""
                         draggable={false}
-                        className="pointer-events-none h-full w-full select-none object-contain [-webkit-user-drag:none]"
+                        className={`pointer-events-none h-full w-full select-none object-contain [-webkit-user-drag:none] ${
+                            locked ? 'grayscale-[35%]' : ''
+                        }`}
                         onError={() => setImgError(true)}
                     />
                 ) : (
@@ -187,9 +202,9 @@ const ModePickCard: React.FC<{
                 )}
             </div>
             <h3
-                className={`text-primary w-full shrink-0 px-0.5 text-center text-sm font-bold sm:text-base ${
-                    scrollStripItem ? 'whitespace-nowrap leading-snug' : 'min-w-0 leading-snug'
-                }`}
+                className={`w-full shrink-0 px-0.5 text-center text-sm font-bold sm:text-base ${
+                    locked ? 'text-amber-200/90' : 'text-primary'
+                } ${scrollStripItem ? 'whitespace-nowrap leading-snug' : 'min-w-0 leading-snug'}`}
             >
                 {def.name}
             </h3>
@@ -279,6 +294,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
         RANKED_STRATEGIC_MODES.includes(initialMode) ? initialMode : GameMode.Standard,
     );
     const [mobileStep, setMobileStep] = useState<'pickMode' | 'details'>('pickMode');
+    const [unlockAlert, setUnlockAlert] = useState<{ title: string; message: string } | null>(null);
 
     useEffect(() => {
         setSelected(RANKED_STRATEGIC_MODES.includes(initialMode) ? initialMode : GameMode.Standard);
@@ -311,12 +327,24 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
 
     const queueCountUnitLabel = t('rankedMatch.queueUnitTeam');
 
+    const showRankedModeUnlockAlert = useCallback(
+        (mode: GameMode) => {
+            const completions = getRankedModeUnlockCompletions(currentUser, mode);
+            setUnlockAlert({
+                title: tLobby('ranked.friendlyUnlockTitle'),
+                message: tLobby('ranked.friendlyUnlockBody', {
+                    need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
+                    current: Math.min(completions, RANKED_MODE_FRIENDLY_UNLOCK_GAMES),
+                }),
+            });
+        },
+        [currentUser, tLobby],
+    );
+
     const selectRankedMode = (mode: GameMode) => {
         if (variant === 'strategic_arena' || variant === 'duo_arena') {
             if (!isRankedModeUnlockedForUser(currentUser, mode)) {
-                window.alert(
-                    tLobby('ranked.friendlyUnlockTitle', { need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES }),
-                );
+                showRankedModeUnlockAlert(mode);
                 return;
             }
         }
@@ -326,13 +354,56 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
     const queueSelectedRankedMode = () => {
         if (variant === 'strategic_arena' || variant === 'duo_arena') {
             if (!isRankedModeUnlockedForUser(currentUser, selected)) {
-                window.alert(
-                    tLobby('ranked.friendlyUnlockTitle', { need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES }),
-                );
+                showRankedModeUnlockAlert(selected);
                 return;
             }
         }
         void onQueue(selected);
+    };
+
+    const applyRankedModeUnlockGate = variant === 'strategic_arena' || variant === 'duo_arena';
+
+    const rankedModeUnlockAlertModal = unlockAlert ? (
+        <AlertModal
+            title={unlockAlert.title}
+            message={unlockAlert.message}
+            onClose={() => setUnlockAlert(null)}
+            windowId="ranked-mode-unlock-alert"
+            isTopmost
+        />
+    ) : null;
+
+    const renderModePickCard = (
+        def: ModeDef,
+        opts: {
+            disabled: boolean;
+            compact?: boolean;
+            scrollStripItem?: boolean;
+        },
+    ) => {
+        const unlocked = !applyRankedModeUnlockGate || isRankedModeUnlockedForUser(currentUser, def.mode);
+        const completions = getRankedModeUnlockCompletions(currentUser, def.mode);
+        return (
+            <ModePickCard
+                def={def}
+                queueCount={queueCountByMode[def.mode] ?? 0}
+                isSelected={selected === def.mode}
+                disabled={opts.disabled}
+                locked={!unlocked}
+                lockHint={
+                    unlocked
+                        ? undefined
+                        : tLobby('ranked.friendlyUnlockHint', {
+                              current: Math.min(completions, RANKED_MODE_FRIENDLY_UNLOCK_GAMES),
+                              need: RANKED_MODE_FRIENDLY_UNLOCK_GAMES,
+                          })
+                }
+                compact={Boolean(opts.compact)}
+                scrollStripItem={opts.scrollStripItem}
+                hideQueueCount={hideQueueCount}
+                onSelect={() => selectRankedMode(def.mode)}
+            />
+        );
     };
 
     /** 모바일: 모드 피커와 정보 열을 세로 2단계로 분리(AI 대전 모달과 동일 흐름). 파트너 동의 등 `hideModePicker`일 때는 단일 열 유지 */
@@ -474,16 +545,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                 <LobbyHorizontalModePickerScroll inlineRow>
                     {modes.map((def) => (
                         <div key={def.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
-                            <ModePickCard
-                                def={def}
-                                queueCount={queueCountByMode[def.mode] ?? 0}
-                                isSelected={selected === def.mode}
-                                disabled={isBusy}
-                                compact={isHandheld}
-                                scrollStripItem={isHandheld}
-                                hideQueueCount={hideQueueCount}
-                                onSelect={() => selectRankedMode(def.mode)}
-                            />
+                            {renderModePickCard(def, { disabled: isBusy, compact: isHandheld, scrollStripItem: isHandheld })}
                         </div>
                     ))}
                 </LobbyHorizontalModePickerScroll>
@@ -491,16 +553,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                 <div className="grid grid-cols-2 gap-2 sm:gap-3">
                     {modes.map((def) => (
                         <div key={def.mode} className="min-w-0">
-                            <ModePickCard
-                                def={def}
-                                queueCount={queueCountByMode[def.mode] ?? 0}
-                                isSelected={selected === def.mode}
-                                disabled={isBusy}
-                                compact={isHandheld}
-                                scrollStripItem={isHandheld}
-                                hideQueueCount={hideQueueCount}
-                                onSelect={() => selectRankedMode(def.mode)}
-                            />
+                            {renderModePickCard(def, { disabled: isBusy, compact: isHandheld, scrollStripItem: isHandheld })}
                         </div>
                     ))}
                 </div>
@@ -590,14 +643,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                             <div className="grid grid-cols-3 gap-2 pb-1">
                                 {modes.map((def) => (
                                     <div key={def.mode} className="min-w-0">
-                                        <ModePickCard
-                                            def={def}
-                                            queueCount={queueCountByMode[def.mode] ?? 0}
-                                            isSelected={selected === def.mode}
-                                            disabled={isBusy}
-                                            compact
-                                            onSelect={() => selectRankedMode(def.mode)}
-                                        />
+                                        {renderModePickCard(def, { disabled: isBusy, compact: true })}
                                     </div>
                                 ))}
                             </div>
@@ -724,6 +770,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
         ) : null;
 
         return (
+            <>
             <div
                 className="relative flex min-h-0 min-w-0 w-full flex-1 flex-col gap-2 overflow-hidden sm:gap-2.5"
                 data-ranked-match-mode-dedicated={windowId}
@@ -747,16 +794,11 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     <LobbyHorizontalModePickerScroll inlineRow>
                         {modes.map((def) => (
                             <div key={def.mode} className={LOBBY_HORIZONTAL_MODE_PICKER_ITEM_CLASS}>
-                                <ModePickCard
-                                    def={def}
-                                    queueCount={queueCountByMode[def.mode] ?? 0}
-                                    isSelected={selected === def.mode}
-                                    disabled={matchingLocked}
-                                    compact
-                                    scrollStripItem
-                                    hideQueueCount={hideQueueCount}
-                                    onSelect={() => selectRankedMode(def.mode)}
-                                />
+                                {renderModePickCard(def, {
+                                    disabled: matchingLocked,
+                                    compact: true,
+                                    scrollStripItem: true,
+                                })}
                             </div>
                         ))}
                     </LobbyHorizontalModePickerScroll>
@@ -856,11 +898,14 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     ) : null}
                 </div>
             </div>
+            {rankedModeUnlockAlertModal}
+            </>
         );
     }
 
     if (presentation === 'embedded') {
         return (
+            <>
             <div className="flex min-h-0 min-w-0 w-full flex-1 flex-col overflow-hidden" data-ranked-match-mode-embedded={windowId}>
                 {handheldModePickerStacked ? (
                     <div className="mb-1 flex shrink-0 items-center gap-2 px-0.5">
@@ -872,6 +917,8 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                 ) : null}
                 <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{body}</div>
             </div>
+            {rankedModeUnlockAlertModal}
+            </>
         );
     }
 
@@ -882,6 +929,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
     }`;
 
     return createPortal(
+        <>
         <div
             className={isHandheld ? LOBBY_ROOM_CREATE_BACKDROP_HANDHELD_CLASS : LOBBY_ROOM_CREATE_BACKDROP_DESKTOP_CLASS}
             role="presentation"
@@ -932,7 +980,9 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
                     <div className="mt-3 flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">{body}</div>
                 </div>
             </div>
-        </div>,
+        </div>
+        {rankedModeUnlockAlertModal}
+        </>,
         document.body,
     );
 };

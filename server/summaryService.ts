@@ -2031,6 +2031,7 @@ const processPlayerSummary = async (
             if (isWinner) gameStats.wins++;
             else if (!isDraw) gameStats.losses++;
         }
+        // 랭킹전 일색/캐슬/체스 해금용: 친선전 + 훈련 머신(AI대전, friendlyLobbyMatch)
         const isFriendlyLobbyCompletion =
             game.settings?.friendlyLobbyMatch === true ||
             game.settings?.pairGame?.lobbyChannel === 'friendly';
