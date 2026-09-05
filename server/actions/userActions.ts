@@ -924,8 +924,13 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 user.dismissedScreenGuides = next;
             }
             if (guideId === 'sp_tutorial_pet_hint') {
-                const { markPairPetOnboardingPetHintPlaced } = await import('../../shared/utils/pairPetOnboarding.js');
+                const { markPairPetOnboardingPetHintPlaced, markPairPetOnboardingWalkthroughCompleted } = await import('../../shared/utils/pairPetOnboarding.js');
                 markPairPetOnboardingPetHintPlaced(user);
+                markPairPetOnboardingWalkthroughCompleted(user);
+                const next = normalizeDismissedScreenGuides(user.dismissedScreenGuides);
+                if (!next.includes('first_run_walkthrough')) next.push('first_run_walkthrough');
+                if (!next.includes('home')) next.push('home');
+                user.dismissedScreenGuides = next;
             }
             const updatedUser = getSelectiveUserUpdate(user, 'DISMISS_SCREEN_GUIDE');
             db.updateUser(user).catch((err) => {

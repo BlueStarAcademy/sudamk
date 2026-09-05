@@ -71,6 +71,10 @@ const ui = (overrides: Partial<FirstRunGuideUiContext> = {}): FirstRunGuideUiCon
     obtainModalOpen: false,
     singlePlayerLobbyOpen: false,
     selectedStageId: null,
+    inSinglePlayerGame: false,
+    gameStatusPlaying: false,
+    petHintOverlayActive: false,
+    pveBlockingModalOpen: false,
     now: 1_000,
     ...overrides,
 });
@@ -174,6 +178,27 @@ describe('first run guide steps', () => {
             ),
         ).toBe('startFirstStage');
         expect(firstRunGuideAnchorForStep('startFirstStage')).toBe('sp-stage-enter');
+
+        expect(
+            resolveFirstRunGuideStep(equipped, ui({ inSinglePlayerGame: true, gameStatusPlaying: false })),
+        ).toBe('waitGameReady');
+        expect(
+            resolveFirstRunGuideStep(
+                equipped,
+                ui({ inSinglePlayerGame: true, gameStatusPlaying: true, pveBlockingModalOpen: true }),
+            ),
+        ).toBe('waitGameReady');
+        expect(
+            resolveFirstRunGuideStep(equipped, ui({ inSinglePlayerGame: true, gameStatusPlaying: true })),
+        ).toBe('pressPetHint');
+        expect(firstRunGuideAnchorForStep('pressPetHint')).toBe('pet-hint-button');
+        expect(
+            resolveFirstRunGuideStep(
+                equipped,
+                ui({ inSinglePlayerGame: true, gameStatusPlaying: true, petHintOverlayActive: true }),
+            ),
+        ).toBe('placePetHint');
+        expect(firstRunGuideAnchorForStep('placePetHint')).toBe('pet-hint-board');
     });
 
     it('suppresses overlapping screen guides while the walkthrough is active', () => {
@@ -195,6 +220,8 @@ describe('first run guide steps', () => {
             'openAdventure',
             'selectFirstStage',
             'startFirstStage',
+            'pressPetHint',
+            'placePetHint',
         ]);
     });
 });

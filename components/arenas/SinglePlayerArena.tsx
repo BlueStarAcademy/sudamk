@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { GameProps, GameStatus, Player, Point, Move } from '../../types.js';
 import GoBoard from '../GoBoard.js';
+import { TutorialAnchor } from '../tutorial/FirstRunGuideContext.js';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { TOWER_STAGES } from '../../constants/towerConstants.js';
 import { canViewerPlaceMoreBaseStones } from '../../shared/utils/basePlacementCanPlaceMore.js';
@@ -269,6 +270,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                             : 'relative h-full w-full'
                     }
                 >
+                <TutorialAnchor id="pet-hint-board" className="relative h-full w-full min-h-0 min-w-0">
                 <GoBoard
                     boardState={boardState}
                     boardSize={settings.boardSize}
@@ -356,6 +358,7 @@ const SinglePlayerArena: React.FC<SinglePlayerArenaProps> = (props) => {
                     boardRuleFlashMessage={boardRuleFlashMessage}
                     uniformStoneDisplayColor={session.uniformStoneDisplayColor ?? null}
                 />
+                </TutorialAnchor>
                 </div>
                 </div>
                 </div>

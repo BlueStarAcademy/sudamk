@@ -55,10 +55,12 @@ export const waitingLobbyPairAlignedMobileTabButtonClass =
 export const waitingLobbyPairAlignedMobileScreenTitleClass =
     'truncate text-sm font-bold sm:text-lg lg:text-xl';
 
-/** 페어 로비 채널 → 패널 톤 */
-export function waitingLobbyToneFromPairChannel(ch: 'pair' | 'strategic' | 'playful'): WaitingLobbyPanelTone {
+/** 페어 로비 채널 → 패널 톤 (`friendly`는 친선전 초대 모달 등에서 pair 톤으로 매핑) */
+export function waitingLobbyToneFromPairChannel(
+    ch: 'pair' | 'strategic' | 'playful' | 'friendly',
+): WaitingLobbyPanelTone {
     if (ch === 'playful') return 'playful';
-    if (ch === 'pair') return 'pair';
+    if (ch === 'pair' || ch === 'friendly') return 'pair';
     return 'strategic';
 }
 

@@ -1,21 +1,23 @@
 import React, { useCallback, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { useAppContext } from '../../hooks/useAppContext.js';
+import { useAppContext, useAppGameStoreSlice } from '../../hooks/useAppContext.js';
 import {
     FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS,
+    firstRunGuideAllowsBoardPointer,
     firstRunGuideAnchorForStep,
     firstUnequippedPairPet,
     resolveFirstRunGuideStep,
     type FirstRunGuideAnchorId,
     type FirstRunGuideStep,
 } from '../../shared/utils/firstRunGuide.js';
+import { resolveArenaSessionPolicy } from '../../shared/utils/liveSessionArenaKind.js';
 import { useFirstRunGuide } from './FirstRunGuideContext.js';
 
 const OVERLAY_Z = 80_000;
 const HOLE_PAD = 8;
 
 /** Pan/zoom map viewport anchors — scrollIntoView distorts the stage map transform. */
-const SKIP_SCROLL_INTO_VIEW_ANCHORS = new Set<FirstRunGuideAnchorId>(['sp-stage-입문-1']);
+const SKIP_SCROLL_INTO_VIEW_ANCHORS = new Set<FirstRunGuideAnchorId>(['sp-stage-입문-1', 'pet-hint-board']);
 
 function isPetPanelOpen(modals: {
     isPetManagementModalOpen?: boolean;
@@ -65,6 +67,10 @@ function tooltipForStep(
             return { body: t('firstRunGuide.selectFirstStage') };
         case 'startFirstStage':
             return { body: t('firstRunGuide.startFirstStage') };
+        case 'pressPetHint':
+            return { body: t('firstRunGuide.pressPetHint') };
+        case 'placePetHint':
+            return { body: t('firstRunGuide.placePetHint') };
         default:
             return null;
     }
@@ -73,6 +79,7 @@ function tooltipForStep(
 const FirstRunGuideOverlay: React.FC = () => {
     const { t } = useTranslation('lobby');
     const { currentUserWithStatus, currentRoute, handlers, modals } = useAppContext();
+    const { activeGame } = useAppGameStoreSlice();
     const guide = useFirstRunGuide();
     const [now, setNow] = useState(() => Date.now());
     const [holeRect, setHoleRect] = useState<DOMRect | null>(null);
@@ -86,18 +93,25 @@ const FirstRunGuideOverlay: React.FC = () => {
     const welcomeAcknowledged = guide?.welcomeAcknowledged ?? false;
     const hatchConfirmOpen = guide?.hatchConfirmOpen ?? false;
     const selectedStageId = guide?.selectedStageId ?? null;
+    const petHintOverlayActive = guide?.petHintOverlayActive ?? false;
+    const pveBlockingModalOpen = guide?.pveBlockingModalOpen ?? false;
     const getElement = guide?.getElement;
     const version = guide?.version ?? 0;
 
-    const hiddenByRoute =
+    const inSinglePlayerGame = useMemo(() => {
+        if (currentRoute.view !== 'game' || !activeGame) return false;
+        return resolveArenaSessionPolicy(activeGame).kind === 'singleplayer';
+    }, [currentRoute.view, activeGame]);
+    const gameStatusPlaying = activeGame?.gameStatus === 'playing';
+
+    const routeBlocksGuide =
         !currentUserWithStatus ||
         currentRoute.view === 'set-nickname' ||
-        currentRoute.view === 'game' ||
         currentRoute.view === 'login' ||
         !guideReady;
 
     const step = useMemo(() => {
-        if (hiddenByRoute) return 'done' as const;
+        if (routeBlocksGuide) return 'done' as const;
         if (sequencePreviewStep) return sequencePreviewStep;
         return resolveFirstRunGuideStep(currentUserWithStatus, {
             welcomeAcknowledged,
@@ -106,11 +120,15 @@ const FirstRunGuideOverlay: React.FC = () => {
             obtainModalOpen,
             singlePlayerLobbyOpen,
             selectedStageId,
+            inSinglePlayerGame,
+            gameStatusPlaying,
+            petHintOverlayActive,
+            pveBlockingModalOpen,
             now,
         });
     }, [
         currentUserWithStatus,
-        hiddenByRoute,
+        routeBlocksGuide,
         sequencePreviewStep,
         welcomeAcknowledged,
         hatchConfirmOpen,
@@ -118,6 +136,10 @@ const FirstRunGuideOverlay: React.FC = () => {
         petPanelOpen,
         selectedStageId,
         singlePlayerLobbyOpen,
+        inSinglePlayerGame,
+        gameStatusPlaying,
+        petHintOverlayActive,
+        pveBlockingModalOpen,
         now,
     ]);
 
@@ -139,6 +161,12 @@ const FirstRunGuideOverlay: React.FC = () => {
         handlers.closePetManagementModal?.();
         handlers.closeQuickUtilityPanel?.();
         handlers.openSinglePlayerLobby?.();
+    }, [handlers]);
+
+    const returnHomeForAdventureCard = useCallback(() => {
+        handlers.closePairPetDetailModal?.();
+        handlers.closePetManagementModal?.();
+        handlers.closeQuickUtilityPanel?.();
     }, [handlers]);
 
     useEffect(() => {
@@ -169,12 +197,11 @@ const FirstRunGuideOverlay: React.FC = () => {
         }
     }, [step, guideReady, petPanelOpen, openPetPanelInline, isSequencePreview]);
 
+    /** 대표펫 장착 후 홈 모험 카드가 보이도록 펫 패널·모달을 닫음 (자동 입장하지 않음) */
     useEffect(() => {
         if (isSequencePreview || !guideReady || step !== 'openAdventure') return;
-        if (!singlePlayerLobbyOpen) {
-            openSinglePlayerInline();
-        }
-    }, [step, guideReady, singlePlayerLobbyOpen, openSinglePlayerInline, isSequencePreview]);
+        returnHomeForAdventureCard();
+    }, [step, guideReady, isSequencePreview, returnHomeForAdventureCard]);
 
     const showShortcut =
         !isSequencePreview &&
@@ -234,7 +261,7 @@ const FirstRunGuideOverlay: React.FC = () => {
         };
     }, [getElement, anchorId, version, step]);
 
-    if (!guide || step === 'done') return null;
+    if (!guide || step === 'done' || step === 'waitGameReady') return null;
 
     const copy = tooltipForStep(step, t, currentUserWithStatus?.nickname ?? '');
     if (!copy) return null;
@@ -246,6 +273,7 @@ const FirstRunGuideOverlay: React.FC = () => {
     const isLastPreviewStep = isSequencePreview && previewIndex >= previewTotal - 1;
 
     const hole = !isSequencePreview && holeRect && holeRect.width > 2 && holeRect.height > 2 ? holeRect : null;
+    const allowBoardPointer = firstRunGuideAllowsBoardPointer(step);
     const bubbleStyle: React.CSSProperties = hole
         ? (() => {
               const below = hole.bottom + HOLE_PAD + 12;
@@ -260,13 +288,16 @@ const FirstRunGuideOverlay: React.FC = () => {
         <div className="pointer-events-none fixed inset-0" style={{ zIndex: OVERLAY_Z }} aria-live="polite">
             {hole ? (
                 <>
-                    <div className="pointer-events-auto absolute inset-x-0 top-0 bg-black/60" style={{ height: Math.max(0, hole.top - HOLE_PAD) }} />
                     <div
-                        className="pointer-events-auto absolute inset-x-0 bottom-0 bg-black/60"
+                        className={`absolute inset-x-0 top-0 bg-black/60 ${allowBoardPointer ? 'pointer-events-none' : 'pointer-events-auto'}`}
+                        style={{ height: Math.max(0, hole.top - HOLE_PAD) }}
+                    />
+                    <div
+                        className={`absolute inset-x-0 bottom-0 bg-black/60 ${allowBoardPointer ? 'pointer-events-none' : 'pointer-events-auto'}`}
                         style={{ top: hole.bottom + HOLE_PAD }}
                     />
                     <div
-                        className="pointer-events-auto absolute bg-black/60"
+                        className={`absolute bg-black/60 ${allowBoardPointer ? 'pointer-events-none' : 'pointer-events-auto'}`}
                         style={{
                             top: hole.top - HOLE_PAD,
                             left: 0,
@@ -275,7 +306,7 @@ const FirstRunGuideOverlay: React.FC = () => {
                         }}
                     />
                     <div
-                        className="pointer-events-auto absolute bg-black/60"
+                        className={`absolute bg-black/60 ${allowBoardPointer ? 'pointer-events-none' : 'pointer-events-auto'}`}
                         style={{
                             top: hole.top - HOLE_PAD,
                             left: hole.right + HOLE_PAD,

@@ -229,6 +229,11 @@ export interface PairPetRankedMatchModeModalProps {
     onQueue: (mode: GameMode) => void | Promise<void>;
     /** `strategic_arena`: 전략 경기장 `arena_ai` 방 — 우측 문구·창 제목만 전략바둑에 맞춤 */
     variant?: 'pair_pet' | 'strategic_arena' | 'duo_arena';
+    /**
+     * 전략/듀오 경기장에서 일색·캐슬·체스 해금 게이트 적용 여부.
+     * 서버와 동일하게 랭킹전만 게이트 — 일반전은 항상 선택 가능.
+     */
+    matchQueueKind?: 'ranked' | 'normal';
     /** 방장이 이미 고른 모드만 보여 주고 우측 정보만 표시(파트너 동의용) */
     hideModePicker?: boolean;
     /**
@@ -267,6 +272,7 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
     onClose,
     onQueue,
     variant = 'pair_pet',
+    matchQueueKind = 'ranked',
     hideModePicker = false,
     presentation = 'modal',
     seasonColumnHeader = null,
@@ -341,27 +347,25 @@ const PairPetRankedMatchModeModal: React.FC<PairPetRankedMatchModeModalProps> = 
         [currentUser, tLobby],
     );
 
+    /** 랭킹전만 해금 게이트 — 일반전·페어펫은 서버와 같이 게이트 없음 */
+    const applyRankedModeUnlockGate =
+        (variant === 'strategic_arena' || variant === 'duo_arena') && matchQueueKind !== 'normal';
+
     const selectRankedMode = (mode: GameMode) => {
-        if (variant === 'strategic_arena' || variant === 'duo_arena') {
-            if (!isRankedModeUnlockedForUser(currentUser, mode)) {
-                showRankedModeUnlockAlert(mode);
-                return;
-            }
+        if (applyRankedModeUnlockGate && !isRankedModeUnlockedForUser(currentUser, mode)) {
+            showRankedModeUnlockAlert(mode);
+            return;
         }
         setSelected(mode);
     };
 
     const queueSelectedRankedMode = () => {
-        if (variant === 'strategic_arena' || variant === 'duo_arena') {
-            if (!isRankedModeUnlockedForUser(currentUser, selected)) {
-                showRankedModeUnlockAlert(selected);
-                return;
-            }
+        if (applyRankedModeUnlockGate && !isRankedModeUnlockedForUser(currentUser, selected)) {
+            showRankedModeUnlockAlert(selected);
+            return;
         }
         void onQueue(selected);
     };
-
-    const applyRankedModeUnlockGate = variant === 'strategic_arena' || variant === 'duo_arena';
 
     const rankedModeUnlockAlertModal = unlockAlert ? (
         <AlertModal

@@ -8,6 +8,7 @@ import {
     countOwnedPairPets,
     getPairPetOnboarding,
     hasCompletedPetEquipStep,
+    hasCompletedPetHintStep,
 } from './pairPetOnboarding.js';
 
 export const FIRST_RUN_WALKTHROUGH_GUIDE_ID = 'first_run_walkthrough' as const;
@@ -28,7 +29,9 @@ export type FirstRunGuideAnchorId =
     | 'equip-rep'
     | 'home-stage'
     | 'sp-stage-입문-1'
-    | 'sp-stage-enter';
+    | 'sp-stage-enter'
+    | 'pet-hint-button'
+    | 'pet-hint-board';
 
 export type FirstRunGuideProgress =
     | 'done'
@@ -49,6 +52,9 @@ export type FirstRunGuideStep =
     | 'openAdventure'
     | 'selectFirstStage'
     | 'startFirstStage'
+    | 'waitGameReady'
+    | 'pressPetHint'
+    | 'placePetHint'
     | 'done';
 
 /** 관리자 수순 미리보기용 — 실제 온보딩과 같은 안내 순서(데이터 초기화 없음). */
@@ -63,6 +69,8 @@ export const FIRST_RUN_GUIDE_SEQUENCE_PREVIEW_STEPS: readonly Exclude<FirstRunGu
     'openAdventure',
     'selectFirstStage',
     'startFirstStage',
+    'pressPetHint',
+    'placePetHint',
 ] as const;
 
 export type FirstRunGuideUser = Pick<
@@ -85,6 +93,14 @@ export type FirstRunGuideUiContext = {
     obtainModalOpen: boolean;
     singlePlayerLobbyOpen: boolean;
     selectedStageId: string | null;
+    /** 모험 대국 화면(싱글플레이 게임 라우트) */
+    inSinglePlayerGame: boolean;
+    /** 본대국 진행 중 */
+    gameStatusPlaying: boolean;
+    /** 펫 힌트 점이 보드에 표시됨 */
+    petHintOverlayActive: boolean;
+    /** 브리프·모드 튜토리얼 모달이 가리는 중 */
+    pveBlockingModalOpen: boolean;
     now: number;
 };
 
@@ -176,6 +192,14 @@ export function resolveFirstRunGuideStep(
     if (progress === 'done') return 'done';
 
     if (progress === 'needAdventure') {
+        // 모험 대국 진입 후: 펫 힌트 누르기 → 힌트 자리 착점까지 이어감
+        if (ui.inSinglePlayerGame) {
+            if (hasCompletedPetHintStep(user)) return 'done';
+            // 브리프·따내기 튜토리얼 중에는 스포트라이트를 숨겨 모달 조작을 막지 않음
+            if (!ui.gameStatusPlaying || ui.pveBlockingModalOpen) return 'waitGameReady';
+            if (ui.petHintOverlayActive) return 'placePetHint';
+            return 'pressPetHint';
+        }
         if (!ui.singlePlayerLobbyOpen) return 'openAdventure';
         if (ui.selectedStageId !== FIRST_RUN_FIRST_STAGE_ID) return 'selectFirstStage';
         return 'startFirstStage';
@@ -221,7 +245,16 @@ export function firstRunGuideAnchorForStep(step: FirstRunGuideStep): FirstRunGui
             return 'sp-stage-입문-1';
         case 'startFirstStage':
             return 'sp-stage-enter';
+        case 'pressPetHint':
+            return 'pet-hint-button';
+        case 'placePetHint':
+            return 'pet-hint-board';
         default:
             return null;
     }
+}
+
+/** 대국 중 보드 클릭을 허용해야 하는 스텝(딤은 통과) */
+export function firstRunGuideAllowsBoardPointer(step: FirstRunGuideStep): boolean {
+    return step === 'placePetHint';
 }

@@ -195,11 +195,17 @@ const WaitingRoom: React.FC<WaitingRoomComponentProps> = ({ mode }) => {
   }, [mode]);
 
   const onBackToLobby = () => {
-    // 홈 이동은 항상 즉시 수행하고, 대기실 이탈 상태 정리는 비동기로 처리
+    // 홈 이동은 항상 즉시 수행하고, 대기실 이탈·매칭 취소는 비동기로 처리
     window.location.hash = APP_HOME_HASH;
-    Promise.resolve(handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' })).catch((error) => {
-      console.error('[WaitingRoom] LEAVE_WAITING_ROOM failed:', error);
-    });
+    Promise.resolve(handlers.handleAction({ type: 'CANCEL_RANKED_MATCHING' }))
+      .catch((error) => {
+        console.error('[WaitingRoom] CANCEL_RANKED_MATCHING failed:', error);
+      })
+      .finally(() => {
+        Promise.resolve(handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' })).catch((error) => {
+          console.error('[WaitingRoom] LEAVE_WAITING_ROOM failed:', error);
+        });
+      });
   }
 
   if (!currentUserWithStatus) return null;

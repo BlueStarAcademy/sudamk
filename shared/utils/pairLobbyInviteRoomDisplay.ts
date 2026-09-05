@@ -29,12 +29,14 @@ export function pairInviteRoomKindLabel(kind: PairLobbyRoomKind | undefined, lob
     if (kind === 'arena_ai') return 'AI와 대결';
     if (kind === 'ai_duel') return '펫 페어';
     if (lobbyChannel === 'pair' && kind === 'duo_match') return '2인 AI대전';
-    if (lobbyChannel === 'strategic' || lobbyChannel === 'playful') {
+    if (lobbyChannel === 'strategic' || lobbyChannel === 'playful' || lobbyChannel === 'friendly') {
         if (kind === 'duo_match') return '친선전';
         if (kind === 'friendly_4p') return '4인 친선';
         if (kind === 'friendly_2p') return '2인 친선';
+        if (kind === 'team_pair') return '팀페어';
     }
     if (kind === 'friendly_4p') return '4인 친선';
     if (kind === 'friendly_2p') return '2인 친선';
+    if (kind === 'team_pair') return '팀페어';
     return String(kind);
 }

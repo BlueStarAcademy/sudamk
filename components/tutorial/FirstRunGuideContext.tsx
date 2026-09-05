@@ -36,6 +36,12 @@ export type FirstRunGuideContextValue = {
     sequencePreviewStep: Exclude<FirstRunGuideStep, 'done'> | null;
     advanceSequencePreview: () => void;
     endSequencePreview: () => void;
+    /** 모험 대국: 펫 힌트 점이 보드에 표시 중 */
+    petHintOverlayActive: boolean;
+    setPetHintOverlayActive: (active: boolean) => void;
+    /** 브리프·PVE 튜토리얼 모달이 열린 동안 첫 접속 오버레이 숨김 */
+    pveBlockingModalOpen: boolean;
+    setPveBlockingModalOpen: (open: boolean) => void;
 };
 
 const FirstRunGuideContext = createContext<FirstRunGuideContextValue | null>(null);
@@ -74,11 +80,15 @@ export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ child
     const [sequencePreviewStep, setSequencePreviewStep] = useState<Exclude<FirstRunGuideStep, 'done'> | null>(
         null,
     );
+    const [petHintOverlayActive, setPetHintOverlayActive] = useState(false);
+    const [pveBlockingModalOpen, setPveBlockingModalOpen] = useState(false);
 
     useLayoutEffect(() => {
         setWelcomeAcknowledged(readWelcomeAck(userId));
         setSkipped(false);
         setSequencePreviewStep(null);
+        setPetHintOverlayActive(false);
+        setPveBlockingModalOpen(false);
     }, [userId]);
 
     useLayoutEffect(() => {
@@ -175,6 +185,10 @@ export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ child
             sequencePreviewStep,
             advanceSequencePreview,
             endSequencePreview,
+            petHintOverlayActive,
+            setPetHintOverlayActive,
+            pveBlockingModalOpen,
+            setPveBlockingModalOpen,
         }),
         [
             acknowledgeWelcome,
@@ -182,6 +196,8 @@ export const FirstRunGuideProvider: React.FC<{ children: ReactNode }> = ({ child
             endSequencePreview,
             getElement,
             hatchConfirmOpen,
+            petHintOverlayActive,
+            pveBlockingModalOpen,
             register,
             selectedStageId,
             sequencePreviewStep,

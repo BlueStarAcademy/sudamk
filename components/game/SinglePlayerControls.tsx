@@ -11,6 +11,7 @@ import { replaceAppHash } from '../../utils/appUtils.js';
 import { buildPveItemActionClientSync } from '../../utils/pveItemClientSync.js';
 import { countUnrevealedOpponentHiddenStones } from '../../shared/utils/opponentUnrevealedHiddenCount.js';
 import { ArenaControlStrip } from './ArenaControlStrip.js';
+import { TutorialAnchor } from '../tutorial/FirstRunGuideContext.js';
 import { MoveConfirmFooterSlot } from './MoveConfirmFooterSlot.js';
 import {
     arenaPostGameButtonClass,
@@ -535,7 +536,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
         : null;
     const showPetHintBubble = Boolean(strategicPetHintFooterBubble?.visible && strategicPetHintFooterBubble?.message);
     const petHintSlot = (
-        <div className={`relative ${colClass}`}>
+        <TutorialAnchor id="pet-hint-button" className={`relative ${colClass}`}>
             {showPetHintBubble && strategicPetHintFooterBubble?.message ? (
                 <div
                     className="pointer-events-none absolute bottom-full left-0 z-[81] mb-2"
@@ -583,7 +584,7 @@ const SinglePlayerControls: React.FC<SinglePlayerControlsProps> = ({
             <span className={`${lblBase} font-semibold whitespace-nowrap ${petHintCanAttempt ? 'text-sky-100' : 'text-gray-500'}`}>
                 {petHintCountdownLabel}
             </span>
-        </div>
+        </TutorialAnchor>
     );
 
     const dockMoveConfirmSp = showMoveConfirmFooter && onConfirmMove && onMobileConfirmToggle && settingsProp;

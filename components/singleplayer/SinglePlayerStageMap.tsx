@@ -132,6 +132,7 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
         return editRoad.map((p) => stageMapPointToWorld(p));
     }, [pathEditMode, editRoad]);
 
+    /** 노드 강조: 다음 도전 관문(없으면 마지막 클리어) */
     const focusIndex = useMemo(() => {
         const next = stages.findIndex(
             (stage) =>
@@ -139,14 +140,26 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
                 isSinglePlayerStageUnlocked(getSinglePlayerStages(), progress, stage.id),
         );
         if (next >= 0) return next;
-        const lastCleared = [...stages]
-            .reverse()
-            .findIndex((stage) =>
-                isSinglePlayerStageCleared(getSinglePlayerStages(), progress, stage.id),
-            );
-        if (lastCleared >= 0) return stages.length - 1 - lastCleared;
+        for (let i = stages.length - 1; i >= 0; i--) {
+            if (isSinglePlayerStageCleared(getSinglePlayerStages(), progress, stages[i]!.id)) {
+                return i;
+            }
+        }
         return 0;
     }, [stages, progress]);
+
+    /**
+     * 맵 카메라 기본 위치: 현재 반에서 마지막으로 클리어한 관문.
+     * 클리어가 없으면(입문 직전 등) 다음 도전/첫 관문으로.
+     */
+    const defaultCameraIndex = useMemo(() => {
+        for (let i = stages.length - 1; i >= 0; i--) {
+            if (isSinglePlayerStageCleared(getSinglePlayerStages(), progress, stages[i]!.id)) {
+                return i;
+            }
+        }
+        return focusIndex;
+    }, [stages, progress, focusIndex]);
 
     const { viewportRef, transform, focusWorldPoint, fitToWorld, bumpZoom, consumeClickSuppression } =
         useMapViewport({
@@ -157,7 +170,7 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
         });
 
     const reportSelectedStageId = firstRunGuide?.setSelectedStageId;
-    const tutorialMapFocusedRef = useRef(false);
+    const defaultMapFocusedKeyRef = useRef<string | null>(null);
     useEffect(() => {
         reportSelectedStageId?.(selectedStageId);
         return () => reportSelectedStageId?.(null);
@@ -167,25 +180,30 @@ const SinglePlayerStageMap: React.FC<SinglePlayerStageMapProps> = ({
         setSelectedStageId(null);
         setEditRoad(null);
         setPathEditMode(false);
-        tutorialMapFocusedRef.current = false;
+        defaultMapFocusedKeyRef.current = null;
     }, [selectedClass]);
 
     useEffect(() => {
         if (pathEditMode) return;
-        fitToWorld({ overscan: 1 });
-        if (!isFirstRunGuideEligible(currentUser)) {
-            tutorialMapFocusedRef.current = false;
-            return;
+
+        let idx = defaultCameraIndex;
+        if (isFirstRunGuideEligible(currentUser)) {
+            const tutorialIdx = stages.findIndex((s) => s.id === FIRST_RUN_FIRST_STAGE_ID);
+            if (tutorialIdx >= 0) idx = tutorialIdx;
         }
-        if (tutorialMapFocusedRef.current) return;
-        const idx = stages.findIndex((s) => s.id === FIRST_RUN_FIRST_STAGE_ID);
+
         const point = worldPoints[idx];
         if (!point) return;
-        tutorialMapFocusedRef.current = true;
+
+        const focusKey = `${selectedClass}:${stages[idx]?.id ?? idx}`;
+        if (defaultMapFocusedKeyRef.current === focusKey) return;
+        defaultMapFocusedKeyRef.current = focusKey;
+
+        fitToWorld({ overscan: 1 });
         const t = window.setTimeout(() => focusWorldPoint(point.x, point.y, { animate: true }), 120);
         return () => window.clearTimeout(t);
-        // eslint-disable-next-line react-hooks/exhaustive-deps -- tutorial focus once per class tab; avoid refit on every user patch
-    }, [selectedClass, pathEditMode, stages, worldPoints]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps -- once per class / camera target; avoid refit on every user patch
+    }, [selectedClass, pathEditMode, stages, worldPoints, defaultCameraIndex]);
 
     const selectedStage = useMemo(
         () => stages.find((s) => s.id === selectedStageId) ?? null,

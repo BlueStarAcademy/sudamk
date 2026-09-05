@@ -8,7 +8,7 @@ import { formatAlkkagiCurlingGaugeSpeedForLobbyDisplay } from './alkkagiCurlingG
 import { mixSubRuleDisplayName } from './mixSubRuleDisplayName.js';
 import { applyMixModeSettingsConstraints } from './mixModeSettings.js';
 
-export type PairLobbyChannel = 'pair' | 'strategic' | 'playful';
+export type PairLobbyChannel = 'pair' | 'strategic' | 'playful' | 'friendly';
 
 export type PairLobbyRoomKind = 'ai_duel' | 'duo_match' | 'friendly_4p' | 'friendly_2p' | 'team_pair' | 'arena_ai';
 

@@ -3051,9 +3051,11 @@
       "claimPet": "They’re here! Claim your pet.",
       "equipPet": "Set them as your representative pet to adventure together.",
       "equipCta": "Set as representative pet",
-      "openAdventure": "Head to Adventure — Sprout Forest — with your partner.",
+      "openAdventure": "Tap the Adventure card on Home to enter Sprout Forest.",
       "selectFirstStage": "This is the first gate. Tap gate 1.",
-      "startFirstStage": "Enter and start your first game."
+      "startFirstStage": "Enter and start your first game.",
+      "pressPetHint": "Tap your partner pet hint button to get a recommended move.",
+      "placePetHint": "Place a stone on the blue hint spot on the board!"
     },
     "adventure": {
       "title": "Exploration",
@@ -6640,6 +6642,7 @@
       "arenaInviteStrategic": "Strategy arena",
       "arenaInvitePlayful": "Casual arena",
       "arenaInvitePair": "Pair arena",
+      "arenaInviteFriendly": "Friendly match",
       "arenaInviteSuffix": " invite",
       "roomKindChecking": "Checking room type",
       "visibilityPrivate": "Private",

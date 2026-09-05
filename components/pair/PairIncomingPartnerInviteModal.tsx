@@ -44,23 +44,34 @@ type Props = {
     onDecline: () => void | Promise<void>;
 };
 
-const shellToneClass: Record<'strategic' | 'playful' | 'pair', string> = {
+type InviteLobbyChannel = 'strategic' | 'playful' | 'pair' | 'friendly';
+
+const shellToneClass: Record<InviteLobbyChannel, string> = {
     strategic: 'border-cyan-400/45 ring-cyan-500/15',
     playful: 'border-amber-400/45 ring-amber-500/15',
     pair: 'border-violet-400/45 ring-violet-500/15',
+    friendly: 'border-emerald-400/45 ring-emerald-500/15',
 };
 
 /** `ArenaLobbyNavTitleBar`의 `arenaTitle`과 동일 */
-const inviteModalArenaTitleKey: Record<'strategic' | 'playful' | 'pair', 'invite.arenaInviteStrategic' | 'invite.arenaInvitePlayful' | 'invite.arenaInvitePair'> = {
+const inviteModalArenaTitleKey: Record<
+    InviteLobbyChannel,
+    | 'invite.arenaInviteStrategic'
+    | 'invite.arenaInvitePlayful'
+    | 'invite.arenaInvitePair'
+    | 'invite.arenaInviteFriendly'
+> = {
     strategic: 'invite.arenaInviteStrategic',
     playful: 'invite.arenaInvitePlayful',
     pair: 'invite.arenaInvitePair',
+    friendly: 'invite.arenaInviteFriendly',
 };
 
-const inviteModalTitleHeadingClass: Record<'strategic' | 'playful' | 'pair', string> = {
+const inviteModalTitleHeadingClass: Record<InviteLobbyChannel, string> = {
     strategic: 'bg-gradient-to-r from-cyan-100 to-cyan-200 bg-clip-text text-transparent',
     playful: 'text-amber-50',
     pair: 'bg-gradient-to-r from-violet-200 via-fuchsia-200 to-violet-300 bg-clip-text text-transparent',
+    friendly: 'bg-gradient-to-r from-emerald-100 to-teal-200 bg-clip-text text-transparent',
 };
 
 const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy, onAccept, onDecline }) => {
@@ -78,7 +89,11 @@ const PairIncomingPartnerInviteModal: React.FC<Props> = ({ invite, room, isBusy,
     const progress = Math.max(0, Math.min(1, msLeft / INVITE_TTL_MS));
     const ringOffset = RING_C * (1 - progress);
 
-    const lobbyChannel = (room?.lobbyChannel ?? 'pair') as 'pair' | 'strategic' | 'playful';
+    const rawCh = room?.lobbyChannel;
+    const lobbyChannel: InviteLobbyChannel =
+        rawCh === 'strategic' || rawCh === 'playful' || rawCh === 'pair' || rawCh === 'friendly'
+            ? rawCh
+            : 'friendly';
     const lobbyTone = waitingLobbyToneFromPairChannel(lobbyChannel);
     const handheld = true;
 

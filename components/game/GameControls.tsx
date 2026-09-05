@@ -14,6 +14,7 @@ import Dice from '../Dice.js';
 import { audioService } from '../../services/audioService.js';
 import ChallengeSelectionModal from '../ChallengeSelectionModal.js';
 import { useAppContext } from '../../hooks/useAppContext.js';
+import { TutorialAnchor } from '../tutorial/FirstRunGuideContext.js';
 import { ArenaControlStrip, ArenaFixedColsGrid } from './ArenaControlStrip.js';
 import {
     arenaPostGameButtonClass,
@@ -1622,8 +1623,8 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             : 'h-[3.65rem] w-[3.65rem] rounded-lg min-[1025px]:h-14 min-[1025px]:w-14';
 
         return (
-            <div
-                key="pet-hint-slot"
+            <TutorialAnchor
+                id="pet-hint-button"
                 className={`relative flex shrink-0 flex-col items-center overflow-visible ${isMobile ? 'z-[80]' : 'z-[45]'}`}
             >
                 {showBubble && bubble?.message ? (
@@ -1679,7 +1680,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
                         </span>
                     </div>
                 )}
-            </div>
+            </TutorialAnchor>
         );
     };
 

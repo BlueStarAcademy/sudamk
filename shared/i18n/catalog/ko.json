@@ -2967,9 +2967,11 @@
       "claimPet": "태어났어요! 펫을 받아 주세요.",
       "equipPet": "이 아이를 대표펫으로 삼으면 모험에서 함께합니다.",
       "equipCta": "대표펫으로 함께하기",
-      "openAdventure": "파트너와 함께 모험 새싹의 숲으로 가볼까요?",
+      "openAdventure": "홈의 모험 카드를 눌러 새싹의 숲으로 들어가 보세요.",
       "selectFirstStage": "첫 관문이에요. 관문 1을 눌러 주세요.",
-      "startFirstStage": "입장해서 첫 대국을 시작해 보세요."
+      "startFirstStage": "입장해서 첫 대국을 시작해 보세요.",
+      "pressPetHint": "대표펫 힌트 버튼을 눌러 추천 자리를 받아 보세요.",
+      "placePetHint": "보드에 파란 점으로 표시된 힌트 자리에 착점해 보세요!"
     },
     "adventure": {
       "title": "탐험",
@@ -6669,6 +6671,7 @@
       "arenaInviteStrategic": "전략바둑 경기장",
       "arenaInvitePlayful": "놀이바둑 경기장",
       "arenaInvitePair": "페어 경기장",
+      "arenaInviteFriendly": "친선전",
       "arenaInviteSuffix": "초대",
       "roomKindChecking": "방 종류 확인 중",
       "visibilityPrivate": "비공개",

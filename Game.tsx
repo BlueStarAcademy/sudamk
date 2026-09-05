@@ -36,6 +36,8 @@ import AiChallengeModal from './components/waiting-room/AiChallengeModal.js';
 import SinglePlayerControls from './components/game/SinglePlayerControls.js';
 import PetHintTutorialCoach from './components/game/PetHintTutorialCoach.js';
 import { hasCompletedPetHintStep } from './shared/utils/pairPetOnboarding.js';
+import { useFirstRunGuideOptional } from './components/tutorial/FirstRunGuideContext.js';
+import { isFirstRunGuideEligible } from './shared/utils/firstRunGuide.js';
 import SinglePlayerInfoPanel from './components/game/SinglePlayerInfoPanel.js';
 import PveBriefStartModal from './components/pve/PveBriefStartModal.js';
 import PveInteractiveTutorialModal from './components/pve/PveInteractiveTutorialModal.js';
@@ -1210,12 +1212,18 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const isTower = sessionPolicy.kind === 'tower';
     const isPlayfulMode = PLAYFUL_GAME_MODES.some(m => m.mode === mode);
     const isStrategicPetHintMode = SPECIAL_GAME_MODES.some((m) => m.mode === mode);
+    const firstRunGuide = useFirstRunGuideOptional();
+    const firstRunPetHintActive =
+        isSinglePlayer &&
+        isFirstRunGuideEligible(currentUser) &&
+        !hasCompletedPetHintStep(currentUser);
     const showPetHintTutorialCoach =
         isSinglePlayer &&
         isStrategicPetHintMode &&
         gameStatus === 'playing' &&
         !!getEquippedPairPetInventoryRow(currentUser) &&
-        !hasCompletedPetHintStep(currentUser);
+        !hasCompletedPetHintStep(currentUser) &&
+        !firstRunPetHintActive;
     const petHintTutorialPhase: 'pressHint' | 'placeHint' | null = !showPetHintTutorialCoach
         ? null
         : strategicPetHintBoardOverlay
@@ -1225,6 +1233,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         dismissScreenGuide('sp_tutorial_pet_hint', currentUser.id);
         void handlers.handleAction({ type: 'DISMISS_SCREEN_GUIDE', payload: { guideId: 'sp_tutorial_pet_hint' } });
     }, [currentUser.id, handlers]);
+
+    useEffect(() => {
+        firstRunGuide?.setPetHintOverlayActive(Boolean(strategicPetHintBoardOverlay));
+        return () => {
+            firstRunGuide?.setPetHintOverlayActive(false);
+        };
+    }, [firstRunGuide, strategicPetHintBoardOverlay]);
+
     /**
      * 모험·길드전(waitSummary), 학원/탑(waitScoringOverlay), 전략 instantEnd(PVP·대기실 AI)는
      * summary(보상·XP)가 붙은 뒤에만 결과 모달을 연다.
@@ -3470,6 +3486,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             return;
         }
 
+        // 첫 접속·펫 힌트 튜토리얼: 힌트 표시 중에는 해당 좌표만 착점 가능
+        if (
+            (firstRunPetHintActive || petHintTutorialPhase === 'placeHint') &&
+            strategicPetHintBoardOverlay &&
+            gameStatus === 'playing' &&
+            isMyTurn
+        ) {
+            if (x !== strategicPetHintBoardOverlay.x || y !== strategicPetHintBoardOverlay.y) {
+                flashBoardRuleMessage(tx('game:controls.petHintTutorialPlace'));
+                return;
+            }
+        }
+
         // 착수 버튼 모드(ON)면 PC/모바일 모두 pendingMove로 확정 처리
         if (
             settings.features.moveConfirmButtonBox &&
@@ -4031,6 +4060,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.itemUseDeadline,
         session.settings,
         strategicPetHintBoardOverlay,
+        firstRunPetHintActive,
+        petHintTutorialPhase,
         tryClaimPetHintBonusOnStone,
         playUserPlaceStoneSoundAt,
         selectedChessPieceId,
@@ -4057,6 +4088,17 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const petHintBoardLockUntilConfirm = strategicPetHintBoardInputLockUntilHistoryLenRef.current;
         if (petHintBoardLockUntilConfirm != null && (session.moveHistory?.length ?? 0) < petHintBoardLockUntilConfirm) {
             return;
+        }
+        if (
+            (firstRunPetHintActive || petHintTutorialPhase === 'placeHint') &&
+            strategicPetHintBoardOverlay &&
+            gameStatus === 'playing'
+        ) {
+            if (x !== strategicPetHintBoardOverlay.x || y !== strategicPetHintBoardOverlay.y) {
+                flashBoardRuleMessage(tx('game:controls.petHintTutorialPlace'));
+                setPendingMove(null);
+                return;
+            }
         }
 
         const isTower = sessionPolicy.kind === 'tower';
@@ -4381,6 +4423,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.itemUseDeadline,
         session.settings,
         strategicPetHintBoardOverlay,
+        firstRunPetHintActive,
+        petHintTutorialPhase,
         playUserPlaceStoneSoundAt,
         rejectInvalidChessGoStonePlacement,
         chessGoSession,
@@ -5571,6 +5615,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         session.id,
         isPendingTutorialKindDismissed,
     ]);
+
+    useEffect(() => {
+        if (!isSinglePlayer || !firstRunGuide) return;
+        // 브리프·모드 튜토리얼이 떠 있는 동안 첫 접속 스포트라이트를 숨김
+        firstRunGuide.setPveBlockingModalOpen(Boolean(showGameDescription));
+        return () => firstRunGuide.setPveBlockingModalOpen(false);
+    }, [isSinglePlayer, firstRunGuide, showGameDescription]);
+
     /** 이미 본 종류여도 시작 모달「튜토리얼」로 다시보기 가능 */
     const canReplayAcademyTutorial = Boolean(pendingTutorialId);
     const finishAcademyTutorial = useCallback(

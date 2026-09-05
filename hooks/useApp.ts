@@ -3080,11 +3080,16 @@ export const useApp = () => {
             if (
                 kind === 'rankedMatch' ||
                 kind === 'normalMatch' ||
+                kind === 'matchArena' ||
+                kind === 'pairArena' ||
                 kind === 'friendlyLobby' ||
                 kind === 'aiArena' ||
                 kind === 'playgroundLobby'
             ) {
                 void earlyHandleActionRef.current({ type: 'CANCEL_RANKED_MATCHING' }).catch(() => undefined);
+                if (kind === 'pairArena') {
+                    void earlyHandleActionRef.current({ type: 'PAIR_CANCEL_PAIR_PET_MATCHING' }).catch(() => undefined);
+                }
                 void earlyHandleActionRef.current({ type: 'PAIR_LEAVE_ROOM' }).catch(() => undefined);
                 void earlyHandleActionRef.current({ type: 'LEAVE_WAITING_ROOM' }).catch(() => undefined);
             }
@@ -9241,9 +9246,15 @@ export const useApp = () => {
                     }
                 }
 
-                // 페어 방: PAIR_ROOM_UPDATE와 동일 소스 — WS보다 HTTP가 먼저/늦게 올 때도 목록이 맞도록 병합
+                // 페어 방: PAIR_SYNC / 초대 수락 등은 전체 맵. 슬롯 그리드 슬라이스는 부분 맵이라
+                // 전역 pairRooms에 넣으면 소속 방(myRoom)이 사라져 「초대 수락 후 입장 안 됨」이 된다.
+                // (그리드는 PairWaitingLobby의 lobbyGridRooms만 갱신)
                 const pairRoomsFromResponse = (result as any)?.pairRooms ?? result?.clientResponse?.pairRooms;
-                if (pairRoomsFromResponse && typeof pairRoomsFromResponse === 'object') {
+                if (
+                    pairRoomsFromResponse &&
+                    typeof pairRoomsFromResponse === 'object' &&
+                    action.type !== 'PAIR_LOBBY_ROOM_GRID_SLICE'
+                ) {
                     setPairRooms(pairRoomsFromResponse);
                 }
                 const pairRoomChatHistory = (result as any)?.pairRoomChatHistory ?? result?.clientResponse?.pairRoomChatHistory;

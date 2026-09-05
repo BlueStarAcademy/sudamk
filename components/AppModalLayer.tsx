@@ -1,6 +1,7 @@
 import React, { useMemo, useState, Suspense, lazy } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PairRoomState } from '../types/api.js';
+import type { ArenaChannel } from '../shared/types/api.js';
 import {
     useAppGameStoreSlice,
     useAppRealtimeSlice,
@@ -59,8 +60,13 @@ import MannerGradeChangeModal from './MannerGradeChangeModal.js';
 import ContentUnlockNoticeModal from './ContentUnlockNoticeModal.js';
 import MobileModalTitleBar from './mobile/MobileModalTitleBar.js';
 import PairIncomingPartnerInviteModal from './pair/PairIncomingPartnerInviteModal.js';
-import { arenaLobbyHash, arenaLobbyIntentFromPairRoom } from '../shared/utils/arenaLobbyDestination.js';
+import {
+    arenaLobbyHash,
+    arenaLobbyIntentFromPairRoom,
+    canonicalizeHomeAlignedLobbyDestination,
+} from '../shared/utils/arenaLobbyDestination.js';
 import { replaceAppHash } from '../utils/appUtils.js';
+import { isAppHomeHash } from '../shared/types/navigation.js';
 import { PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY } from '../shared/constants/pairArena.js';
 import { mergeWaitingRoomPublicChatMessages } from '../shared/utils/waitingRoomGlobalChatMerge.js';
 import ModalChunkFallback from './ui/ModalChunkFallback.js';
@@ -204,12 +210,20 @@ const AppModalLayer: React.FC = () => {
                     ? (prMap as Record<string, PairRoomState>)[inviteRoomId]
                     : undefined;
             const room = joinedRoom ?? incomingInvitePairRoom;
-            const lobbyChannel = (room?.lobbyChannel ?? 'pair') as 'pair' | 'strategic' | 'playful';
+            const rawChannel = room?.lobbyChannel;
+            const lobbyChannel: ArenaChannel =
+                rawChannel === 'strategic' ||
+                rawChannel === 'playful' ||
+                rawChannel === 'pair' ||
+                rawChannel === 'friendly'
+                    ? rawChannel
+                    : 'friendly';
             const lobbyIntent = arenaLobbyIntentFromPairRoom(room);
-            const targetHash = arenaLobbyHash({ intent: lobbyIntent, channel: lobbyChannel });
-
-            const norm = (h: string) => h.replace(/^#\/?/, '').split('?')[0];
-            const needNav = norm(window.location.hash) !== norm(targetHash);
+            const dest = canonicalizeHomeAlignedLobbyDestination({
+                intent: lobbyIntent,
+                channel: lobbyChannel,
+            });
+            const targetHash = arenaLobbyHash(dest);
 
             try {
                 sessionStorage.setItem(PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY, '1');
@@ -217,13 +231,21 @@ const AppModalLayer: React.FC = () => {
                 // ignore
             }
 
-            if (needNav) {
-                requestAnimationFrame(() => {
-                    requestAnimationFrame(() => {
-                        replaceAppHash(targetHash);
-                    });
-                });
+            // 홈에 있으면 `#/pvp/friendly` 왕복 remount 없이 임베드만 연다 (그리드 슬라이스·포커스 레이스 완화)
+            if (isAppHomeHash(window.location.hash)) {
+                if (dest.channel === 'playful') {
+                    handlers.openPlaygroundLobby?.();
+                } else {
+                    handlers.openFriendlyLobby?.();
+                }
+                return;
             }
+
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    replaceAppHash(targetHash);
+                });
+            });
         } finally {
             setPairInviteRespondBusy(false);
         }

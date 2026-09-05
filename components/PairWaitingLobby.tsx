@@ -1683,7 +1683,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             pairRoomRequiresLeaveConfirmation(myRoomAnyLobbyChannel),
     );
     const lobbyTone: WaitingLobbyPanelTone =
-        lobbyChannel === 'playful' ? 'playful' : lobbyChannel === 'pair' ? 'pair' : 'strategic';
+        lobbyChannel === 'playful'
+            ? 'playful'
+            : lobbyChannel === 'pair' || lobbyChannel === 'friendly'
+              ? 'pair'
+              : 'strategic';
 
     const pairLobbyListFilterSelectClassResolved = useMemo(
         () => pairLobbyListFilterSelectClassForTone(lobbyTone, false),
@@ -1752,9 +1756,14 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
     const backToProfile = useCallback(() => {
         window.location.hash = APP_HOME_HASH;
         if (lobbyChannel === 'strategic' || lobbyChannel === 'playful' || lobbyChannel === 'friendly') {
+            if (aggregateLobbyRankedMatching) {
+                void handlers.handleAction({ type: 'CANCEL_RANKED_MATCHING' }).catch(() => undefined);
+                setAggregateLobbyRankedMatching(false);
+                setAggregateLobbyRankedMatchingStartTime(0);
+            }
             void handlers.handleAction({ type: 'LEAVE_WAITING_ROOM' }).catch(() => undefined);
         }
-    }, [lobbyChannel, handlers]);
+    }, [lobbyChannel, handlers, aggregateLobbyRankedMatching]);
 
     /** 방 만들기·내 방 화면에서 방 목록으로 복귀 */
     const showLobbyRoomListScreen = useCallback(() => {
@@ -3172,7 +3181,11 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         try {
             const result = await handlers.handleAction({
                 type: 'START_RANKED_MATCHING',
-                payload: { lobbyType: 'strategic' as const, selectedModes: [mode] },
+                payload: {
+                    lobbyType: 'strategic' as const,
+                    selectedModes: [mode],
+                    queueKind: matchQueueKind === 'normal' ? 'normal' : 'ranked',
+                },
             } as ServerAction);
             const error = (result as { error?: string } | undefined)?.error;
             if (error) {
@@ -7078,6 +7091,7 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             {strategicArenaRankedModalOpen && myRoom?.roomKind === 'arena_ai' && lobbyChannel === 'strategic' && (
                 <PairPetRankedMatchModeModal
                     variant="strategic_arena"
+                    matchQueueKind={matchQueueKind === 'normal' ? 'normal' : 'ranked'}
                     initialMode={myRoom.selectedGameMode ?? GameMode.Standard}
                     queueCountByMode={strategicRankedQueueCountsByMode}
                     currentUser={currentUserWithStatus}

@@ -410,6 +410,9 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                 type: 'START_RANKED_MATCHING',
                 payload: { lobbyType: 'strategic', selectedModes, queueKind: isStrategicNormalQueue ? 'normal' : 'ranked' }
             });
+            if (result?.error) {
+                return;
+            }
             setIsModalOpen(false);
             
             // HTTP 응답에서 매칭 정보 확인하여 즉시 상태 업데이트
@@ -675,6 +678,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
                                 <PairPetRankedMatchModeModal
                                     presentation="dedicatedHome"
                                     variant={isPairPetQueue ? 'pair_pet' : 'strategic_arena'}
+                                    matchQueueKind={isStrategicNormalQueue ? 'normal' : 'ranked'}
                                     initialMode={GameMode.Standard}
                                     queueCountByMode={
                                         isPairPetQueue
@@ -1208,6 +1212,7 @@ const RankedMatchPanel: React.FC<RankedMatchPanelProps> = ({
             {!dedicated && isModalOpen ? (
                 <PairPetRankedMatchModeModal
                     variant={isPairPetQueue ? 'pair_pet' : 'strategic_arena'}
+                    matchQueueKind={isStrategicNormalQueue ? 'normal' : 'ranked'}
                     initialMode={GameMode.Standard}
                     queueCountByMode={
                         isPairPetQueue ? pairPetRankedQueueCountsByMode : strategicRankedQueueCountsByMode

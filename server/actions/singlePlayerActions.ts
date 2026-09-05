@@ -710,11 +710,10 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
 
             (game as any).singlePlayerStageDisplay = JSON.parse(JSON.stringify(stage)) as SinglePlayerStageInfo;
 
-            const { markPairPetOnboardingWalkthroughCompleted } = await import('../../shared/utils/pairPetOnboarding.js');
+            // 첫 접속 가이드는 대국 중 펫 힌트 착점까지 이어지므로 여기서 walkthrough를 끝내지 않음.
+            // (home 가이드만 닫아 홈 도움말과 겹치지 않게 함)
             const { normalizeDismissedScreenGuides } = await import('../../shared/constants/screenGuideDismiss.js');
-            markPairPetOnboardingWalkthroughCompleted(user);
             const dismissed = normalizeDismissedScreenGuides(user.dismissedScreenGuides);
-            if (!dismissed.includes('first_run_walkthrough')) dismissed.push('first_run_walkthrough');
             if (!dismissed.includes('home')) dismissed.push('home');
             user.dismissedScreenGuides = dismissed;
 

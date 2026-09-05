@@ -3203,6 +3203,17 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             if (detachedEndedGameId) {
                 await maybeDeleteDetachedEndedPvpGame(volatileState, detachedEndedGameId);
             }
+
+            // 대기실 이탈 시 랭킹전·일반전 매칭 큐도 정리 (뒤로가기/화면 닫기와 동일)
+            let clearedRankedQueue = false;
+            if (volatileState.rankedMatchingQueue?.strategic?.[user.id]) {
+                delete volatileState.rankedMatchingQueue.strategic[user.id];
+                clearedRankedQueue = true;
+            }
+            if (volatileState.rankedMatchingQueue?.normal?.[user.id]) {
+                delete volatileState.rankedMatchingQueue.normal[user.id];
+                clearedRankedQueue = true;
+            }
             
             // 사용자가 보낸 negotiation 정리
             const userNegotiations = Object.keys(volatileState.negotiations).filter(negId => {
@@ -3220,6 +3231,9 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
             }
             
             broadcast({ type: 'USER_STATUS_UPDATE', payload: volatileState.userStatuses });
+            if (clearedRankedQueue) {
+                broadcast({ type: 'RANKED_MATCHING_UPDATE', payload: { queue: volatileState.rankedMatchingQueue } });
+            }
             if (userNegotiations.length > 0) {
                 broadcast({ type: 'NEGOTIATION_UPDATE', payload: { negotiations: volatileState.negotiations, userStatuses: volatileState.userStatuses } });
             }
@@ -4038,6 +4052,8 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
 
             if (target.roomKind === 'friendly_2p') {
                 target.extraPairMembers = [{ id: user.id, name: user.nickname, ready: false }];
+                // PAIR_JOIN_ROOM과 동일 — 좌석 미동기 시 클라이언트 팀/슬롯 UI가 비는 경우 방지
+                target.pairSeatAssignments = { teamA: [target.ownerId], teamB: [user.id] };
                 const ownerFresh = await db.getUser(target.ownerId);
                 if (ownerFresh) {
                     const os = pairLobbyPetSnapshotFromUser(ownerFresh);
