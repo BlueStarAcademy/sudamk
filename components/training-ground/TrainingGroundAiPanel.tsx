@@ -91,7 +91,7 @@ const TrainingGroundAiPanel: React.FC = () => {
                     pairRoomDenseSettingsGrid
                     lobbyType="strategic"
                     preferredGameSettingsBucket={
-                        isPairFormat ? 'friendly_ai_friendly_2p' : 'strategic_ai_challenge'
+                        isPairFormat ? 'friendly_ai_friendly_2p' : 'training_machine_ai_challenge'
                     }
                     onClose={() => {}}
                     onAction={onAction}

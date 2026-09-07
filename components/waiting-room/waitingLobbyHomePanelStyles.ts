@@ -710,6 +710,7 @@ export function aiChallengeModalChromeFromBucket(bucket: string): AiChallengeMod
     if (bucket === 'strategic_ai_challenge' || bucket === 'pair_ai_match_modal') {
         return 'ai_feature';
     }
+    if (bucket === 'training_machine_ai_challenge') return 'strategic';
     if (bucket.startsWith('playful_')) return 'playful';
     if (bucket.startsWith('pair_')) return 'pair';
     return 'strategic';

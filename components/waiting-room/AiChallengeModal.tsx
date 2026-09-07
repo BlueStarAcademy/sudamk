@@ -23,9 +23,8 @@ import {
   getChessPieceTotalScoreOptions, getDefaultChessPieceTotalScore, clampChessPieceTotalScore,
 } from '../../constants/gameSettings.js';
 import {
-    profileStepFromKataServerLevel,
-    normalizeStrategicLobbyKataServerLevelForLobbyAi,
     KATA_SERVER_LEVEL_BY_PROFILE_STEP,
+    resolveAiLobbyProfileStepFromSettings,
     syncStrategicLobbyAiSettingsFromKataAuthority,
 } from '../../shared/utils/strategicAiDifficulty.js';
 import { clampGameInt } from '../../shared/utils/gameIntegerField.js';
@@ -112,7 +111,9 @@ export type AiLobbyPreferredGameSettingsBucket =
     | 'friendly_ai_duo_match'
     | 'friendly_ai_friendly_2p'
     | 'friendly_ai_team_pair'
-    | 'friendly_ai_friendly_4p';
+    | 'friendly_ai_friendly_4p'
+    /** 훈련장 훈련 머신(1:1) — 전략 대기실 AI 설정과 localStorage를 분리 */
+    | 'training_machine_ai_challenge';
 
 interface AiChallengeModalProps {
     lobbyType: 'strategic' | 'playful';
@@ -286,6 +287,7 @@ function readAiLobbyPreferredSettingsJson(bucket: AiLobbyPreferredGameSettingsBu
         if (scoped != null && scoped !== '') return scoped;
         return localStorage.getItem(`preferredGameSettings_${mode}`);
     }
+    // 훈련 머신: 대기실 오염 설정을 이어받지 않음(전용 키만)
     if (bucket === 'playful_ai_challenge') {
         const scoped = localStorage.getItem(`preferredGameSettings_playful_${mode}`);
         if (scoped != null && scoped !== '') return scoped;
@@ -406,26 +408,14 @@ function finalizeNonDuoLobbyDraftForApply(
         byoyomiCount: 0,
         timeIncrement: 0,
     };
-    const defaultKataWhenUnset = -12;
-    const kataResolved =
-        typeof draft.kataServerLevel === 'number' && Number.isFinite(draft.kataServerLevel)
-            ? normalizeStrategicLobbyKataServerLevelForLobbyAi(draft.kataServerLevel)
-            : defaultKataWhenUnset;
-    const aiProfileStep =
-        profileStepFromKataServerLevel(kataResolved) ??
-        (lobbyType === 'strategic' ? 5 : (draft.goAiBotLevel ?? draft.aiDifficulty ?? 5));
     const mergedSettings: GameSettings = {
         ...draft,
         ...(pairFriendlyHumanClock ? {} : timeUnlimitedSettings),
         useClientSideAi,
-        ...(lobbyType === 'strategic'
-            ? {
-                  kataServerLevel: kataResolved,
-                  goAiBotLevel: aiProfileStep,
-                  aiDifficulty: aiProfileStep,
-              }
-            : {}),
     };
+    if (lobbyType === 'strategic') {
+        syncStrategicLobbyAiSettingsFromKataAuthority(mergedSettings);
+    }
     const normalizedSettings = clampAiLobbyStrategicItemCaps(
         mode,
         normalizeAiScoringTurnLimit(mode, mergedSettings),
@@ -1067,17 +1057,20 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             if (selectedGameMode === GameMode.Mix && key === 'mixedModes') {
                 newSettings = applyMixModeSettingsConstraints(newSettings);
             }
-            if (lobbyType === 'strategic' && key === 'kataServerLevel') {
-                const kata = normalizeStrategicLobbyKataServerLevelForLobbyAi(value);
-                const step =
-                    profileStepFromKataServerLevel(kata) ??
-                    (typeof newSettings.goAiBotLevel === 'number' ? newSettings.goAiBotLevel : 5);
-                newSettings = {
-                    ...newSettings,
-                    kataServerLevel: kata,
-                    goAiBotLevel: step,
-                    aiDifficulty: step,
-                };
+            if (lobbyType === 'strategic' && (key === 'kataServerLevel' || key === 'goAiBotLevel' || key === 'aiDifficulty')) {
+                // 셀렉트는 프로필 단계(1~10)를 넘긴다. 표시 Lv·Kata 값 혼선을 막기 위해 단계→Kata로 고정 매핑.
+                const stepRaw = Number(value);
+                if (Number.isFinite(stepRaw) && stepRaw >= 1 && stepRaw <= 10) {
+                    const step = Math.round(stepRaw);
+                    newSettings = {
+                        ...newSettings,
+                        goAiBotLevel: step,
+                        aiDifficulty: step,
+                        kataServerLevel: KATA_SERVER_LEVEL_BY_PROFILE_STEP[step],
+                    };
+                } else {
+                    syncStrategicLobbyAiSettingsFromKataAuthority(newSettings);
+                }
             }
             if (selectedGameMode && (key === 'boardSize' || key === 'mixedModes')) {
                 newSettings = normalizeAiScoringTurnLimit(selectedGameMode, newSettings);
@@ -1488,10 +1481,11 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
                   ? 'grid-cols-2'
                   : 'grid-cols-1';
 
-                const AI_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((step) => ({
-            value: KATA_SERVER_LEVEL_BY_PROFILE_STEP[step],
+        const AI_LEVELS = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((step) => ({
+            value: step,
             label: t('aiChallengeModal.aiLevelStep', { step }),
         }));
+        const aiLevelSelectValue = resolveAiLobbyProfileStepFromSettings(settings);
 
         const boardSizeOptions =
             selectedGameMode === GameMode.Mix
@@ -1536,8 +1530,8 @@ const AiChallengeModal: React.FC<AiChallengeModalProps> = ({
             <div className={settingRowClass}>
                 <label className={gameSettingsLabelClass} style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}>{t('aiChallengeModal.aiLevel')}</label>
                 <select
-                    value={settings.kataServerLevel ?? -12}
-                    onChange={e => handleSettingChange('kataServerLevel', parseInt(e.target.value, 10))}
+                    value={aiLevelSelectValue}
+                    onChange={e => handleSettingChange('goAiBotLevel', parseInt(e.target.value, 10))}
                     className={gameSettingsSelectClass}
                     style={denseSettings ? undefined : { fontSize: `${Math.max(13, Math.round(15 * mobileTextScale))}px` }}
                 >

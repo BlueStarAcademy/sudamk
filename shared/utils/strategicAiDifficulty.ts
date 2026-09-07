@@ -102,9 +102,35 @@ function lobbyKataForProfileStep(step: number, strategicLobbyKataByStep?: Record
   return strategicLobbyKataByStep?.[String(s)] ?? KATA_SERVER_LEVEL_BY_PROFILE_STEP[s] ?? -31;
 }
 
+/** 대기실 1~10단계 표의 Kata 값 집합(3·5 포함). 표시 Lv 3·5와 겹친다. */
+function lobbyKataValueSet(strategicLobbyKataByStep?: Record<string, number>): Set<number> {
+  const out = new Set<number>();
+  for (let step = 1; step <= 10; step++) {
+    out.add(lobbyKataForProfileStep(step, strategicLobbyKataByStep));
+  }
+  return out;
+}
+
+function profileStepHintFromSettings(settings: {
+  goAiBotLevel?: number;
+  aiDifficulty?: number;
+}): number | undefined {
+  if (typeof settings.goAiBotLevel === 'number' && Number.isFinite(settings.goAiBotLevel)) {
+    const g = Math.round(settings.goAiBotLevel);
+    if (g >= 1 && g <= 10) return g;
+  }
+  if (typeof settings.aiDifficulty === 'number' && Number.isFinite(settings.aiDifficulty)) {
+    const d = Math.round(settings.aiDifficulty);
+    if (d >= 1 && d <= 10) return d;
+  }
+  return undefined;
+}
+
 /**
- * 전략 대기실·훈련 머신 AI: `kataServerLevel` 권위값으로 정규화한다.
+ * 전략 대기실·훈련 머신 AI: `kataServerLevel` 단독 값을 정규화한다.
  * UI 단계 번호(1~10)나 표시 Lv(15~50)이 kata 필드에 들어가면 Kata `/move.level`이 최고 난이도로 오인된다.
+ * 표시 Lv 3·5는 Kata 9·10단계 값과 겹치므로, 단계 힌트 없이 단독 3·5는 유효 Kata로 유지한다.
+ * (오염된 표시 Lv는 `syncStrategicLobbyAiSettingsFromKataAuthority`가 goAiBotLevel을 권위로 복구한다.)
  */
 export function normalizeStrategicLobbyKataServerLevelForLobbyAi(
   raw: unknown,
@@ -112,14 +138,14 @@ export function normalizeStrategicLobbyKataServerLevelForLobbyAi(
 ): number {
   const ks = Math.round(Number(raw));
   if (!Number.isFinite(ks)) return lobbyKataForProfileStep(5, strategicLobbyKataByStep);
+  const fromDisplay = STRATEGIC_AI_DISPLAY_LEVEL_TO_PROFILE_STEP[ks];
+  if (fromDisplay != null) {
+    return lobbyKataForProfileStep(fromDisplay, strategicLobbyKataByStep);
+  }
   const fromTable = profileStepFromKataServerLevel(ks, strategicLobbyKataByStep);
   if (fromTable != null) {
     const expected = lobbyKataForProfileStep(fromTable, strategicLobbyKataByStep);
     if (ks === expected) return ks;
-  }
-  const fromDisplay = STRATEGIC_AI_DISPLAY_LEVEL_TO_PROFILE_STEP[ks];
-  if (fromDisplay != null) {
-    return lobbyKataForProfileStep(fromDisplay, strategicLobbyKataByStep);
   }
   if (ks >= 1 && ks <= 10) {
     return lobbyKataForProfileStep(ks, strategicLobbyKataByStep);
@@ -131,7 +157,11 @@ export function normalizeStrategicLobbyKataServerLevelForLobbyAi(
   return ks;
 }
 
-/** 대기실 AI 설정 — kataServerLevel ↔ goAiBotLevel/aiDifficulty 일치 (Kata 강도 권위) */
+/**
+ * 대기실·훈련 머신 AI 설정 — 프로필 단계(goAiBotLevel)와 kataServerLevel을 일치시킨다.
+ * 표시 Lv(3·5·15…)가 kata에 섞여도, 유효한 1~10 단계 힌트가 있으면 단계를 권위로 Kata를 재산출한다.
+ * 단, kata가 1~10이면서 대기실 Kata 표 값이 아니면(3·5 제외) UI 단계 번호 누수로 보고 kata 쪽 단계를 쓴다.
+ */
 export function syncStrategicLobbyAiSettingsFromKataAuthority(
   settings: {
     kataServerLevel?: number;
@@ -140,18 +170,39 @@ export function syncStrategicLobbyAiSettingsFromKataAuthority(
   },
   strategicLobbyKataByStep?: Record<string, number>,
 ): void {
-  if (typeof settings.kataServerLevel === 'number' && Number.isFinite(settings.kataServerLevel)) {
-    const kata = normalizeStrategicLobbyKataServerLevelForLobbyAi(
-      settings.kataServerLevel,
-      strategicLobbyKataByStep,
-    );
+  const stepHint = profileStepHintFromSettings(settings);
+  const ksRaw = settings.kataServerLevel;
+  const ks =
+    typeof ksRaw === 'number' && Number.isFinite(ksRaw) ? Math.round(ksRaw) : undefined;
+
+  if (stepHint != null) {
+    const expectedKata = lobbyKataForProfileStep(stepHint, strategicLobbyKataByStep);
+    if (ks != null && ks !== expectedKata && ks >= 1 && ks <= 10) {
+      const kataValues = lobbyKataValueSet(strategicLobbyKataByStep);
+      // 1·2·4·6…10 등 표에 없는 양수 → 단계 번호가 kata에 들어간 경우 (기존 테스트: kata=1, goAi=10 → 1단계)
+      if (!kataValues.has(ks)) {
+        settings.kataServerLevel = lobbyKataForProfileStep(ks, strategicLobbyKataByStep);
+        settings.goAiBotLevel = ks;
+        settings.aiDifficulty = ks;
+        return;
+      }
+    }
+    settings.kataServerLevel = expectedKata;
+    settings.goAiBotLevel = stepHint;
+    settings.aiDifficulty = stepHint;
+    return;
+  }
+
+  if (ks != null) {
+    const kata = normalizeStrategicLobbyKataServerLevelForLobbyAi(ks, strategicLobbyKataByStep);
     settings.kataServerLevel = kata;
     const step = profileStepFromKataServerLevel(kata, strategicLobbyKataByStep) ?? 5;
     settings.goAiBotLevel = step;
     settings.aiDifficulty = step;
     return;
   }
-  const step = resolveAiLobbyProfileStepFromSettings(settings, strategicLobbyKataByStep);
+
+  const step = 5;
   settings.kataServerLevel = lobbyKataForProfileStep(step, strategicLobbyKataByStep);
   settings.goAiBotLevel = step;
   settings.aiDifficulty = step;
@@ -207,20 +258,15 @@ export function resolveAiLobbyProfileStepFromSettings(
   },
   strategicLobbyKataByStep?: Record<string, number>,
 ): number {
-  const ks = settings.kataServerLevel;
-  if (typeof ks === 'number' && Number.isFinite(ks)) {
-    const normalized = normalizeStrategicLobbyKataServerLevelForLobbyAi(ks, strategicLobbyKataByStep);
-    const fromKata = profileStepFromKataServerLevel(normalized, strategicLobbyKataByStep);
-    if (fromKata != null) return fromKata;
-  }
-  if (typeof settings.goAiBotLevel === 'number' && Number.isFinite(settings.goAiBotLevel)) {
-    const g = Math.round(settings.goAiBotLevel);
-    if (g >= 1 && g <= 10) return g;
-  }
-  const ad = settings.aiDifficulty;
-  if (typeof ad === 'number' && Number.isFinite(ad)) {
-    return Math.max(1, Math.min(10, Math.round(ad)));
-  }
+  // sync와 동일 권위: 단계 힌트가 있으면 표시 Lv↔Kata 충돌(3·5)을 단계 쪽으로 해석
+  const synced = {
+    kataServerLevel: settings.kataServerLevel,
+    goAiBotLevel: settings.goAiBotLevel,
+    aiDifficulty: settings.aiDifficulty,
+  };
+  syncStrategicLobbyAiSettingsFromKataAuthority(synced, strategicLobbyKataByStep);
+  const step = profileStepHintFromSettings(synced);
+  if (step != null) return step;
   return 1;
 }
 
