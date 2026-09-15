@@ -7890,6 +7890,7 @@
       "battleResultTitle": "전투 결과",
       "battleResultHeading": "{{bossName}} 전투 결과",
       "totalDamageDealt": "총 피해량: {{damage}}",
+      "totalDamageWithGearBonus": "총 피해량: {{total}} (장비 보너스 +{{bonus}})",
       "turnsSurvived": "생존 턴:",
       "turnsUnit": "{{count}} 턴",
       "bossHpRemaining": "보스 남은 체력 ({{percent}}%)",
@@ -7900,6 +7901,7 @@
       "gradeEquipment": "{{grade}} 등급 장비",
       "gradeSuffix": "{{label}}등급",
       "gradeE": "E등급",
+      "gradeWithEquipmentBoost": "{{final}}등급 (장비 보정: {{base}}→{{final}})",
       "serverReplayFailed": "서버 전투 기보를 받지 못했습니다.",
       "researchHpIncrease": "HP증가",
       "researchDamageIncrease": "데미지증가",
@@ -7952,7 +7954,11 @@
       "materialBox1": "재료 상자 I",
       "materialBox2": "재료 상자 II",
       "materialBox3": "재료 상자 III",
-      "materialBox4": "재료 상자 IV"
+      "materialBox4": "재료 상자 IV",
+      "ticketOptionType": "옵션 종류 변경권",
+      "ticketOptionValue": "옵션 수치 변경권",
+      "ticketSpecialOption": "스페셜 옵션 변경권",
+      "ticketMythicOption": "신화 옵션 변경권"
     },
     "createModal": {
       "title": "길드 창설",

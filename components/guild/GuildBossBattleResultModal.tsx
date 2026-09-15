@@ -147,6 +147,10 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
             '재료 상자 II': 'rewards.materialBox2',
             '재료 상자 III': 'rewards.materialBox3',
             '재료 상자 IV': 'rewards.materialBox4',
+            '옵션 종류 변경권': 'rewards.ticketOptionType',
+            '옵션 수치 변경권': 'rewards.ticketOptionValue',
+            '스페셜 옵션 변경권': 'rewards.ticketSpecialOption',
+            '신화 옵션 변경권': 'rewards.ticketMythicOption',
         };
         const key = keyMap[name];
         return key ? t(key) : name;
@@ -228,7 +232,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
         rewards.tickets.forEach(ticket => {
             cards.push({
                 type: 'ticket',
-                name: ticket.name,
+                name: resolveRewardDisplayName(ticket.name),
                 quantity: ticket.quantity > 1 ? ticket.quantity : undefined,
                 image: TICKET_IMAGES[ticket.name] || '/images/use/change1.webp',
                 isSpecial: isTopGrade,
@@ -363,7 +367,7 @@ const GuildBossBattleResultModal: React.FC<GuildBossBattleResultModalProps> = ({
                     <p className="guild-boss-result-eyebrow mb-0.5 text-[10px] font-bold uppercase tracking-[0.22em] text-amber-200/70 sm:text-xs">
                         {t('boss.battleResultTitle')}
                     </p>
-                    <h2 className="guild-boss-result-title mb-1 break-words px-1 text-lg font-bold bg-gradient-to-r from-amber-200 via-yellow-300 to-amber-200 bg-clip-text text-transparent sm:mb-2 sm:text-2xl">
+                    <h2 className="guild-boss-result-title mb-1 break-words px-1 text-lg font-bold text-amber-100 sm:mb-2 sm:text-2xl">
                         {t('boss.battleResultHeading', { bossName: result.bossName })}
                     </h2>
                     <div className="flex flex-wrap items-center justify-center gap-1.5 sm:gap-3">

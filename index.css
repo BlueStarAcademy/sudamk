@@ -3830,7 +3830,10 @@ input[type="range"]::-moz-range-thumb {
 .guild-boss-result-title {
   animation: guild-boss-result-pop 0.7s cubic-bezier(0.2, 0.9, 0.25, 1) both;
   animation-delay: 0.08s;
-  text-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+  /*
+   * text-shadow + bg-clip-text + text-transparent 조합은
+   * 한글(CJK)에서 글리프가 이중·깨짐처럼 보이는 경우가 많다. 그림자는 쓰지 않는다.
+   */
 }
 .guild-boss-result-tier {
   animation: guild-boss-result-pop 0.65s ease-out both;

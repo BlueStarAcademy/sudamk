@@ -7889,6 +7889,7 @@
       "battleResultTitle": "Battle result",
       "battleResultHeading": "{{bossName}} battle result",
       "totalDamageDealt": "Total damage: {{damage}}",
+      "totalDamageWithGearBonus": "Total damage: {{total}} (gear bonus +{{bonus}})",
       "turnsSurvived": "Turns survived:",
       "turnsUnit": "{{count}} turns",
       "bossHpRemaining": "Boss HP remaining ({{percent}}%)",
@@ -7899,6 +7900,7 @@
       "gradeEquipment": "{{grade}} equipment",
       "gradeSuffix": "{{label}} grade",
       "gradeE": "E grade",
+      "gradeWithEquipmentBoost": "{{final}} grade (gear boost: {{base}}→{{final}})",
       "serverReplayFailed": "Failed to receive battle replay from server.",
       "researchHpIncrease": "HP boost",
       "researchDamageIncrease": "Damage up",
@@ -7951,7 +7953,11 @@
       "materialBox1": "Material box I",
       "materialBox2": "Material box II",
       "materialBox3": "Material box III",
-      "materialBox4": "Material box IV"
+      "materialBox4": "Material box IV",
+      "ticketOptionType": "Option type change ticket",
+      "ticketOptionValue": "Option value change ticket",
+      "ticketSpecialOption": "Special option change ticket",
+      "ticketMythicOption": "Mythic option change ticket"
     },
     "createModal": {
       "title": "Create Guild",
