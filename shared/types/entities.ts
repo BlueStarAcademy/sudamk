@@ -1190,6 +1190,8 @@ export type GameSettings = {
   survivalTurns?: number;
   mixedModes?: GameMode[];
   autoScoring?: boolean;
+  /** 싱글/탑 등: 정해진 총 턴에 도달하면 자동 계가 */
+  autoScoringTurns?: number;
   /** START_SINGLE_PLAYER_GAME 시 stage.forcedAiResponses를 runtime으로 복사해 AI 착수에서 사용 */
   singlePlayerForcedAiResponses?: Array<{
     whenOpponentStoneAt?: Point;

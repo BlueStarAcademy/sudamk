@@ -1865,7 +1865,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         };
                     }
                     if (
-                        next.usesChessGo &&
+                        sessionUsesChessGo(next) &&
                         Array.isArray(parsed.chessPieces) &&
                         parsed.chessPieces.length > 0 &&
                         (!next.chessPieces || next.chessPieces.length === 0)
@@ -1878,13 +1878,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 parsed.chessPieceMovedThisTurn ?? next.chessPieceMovedThisTurn,
                         };
                     }
-                    if (next.usesChessGo && Array.isArray(parsed.chessGoRemovedPoints)) {
+                    if (sessionUsesChessGo(next) && Array.isArray(parsed.chessGoRemovedPoints)) {
                         // 서버/세션 목록이 있으면 복원본과 합치지 않는다(패 재착수 돌이 지워지는 회귀 방지).
                         if (!Array.isArray(next.chessGoRemovedPoints)) {
                             next = { ...next, chessGoRemovedPoints: parsed.chessGoRemovedPoints };
                         }
                     }
-                    if (next.usesChessGo) {
+                    if (sessionUsesChessGo(next)) {
                         next = normalizeChessGoSession(next);
                     }
                     // 턴 제한 경기: totalTurns가 없거나 0이면 sessionStorage 값으로 복원 (남은 턴이 Max로 초기화되는 현상 방지)
@@ -3221,6 +3221,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return false;
         const stoneHere = boardStateToUse[y]?.[x];
         if (stoneHere !== Player.None) return false;
+        if (myPlayerEnum !== Player.Black && myPlayerEnum !== Player.White) return false;
         try {
             const moveResult =
                 usesChessGo
@@ -3285,6 +3286,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                   : restoredBoardState || session.boardState;
         if (!boardStateToUse || !Array.isArray(boardStateToUse) || boardStateToUse.length === 0) return false;
         if (boardStateToUse[y]?.[x] !== Player.None) return false;
+        if (myPlayerEnum !== Player.Black && myPlayerEnum !== Player.White) return false;
         try {
             const moveResult =
                 usesChessGo
@@ -3417,7 +3419,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 isPairClassicGame(session.settings, mode)
                     ? resolvePairChessSetupPlayerColor(session, currentUser.id)
                     : myPlayerEnum;
-            if (setupColor == null || setupColor === Player.None) {
+            if (setupColor == null) {
                 return;
             }
             const boardSize = session.settings.boardSize ?? 13;
@@ -5889,7 +5891,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const sessionWithRestoredBoard = useMemo(() => {
         const base = chessGoSession;
         // 체스 바둑: chessGoSession이 chessPieces·boardState를 항상 맞춤 — sessionStorage 판 덮어쓰기 금지
-        if (base.usesChessGo) {
+        if (sessionUsesChessGo(base)) {
             return base;
         }
         if (!useRefreshSessionStorageMerge) {

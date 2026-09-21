@@ -22,7 +22,7 @@ interface BulkItemObtainedModalProps {
     tournamentScoreChange?: { oldScore: number; newScore: number; scoreReward: number } | null;
 }
 
-const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string, name: string, background: string }> = {
+const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string, background: string }> = {
     normal: { bg: 'bg-gray-700', text: 'text-white', shadow: 'shadow-gray-900/50', background: '/images/equipments/normalbgi.webp' },
     uncommon: { bg: 'bg-green-700', text: 'text-green-200', shadow: 'shadow-green-500/50', background: '/images/equipments/uncommonbgi.webp' },
     rare: { bg: 'bg-blue-700', text: 'text-blue-200', shadow: 'shadow-blue-500/50', background: '/images/equipments/rarebgi.webp' },

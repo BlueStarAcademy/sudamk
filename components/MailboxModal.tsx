@@ -17,7 +17,7 @@ import type { TFunction } from 'i18next';
 interface MailboxModalProps {
     currentUser: UserWithStatus;
     onClose: () => void;
-    onAction: (action: ServerAction) => void | Promise<void>;
+    onAction: (action: ServerAction) => void | Promise<unknown>;
     isTopmost?: boolean;
     embedded?: boolean;
 }
