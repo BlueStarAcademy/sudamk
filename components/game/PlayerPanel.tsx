@@ -41,6 +41,7 @@ import {
     getSpeedTimePressureUiCountdownSeconds,
 } from '../../shared/utils/speedTimePressureDisplay.js';
 import { applyPveSpeedTimePressureGraceToLiveUsedSec } from '../../shared/utils/speedTimePveGrace.js';
+import { getSpeedLiveCaptureBonusDelta } from '../../shared/utils/speedTimePressureSessionSync.js';
 import { isFischerStyleTimeControl } from '../../shared/utils/gameTimeControl.js';
 import { resolvePveAiSeatDisplayProfile, applyPveAiSeatDisplayToUser } from '../../shared/utils/pveOpponentDisplay.js';
 import { isTrainingGroundSession } from '../../shared/constants/trainingGround.js';
@@ -1318,8 +1319,6 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         sessionGameCategory === 'tower' ||
         (sessionGameCategory === 'guildwar' && Boolean(session.isAiGame)) ||
         sessionGameCategory === 'adventure';
-    /** PVP가 아닌 스피드: 내 패널에만 진행 막대·누적(양쪽 AI 막대는 숨김) */
-    const isPveSideSpeedLiveBonusUi = isSpeedLiveBonusUi && !isPvpHumanSpeedLiveBonusUi && isPveLikeSpeedSession;
     const [speedBonusNowMs, setSpeedBonusNowMs] = useState(() => Date.now());
     useEffect(() => {
         if (!isSpeedLiveBonusUi) return;
@@ -1353,12 +1352,7 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
             return false;
         }
         if (typeof session.turnDeadline === 'number') return true;
-        return (
-            isPveLikeSpeedSession &&
-            isHumanSeatForAiSpeedBonus(playerEnum) &&
-            typeof session.turnStartTime === 'number' &&
-            resolvePveSpeedTurnBudgetSec(playerEnum) > 0
-        );
+        return typeof session.turnStartTime === 'number';
     };
     /** 현재 수 경과 초 (수당 10초 바·페널티 UI용) */
     const getLiveTurnElapsedSecForSpeedUi = (playerEnum: Player): number => {
@@ -1369,13 +1363,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
     const getLiveMainTimeForBonus = (playerEnum: Player, storedMainTimeLeft: number): number => {
         if (!isSpeedLiveBonusUi) return storedMainTimeLeft;
         if (humanLiveSpeedTurnClockActive(playerEnum)) {
-            const deadline = session.turnDeadline;
-            if (typeof deadline === 'number') {
-                return Math.max(0, (deadline - speedBonusNowMs) / 1000);
-            }
-            const budgetSec = resolvePveSpeedTurnBudgetSec(playerEnum);
             const turnStart = typeof session.turnStartTime === 'number' ? session.turnStartTime : speedBonusNowMs;
             const elapsedSec = Math.max(0, (speedBonusNowMs - turnStart) / 1000);
+            const budgetSec =
+                storedMainTimeLeft > 0 ? storedMainTimeLeft : resolvePveSpeedTurnBudgetSec(playerEnum);
             return Math.max(0, budgetSec - elapsedSec);
         }
         return storedMainTimeLeft;
@@ -1467,13 +1458,17 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         playerEnum: Player,
         raw: { progress: number | null; secToNextDrop: number | null },
     ) => {
-        const prev = speedBonusTickStableRef.current.byPlayerId[playerId] ?? { progress: null, secToNextDrop: null };
         const isThatPlayersTurn =
             session.currentPlayer === playerEnum &&
             !(isPveLikeSpeedSession &&
             isHumanSeatForAiSpeedBonus(playerEnum) &&
             isAiHiddenItemThinkPresentationForSpeed);
-        const next = isThatPlayersTurn ? raw : prev;
+        // 자기 수가 끝나면 막대를 가득 찬 10초로 되돌리고, 상대 패널은 바로 카운트한다.
+        const idleTick = {
+            progress: getSpeedTimePressureBarProgress(0),
+            secToNextDrop: getSpeedTimePressureUiCountdownSeconds(0),
+        };
+        const next = isThatPlayersTurn ? raw : idleTick;
         speedBonusTickStableRef.current.byPlayerId[playerId] = next;
         return next;
     };
@@ -1553,43 +1548,10 @@ const PlayerPanel: React.FC<PlayerPanelProps> = (props) => {
         rightSpeedBonusTick.secToNextDrop != null &&
         (isPvpHumanSpeedLiveBonusUi || rightPlayerUser.id === currentUser?.id);
 
-    const buildHumanPenaltyPointsForPlayer = (playerEnum: Player, playerId: string): number | null => {
-        if (!isSpeedLiveBonusUi || playerId === aiUserId) return null;
-        const penaltyCommitted = ((session.settings as any)?.__speedTurnPenaltyCommitted ?? {}) as {
-            black?: number;
-            white?: number;
-        };
-        const committedPts =
-            playerEnum === Player.Black
-                ? Math.max(0, Number(penaltyCommitted.black ?? 0))
-                : Math.max(0, Number(penaltyCommitted.white ?? 0));
-        const livePts = getSpeedTurnPenaltyPointsFromElapsedSec(getLiveTurnElapsedSecForSpeedUi(playerEnum));
-        return committedPts + livePts;
-    };
-    const humanPenaltyPointsForAiSpeed =
-        humanSide && isPveSideSpeedLiveBonusUi
-            ? buildHumanPenaltyPointsForPlayer(humanSide.playerEnum, humanSide.userId)
-            : null;
-    /** 서버 `syncSpeedTimePressureCaptures` 틱 사이에도 (서버 기준 초수당) 상대 집(+1)이 바로 보이도록 */
+    /** 서버 `syncSpeedTimePressureCaptures` 틱 사이에도 상대 집(+1)이 바로 보이도록 (PVP·PVE 공통) */
     const liveSpeedTimePressureCaptureBonusDelta = (playerEnum: Player): number => {
         if (!isSpeedLiveBonusUi || isScoreMode) return 0;
-        // 싱글/탑 등 PVE 스피드: isAiGame 누락 시에도 상대(AI) 점수 라이브 반영
-        if (!session.isAiGame && !isPveLikeSpeedSession) return 0;
-        const aiEnum =
-            session.blackPlayerId === aiUserId
-                ? Player.Black
-                : session.whitePlayerId === aiUserId
-                  ? Player.White
-                  : Player.None;
-        if (aiEnum === Player.None || playerEnum !== aiEnum) return 0;
-        const liveHumanPenalty = humanPenaltyPointsForAiSpeed;
-        if (liveHumanPenalty == null) return 0;
-        const grant = ((session.settings as any).__speedTimePressureGranted ?? {}) as { black?: number; white?: number };
-        const g =
-            playerEnum === Player.Black
-                ? Math.max(0, Number(grant.black ?? 0))
-                : Math.max(0, Number(grant.white ?? 0));
-        return Math.max(0, liveHumanPenalty - g);
+        return getSpeedLiveCaptureBonusDelta(session, playerEnum, speedBonusNowMs, aiUserId);
     };
     const speedCaptureDisplayMaxRef = useRef<{ gameId: string; byEnum: Partial<Record<Player, number>> }>({
         gameId: '',

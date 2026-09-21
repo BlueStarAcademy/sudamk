@@ -437,6 +437,42 @@ describe('mergeGameUpdateByArena', () => {
         expect(merged.boardState![10]![5]).toBe(Player.None);
     });
 
+    it('does not union stale chessGoRemovedPoints over a ko recapture from the server', () => {
+        const pieces = generateChessGoInitialPieces(13);
+        const existing = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces,
+            chessGoRemovedPoints: [{ x: 4, y: 4 }],
+            moveHistory: [
+                { player: Player.White, x: 4, y: 4 },
+                { player: Player.Black, x: 5, y: 4 },
+            ],
+            boardState: Array.from({ length: 13 }, () => Array(13).fill(Player.None)),
+        }) as LiveGameSession;
+
+        const incoming = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces,
+            chessGoRemovedPoints: [{ x: 5, y: 4 }],
+            moveHistory: [
+                { player: Player.White, x: 4, y: 4 },
+                { player: Player.Black, x: 5, y: 4 },
+                { player: Player.Black, x: 4, y: 4 },
+            ],
+            lastMove: { x: 4, y: 4 },
+            currentPlayer: Player.White,
+        }) as LiveGameSession;
+
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.chessGoRemovedPoints).toEqual([{ x: 5, y: 4 }]);
+        expect(merged.boardState![4]![4]).toBe(Player.Black);
+        expect(merged.boardState![4]![5]).toBe(Player.None);
+    });
+
     it('preserves client moveHistory when stale incoming has shorter chess go history', () => {
         const pieces = generateChessGoInitialPieces(13);
         const existing = minimalSession({

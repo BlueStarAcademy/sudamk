@@ -880,6 +880,53 @@ export type User = {
     vipShopAutoRenew?: Partial<Record<'reward_vip' | 'function_vip' | 'vvip', boolean>>;
 };
 
+export type GameRecordSetupStone = {
+  x: number;
+  y: number;
+  player: Player;
+  isBase?: boolean;
+};
+
+export type GameRecordMissileEvent = {
+  /** 미사일로 좌표가 덮인 moveHistory 인덱스. 베이스돌만 옮긴 경우 -1 */
+  moveIndex: number;
+  /** 발사 시점의 비-PASS 수 개수(SGF 노드 수와 정렬) */
+  afterNonPassCount: number;
+  player: Player;
+  from: Point;
+  to: Point;
+  captured?: Point[];
+};
+
+export type GameRecordScanEvent = {
+  afterNonPassCount: number;
+  player: Player;
+  x: number;
+  y: number;
+  success: boolean;
+};
+
+export type GameRecordChessEvent = {
+  afterNonPassCount: number;
+  pieceId: string;
+  from: Point;
+  to: Point;
+};
+
+/** 기보 뷰어용 특수 모드 화면. 구 기록에는 없음 */
+export type GameRecordBoardExtras = {
+  mixedModes?: GameMode[];
+  uniformStoneDisplayColor?: Player;
+  setupStones?: GameRecordSetupStone[];
+  /** SGF(비-PASS) 수순 인덱스 */
+  hiddenMoveIndices?: number[];
+  missileEvents?: GameRecordMissileEvent[];
+  scanEvents?: GameRecordScanEvent[];
+  castleStonePoints?: Point[];
+  chessSetup?: ChessPieceState[];
+  chessEvents?: GameRecordChessEvent[];
+};
+
 export type GameRecord = {
   id: string;
   gameId: string;
@@ -892,6 +939,8 @@ export type GameRecord = {
   };
   date: number;
   sgfContent: string;
+  /** 특수 규칙 화면(베이스/히든/미사일/스캔 등). 구 기록에는 없음 */
+  boardExtras?: GameRecordBoardExtras;
   gameResult: {
     winner: Player;
     blackScore: number;
@@ -1546,6 +1595,14 @@ export type LiveGameSession = {
   confirmedTerritoryOwnerByPoint?: Record<string, Player.Black | Player.White>;
   /** 체스 바둑: 기물 상태 */
   chessPieces?: ChessPieceState[];
+  /** 체스 바둑 기보: 배치 확정 시점 기물 스냅샷 */
+  chessSetup?: ChessPieceState[];
+  /** 체스 바둑 기보: 기물 이동 로그 */
+  chessEvents?: GameRecordChessEvent[];
+  /** 미사일 바둑 기보: 발사 로그 (moveHistory 좌표 덮어쓰기와 별도) */
+  missileEvents?: GameRecordMissileEvent[];
+  /** 히든 바둑 기보: 스캔 클릭 로그 */
+  scanEvents?: GameRecordScanEvent[];
   /** 체스 바둑: 기물 포획 보너스 점수 */
   chessCaptureScore?: { [key in Player]: number };
   /** 체스 바둑: 이번 턴에 기물을 이미 이동했는지 */

@@ -42,6 +42,7 @@ import { broadcast } from '../socket.js';
 import { releaseIpBindingForUser } from '../ipLoginPolicy.js';
 import { getSelectiveUserUpdate } from '../utils/userUpdateHelper.js';
 import { generateSgfFromGame } from '../../utils/sgfGenerator.js';
+import { buildGameRecordBoardExtras } from '../../shared/utils/gameRecordBoardExtras.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
 import { exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
 import { isPvpHumanGameRecordEligible, isPlayfulGameRecordMode, isGameStatusSaveableForRecord, isShortGameStrategicNoContest, isGameRecordParticipant, resolveClientRecordSessionSnapshot } from '../../utils/strategicPvpGameRecord.js';
@@ -1131,6 +1132,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                     : undefined;
             
             // 기보 저장
+            const boardExtras = buildGameRecordBoardExtras(game);
             const record: types.GameRecord = {
                 id: randomUUID(),
                 gameId: gameId,
@@ -1142,6 +1144,7 @@ export const handleUserAction = async (volatileState: types.VolatileState, actio
                 },
                 date: game.createdAt,
                 sgfContent: sgfContent,
+                ...(boardExtras ? { boardExtras } : {}),
                 gameResult: {
                     winner: game.winner ?? types.Player.None,
                     blackScore,

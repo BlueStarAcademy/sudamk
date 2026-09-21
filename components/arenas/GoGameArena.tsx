@@ -392,6 +392,19 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
     ]);
 
     const isAdventureBoardLayout = session.gameCategory === 'adventure';
+    const showChessPlacementPanel = gameStatus === 'chess_piece_placement';
+    const dockChessPlacementPanel = isMobile && showChessPlacementPanel;
+    const chessPlacementPanel = showChessPlacementPanel ? (
+        <ChessPiecePlacementPanel
+            session={displaySession}
+            currentUser={props.currentUser}
+            myPlayerEnum={myPlayerEnum}
+            onAction={onAction}
+            selectedPieceType={selectedSetupPieceType}
+            onSelectPieceType={handleSelectSetupPieceType}
+            isMobile={isMobile}
+        />
+    ) : null;
 
     return (
         <div
@@ -419,19 +432,21 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 </button>
             )}
             {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
-            <div className="relative flex h-full max-h-full w-full max-w-full min-h-0 min-w-0 items-center justify-center overflow-hidden">
-                <div className="relative aspect-square h-full max-h-full w-full max-w-full min-h-0 min-w-0 shrink-0 overflow-hidden">
-                {gameStatus === 'chess_piece_placement' && (
-                    <ChessPiecePlacementPanel
-                        session={displaySession}
-                        currentUser={props.currentUser}
-                        myPlayerEnum={myPlayerEnum}
-                        onAction={onAction}
-                        selectedPieceType={selectedSetupPieceType}
-                        onSelectPieceType={handleSelectSetupPieceType}
-                        isMobile={isMobile}
-                    />
+            <div
+                className={`relative flex h-full max-h-full w-full max-w-full min-h-0 min-w-0 overflow-hidden ${
+                    dockChessPlacementPanel ? 'flex-col items-stretch self-stretch' : 'items-center justify-center'
+                }`}
+            >
+                {dockChessPlacementPanel && (
+                    <div className="w-full shrink-0 px-0.5 pt-0.5 pb-1">{chessPlacementPanel}</div>
                 )}
+                <div
+                    className={`relative flex min-h-0 min-w-0 items-center justify-center overflow-hidden ${
+                        dockChessPlacementPanel ? 'w-full flex-1' : 'h-full max-h-full w-full max-w-full'
+                    }`}
+                >
+                <div className="relative aspect-square h-full max-h-full w-full max-w-full min-h-0 min-w-0 overflow-hidden">
+                {!dockChessPlacementPanel && chessPlacementPanel}
                 <GoBoard
                 boardState={chessPlacementBoardState ?? boardStateForDisplay}
                 boardSize={boardSizeForDisplay}
@@ -543,6 +558,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 basePlacementTargetCount={settings.baseStones ?? 4}
                 isMoveSubmitting={isMoveSubmitting}
                 />
+                </div>
                 </div>
             </div>
         </div>

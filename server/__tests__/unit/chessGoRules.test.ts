@@ -32,6 +32,7 @@ import {
     stripLegacyChessFlankBoardStones,
     resolveChessCapturesByLiberty,
     commitChessGoPlacementCaptures,
+    pruneChessGoRemovedPointsReclaimedByLatestMove,
     validateChessMove,
 } from '../../../shared/utils/chessGoRules.js';
 import { pickAiChessMoveIfAny, shouldAttemptChessMoveThisTurn } from '../../../shared/utils/chessGoAiHeuristic.js';
@@ -303,6 +304,59 @@ describe('chessGoRules', () => {
         session.moveHistory.push({ x: 6, y: 6, player: Player.Black });
         const board = normalizeChessGoSession(session).boardState;
         expect(board[6]![6]).toBe(Player.Black);
+    });
+
+    it('shows ko recapture / connecting stone even if chessGoRemovedPoints is stale', () => {
+        const session = createChessSession();
+        session.chessPieces = [];
+        session.moveHistory = [
+            { x: 4, y: 4, player: Player.White },
+            { x: 5, y: 4, player: Player.Black },
+            { x: 4, y: 4, player: Player.Black },
+        ];
+        session.chessGoRemovedPoints = [
+            { x: 4, y: 4 },
+            { x: 5, y: 4 },
+        ];
+        const normalized = normalizeChessGoSession(session);
+        expect(normalized.boardState[4]![4]).toBe(Player.Black);
+        expect(normalized.boardState[4]![5]).toBe(Player.None);
+        expect(normalized.chessGoRemovedPoints?.some((p) => p.x === 4 && p.y === 4)).toBe(false);
+    });
+
+    it('keeps a captured stone hidden when it was never replayed', () => {
+        const session = createChessSession();
+        session.chessPieces = [];
+        session.moveHistory = [
+            { x: 4, y: 4, player: Player.White },
+            { x: 5, y: 4, player: Player.Black },
+        ];
+        session.chessGoRemovedPoints = [{ x: 4, y: 4 }];
+        const board = normalizeChessGoSession(session).boardState;
+        expect(board[4]![4]).toBe(Player.None);
+        expect(board[4]![5]).toBe(Player.Black);
+    });
+
+    it('overlay keeps a living chess piece visible even if its point is in chessGoRemovedPoints', () => {
+        const session = createChessSession();
+        const pawn = session.chessPieces!.find((p) => p.owner === Player.Black && p.type === 'pawn')!;
+        session.chessGoRemovedPoints = [{ x: pawn.x, y: pawn.y }];
+        const board = normalizeChessGoSession(session).boardState;
+        expect(board[pawn.y]![pawn.x]).toBe(Player.Black);
+    });
+
+    it('pruneChessGoRemovedPointsReclaimedByLatestMove clears only the latest placement', () => {
+        const session = createChessSession();
+        session.chessGoRemovedPoints = [
+            { x: 3, y: 3 },
+            { x: 4, y: 4 },
+        ];
+        session.moveHistory = [
+            { x: 3, y: 3, player: Player.White },
+            { x: 4, y: 4, player: Player.Black },
+        ];
+        pruneChessGoRemovedPointsReclaimedByLatestMove(session);
+        expect(session.chessGoRemovedPoints).toEqual([{ x: 3, y: 3 }]);
     });
 
     it('rejects move when remainingMoves is 0', () => {

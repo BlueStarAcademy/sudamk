@@ -127,6 +127,8 @@ import {
     resolvePairChessSetupPlayerColor,
 } from './shared/utils/pairChessSetup.js';
 import { modeIncludesCaptureRule, resolveArenaSessionPolicy } from './shared/utils/liveSessionArenaKind.js';
+import { isSessionSpeedTimePressureMode } from './shared/utils/speedTimePressureSessionSync.js';
+import { SPEED_PER_MOVE_SECONDS } from './shared/constants/speedTimePressure.js';
 import { isItemPhaseAiBlockingPresentationActive } from './shared/utils/itemPhaseAnimationTypes.js';
 import { resolveSinglePlayerAutoScoringCapForClientSession } from './shared/utils/liveSessionSinglePlayerStage.js';
 import { getPairPetDefinition } from './shared/constants/petLobby.js';
@@ -142,6 +144,7 @@ import {
     transformPairArenaAiMatchSettings,
 } from './shared/utils/pairArenaAiMatchSettings.js';
 import { arenaLobbyHashFromSession } from './shared/utils/arenaLobbyDestination.js';
+import { stashPostGamePairRoomLobbyReturn } from './shared/utils/pairArenaSessionRestore.js';
 import type { GameSettings } from './types/index.js';
 import { AI_HIDDEN_ITEM_THINKING_DURATION_MS } from './shared/constants/gameSettings.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
@@ -1183,6 +1186,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const prevCaptures = usePrevious(session.captures);
     const prevAnimationType = usePrevious(session.animation?.type);
     const warningSoundPlayedForTurn = useRef(false);
+    /** 스피드 수당 10초 읽기: 턴 시작 시각+주기마다 timer10 음원 재생 */
+    const speedCountdownCycleRef = useRef('');
     /** 주사위/도둑: lastMove·moveHistory 보강 이펙트가 같은 착점에서 placeStone을 두 번 재생하지 않도록 */
     const lastDiceThiefPlaceSoundKeyRef = useRef<string>('');
     /** 전략바둑·오목류: lastMove만으로는 낙관적/모바일 확정 경로에서 갱신이 빠져 소리가 안 날 수 있어 moveHistory 꼬리로 통일 */
@@ -1874,19 +1879,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         };
                     }
                     if (next.usesChessGo && Array.isArray(parsed.chessGoRemovedPoints)) {
-                        const removedKeys = new Set<string>();
-                        const mergedRemoved: NonNullable<LiveGameSession['chessGoRemovedPoints']> = [];
-                        for (const p of [
-                            ...(next.chessGoRemovedPoints ?? []),
-                            ...parsed.chessGoRemovedPoints,
-                        ]) {
-                            const key = `${p.x},${p.y}`;
-                            if (removedKeys.has(key)) continue;
-                            removedKeys.add(key);
-                            mergedRemoved.push({ x: p.x, y: p.y });
-                        }
-                        if (mergedRemoved.length > 0) {
-                            next = { ...next, chessGoRemovedPoints: mergedRemoved };
+                        // 서버/세션 목록이 있으면 복원본과 합치지 않는다(패 재착수 돌이 지워지는 회귀 방지).
+                        if (!Array.isArray(next.chessGoRemovedPoints)) {
+                            next = { ...next, chessGoRemovedPoints: parsed.chessGoRemovedPoints };
                         }
                     }
                     if (next.usesChessGo) {
@@ -3111,25 +3106,56 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     useEffect(() => {
         const isGameOver = ['ended', 'no_contest', 'scoring'].includes(gameStatus);
         const hasTurnChanged = prevMoveCount !== undefined && session.moveHistory && session.moveHistory.length > prevMoveCount;
-    
+
         if (!isMyTurn || hasTurnChanged || isGameOver) {
             if (warningSoundPlayedForTurn.current) {
                 audioService.stopTimerWarning();
                 warningSoundPlayedForTurn.current = false;
             }
         }
-        
-        if (isMyTurn && !isGameOver) {
-            const hasTimeControl = (session.settings?.timeLimit ?? 0) > 0 || ((session.settings?.byoyomiCount ?? 0) > 0 && (session.settings?.byoyomiTime ?? 0) > 0);
-            const noCountdownSound = !hasTimeControl || session.isAiGame; // 싱글/AI 대국: 초읽기 소리 없음
-            if (noCountdownSound) return;
-            const myTime = myPlayerEnum === Player.Black ? clientTimes.clientTimes.black : clientTimes.clientTimes.white;
-            if (myTime <= 10 && myTime > 0 && !warningSoundPlayedForTurn.current) {
-                audioService.timerWarning();
-                warningSoundPlayedForTurn.current = true;
-            }
+        if (!isMyTurn || isGameOver) {
+            speedCountdownCycleRef.current = '';
         }
-    }, [isMyTurn, clientTimes.clientTimes, myPlayerEnum, session.moveHistory, prevMoveCount, gameStatus]);
+
+        if (!isMyTurn || isGameOver || session.isAiGame) return;
+
+        // 스피드 수당 10초 읽기: 매 10초 주기 시작에 timer10 음원. 기본시간 초읽기와 별개.
+        if (isSessionSpeedTimePressureMode(session) && gameStatus === 'playing') {
+            const elapsed =
+                typeof session.turnStartTime === 'number'
+                    ? Math.max(0, (Date.now() - session.turnStartTime) / 1000)
+                    : 0;
+            const cycle = Math.floor(elapsed / SPEED_PER_MOVE_SECONDS);
+            const withinCycle = elapsed - cycle * SPEED_PER_MOVE_SECONDS;
+            const cycleKey = `${session.turnStartTime ?? 0}:${cycle}`;
+            if (speedCountdownCycleRef.current !== cycleKey) {
+                speedCountdownCycleRef.current = cycleKey;
+                if (withinCycle < 1.25) {
+                    audioService.speedCountdownWarning();
+                }
+            }
+            return;
+        }
+
+        const hasTimeControl = (session.settings?.timeLimit ?? 0) > 0 || ((session.settings?.byoyomiCount ?? 0) > 0 && (session.settings?.byoyomiTime ?? 0) > 0);
+        if (!hasTimeControl) return;
+        const myTime = myPlayerEnum === Player.Black ? clientTimes.clientTimes.black : clientTimes.clientTimes.white;
+        if (myTime <= 10 && myTime > 0 && !warningSoundPlayedForTurn.current) {
+            audioService.timerWarning();
+            warningSoundPlayedForTurn.current = true;
+        }
+    }, [
+        isMyTurn,
+        clientTimes.clientTimes,
+        myPlayerEnum,
+        session.moveHistory,
+        prevMoveCount,
+        gameStatus,
+        session.turnStartTime,
+        session.isAiGame,
+        session.mode,
+        session.settings,
+    ]);
 
     // 한 수가 실제로 반영되었거나 상태가 바뀌면 클릭 잠금 해제
     useEffect(() => {
@@ -3323,7 +3349,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
 
     const handleBoardClick = useCallback((x: number, y: number) => {
         audioService.unlockFromUserGesture();
-        audioService.stopTimerWarning();
+        if (!isSessionSpeedTimePressureMode(session)) {
+            audioService.stopTimerWarning();
+        }
         if (isSpectator || gameStatus === 'missile_animating') return;
         if (gameStatus === 'missile_selecting') return;
         if (gameStatus === 'ended' || gameStatus === 'no_contest' || gameStatus === 'scoring') {
@@ -4565,6 +4593,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (['ended', 'no_contest', 'rematch_pending'].includes(gameStatus)) {
             const actionType = session.isAiGame ? 'LEAVE_AI_GAME' : 'LEAVE_GAME_ROOM';
             // AI/일반 게임 종료 후 나가기 시 해당 종류의 대기실로 이동 (전략/놀이 대기실 AI를 먼저 판별해 싱글·탑으로 잘못 나가는 버그 방지)
+            stashPostGamePairRoomLobbyReturn(session);
             if (sessionPolicy.kind === 'guildwar') {
                 sessionStorage.setItem('postGameRedirect', '#/guildwar');
             } else if (sessionPolicy.kind === 'tower') {

@@ -40,4 +40,26 @@ test.describe('PC UI scale shell', () => {
         });
         expect(modalRootInCanvas).toBe(true);
     });
+
+    test('tablet landscape 16:10 canvas stays inside the viewport', async ({ page }) => {
+        await page.setViewportSize({ width: 1280, height: 800 });
+        await page.goto('/');
+        await expect(page).toHaveTitle(/\S/);
+
+        const canvasRoot = page.locator('.sudamr-pc-scaled-canvas-root');
+        const portraitShell = page.locator('[data-portrait-first-shell]');
+        if ((await portraitShell.count()) > 0 || (await canvasRoot.count()) === 0) {
+            test.skip();
+            return;
+        }
+
+        const box = await canvasRoot.evaluate((el) => {
+            const clip = el.parentElement;
+            const r = (clip ?? el).getBoundingClientRect();
+            return { width: r.width, height: r.height };
+        });
+        expect(box.width).toBeLessThanOrEqual(1280 + 1);
+        expect(box.height).toBeLessThanOrEqual(800 + 1);
+        expect(box.width / box.height).toBeCloseTo(16 / 9, 2);
+    });
 });

@@ -335,7 +335,7 @@ const TowerControls: React.FC<TowerControlsProps> = ({
             <footer
                 className={`${arenaGameRoomIngameBottomBarShellClass} flex w-full flex-shrink-0 flex-col items-stretch justify-center ${pveIngameFooterReservedHeightClass(isMobile)}`}
             >
-                <div className="flex w-full min-w-0 flex-col gap-0.5 py-0.5">
+                <div className="flex h-full min-h-0 w-full min-w-0 flex-col justify-center gap-0.5 py-0.5">
                     {showBasePlacementStrip ? (
                         <div className="flex w-full min-w-0 min-h-[2.35rem] flex-row items-center justify-center px-1 min-[1025px]:min-h-[2.1rem] min-[1025px]:px-1.5">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-w-0" gapClass="gap-1 min-[1025px]:gap-2">

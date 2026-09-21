@@ -9,6 +9,10 @@ import {
     type SgfMoveLike,
 } from '../utils/sgfBoardLogic.js';
 import { GoStoneSvgDefs, GoStoneSvgLayers, useGoStoneSvgIds } from './game/goStoneSvgShared.js';
+import type { ChessPieceType, GameRecordBoardExtras } from '../types.js';
+import { applyGameRecordReplay } from '../utils/gameRecordReplay.js';
+import { mapStoneToUniformDisplay } from '../shared/utils/uniformGoRules.js';
+import { BLACK_BASE_STONE_IMG, BLACK_HIDDEN_STONE_IMG, CASTLE_STONE_IMG } from '../assets.js';
 
 export type SgfMove = SgfMoveLike;
 export { applyMoveToBoard, applySgfMoveToBoard, buildBoardFromMoves, createEmptyBoard } from '../utils/sgfBoardLogic.js';
@@ -16,6 +20,7 @@ export { applyMoveToBoard, applySgfMoveToBoard, buildBoardFromMoves, createEmpty
 export interface SgfData {
     boardSize: number;
     moves: SgfMove[];
+    setupStones?: { x: number; y: number; player: Player; isBase?: boolean }[];
 }
 
 interface SgfViewerProps {
@@ -40,12 +45,28 @@ interface SgfViewerProps {
     reviewMoves?: SgfMove[];
     /** 길드 보스 연출용: 돌 그림자·하이라이트로 입체감 강화 */
     atmosphereStones?: boolean;
+    /** 특수 모드 기보 오버레이 (베이스/히든/미사일/스캔 등) */
+    boardExtras?: GameRecordBoardExtras;
 }
 
 const parseSgfCoord = (coords: string): Point => ({
     x: coords.charCodeAt(0) - 'a'.charCodeAt(0),
     y: coords.charCodeAt(1) - 'a'.charCodeAt(0),
 });
+
+const parseSgfSetupList = (sgfText: string, prop: 'AB' | 'AW'): Point[] => {
+    const points: Point[] = [];
+    const blockRe = new RegExp(`${prop}((?:\\[[a-s]{2}\\])+)`, 'g');
+    let block: RegExpExecArray | null;
+    while ((block = blockRe.exec(sgfText)) !== null) {
+        const coordRe = /\[([a-s]{2})\]/g;
+        let coord: RegExpExecArray | null;
+        while ((coord = coordRe.exec(block[1] ?? '')) !== null) {
+            points.push(parseSgfCoord(coord[1]!));
+        }
+    }
+    return points;
+};
 
 export const parseSgf = (sgfText: string): SgfData | null => {
     try {
@@ -69,12 +90,28 @@ export const parseSgf = (sgfText: string): SgfData | null => {
             moves.push({ player, x, y, removed: removed.length > 0 ? removed : undefined });
         }
 
-        return { boardSize, moves };
+        const setupStones: NonNullable<SgfData['setupStones']> = [
+            ...parseSgfSetupList(sgfText, 'AB').map((p) => ({ ...p, player: Player.Black, isBase: true })),
+            ...parseSgfSetupList(sgfText, 'AW').map((p) => ({ ...p, player: Player.White, isBase: true })),
+        ];
+
+        return { boardSize, moves, setupStones: setupStones.length > 0 ? setupStones : undefined };
     } catch (error) {
         console.error('Failed to parse SGF:', error);
         return null;
     }
 };
+
+const CHESS_PIECE_GLYPHS: Record<ChessPieceType, string> = {
+    pawn: '♟',
+    rook: '♜',
+    knight: '♞',
+    bishop: '♝',
+    queen: '♛',
+    king: '♚',
+};
+
+const MISSILE_MARK_IMG = '/images/button/missile.webp';
 
 const SgfViewer: React.FC<SgfViewerProps> = ({
     timeElapsed = 0,
@@ -91,6 +128,7 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
     onHalfBoardNavForward,
     reviewMoves = [],
     atmosphereStones = false,
+    boardExtras,
 }) => {
     const { t } = useTranslation('game');
     const [sgfData, setSgfData] = useState<SgfData | null>(null);
@@ -155,10 +193,40 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
         return Math.min(moveCount, sgfData.moves.length);
     }, [timeElapsed, sgfData, totalDuration, showLastMoveOnly, replayMoveCount]);
 
-    const boardState = useMemo(() => {
-        if (!sgfData) return [];
-        return buildBoardFromMoves(sgfData.boardSize, sgfData.moves, currentMoveIndex);
-    }, [currentMoveIndex, sgfData]);
+    const mergedExtras = useMemo((): GameRecordBoardExtras | undefined => {
+        if (boardExtras?.setupStones?.length) return boardExtras;
+        if (sgfData?.setupStones?.length) {
+            return { ...(boardExtras ?? {}), setupStones: sgfData.setupStones };
+        }
+        return boardExtras;
+    }, [boardExtras, sgfData]);
+
+    const replayState = useMemo(() => {
+        if (!sgfData) return null;
+        return applyGameRecordReplay(sgfData.boardSize, sgfData.moves, mergedExtras, currentMoveIndex);
+    }, [sgfData, mergedExtras, currentMoveIndex]);
+
+    const boardState = replayState?.board ?? [];
+
+    const moveIndexByCell = useMemo(() => {
+        const map = new Map<string, number>();
+        if (!sgfData) return map;
+        const relevant = sgfData.moves.slice(0, currentMoveIndex);
+        for (let i = 0; i < relevant.length; i++) {
+            const m = relevant[i]!;
+            map.set(`${m.x},${m.y}`, i);
+        }
+        for (const ev of mergedExtras?.missileEvents ?? []) {
+            if (ev.afterNonPassCount > currentMoveIndex) continue;
+            const fromKey = `${ev.from.x},${ev.from.y}`;
+            const toKey = `${ev.to.x},${ev.to.y}`;
+            const idx = map.get(fromKey);
+            if (idx === undefined) continue;
+            map.delete(fromKey);
+            map.set(toKey, idx);
+        }
+        return map;
+    }, [sgfData, currentMoveIndex, mergedExtras]);
 
     const displayBoard = useMemo(() => {
         if (!sgfData || reviewMoves.length === 0) return boardState;
@@ -236,7 +304,7 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
 
             if (interactive && onIntersectionClick) {
                 const pt = screenToBoardPoint(e.clientX, e.clientY);
-                if (pt && boardState[pt.y]?.[pt.x] === Player.None) {
+                if (pt && displayBoard[pt.y]?.[pt.x] === Player.None) {
                     onIntersectionClick(pt);
                     return;
                 }
@@ -248,7 +316,7 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                 onHalfBoardNavForward?.();
             }
         },
-        [interactive, onIntersectionClick, onHalfBoardNavBack, onHalfBoardNavForward, screenToBoardPoint, boardState],
+        [interactive, onIntersectionClick, onHalfBoardNavBack, onHalfBoardNavForward, screenToBoardPoint, displayBoard],
     );
 
     const boardNavEnabled = !!(onHalfBoardNavBack || onHalfBoardNavForward);
@@ -267,7 +335,6 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
         cy: padding + p.y * cellSize,
     });
 
-    const relevantMoves = moves.slice(0, currentMoveIndex);
     const reviewStoneSet = new Set(reviewMoves.map((m) => `${m.x},${m.y}`));
 
     return (
@@ -304,18 +371,58 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                     {starPoints.map((p, i) => (
                         <circle key={`star-${i}`} {...toSvgCoords(p)} r={boardSize > 9 ? 4 : 3} fill="#54432a" />
                     ))}
+                    {replayState &&
+                        Object.entries(replayState.territoryOwnerByPoint).map(([key, owner]) => {
+                            const [tx, ty] = key.split(',').map(Number);
+                            if (!Number.isFinite(tx) || !Number.isFinite(ty)) return null;
+                            if (displayBoard[ty]?.[tx] !== Player.None) return null;
+                            const { cx, cy } = toSvgCoords({ x: tx, y: ty });
+                            const mark = cellSize * 0.22;
+                            return (
+                                <rect
+                                    key={`terr-${key}`}
+                                    x={cx - mark / 2}
+                                    y={cy - mark / 2}
+                                    width={mark}
+                                    height={mark}
+                                    fill={owner === Player.Black ? 'rgba(15,23,42,0.45)' : 'rgba(248,250,252,0.55)'}
+                                    stroke={owner === Player.Black ? 'rgba(15,23,42,0.7)' : 'rgba(15,23,42,0.35)'}
+                                    strokeWidth={0.8}
+                                    pointerEvents="none"
+                                />
+                            );
+                        })}
+                    {replayState?.castleStonePoints.map((stone, i) => {
+                        const { cx, cy } = toSvgCoords(stone);
+                        const r = stoneRadius * 1.08;
+                        return (
+                            <g
+                                key={`castle-${i}`}
+                                pointerEvents="none"
+                                transform={isRotated ? `rotate(180 ${cx} ${cy})` : undefined}
+                            >
+                                <image
+                                    href={CASTLE_STONE_IMG}
+                                    x={cx - r}
+                                    y={cy - r}
+                                    width={r * 2}
+                                    height={r * 2}
+                                    preserveAspectRatio="xMidYMid meet"
+                                />
+                            </g>
+                        );
+                    })}
                     {displayBoard.map((row, y) =>
                         row.map((player, x) => {
                             if (player === Player.None) return null;
                             const { cx, cy } = toSvgCoords({ x, y });
+                            const mapped = mapStoneToUniformDisplay(
+                                player,
+                                replayState?.uniformStoneDisplayColor ?? null,
+                            );
+                            const stonePlayer = mapped === Player.White ? Player.White : Player.Black;
 
-                            let moveIndex = -1;
-                            for (let i = relevantMoves.length - 1; i >= 0; i--) {
-                                if (relevantMoves[i].x === x && relevantMoves[i].y === y) {
-                                    moveIndex = i;
-                                    break;
-                                }
-                            }
+                            const moveIndex = moveIndexByCell.get(`${x},${y}`) ?? -1;
 
                             const isReviewStone = reviewStoneSet.has(`${x},${y}`) && moveIndex === -1;
                             const isLastReplayMove = moveIndex === currentMoveIndex - 1 && !isReviewStone;
@@ -342,16 +449,16 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                                                 cy={cy + stoneR * 0.12}
                                                 rx={stoneR * 0.98}
                                                 ry={stoneR * 0.72}
-                                                fill={
-                                                    player === Player.Black
-                                                        ? 'rgba(15, 23, 42, 0.55)'
-                                                        : 'rgba(15, 23, 42, 0.18)'
-                                                }
+                                            fill={
+                                                stonePlayer === Player.Black
+                                                    ? 'rgba(15, 23, 42, 0.55)'
+                                                    : 'rgba(15, 23, 42, 0.18)'
+                                            }
                                             />
                                         </>
                                     ) : null}
                                     <GoStoneSvgLayers
-                                        player={player}
+                                        player={stonePlayer}
                                         cx={cx}
                                         cy={cy - (atmosphereStones ? stoneR * 0.08 : 0)}
                                         radius={stoneR}
@@ -360,7 +467,7 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                                             isReviewStone
                                                 ? '#38bdf8'
                                                 : atmosphereStones
-                                                  ? player === Player.Black
+                                                  ? stonePlayer === Player.Black
                                                       ? 'rgba(255,255,255,0.14)'
                                                       : 'rgba(15,23,42,0.22)'
                                                   : undefined
@@ -381,13 +488,83 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                                             rx={stoneR * 0.38}
                                             ry={stoneR * 0.22}
                                             fill={
-                                                player === Player.Black
+                                                stonePlayer === Player.Black
                                                     ? 'rgba(255, 255, 255, 0.22)'
                                                     : 'rgba(255, 255, 255, 0.55)'
                                             }
                                             opacity={0.85}
                                         />
                                     ) : null}
+                                    {replayState?.baseKeys.has(`${x},${y}`) && (
+                                        <image
+                                            href={BLACK_BASE_STONE_IMG}
+                                            x={cx - stoneR * 0.7}
+                                            y={cy - stoneR * 0.7}
+                                            width={stoneR * 1.4}
+                                            height={stoneR * 1.4}
+                                            pointerEvents="none"
+                                        />
+                                    )}
+                                    {replayState?.hiddenKeys.has(`${x},${y}`) && (
+                                        <image
+                                            href={BLACK_HIDDEN_STONE_IMG}
+                                            x={cx - stoneR * 0.7}
+                                            y={cy - stoneR * 0.7}
+                                            width={stoneR * 1.4}
+                                            height={stoneR * 1.4}
+                                            pointerEvents="none"
+                                        />
+                                    )}
+                                    {replayState?.missileMarkedKeys.has(`${x},${y}`) && (
+                                        <image
+                                            href={MISSILE_MARK_IMG}
+                                            x={cx + stoneR * 0.18}
+                                            y={cy - stoneR * 0.95}
+                                            width={stoneR * 0.85}
+                                            height={stoneR * 0.85}
+                                            pointerEvents="none"
+                                        />
+                                    )}
+                                    {(() => {
+                                        const chess = replayState?.chessPieces.find((p) => p.x === x && p.y === y);
+                                        if (!chess) return null;
+                                        return (
+                                            <>
+                                                <text
+                                                    x={cx}
+                                                    y={cy}
+                                                    textAnchor="middle"
+                                                    dominantBaseline="central"
+                                                    fontSize={stoneR * 1.15}
+                                                    fill={stonePlayer === Player.Black ? '#f8fafc' : '#1e293b'}
+                                                    style={{ pointerEvents: 'none', userSelect: 'none' }}
+                                                >
+                                                    {CHESS_PIECE_GLYPHS[chess.type]}
+                                                </text>
+                                                <g pointerEvents="none">
+                                                    <circle
+                                                        cx={cx + stoneR * 0.55}
+                                                        cy={cy + stoneR * 0.55}
+                                                        r={stoneR * 0.32}
+                                                        fill="rgba(15, 23, 42, 0.85)"
+                                                        stroke="rgba(248, 250, 252, 0.9)"
+                                                        strokeWidth={1}
+                                                    />
+                                                    <text
+                                                        x={cx + stoneR * 0.55}
+                                                        y={cy + stoneR * 0.55}
+                                                        textAnchor="middle"
+                                                        dominantBaseline="central"
+                                                        fontSize={stoneR * 0.38}
+                                                        fill="#f8fafc"
+                                                        fontWeight="700"
+                                                    >
+                                                        {chess.remainingMoves}
+                                                    </text>
+                                                </g>
+                                            </>
+                                        );
+                                    })()}
                                     {showMoveNumbers && moveIndex !== -1 && (
                                         <text
                                             x={cx}
@@ -396,8 +573,8 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                                             dy=".35em"
                                             fontSize={stoneR * 1.1}
                                             fontWeight="bold"
-                                            fill={player === Player.Black ? 'white' : 'black'}
-                                            stroke={player === Player.Black ? '#111827' : '#f5f2e8'}
+                                            fill={stonePlayer === Player.Black ? 'white' : 'black'}
+                                            stroke={stonePlayer === Player.Black ? '#111827' : '#f5f2e8'}
                                             strokeWidth={stoneR * 0.12}
                                             paintOrder="stroke"
                                         >
@@ -427,6 +604,48 @@ const SgfViewer: React.FC<SgfViewerProps> = ({
                             );
                         }),
                     )}
+                    {replayState?.scanMarkers.map((marker, i) => {
+                        const { cx, cy } = toSvgCoords(marker);
+                        const size = stoneRadius * 1.15;
+                        const color = marker.success ? 'rgba(52, 211, 153, 0.95)' : 'rgba(251, 191, 36, 0.95)';
+                        return (
+                            <g key={`scan-${i}-${marker.x}-${marker.y}`} pointerEvents="none">
+                                <circle
+                                    cx={cx}
+                                    cy={cy}
+                                    r={size}
+                                    fill="none"
+                                    stroke={color}
+                                    strokeWidth={Math.max(1.6, size * 0.12)}
+                                    opacity={0.9}
+                                />
+                                {marker.success ? (
+                                    <circle cx={cx} cy={cy} r={size * 0.22} fill={color} opacity={0.85} />
+                                ) : (
+                                    <>
+                                        <line
+                                            x1={cx - size * 0.42}
+                                            y1={cy - size * 0.42}
+                                            x2={cx + size * 0.42}
+                                            y2={cy + size * 0.42}
+                                            stroke={color}
+                                            strokeWidth={Math.max(1.8, size * 0.12)}
+                                            strokeLinecap="round"
+                                        />
+                                        <line
+                                            x1={cx + size * 0.42}
+                                            y1={cy - size * 0.42}
+                                            x2={cx - size * 0.42}
+                                            y2={cy + size * 0.42}
+                                            stroke={color}
+                                            strokeWidth={Math.max(1.8, size * 0.12)}
+                                            strokeLinecap="round"
+                                        />
+                                    </>
+                                )}
+                            </g>
+                        );
+                    })}
                     {interactive &&
                         Array.from({ length: boardSize * boardSize }).map((_, idx) => {
                             const x = idx % boardSize;

@@ -7,6 +7,9 @@ export const PAIR_LOBBY_FOCUS_ROOM_TAB_SESSION_KEY = 'sudamr_pair_lobby_focus_ro
 /** 인게임에서 집계 경기장으로 복귀 시 복원할 페어 방 ID(PairWaitingLobby가 읽고 제거) */
 export const POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY = 'sudamr_post_game_pair_room_id';
 
+/** 경기 종료 후 홈에서 다시 열 대기실 임베드 (`friendly` | `playful`) */
+export const POST_GAME_OPEN_HOME_LOBBY_SESSION_KEY = 'sudamr_post_game_open_home_lobby';
+
 /** 페어·전략·놀이 경기장 슬롯 그리드(방 코드 정수 1~N) */
 export const PAIR_LOBBY_GRID_SLOT_COUNT = 100;
 

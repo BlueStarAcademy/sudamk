@@ -107,6 +107,28 @@ export function computeTouchLayoutProfile(): TouchLayoutProfile {
     return { isPhoneHandheldTouch: false, isLargeTouchTablet: false };
 }
 
+/** 리사이즈·회전·PWA visualViewport 변화에 레이아웃 훅을 맞춘다. */
+export function subscribeLayoutViewportChange(onChange: () => void): () => void {
+    if (typeof window === 'undefined') return () => {};
+    const update = () => onChange();
+    window.addEventListener('resize', update);
+    window.addEventListener('orientationchange', update);
+    window.addEventListener('sudamr-portrait-lock-change', update);
+    const vv = window.visualViewport;
+    vv?.addEventListener('resize', update);
+    vv?.addEventListener('scroll', update);
+    const mqOrientation = window.matchMedia?.('(orientation: landscape)');
+    mqOrientation?.addEventListener?.('change', update);
+    return () => {
+        window.removeEventListener('resize', update);
+        window.removeEventListener('orientationchange', update);
+        window.removeEventListener('sudamr-portrait-lock-change', update);
+        vv?.removeEventListener('resize', update);
+        vv?.removeEventListener('scroll', update);
+        mqOrientation?.removeEventListener?.('change', update);
+    };
+}
+
 /** 터치 폰 vs 8인치+ 태블릿 구분(리사이즈·미디어쿼리 반영) */
 export function useTouchLayoutProfile(): TouchLayoutProfile {
     const [profile, setProfile] = useState<TouchLayoutProfile>(() => computeTouchLayoutProfile());
@@ -114,17 +136,13 @@ export function useTouchLayoutProfile(): TouchLayoutProfile {
     useEffect(() => {
         const update = () => setProfile(computeTouchLayoutProfile());
         update();
-        window.addEventListener('resize', update);
-        window.addEventListener('orientationchange', update);
-        window.addEventListener('sudamr-portrait-lock-change', update);
         const mqCoarse = window.matchMedia('(pointer: coarse)');
         const mqHover = window.matchMedia('(hover: none)');
         mqCoarse.addEventListener('change', update);
         mqHover.addEventListener('change', update);
+        const unsub = subscribeLayoutViewportChange(update);
         return () => {
-            window.removeEventListener('resize', update);
-            window.removeEventListener('orientationchange', update);
-            window.removeEventListener('sudamr-portrait-lock-change', update);
+            unsub();
             mqCoarse.removeEventListener('change', update);
             mqHover.removeEventListener('change', update);
         };
@@ -146,14 +164,7 @@ export function useHandheldPortraitLockActive(): boolean {
     useEffect(() => {
         const tick = () => setActive(isHandheldPortraitLockActive());
         tick();
-        window.addEventListener('resize', tick);
-        window.addEventListener('orientationchange', tick);
-        window.addEventListener('sudamr-portrait-lock-change', tick);
-        return () => {
-            window.removeEventListener('resize', tick);
-            window.removeEventListener('orientationchange', tick);
-            window.removeEventListener('sudamr-portrait-lock-change', tick);
-        };
+        return subscribeLayoutViewportChange(tick);
     }, []);
 
     return active;
@@ -199,14 +210,7 @@ export function useIsMobileLayout(breakpoint: number = 1024): boolean {
             setIsMobile(isHandheldWidth(width, breakpoint) && isPortraitViewport(width, height));
         };
         update();
-        window.addEventListener('resize', update);
-        window.addEventListener('orientationchange', update);
-        window.addEventListener('sudamr-portrait-lock-change', update);
-        return () => {
-            window.removeEventListener('resize', update);
-            window.removeEventListener('orientationchange', update);
-            window.removeEventListener('sudamr-portrait-lock-change', update);
-        };
+        return subscribeLayoutViewportChange(update);
     }, [breakpoint]);
 
     return isMobile;
@@ -232,14 +236,7 @@ export function useIsHandheldDevice(breakpoint: number = 1024): boolean {
             setIsHandheld(isHandheldWidth(width, breakpoint));
         };
         update();
-        window.addEventListener('resize', update);
-        window.addEventListener('orientationchange', update);
-        window.addEventListener('sudamr-portrait-lock-change', update);
-        return () => {
-            window.removeEventListener('resize', update);
-            window.removeEventListener('orientationchange', update);
-            window.removeEventListener('sudamr-portrait-lock-change', update);
-        };
+        return subscribeLayoutViewportChange(update);
     }, [breakpoint]);
 
     return isHandheld;
@@ -267,16 +264,7 @@ export function useViewportHeightBelow(maxHeightExclusive: number): boolean {
             setBelow(h < maxHeightExclusive);
         };
         update();
-        window.addEventListener('resize', update);
-        window.addEventListener('orientationchange', update);
-        window.addEventListener('sudamr-portrait-lock-change', update);
-        window.visualViewport?.addEventListener('resize', update);
-        return () => {
-            window.removeEventListener('resize', update);
-            window.removeEventListener('orientationchange', update);
-            window.removeEventListener('sudamr-portrait-lock-change', update);
-            window.visualViewport?.removeEventListener('resize', update);
-        };
+        return subscribeLayoutViewportChange(update);
     }, [maxHeightExclusive]);
 
     return below;
@@ -297,14 +285,7 @@ export function useIsPortrait(): boolean {
             setIsPortrait(isPortraitViewport(width, height));
         };
         update();
-        window.addEventListener('resize', update);
-        window.addEventListener('orientationchange', update);
-        window.addEventListener('sudamr-portrait-lock-change', update);
-        return () => {
-            window.removeEventListener('resize', update);
-            window.removeEventListener('orientationchange', update);
-            window.removeEventListener('sudamr-portrait-lock-change', update);
-        };
+        return subscribeLayoutViewportChange(update);
     }, []);
 
     return isPortrait;

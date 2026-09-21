@@ -45,7 +45,7 @@ const GameRecordBoardMinimap: React.FC<GameRecordBoardMinimapProps> = ({
             className={`overflow-hidden rounded-lg border border-amber-500/25 bg-black/40 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ${shellClass} ${className}`}
             aria-hidden
         >
-            {parsed && totalMoves > 0 ? (
+            {parsed && (totalMoves > 0 || (record.boardExtras?.setupStones?.length ?? 0) > 0 || (parsed.setupStones?.length ?? 0) > 0) ? (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                     <SgfViewer
                         timeElapsed={0}
@@ -55,6 +55,7 @@ const GameRecordBoardMinimap: React.FC<GameRecordBoardMinimapProps> = ({
                         isRotated={isRotated}
                         replayMoveCount={totalMoves}
                         boardSizePx={boardPx}
+                        boardExtras={record.boardExtras}
                     />
                 </div>
             ) : (

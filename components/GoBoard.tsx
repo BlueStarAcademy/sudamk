@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback, memo } from 'react';
 import { BoardState, Point, Player, GameStatus, Move, AnalysisResult, LiveGameSession, User, AnimationData, GameMode, RecommendedMove, ServerAction } from '../types.js';
-import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG } from '../assets.js';
+import { WHITE_BASE_STONE_IMG, BLACK_BASE_STONE_IMG, WHITE_HIDDEN_STONE_IMG, BLACK_HIDDEN_STONE_IMG, CASTLE_STONE_IMG } from '../assets.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants';
 import { modeIncludesBaseCaptureMix, modeIncludesMissileRule } from '../shared/utils/liveSessionArenaKind.js';
 import {
@@ -47,13 +47,22 @@ function parseBonusTextPoints(text: string): number | null {
 function maskJustCapturedStonesOnBoard(
     board: BoardState,
     captured: Array<{ point: Point; player: Player }> | undefined,
+    options?: {
+        lastMove?: Point | null;
+        chessPieces?: ChessPieceState[];
+    },
 ): BoardState {
     if (!captured?.length || !board?.length) return board;
     let changed = false;
     const next = board.map((row) => (Array.isArray(row) ? [...row] : row));
+    const lastMove = options?.lastMove;
+    const chessPieces = options?.chessPieces;
     for (const entry of captured) {
         const p = entry.point;
         if (!p || !Number.isFinite(p.x) || !Number.isFinite(p.y)) continue;
+        // 패 재착수·연결: 방금 둔 돌이나 살아 있는 기물 칸은 이전 justCaptured로 지우지 않는다.
+        if (lastMove && lastMove.x === p.x && lastMove.y === p.y) continue;
+        if (chessPieces?.some((piece) => piece.x === p.x && piece.y === p.y)) continue;
         const row = next[p.y];
         if (!row || !Array.isArray(row)) continue;
         if (row[p.x] === entry.player) {
@@ -109,46 +118,28 @@ function getCaptureScoreFloatVisual(cellSize: number, points: number) {
     return { tier, fontSize, strokeWidth, stroke, fill, innerClassName };
 }
 
-/** 캐슬 바둑 중립 캐슬 마커 — 흑백 태극형 바둑돌 토큰 + 성(城) 실루엣 */
-const CastleStoneMarker: React.FC<{ cx: number; cy: number; radius: number }> = ({ cx, cy, radius }) => {
-    const r = radius;
-    const ringStroke = Math.max(1.1, r * 0.055);
-    const icon = r * 0.98;
-    const bx = -icon / 2;
-    const by = -icon * 0.54;
-    const iw = icon;
-    const ih = icon * 1.08;
-    const detailStroke = '#2d2418';
-    const detailSw = Math.max(0.7, icon * 0.04);
-    const battlement = (leftRatio: number, topRatio: number, key: string) => (
-        <g key={key}>
-            <rect x={bx + iw * leftRatio} y={by + ih * topRatio} width={iw * 0.1} height={ih * 0.1} fill="url(#castle_tower_light)" stroke={detailStroke} strokeWidth={detailSw * 0.8} rx={icon * 0.015} />
-            <rect x={bx + iw * (leftRatio + 0.12)} y={by + ih * topRatio} width={iw * 0.1} height={ih * 0.1} fill="url(#castle_tower_light)" stroke={detailStroke} strokeWidth={detailSw * 0.8} rx={icon * 0.015} />
-        </g>
-    );
+/** 캐슬 바둑 중립 캐슬 마커 — WebP 원형 토큰. 보드가 180° 회전해도 성이 바로 서 있게 유지한다. */
+const CastleStoneMarker: React.FC<{ cx: number; cy: number; radius: number; keepUpright?: boolean }> = ({
+    cx,
+    cy,
+    radius,
+    keepUpright,
+}) => {
+    const size = radius * 2;
     return (
-        <g pointerEvents="none" transform={`translate(${cx}, ${cy})`} filter="url(#castle_marker_shadow)">
-            <circle cx={0} cy={0} r={r * 1.28} fill="url(#castle_marker_aura)" opacity={0.55} />
-            <circle cx={0} cy={0} r={r * 1.08} fill="none" stroke="#f6d46f" strokeWidth={ringStroke * 0.9} opacity={0.68} />
-            <circle cx={0} cy={0} r={r} fill="url(#castle_white_half)" stroke="#b89245" strokeWidth={ringStroke} />
-            <path
-                d={`M 0 ${-r} A ${r} ${r} 0 0 1 0 ${r} A ${r * 0.5} ${r * 0.5} 0 0 0 0 0 A ${r * 0.5} ${r * 0.5} 0 0 1 0 ${-r} Z`}
-                fill="url(#castle_black_half)"
+        <g
+            pointerEvents="none"
+            transform={keepUpright ? `rotate(180 ${cx} ${cy})` : undefined}
+        >
+            <image
+                href={CASTLE_STONE_IMG}
+                x={cx - radius}
+                y={cy - radius}
+                width={size}
+                height={size}
+                preserveAspectRatio="xMidYMid meet"
+                filter="url(#castle_marker_shadow)"
             />
-            <circle cx={0} cy={-r * 0.5} r={r * 0.5} fill="url(#castle_white_half)" opacity={0.96} />
-            <circle cx={0} cy={r * 0.5} r={r * 0.5} fill="url(#castle_black_half)" opacity={0.96} />
-            <circle cx={0} cy={0} r={r} fill="url(#castle_stone_highlight)" opacity={0.32} />
-            <circle cx={0} cy={0} r={r * 0.9} fill="none" stroke="#f5cc63" strokeWidth={ringStroke * 0.9} opacity={0.96} />
-            <g transform={`translate(0, ${r * 0.02})`}>
-                <rect x={bx + iw * 0.14} y={by + ih * 0.48} width={iw * 0.72} height={ih * 0.4} fill="url(#castle_wall)" stroke={detailStroke} strokeWidth={detailSw} rx={icon * 0.04} />
-                <rect x={bx + iw * 0.1} y={by + ih * 0.24} width={iw * 0.24} height={ih * 0.34} fill="url(#castle_tower)" stroke={detailStroke} strokeWidth={detailSw * 0.9} rx={icon * 0.035} />
-                <rect x={bx + iw * 0.66} y={by + ih * 0.24} width={iw * 0.24} height={ih * 0.34} fill="url(#castle_tower)" stroke={detailStroke} strokeWidth={detailSw * 0.9} rx={icon * 0.035} />
-                <rect x={bx + iw * 0.34} y={by + ih * 0.14} width={iw * 0.32} height={ih * 0.52} fill="url(#castle_keep)" stroke={detailStroke} strokeWidth={detailSw} rx={icon * 0.04} />
-                {battlement(0.1, 0.08, 'bl')}
-                {battlement(0.34, 0.0, 'bc')}
-                {battlement(0.66, 0.08, 'br')}
-                <rect x={bx + iw * 0.43} y={by + ih * 0.58} width={iw * 0.14} height={ih * 0.18} fill="#4a3f35" stroke={detailStroke} strokeWidth={detailSw * 0.65} rx={icon * 0.025} />
-            </g>
         </g>
     );
 };
@@ -1423,8 +1414,21 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         if (gameStatus === 'hidden_reveal_animating' || gameStatus === 'hidden_final_reveal') {
             return result as BoardState;
         }
-        return maskJustCapturedStonesOnBoard(result as BoardState, justCaptured);
-    }, [boardState, gameStatus, boardSize, moveHistory, analysisResult, mode, justCaptured]);
+        let liveLastMove = lastMove;
+        if (moveHistory?.length) {
+            for (let i = moveHistory.length - 1; i >= 0; i--) {
+                const move = moveHistory[i];
+                if (move && move.x >= 0 && move.y >= 0) {
+                    liveLastMove = { x: move.x, y: move.y };
+                    break;
+                }
+            }
+        }
+        return maskJustCapturedStonesOnBoard(result as BoardState, justCaptured, {
+            lastMove: liveLastMove,
+            chessPieces,
+        });
+    }, [boardState, gameStatus, boardSize, moveHistory, analysisResult, mode, justCaptured, lastMove, chessPieces]);
 
     const revealAnimationStonePoints = useMemo(() => {
         if (animation?.type !== 'hidden_reveal' || !animation.stones?.length) return undefined;
@@ -2296,47 +2300,10 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         <stop offset="0%" stopColor="#fef08a" />
                         <stop offset="100%" stopColor="#f59e0b" />
                     </linearGradient>
-                    <radialGradient id="castle_stone_highlight" cx="32%" cy="30%" r="68%" fx="28%" fy="26%">
-                        <stop offset="0%" stopColor="#fffaf0" stopOpacity="0.95" />
-                        <stop offset="45%" stopColor="#e8dcc8" stopOpacity="0.55" />
-                        <stop offset="100%" stopColor="#b8a88c" stopOpacity="0.15" />
-                    </radialGradient>
-                    <radialGradient id="castle_marker_aura" cx="50%" cy="50%" r="50%">
-                        <stop offset="0%" stopColor="#fde68a" stopOpacity="0.55" />
-                        <stop offset="58%" stopColor="#f59e0b" stopOpacity="0.2" />
-                        <stop offset="100%" stopColor="#92400e" stopOpacity="0" />
-                    </radialGradient>
                     <filter id="castle_marker_shadow" x="-55%" y="-55%" width="210%" height="210%">
                         <feDropShadow dx="0" dy="1.4" stdDeviation="1.8" floodColor="#000000" floodOpacity="0.55" />
                         <feDropShadow dx="0" dy="0" stdDeviation="1.2" floodColor="#facc15" floodOpacity="0.45" />
                     </filter>
-                    <linearGradient id="castle_black_half" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#36322b" />
-                        <stop offset="55%" stopColor="#111111" />
-                        <stop offset="100%" stopColor="#050505" />
-                    </linearGradient>
-                    <linearGradient id="castle_white_half" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#fff8e8" />
-                        <stop offset="52%" stopColor="#e4dccd" />
-                        <stop offset="100%" stopColor="#b9aa91" />
-                    </linearGradient>
-                    <linearGradient id="castle_keep" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#fff2b8" />
-                        <stop offset="55%" stopColor="#d4a84f" />
-                        <stop offset="100%" stopColor="#8f6428" />
-                    </linearGradient>
-                    <linearGradient id="castle_tower" x1="0%" y1="0%" x2="100%" y2="100%">
-                        <stop offset="0%" stopColor="#f6d982" />
-                        <stop offset="100%" stopColor="#9d7132" />
-                    </linearGradient>
-                    <linearGradient id="castle_tower_light" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#fff4c7" />
-                        <stop offset="100%" stopColor="#d7ad5a" />
-                    </linearGradient>
-                    <linearGradient id="castle_wall" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#7d6952" />
-                        <stop offset="100%" stopColor="#3f342a" />
-                    </linearGradient>
                     <linearGradient id="capture-score-gradient" x1="18%" y1="0%" x2="82%" y2="100%">
                         <stop offset="0%" stopColor="#ecfdf5" />
                         <stop offset="22%" stopColor="#a7f3d0" />
@@ -2443,7 +2410,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                 {castleStonePoints?.map((stone, i) => {
                     const { cx, cy } = toSvgCoords(stone);
-                    return <CastleStoneMarker key={`castle-stone-${i}`} cx={cx} cy={cy} radius={stone_radius * 1.08} />;
+                    return (
+                        <CastleStoneMarker
+                            key={`castle-stone-${i}`}
+                            cx={cx}
+                            cy={cy}
+                            radius={stone_radius * 1.08}
+                            keepUpright={!!isRotated}
+                        />
+                    );
                 })}
                 
                 {displayBoardState.map((row, y) => row.map((player, x) => {
@@ -2513,10 +2488,15 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         isVisible = false;
                     }
 
+                    const chessPieceHere = chessPieces.find((p) => p.x === x && p.y === y);
+                    if (chessPieceHere) {
+                        isVisible = true;
+                    }
+
                     if (!isVisible) return null;
                     // 공개 애니메이션 중인 히든돌은 하단 보드에서 다시 그리지 않고
                     // 전용 오버레이만 렌더링해 중첩 표시를 막는다.
-                    if (isInRevealAnimation) return null;
+                    if (isInRevealAnimation && !chessPieceHere) return null;
                     // 미사일 애니메이션 중에는 원래 자리와 목적지 자리의 돌을 숨김
                     if (animation?.type === 'missile') {
                         if (animation.from.x === x && animation.from.y === y) return null; // 원래 자리
@@ -2529,13 +2509,13 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     
                     const isNewlyRevealedForAnim = effectiveNewlyRevealed?.some(nr => nr.point.x === x && nr.point.y === y);
                     // 반투명: 내가 둔 히든 돌(비공개 상태) 또는 스캔으로만 안 돌만. 영구 공개/방금 공개된 돌은 선명하게
-                    const isFaint = !isSpectator && (
+                    const isFaint = !chessPieceHere && !isSpectator && (
                         (softScanAtCurrentMove && !isPermanentlyRevealed) ||
                         (effectiveHiddenMoveForRender && actualPlayer === myPlayerEnum && !isPermanentlyRevealed && !isNewlyRevealedForAnim)
                     );
 
                     const hasBaseStoneHere = cellFlags?.hasBaseStoneHere ?? false;
-                    const isKnownHidden = !!effectiveHiddenMoveForRender;
+                    const isKnownHidden = !chessPieceHere && !!effectiveHiddenMoveForRender;
                     const isSelectedMissileForRender = selectedMissileStone?.x === x && selectedMissileStone?.y === y;
                     const isHoverSelectableMissile =
                         isMissileSelectingActive && !selectedMissileStone && actualPlayer === myPlayerEnum;

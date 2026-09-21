@@ -119,12 +119,35 @@ export function syncSpeedTimePressureCaptures(
     return true;
 }
 
+/**
+ * 서버 틱 전에 클라가 보여줄, 아직 `captures`에 넣지 않은 시간 보너스.
+ * PVP·PVE 공통: `getSpeedTimeBonusPointsDesired - __speedTimePressureGranted`.
+ */
+export function getSpeedLiveCaptureBonusDelta(
+    session: LiveGameSession,
+    playerEnum: Player,
+    nowMs: number,
+    aiUserId: string,
+): number {
+    if (!isSessionSpeedTimePressureMode(session) || session.gameStatus !== 'playing') return 0;
+    if (playerEnum !== Player.Black && playerEnum !== Player.White) return 0;
+    const desired = getSpeedTimeBonusPointsDesired(session, nowMs, aiUserId);
+    const grant = ((session.settings as any).__speedTimePressureGranted ?? {}) as SpeedPenaltyBag;
+    const want = playerEnum === Player.Black ? desired.blackBonus : desired.whiteBonus;
+    const got =
+        playerEnum === Player.Black
+            ? Math.max(0, Number(grant.black ?? 0))
+            : Math.max(0, Number(grant.white ?? 0));
+    return Math.max(0, want - got);
+}
+
 /** 수 종료 시: 해당 수 페널티 확정 + 라이브 captures 동기화 */
 export function commitSpeedTurnPenalty(
     game: LiveGameSession,
     player: Player,
     turnElapsedSec: number,
     aiUserId: string,
+    nowMs: number = Date.now(),
 ): void {
     if (!isSessionSpeedTimePressureMode(game)) return;
     const penalty = getSpeedTurnPenaltyPointsFromElapsedSec(turnElapsedSec);
@@ -136,7 +159,14 @@ export function commitSpeedTurnPenalty(
             bag.white = Math.max(0, Number(bag.white ?? 0)) + penalty;
         }
     }
-    syncSpeedTimePressureCaptures(game, Date.now(), aiUserId);
+    // 종료된 수의 경과는 committed에 넣었음. turnStartTime을 그대로 두면 라이브 경과가 한 번 더 더해져 +2가 된다.
+    const prevTurnStartTime = game.turnStartTime;
+    game.turnStartTime = undefined;
+    try {
+        syncSpeedTimePressureCaptures(game, nowMs, aiUserId);
+    } finally {
+        game.turnStartTime = prevTurnStartTime;
+    }
 }
 
 /** @deprecated — {@link commitSpeedTurnPenalty} */
@@ -166,7 +196,7 @@ export function applySpeedMoveClockEnd(
         ((playerWhoMoved === Player.Black && game.blackPlayerId === aiUserId) ||
             (playerWhoMoved === Player.White && game.whitePlayerId === aiUserId));
     if (!isAiTurn) {
-        commitSpeedTurnPenalty(game, playerWhoMoved, turnElapsed, aiUserId);
+        commitSpeedTurnPenalty(game, playerWhoMoved, turnElapsed, aiUserId, nowMs);
     }
     return turnElapsed;
 }
@@ -211,4 +241,83 @@ export function applySpeedTimePressureAfterClientMove(
 ): void {
     if (!isSessionSpeedTimePressureMode(game) || game.gameStatus !== 'playing') return;
     applySpeedMoveClockEnd(game, movePlayer, moveEndedAtMs, aiUserId);
+}
+
+/** 낙관적 착수: 수 페널티 확정 후 상대 수당 10초 시계를 가득 찬 상태로 바로 연다. */
+export function applySpeedClocksAfterOptimisticClientMove(
+    game: LiveGameSession,
+    movePlayer: Player,
+    nowMs: number,
+    aiUserId: string,
+): void {
+    if (!isSessionSpeedTimePressureMode(game) || game.gameStatus !== 'playing') return;
+    applySpeedMoveClockEnd(game, movePlayer, nowMs, aiUserId);
+    applySpeedNextTurnClockStart(game, nowMs);
+}
+
+type SpeedLiveClockFields = Pick<
+    LiveGameSession,
+    'turnStartTime' | 'turnDeadline' | 'blackTimeLeft' | 'whiteTimeLeft'
+>;
+
+/**
+ * PVP 스피드: 같은 수 중에 늦은 GAME_UPDATE가 turnStartTime을 미래로 밀면
+ * 수당 10초·메인 시계가 되감긴다. 이미 흐르고 있는 시계는 더 이른 시작 시각을 유지한다.
+ */
+export function mergeSpeedLiveClocksOnClient(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): Partial<SpeedLiveClockFields> {
+    if (!existing) return {};
+    if (!isSessionSpeedTimePressureMode(incoming) && !isSessionSpeedTimePressureMode(existing)) return {};
+    const perMoveMs = getSpeedPerMoveSeconds(incoming as any) * 1000;
+    const sameTurn =
+        incoming.gameStatus === 'playing' &&
+        existing.gameStatus === 'playing' &&
+        incoming.currentPlayer === existing.currentPlayer &&
+        (incoming.moveHistory?.length ?? 0) === (existing.moveHistory?.length ?? 0);
+
+    const pickStart = (): number | undefined => {
+        const inc = incoming.turnStartTime;
+        const ext = existing.turnStartTime;
+        if (sameTurn && typeof inc === 'number' && Number.isFinite(inc) && typeof ext === 'number' && Number.isFinite(ext)) {
+            return Math.min(inc, ext);
+        }
+        if (typeof inc === 'number' && Number.isFinite(inc)) return inc;
+        if (typeof ext === 'number' && Number.isFinite(ext)) return ext;
+        return undefined;
+    };
+
+    const pickMain = (key: 'blackTimeLeft' | 'whiteTimeLeft'): number | undefined => {
+        const inc = incoming[key];
+        const ext = existing[key];
+        if (
+            sameTurn &&
+            typeof inc === 'number' &&
+            Number.isFinite(inc) &&
+            inc > 0 &&
+            typeof ext === 'number' &&
+            Number.isFinite(ext) &&
+            ext > 0
+        ) {
+            return Math.min(inc, ext);
+        }
+        if (typeof inc === 'number' && Number.isFinite(inc) && inc > 0) return inc;
+        if (typeof ext === 'number' && Number.isFinite(ext) && ext > 0) return ext;
+        const fallback = incoming[key] ?? existing[key];
+        return typeof fallback === 'number' && Number.isFinite(fallback) ? fallback : undefined;
+    };
+
+    const turnStartTime = pickStart();
+    return {
+        blackTimeLeft: pickMain('blackTimeLeft'),
+        whiteTimeLeft: pickMain('whiteTimeLeft'),
+        turnStartTime,
+        turnDeadline:
+            typeof turnStartTime === 'number' && Number.isFinite(turnStartTime)
+                ? turnStartTime + perMoveMs
+                : typeof incoming.turnDeadline === 'number'
+                  ? incoming.turnDeadline
+                  : existing.turnDeadline,
+    };
 }

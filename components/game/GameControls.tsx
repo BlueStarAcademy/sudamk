@@ -3,6 +3,7 @@ import { useGameRecordSaveLock } from '../../hooks/useGameRecordSaveLock.js';
 import { GameMode, LiveGameSession, ServerAction, GameProps, Player, User, Point, GameStatus, AppSettings } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES, STRATEGIC_ACTION_POINT_COST, PLAYFUL_ACTION_POINT_COST, NO_CONTEST_MOVE_THRESHOLD } from '../../constants';
 import { arenaLobbyHashFromSession } from '../../shared/utils/arenaLobbyDestination.js';
+import { stashPostGamePairRoomLobbyReturn } from '../../shared/utils/pairArenaSessionRestore.js';
 import { countValidStoneMoves } from '../../shared/utils/shortRankedGamePenalty.js';
 import type { GameConfirmModalType } from './GameModals.js';
 import { aiUserId } from '../../constants/auth.js';
@@ -1377,10 +1378,9 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
     const hidePassForFixedScoringTurnLimit = pvpHasFixedScoringTurnLimit(session);
     const isMobilePairGame = Boolean(isMobile && isPairGame);
     const pairCoopTwoHumansVsAi = isPairCooperativeTwoHumansVsAi(session.settings);
-    const hideMannerRowForBaseCaptureBid =
-        gameStatus === 'capture_bidding' && modeIncludesBaseCaptureMix(mode, session.settings);
-    const showMannerActionRow = !isSinglePlayer && !session.isAiGame && !pairCoopTwoHumansVsAi && !hideMannerRowForBaseCaptureBid;
-    const showMannerAiLobbyHintRow = !isSinglePlayer && session.isAiGame && !pairCoopTwoHumansVsAi;
+    const hideMannerRowForBasePregame = showBaseGameFooterStrip;
+    const showMannerActionRow = !isSinglePlayer && !session.isAiGame && !pairCoopTwoHumansVsAi && !hideMannerRowForBasePregame;
+    const showMannerAiLobbyHintRow = !isSinglePlayer && session.isAiGame && !pairCoopTwoHumansVsAi && !showBaseGameFooterStrip;
     const aiLobbyRematchActionPointCostLabel = useMemo(() => {
         const aiSettings = {
             kataServerLevel: session.settings?.kataServerLevel,
@@ -1949,6 +1949,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
             setShowResultModal(false);
 
             // 게임 종류에 따라 적절한 로비/대기실로 라우팅 (전략/놀이 대기실 AI를 먼저 판별해 싱글·탑으로 잘못 나가는 버그 방지)
+            stashPostGamePairRoomLobbyReturn(session);
             let redirectHash: string | null = null;
 
             if (session.gameCategory === 'guildwar') {
@@ -2567,7 +2568,7 @@ const GameControls: React.FC<GameControlsProps> = (props) => {
 
             {/* Row 2: Game and Special/Playful Functions */}
             {showBaseGameFooterStrip ? (
-                <div className={`flex w-full min-w-0 flex-col gap-0.5 py-0.5 ${arenaGameRoomControlsInnerPanelClass}`}>
+                <div className={`flex min-h-0 w-full min-w-0 flex-1 flex-col justify-center gap-0.5 py-0.5 ${arenaGameRoomControlsInnerPanelClass}`}>
                     {gameStatus === 'base_placement' && !isSpectator ? (
                         <div className="flex w-full min-w-0 min-h-[2.35rem] flex-row items-center justify-center px-1 min-[1025px]:min-h-[2.1rem] min-[1025px]:px-1.5">
                             <ArenaControlStrip layout="cluster" className="max-w-full min-w-0" gapClass="gap-1 min-[1025px]:gap-2">

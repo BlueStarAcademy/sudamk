@@ -577,6 +577,11 @@ class AudioService {
         this.stopTimerWarning();
         this.timerWarningSourceNode = await this.play('timer10', 'countdown', 0.7);
     }
+
+    /** 스피드 수당 10초 읽기. 기본시간 초읽기 트리거와 별도로 timer10 음원을 재생한다. */
+    public speedCountdownWarning() {
+        void this.timerWarning();
+    }
     
     public stopTimerWarning() {
         if (this.timerWarningSourceNode) {

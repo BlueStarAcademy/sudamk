@@ -35,6 +35,21 @@ export function snapUniformCanvasScale(
     return scale;
 }
 
+/** 1920×1080 설계 캔버스가 가용 영역에 contain-fit 된 스케일·픽셀 크기 */
+export function measurePcDesignCanvasFit(
+    availW: number,
+    availH: number,
+    designW: number = PC_DESIGN_CANVAS_WIDTH,
+    designH: number = PC_DESIGN_CANVAS_HEIGHT,
+): { scale: number; width: number; height: number } {
+    const scale = snapUniformCanvasScale(availW, availH, designW, designH);
+    return {
+        scale,
+        width: Math.round(designW * scale),
+        height: Math.round(designH * scale),
+    };
+}
+
 /** 설계 프레임이 가용 영역에 들어가도록 균일 배율(최대 1) */
 export function computeUniformFitScale(
     availW: number,

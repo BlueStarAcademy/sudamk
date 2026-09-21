@@ -2,6 +2,10 @@ import { GameMode, Player } from '../types/enums.js';
 import type { BoardState, ChessPieceState, ChessPieceType, LiveGameSession, Point, ChessLastMoveMarker } from '../types/entities.js';
 import { CHESS_BOARD_SIZES } from '../constants/gameSettings.js';
 import { mixIncludesChess } from './mixModeSettings.js';
+import {
+    recordChessEvent,
+    snapshotChessSetupIfNeeded,
+} from './gameRecordSessionEvents.js';
 
 export {
     getChessGoLayout,
@@ -110,6 +114,29 @@ export function commitChessGoPlacementCaptures(
 ): void {
     clearChessGoRemovedPointAt(session, x, y);
     recordChessGoRemovedPoints(session, capturedStones);
+}
+
+function lastPlacedGoMove(
+    moveHistory: LiveGameSession['moveHistory'] | undefined,
+): Point | null {
+    if (!moveHistory?.length) return null;
+    for (let i = moveHistory.length - 1; i >= 0; i--) {
+        const move = moveHistory[i];
+        if (move && move.x >= 0 && move.y >= 0) return { x: move.x, y: move.y };
+    }
+    return null;
+}
+
+/**
+ * 패 재착수·연결 등: 최신 착점은 이미 돌이 있는 자리이므로 removed 목록에서 뺀다.
+ * 슬림 WS가 옛 chessGoRemovedPoints를 남기면 상대에게 돌이 안 보이는 현상을 막는다.
+ */
+export function pruneChessGoRemovedPointsReclaimedByLatestMove(
+    session: Pick<LiveGameSession, 'chessGoRemovedPoints' | 'moveHistory'>,
+): void {
+    const last = lastPlacedGoMove(session.moveHistory);
+    if (!last) return;
+    clearChessGoRemovedPointAt(session, last.x, last.y);
 }
 
 export function getChessPieceCaptureValue(type: ChessPieceType): number {
@@ -425,14 +452,22 @@ function rebuildChessGoBoardFromSession(
 ): BoardState {
     const boardSize = getSessionBoardSize(session);
     const board = createEmptyBoardState(boardSize);
+    const lastMoveByKey = new Map<string, { x: number; y: number; player: Player }>();
+    for (const move of session.moveHistory ?? []) {
+        if (move.x >= 0 && move.y >= 0 && move.x < boardSize && move.y < boardSize) {
+            lastMoveByKey.set(pointKey(move.x, move.y), { x: move.x, y: move.y, player: move.player });
+        }
+    }
     const removedKeys = new Set(
         (session.chessGoRemovedPoints ?? []).map((p) => pointKey(p.x, p.y)),
     );
-    for (const move of session.moveHistory ?? []) {
-        if (move.x >= 0 && move.y >= 0 && move.x < boardSize && move.y < boardSize) {
-            if (removedKeys.has(pointKey(move.x, move.y))) continue;
-            board[move.y]![move.x] = move.player;
-        }
+    const lastPlaced = lastPlacedGoMove(session.moveHistory);
+    if (lastPlaced && lastPlaced.x < boardSize && lastPlaced.y < boardSize) {
+        removedKeys.delete(pointKey(lastPlaced.x, lastPlaced.y));
+    }
+    for (const move of lastMoveByKey.values()) {
+        if (removedKeys.has(pointKey(move.x, move.y))) continue;
+        board[move.y]![move.x] = move.player;
     }
     for (const piece of session.chessPieces ?? []) {
         if (
@@ -478,7 +513,8 @@ export function normalizeChessGoSession<
         | 'chessCaptureScore'
         | 'chessPieceMovedThisTurn'
         | 'gameStatus'
-    >,
+    > &
+        Partial<Pick<LiveGameSession, 'chessGoRemovedPoints'>>,
 >(session: T): T {
     if (!sessionUsesChessGo(session)) return session;
 
@@ -504,6 +540,7 @@ export function normalizeChessGoSession<
     if (!next.chessCaptureScore) {
         next.chessCaptureScore = createEmptyChessCaptureScore();
     }
+    pruneChessGoRemovedPointsReclaimedByLatestMove(next);
     next.boardState = rebuildChessGoBoardFromSession(next);
     return next;
 }
@@ -993,7 +1030,13 @@ export function enumerateLegalChessMoves(
 }
 
 export function applyChessMoveToSession(
-    session: ChessGoSessionSlice & { chessPieceMovedThisTurn?: boolean; lastChessMove?: ChessLastMoveMarker | null },
+    session: ChessGoSessionSlice & {
+        chessPieceMovedThisTurn?: boolean;
+        lastChessMove?: ChessLastMoveMarker | null;
+        chessSetup?: LiveGameSession['chessSetup'];
+        chessEvents?: LiveGameSession['chessEvents'];
+        moveHistory?: LiveGameSession['moveHistory'];
+    },
     pieceId: string,
     toX: number,
     toY: number,
@@ -1003,6 +1046,7 @@ export function applyChessMoveToSession(
     if (!piece) return false;
 
     const from = { x: piece.x, y: piece.y };
+    snapshotChessSetupIfNeeded(session);
 
     const board = session.boardState.map((row) => [...row]) as BoardState;
     board[piece.y]![piece.x] = Player.None;
@@ -1012,6 +1056,12 @@ export function applyChessMoveToSession(
     piece.x = toX;
     piece.y = toY;
     piece.remainingMoves = Math.max(0, piece.remainingMoves - 1);
+
+    recordChessEvent(session, {
+        pieceId,
+        from,
+        to: { x: toX, y: toY },
+    });
 
     if (actingPlayer != null) {
         session.lastChessMove = { from, to: { x: toX, y: toY }, player: actingPlayer };

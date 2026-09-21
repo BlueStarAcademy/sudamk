@@ -102,6 +102,34 @@ const GameRecordInfoPanel: React.FC<GameRecordInfoPanelProps> = ({ record, myNic
                         </span>
                     </dd>
                 </dl>
+                {record.boardExtras?.missileEvents && record.boardExtras.missileEvents.length > 0 && (
+                    <div className="mt-3 w-full text-left text-[11px] leading-snug text-slate-300">
+                        <div className="mb-1 font-semibold text-amber-200/90">{t('gameRecord.missileUses')}</div>
+                        {record.boardExtras.missileEvents.map((ev, i) => (
+                            <div key={`m-${i}`}>
+                                {t('gameRecord.missileUseLine', {
+                                    color: ev.player === Player.Black ? t('common:black') : t('common:white'),
+                                    from: t('gameRecord.coord', { x: ev.from.x, y: ev.from.y }),
+                                    to: t('gameRecord.coord', { x: ev.to.x, y: ev.to.y }),
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                )}
+                {record.boardExtras?.scanEvents && record.boardExtras.scanEvents.length > 0 && (
+                    <div className="mt-2 w-full text-left text-[11px] leading-snug text-slate-300">
+                        <div className="mb-1 font-semibold text-amber-200/90">{t('gameRecord.scanUses')}</div>
+                        {record.boardExtras.scanEvents.map((ev, i) => (
+                            <div key={`s-${i}`}>
+                                {t('gameRecord.scanUseLine', {
+                                    color: ev.player === Player.Black ? t('common:black') : t('common:white'),
+                                    point: t('gameRecord.coord', { x: ev.x, y: ev.y }),
+                                    result: ev.success ? t('gameRecord.scanHit') : t('gameRecord.scanMiss'),
+                                })}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </div>
         </div>
     );

@@ -11,6 +11,7 @@ interface Props {
     onAction: (action: ServerAction) => void;
     layout?: 'inline' | 'window';
     isSinglePlayer?: boolean;
+    isMobile?: boolean;
 }
 
 const BaseSameColorPointsBidPanel: React.FC<Props> = ({
@@ -19,6 +20,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
     onAction,
     layout = 'inline',
     isSinglePlayer = false,
+    isMobile = false,
 }) => {
     const { t } = useTranslation('game');
     const gameId = session.id;
@@ -123,42 +125,130 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
 
     const btnSmall = `rounded-lg border border-white/12 bg-white/5 px-1 py-1.5 text-[10px] font-bold text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:opacity-40 sm:text-xs`;
 
-    if (!locked) return null;
+    const guide =
+        myStoredChoice != null
+            ? t(layout === 'inline' ? 'baseSameColorPoints.sameColorGuideCompact' : 'baseSameColorPoints.sameColorGuide', {
+                  stone: stoneLabel,
+              })
+            : t(
+                  layout === 'inline'
+                      ? 'baseSameColorPoints.sameColorGuideGenericCompact'
+                      : 'baseSameColorPoints.sameColorGuideGeneric',
+              );
 
-    if (pairLobbyOwnerId && !isPairHostBid) {
-        const waitGuest = (
-            <div className={`${komiWindowShell} px-3 py-4 text-center`}>
-                <p className="text-sm font-semibold text-sky-200/95">{t('baseSameColorPoints.hostSetting')}</p>
-                <p className="mt-2 text-xs text-stone-400">{t('baseSameColorPoints.pleaseWait')}</p>
-            </div>
-        );
-        return layout === 'inline' ? <div className="w-full min-w-0">{waitGuest}</div> : waitGuest;
-    }
-
-    if (isPairHostBid && bidP1 && bidP2) {
-        const waitBoth = (
-            <div className={`${komiWindowShell} px-3 py-4 text-center`}>
-                <p className="text-sm font-semibold text-emerald-300/95">{t('baseSameColorPoints.bothSubmitted')}</p>
-                <p className="mt-2 text-xs text-stone-400">{t('baseSameColorPoints.proceedingNext')}</p>
-            </div>
-        );
-        return layout === 'inline' ? <div className="w-full min-w-0">{waitBoth}</div> : waitBoth;
-    }
-
-    if (myBid && !isPairHostBid) {
+    const waitShell = (title: string, hint: string, titleClass: string) => {
         const wait = (
-            <div className={`${komiWindowShell} px-3 py-4 text-center`}>
-                <p className="text-sm font-semibold text-emerald-300/95">{t('baseSameColorPoints.submitted')}</p>
-                <p className="mt-2 text-xs text-stone-400">{t('baseSameColorPoints.waitingOpponent')}</p>
+            <div className={`${komiWindowShell} ${layout === 'inline' ? 'px-2 py-1.5' : 'px-3 py-4'} text-center`}>
+                <p className={`font-semibold ${titleClass} ${layout === 'inline' ? 'text-[11px] leading-tight' : 'text-sm'}`}>
+                    {title}
+                </p>
+                <p className={`text-stone-400 ${layout === 'inline' ? 'mt-0.5 text-[10px] leading-tight' : 'mt-2 text-xs'}`}>
+                    {hint}
+                </p>
             </div>
         );
         return layout === 'inline' ? <div className="w-full min-w-0">{wait}</div> : wait;
+    };
+
+    if (!locked) return null;
+
+    if (pairLobbyOwnerId && !isPairHostBid) {
+        return waitShell(t('baseSameColorPoints.hostSetting'), t('baseSameColorPoints.pleaseWait'), 'text-sky-200/95');
     }
 
-    const guide =
-        myStoredChoice != null
-            ? t('baseSameColorPoints.sameColorGuide', { stone: stoneLabel })
-            : t('baseSameColorPoints.sameColorGuideGeneric');
+    if (isPairHostBid && bidP1 && bidP2) {
+        return waitShell(t('baseSameColorPoints.bothSubmitted'), t('baseSameColorPoints.proceedingNext'), 'text-emerald-300/95');
+    }
+
+    if (myBid && !isPairHostBid) {
+        return waitShell(t('baseSameColorPoints.submitted'), t('baseSameColorPoints.waitingOpponent'), 'text-emerald-300/95');
+    }
+
+    const stepBtn =
+        layout === 'inline'
+            ? 'inline-flex h-8 min-w-[2rem] shrink-0 items-center justify-center rounded-md border border-white/12 bg-white/5 px-1.5 text-[11px] font-black tabular-nums text-amber-50/95 transition-colors hover:bg-amber-500/15 disabled:opacity-40'
+            : btnSmall;
+
+    const compactControls = (
+        <div className="flex min-w-0 items-center gap-1">
+            <div
+                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 ${
+                    locked === Player.Black ? 'border-stone-800 bg-stone-900' : 'border-stone-300 bg-stone-200'
+                }`}
+                title={stoneLabel}
+            >
+                <span className={locked === Player.Black ? 'text-stone-100' : 'text-stone-900'}>
+                    {locked === Player.Black ? '●' : '○'}
+                </span>
+            </div>
+            <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto overflow-y-hidden overscroll-x-contain [-webkit-overflow-scrolling:touch] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                <button type="button" className={stepBtn} onClick={() => adjust(-5)} disabled={komiValue <= 0} aria-label="-5">
+                    −5
+                </button>
+                <button type="button" className={stepBtn} onClick={() => adjust(-1)} disabled={komiValue <= 0} aria-label="-1">
+                    −1
+                </button>
+                <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    inputMode="numeric"
+                    value={komiValue}
+                    onChange={(e) => {
+                        const n = Math.floor(Number(e.target.value));
+                        if (!Number.isFinite(n)) setKomiValue(0);
+                        else setKomiValue(Math.max(0, Math.min(100, n)));
+                    }}
+                    className={`w-12 shrink-0 rounded-md border border-amber-500/40 bg-black/50 px-1 py-1 text-center font-mono font-bold tabular-nums text-amber-100 [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none ${
+                        isMobile ? 'h-8 text-base leading-none' : 'h-8 text-sm'
+                    }`}
+                    aria-label={t('baseSameColorPoints.pointsUnit')}
+                />
+                <span className="shrink-0 text-[10px] font-semibold text-stone-400">{t('baseSameColorPoints.pointsUnit')}</span>
+                <button type="button" className={stepBtn} onClick={() => adjust(1)} disabled={komiValue >= 100} aria-label="+1">
+                    +1
+                </button>
+                <button type="button" className={stepBtn} onClick={() => adjust(5)} disabled={komiValue >= 100} aria-label="+5">
+                    +5
+                </button>
+            </div>
+            <button
+                type="button"
+                onClick={handleSubmit}
+                disabled={submitBusy}
+                className="inline-flex h-8 shrink-0 items-center justify-center rounded-md border border-amber-400/45 bg-amber-800/85 px-2.5 text-[11px] font-bold text-amber-50 disabled:opacity-40"
+            >
+                {t('baseSameColorPoints.complete')}
+            </button>
+        </div>
+    );
+
+    const compactBody = (
+        <div className={`${komiWindowShell} flex w-full min-w-0 flex-col justify-center gap-1 px-2 py-1.5`}>
+            {isPairHostBid && activeBidSubjectEarly && (
+                <p className="truncate text-center text-[10px] font-bold leading-tight text-amber-200/90">
+                    {activeBidSubjectEarly === player1.id
+                        ? t('baseSameColorPoints.playerBid', { nickname: player1.nickname })
+                        : t('baseSameColorPoints.playerBid', { nickname: player2.nickname })}
+                </p>
+            )}
+            <div className="flex min-w-0 items-center gap-1.5">
+                <p className="min-w-0 flex-1 truncate text-[10px] font-medium leading-tight text-stone-300">{guide}</p>
+                {showCountdown && komiBiddingDeadline != null && (
+                    <span className="shrink-0 font-mono text-[11px] font-bold tabular-nums text-amber-100">{timer}</span>
+                )}
+            </div>
+            {showCountdown && komiBiddingDeadline != null && (
+                <div className="h-1 w-full overflow-hidden rounded-full bg-black/40 ring-1 ring-white/10">
+                    <div
+                        className="h-full rounded-full bg-gradient-to-r from-amber-500 to-lime-300"
+                        style={{ width: `${(timer / countdownTotalSeconds) * 100}%`, transition: 'width 0.35s linear' }}
+                    />
+                </div>
+            )}
+            {compactControls}
+        </div>
+    );
 
     const body = (
         <div className={`${komiWindowShell} flex w-full min-w-0 flex-col gap-2 px-2 py-2 sm:px-3`}>
@@ -234,7 +324,7 @@ const BaseSameColorPointsBidPanel: React.FC<Props> = ({
     );
 
     if (layout === 'inline') {
-        return <div className="flex w-full min-w-0 max-w-full flex-col gap-1">{body}</div>;
+        return <div className="flex w-full min-w-0 max-w-full flex-col">{compactBody}</div>;
     }
     return body;
 };

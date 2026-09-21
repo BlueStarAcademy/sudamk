@@ -4,10 +4,17 @@ import { useLocalizedGameMode } from '../../shared/i18n/localizedCatalog.js';
 import { useTranslation } from 'react-i18next';
 import { GameRecord, Player, Point } from '../../types.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../../constants/gameModes.js';
-import SgfViewer, { parseSgf, buildBoardFromMoves, applySgfMoveToBoard, type SgfMove } from '../SgfViewer.js';
+import SgfViewer, { parseSgf, applySgfMoveToBoard, type SgfMove } from '../SgfViewer.js';
+import { applyGameRecordReplay } from '../../utils/gameRecordReplay.js';
 import GameRecordReplayNav from './GameRecordReplayNav.js';
 import { formatGameRecordResultLabel } from '../../utils/gameRecordResultLabel.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
+import {
+    applyUniformKifuViewToExtras,
+    defaultUniformKifuView,
+    gameRecordUsesUniformView,
+    type UniformKifuViewMode,
+} from '../../shared/utils/gameRecordBoardExtras.js';
 
 export interface GameRecordViewerPanelProps {
     record: GameRecord;
@@ -71,6 +78,10 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
     const [isReviewMode, setIsReviewMode] = useState(false);
     const [showMoveNumbers, setShowMoveNumbers] = useState(false);
     const [reviewMoves, setReviewMoves] = useState<SgfMove[]>([]);
+    const [uniformView, setUniformView] = useState<UniformKifuViewMode>(() =>
+        defaultUniformKifuView(record.boardExtras),
+    );
+    const showUniformViewToggle = gameRecordUsesUniformView(record.mode, record.boardExtras);
 
     useEffect(() => {
         setCurrentMoveIndex(totalMoves);
@@ -78,6 +89,7 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
         setIsReviewMode(false);
         setShowMoveNumbers(false);
         setReviewMoves([]);
+        setUniformView(defaultUniformKifuView(record.boardExtras));
     }, [record.id, record.myColor, totalMoves]);
 
     useEffect(() => {
@@ -135,14 +147,21 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
     const handleIntersectionClick = useCallback(
         (point: Point) => {
             if (!isReviewMode || !parsedSgf) return;
-            const board = buildBoardFromMoves(parsedSgf.boardSize, parsedSgf.moves, currentMoveIndex);
+            const replay = applyGameRecordReplay(
+                parsedSgf.boardSize,
+                parsedSgf.moves,
+                record.boardExtras ??
+                    (parsedSgf.setupStones?.length ? { setupStones: parsedSgf.setupStones } : undefined),
+                currentMoveIndex,
+            );
+            const board = replay.board.map((row) => [...row]);
             for (const m of reviewMoves) {
                 applySgfMoveToBoard(board, m, parsedSgf.boardSize);
             }
             if (board[point.y][point.x] !== Player.None) return;
             setReviewMoves((prev) => [...prev, { player: nextReviewPlayer, x: point.x, y: point.y }]);
         },
-        [isReviewMode, parsedSgf, currentMoveIndex, reviewMoves, nextReviewPlayer],
+        [isReviewMode, parsedSgf, currentMoveIndex, reviewMoves, nextReviewPlayer, record.boardExtras],
     );
 
     const clearReviewMoves = () => setReviewMoves([]);
@@ -150,6 +169,13 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
     const scoreDetails = record.gameResult.scoreDetails;
     const resultLabel = formatGameRecordResultLabel(record).text;
     const myColorLabel = record.myColor === Player.Black ? t('common:black') : record.myColor === Player.White ? t('common:white') : null;
+    const boardExtrasForView = useMemo(
+        () =>
+            showUniformViewToggle
+                ? applyUniformKifuViewToExtras(record.boardExtras, uniformView)
+                : record.boardExtras,
+        [record.boardExtras, showUniformViewToggle, uniformView],
+    );
 
     const infoRow = (label: string, value: React.ReactNode) => (
         <div className="border-b border-dashed border-white/[0.06] pb-2 last:border-0 last:pb-0">
@@ -188,6 +214,48 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
         </button>
     );
 
+    const uniformViewButton = (mode: UniformKifuViewMode, src: string, label: string) => {
+        const selected = uniformView === mode;
+        return (
+            <button
+                type="button"
+                onClick={() => setUniformView(mode)}
+                className={`flex shrink-0 items-center justify-center overflow-hidden rounded-full border bg-zinc-950/90 shadow-lg backdrop-blur-sm transition ${
+                    isInline ? 'h-8 w-8' : 'h-9 w-9'
+                } ${
+                    selected
+                        ? 'border-amber-300/80 ring-2 ring-amber-300/70'
+                        : 'border-amber-400/25 opacity-70 hover:border-amber-300/50 hover:opacity-100'
+                }`}
+                title={label}
+                aria-label={label}
+                aria-pressed={selected}
+            >
+                <img src={src} alt="" className="h-full w-full object-cover" />
+            </button>
+        );
+    };
+
+    const renderUniformViewButtons = (layout: 'row' | 'col') =>
+        showUniformViewToggle ? (
+            <div
+                className={`flex shrink-0 items-center ${layout === 'col' ? 'flex-col gap-1' : 'gap-1'}`}
+                role="group"
+                aria-label={t('game:gameRecord.uniformViewGroup')}
+            >
+                {uniformViewButton('black', '/images/button/uniform-view-black.png', t('game:gameRecord.uniformViewBlack'))}
+                {uniformViewButton('white', '/images/button/uniform-view-white.png', t('game:gameRecord.uniformViewWhite'))}
+                {uniformViewButton('actual', '/images/button/uniform-view-both.png', t('game:gameRecord.uniformViewBoth'))}
+            </div>
+        ) : null;
+
+    const boardSideControls = (
+        <div className={`flex shrink-0 items-center ${isInline ? 'flex-col gap-1.5' : 'flex-col gap-2'}`}>
+            {rotateButton}
+            {renderUniformViewButtons('col')}
+        </div>
+    );
+
     const boardCanvas = (
         <div
             className={`relative shrink-0 ${isInline || fitContainer ? '' : 'min-w-0 flex-1'}`}
@@ -215,6 +283,7 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
                 onHalfBoardNavBack={handlePrevious}
                 onHalfBoardNavForward={handleNext}
                 reviewMoves={reviewMoves}
+                boardExtras={boardExtrasForView}
             />
         </div>
     );
@@ -224,7 +293,7 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
     ) : (
         <div className={`flex shrink-0 items-start ${isInline ? 'gap-2' : 'w-full gap-2.5'}`}>
             {boardCanvas}
-            {rotateButton}
+            {boardSideControls}
         </div>
     );
 
@@ -334,6 +403,36 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
                     {infoRow(t('game:gameRecord.mode'), localizedGameMode(record.mode as any) || record.mode)}
                     {infoRow(t('game:gameRecord.date'), new Date(record.date).toLocaleString('ko-KR'))}
                     {infoRow(t('game:gameRecord.result'), <span className="text-amber-200">{resultLabel}</span>)}
+                    {record.boardExtras?.missileEvents && record.boardExtras.missileEvents.length > 0 &&
+                        infoRow(
+                            t('game:gameRecord.missileUses'),
+                            <div className="space-y-0.5 font-medium">
+                                {record.boardExtras.missileEvents.map((ev, i) => (
+                                    <div key={`m-${i}`}>
+                                        {t('game:gameRecord.missileUseLine', {
+                                            color: ev.player === Player.Black ? t('common:black') : t('common:white'),
+                                            from: t('game:gameRecord.coord', { x: ev.from.x, y: ev.from.y }),
+                                            to: t('game:gameRecord.coord', { x: ev.to.x, y: ev.to.y }),
+                                        })}
+                                    </div>
+                                ))}
+                            </div>,
+                        )}
+                    {record.boardExtras?.scanEvents && record.boardExtras.scanEvents.length > 0 &&
+                        infoRow(
+                            t('game:gameRecord.scanUses'),
+                            <div className="space-y-0.5 font-medium">
+                                {record.boardExtras.scanEvents.map((ev, i) => (
+                                    <div key={`s-${i}`}>
+                                        {t('game:gameRecord.scanUseLine', {
+                                            color: ev.player === Player.Black ? t('common:black') : t('common:white'),
+                                            point: t('game:gameRecord.coord', { x: ev.x, y: ev.y }),
+                                            result: ev.success ? t('game:gameRecord.scanHit') : t('game:gameRecord.scanMiss'),
+                                        })}
+                                    </div>
+                                ))}
+                            </div>,
+                        )}
                 </dl>
             </div>
 
@@ -418,6 +517,7 @@ const GameRecordViewerPanel: React.FC<GameRecordViewerPanelProps> = ({
                     </p>
                     <div className="flex items-center justify-end gap-2">
                         {rotateButton}
+                        {renderUniformViewButtons('row')}
                         <button
                             type="button"
                             onClick={onClose}

@@ -3388,10 +3388,10 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         return next;
     }, [createModalRoomKind, lobbyChannel]);
 
-    /** 경기 종료 후 집계·페어 경기장으로 돌아올 때, 이전에 머물던 페어 방으로 포커스(모바일 N번방 탭·필요 시 재입장) */
+    /** 경기 종료 후 집계·페어·친선 대기실로 돌아올 때, 이전에 머물던 페어 방으로 포커스(모바일 N번방 탭·필요 시 재입장) */
     useEffect(() => {
         if (postGamePairRoomRestoreDoneRef.current) return;
-        if (lobbyChannel !== 'pair' && !aggregateLobbyMode) return;
+        if (lobbyChannel !== 'pair' && lobbyChannel !== 'friendly' && !aggregateLobbyMode) return;
         let storedId: string | null = null;
         try {
             storedId = sessionStorage.getItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY);
@@ -3399,7 +3399,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
             /* ignore */
         }
         if (!storedId) return;
-        const room = rooms.find((r) => r.id === storedId);
+        const room =
+            pairRoomsAllChannels.find((r) => r.id === storedId) ?? rooms.find((r) => r.id === storedId);
         if (!room) return;
 
         postGamePairRoomRestoreDoneRef.current = true;
@@ -3427,10 +3428,12 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
         aggregateLobbyMode,
         lobbyChannel,
         rooms,
+        pairRoomsAllChannels,
         myRoom?.id,
         myRoomAnyLobbyChannel?.id,
         isHandheld,
         attemptJoinRoom,
+        lobbyIntent,
     ]);
 
     useEffect(() => {

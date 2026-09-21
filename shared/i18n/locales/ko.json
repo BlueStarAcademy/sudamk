@@ -821,6 +821,8 @@
       "waitingOpponent": "상대 설정을 기다리는 중입니다.",
       "sameColorGuide": "서로 같은 돌을 골랐습니다. {{stone}}로 두기 위해 몇 점을 상대방에게 줄까요?",
       "sameColorGuideGeneric": "상대와 같은 돌을 선택했습니다. 제시할 점수를 정하세요.",
+      "sameColorGuideCompact": "{{stone}} 덤 — 상대에게 줄 점수",
+      "sameColorGuideGenericCompact": "같은 돌 — 상대에게 줄 덤",
       "playerBid": "{{nickname}} 측 점수 제시",
       "pointsUnit": "집",
       "reset": "초기화",
@@ -1714,7 +1716,12 @@
       "opponentReady": "● 상대 배치 완료",
       "opponentPlacing": "○ 상대 배치 중",
       "randomPlace": "랜덤 배치",
-      "reset": "재배치"
+      "reset": "재배치",
+      "title": "기물 배치",
+      "hint": "바둑판의 배치 가능한 위치에 기물을 배치하세요.",
+      "totalScore": "기물 총 점수",
+      "complete": "완료",
+      "pieceStat": "{{moves}}회 · {{cost}}점"
     },
     "resultModal": {
       "playfulShort": "놀이",
@@ -1780,7 +1787,18 @@
       "mode": "모드",
       "date": "일시",
       "score": "점수",
-      "result": "결과"
+      "result": "결과",
+      "missileUses": "미사일 사용",
+      "scanUses": "스캔 사용",
+      "missileUseLine": "{{color}} {{from}}→{{to}}",
+      "scanUseLine": "{{color}} {{point}} · {{result}}",
+      "scanHit": "적중",
+      "scanMiss": "빗나감",
+      "coord": "({{x}},{{y}})",
+      "uniformViewGroup": "일색 표시",
+      "uniformViewBlack": "모두 흑으로 보기",
+      "uniformViewWhite": "모두 백으로 보기",
+      "uniformViewBoth": "흑백 그대로 보기"
     },
     "gameApplication": {
       "title": "게임 신청",

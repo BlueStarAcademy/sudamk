@@ -1,5 +1,11 @@
-import { LiveGameSession, User, Player, GameMode, WinReason, Point } from '../types/index.js';
+import { LiveGameSession, User, Player, GameMode, WinReason } from '../types/index.js';
 import { SPECIAL_GAME_MODES, PLAYFUL_GAME_MODES } from '../constants/gameModes.js';
+import { mixGoOrPureModeIncludes } from '../shared/utils/mixGoRules.js';
+import {
+    restoreBaseStonesFromMissileEvents,
+    restoreMoveHistoryCoordsFromMissileEvents,
+} from '../shared/utils/gameRecordBoardExtras.js';
+import { isPassMove } from '../shared/utils/gameRecordSessionEvents.js';
 import {
     applyMoveToBoard,
     cloneBoard,
@@ -93,10 +99,18 @@ export const generateSgfFromGame = (
         sgf += `C[최종점수: 흑 ${blackDetails.total}점, 백 ${whiteDetails.total}점]`;
     }
 
-    const isHiddenMode =
-        game.mode === GameMode.Hidden || (game.mode === GameMode.Mix && game.settings.mixedModes?.includes(GameMode.Hidden));
-    const isMissileMode =
-        game.mode === GameMode.Missile || (game.mode === GameMode.Mix && game.settings.mixedModes?.includes(GameMode.Missile));
+    const originBaseStones = restoreBaseStonesFromMissileEvents(game.baseStones, game.missileEvents);
+    const blackSetup = originBaseStones.filter((s) => s.player === Player.Black);
+    const whiteSetup = originBaseStones.filter((s) => s.player === Player.White);
+    if (blackSetup.length > 0) {
+        sgf += `AB${blackSetup.map((s) => `[${coordToSgf(s.x, s.y)}]`).join('')}`;
+    }
+    if (whiteSetup.length > 0) {
+        sgf += `AW${whiteSetup.map((s) => `[${coordToSgf(s.x, s.y)}]`).join('')}`;
+    }
+
+    const isHiddenMode = mixGoOrPureModeIncludes(game.mode, game.settings?.mixedModes, GameMode.Hidden);
+    const isMissileMode = mixGoOrPureModeIncludes(game.mode, game.settings?.mixedModes, GameMode.Missile);
 
     if (isHiddenMode || isMissileMode) {
         const blackUnusedItems: string[] = [];
@@ -141,14 +155,20 @@ export const generateSgfFromGame = (
 
     sgf += '\n';
 
-    const moveHistory = game.moveHistory || [];
+    const moveHistory = restoreMoveHistoryCoordsFromMissileEvents(game.moveHistory, game.missileEvents);
     let currentNode = sgf;
     const board = createEmptyBoard(boardSize);
+    for (const stone of originBaseStones) {
+        if (board[stone.y]?.[stone.x] !== undefined) {
+            board[stone.y][stone.x] = stone.player;
+        }
+    }
 
+    let sgfMoveCount = 0;
     for (let i = 0; i < moveHistory.length; i++) {
         const move = moveHistory[i];
 
-        if (move.x === -1 && move.y === -1) {
+        if (isPassMove(move)) {
             continue;
         }
 
@@ -171,7 +191,7 @@ export const generateSgfFromGame = (
             }
         }
 
-        if (game.hiddenMoves?.[i]) {
+        if (game.hiddenMoves?.[i] || game.hiddenMoves?.[String(i) as unknown as number]) {
             currentNode += `C[히든 아이템 사용]`;
         }
 
@@ -179,23 +199,17 @@ export const generateSgfFromGame = (
             currentNode += `C[히든 돌 공개: (${move.x},${move.y})]`;
         }
 
-        if (i > 0 && game.animation) {
-            const prevMove = moveHistory[i - 1];
-            if (prevMove && prevMove.x !== -1 && prevMove.y !== -1) {
-                const anim = game.animation as { type?: string; from?: Point; to?: Point };
-                if (anim.type === 'missile' || anim.type === 'hidden_missile') {
-                    if (anim.from && anim.to) {
-                        currentNode += `C[미사일: (${anim.from.x},${anim.from.y}) -> (${anim.to.x},${anim.to.y})]`;
-                    }
-                }
+        sgfMoveCount += 1;
+        for (const ev of game.missileEvents ?? []) {
+            if (ev.afterNonPassCount === sgfMoveCount) {
+                currentNode += `C[미사일: (${ev.from.x},${ev.from.y}) -> (${ev.to.x},${ev.to.y})]`;
             }
         }
-
-        if (game.revealedHiddenMoves) {
-            for (const revealedIndices of Object.values(game.revealedHiddenMoves)) {
-                if (revealedIndices.includes(i)) {
-                    currentNode += `C[스캔 성공: (${move.x},${move.y})]`;
-                }
+        for (const ev of game.scanEvents ?? []) {
+            if (ev.afterNonPassCount === sgfMoveCount) {
+                currentNode += ev.success
+                    ? `C[스캔 성공: (${ev.x},${ev.y})]`
+                    : `C[스캔: (${ev.x},${ev.y})]`;
             }
         }
 

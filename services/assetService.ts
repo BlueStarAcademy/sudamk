@@ -19,6 +19,7 @@ import {
     BLACK_BASE_STONE_IMG,
     WHITE_HIDDEN_STONE_IMG,
     BLACK_HIDDEN_STONE_IMG,
+    CASTLE_STONE_IMG,
     STRATEGIC_GO_LOBBY_IMG,
     PLAYFUL_GO_LOBBY_IMG,
     PVP_ARENA_ENTRY_IMG,
@@ -132,7 +133,11 @@ const ENTRY_ARENA_LOBBY_URLS = dedupePaths([
 ]);
 
 /** 전략/교류 로비, 대기실, 싱글/탑/페어 로비 타일 */
-export const ENTRY_ARENA_FLOW_IMAGE_URLS = dedupePaths([...ENTRY_BOOT_IMAGE_URLS, ...ENTRY_ARENA_LOBBY_URLS]);
+export const ENTRY_ARENA_FLOW_IMAGE_URLS = dedupePaths([
+    ...ENTRY_BOOT_IMAGE_URLS,
+    ...ENTRY_ARENA_LOBBY_URLS,
+    CASTLE_STONE_IMG,
+]);
 
 const adventureImageSet = new Set<string>();
 for (const stage of ADVENTURE_STAGES) {

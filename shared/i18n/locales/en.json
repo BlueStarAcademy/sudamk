@@ -826,6 +826,8 @@
       "waitingOpponent": "Waiting for the opponent's settings.",
       "sameColorGuide": "You both chose the same color. How many points will you give the opponent to play {{stone}}?",
       "sameColorGuideGeneric": "You chose the same color as your opponent. Set the komi you will offer.",
+      "sameColorGuideCompact": "{{stone}} komi — points to give",
+      "sameColorGuideGenericCompact": "Same color — set komi",
       "playerBid": "{{nickname}} side komi bid",
       "pointsUnit": "points",
       "reset": "Reset",
@@ -1721,7 +1723,12 @@
       "opponentReady": "● Opponent ready",
       "opponentPlacing": "○ Opponent placing",
       "randomPlace": "Random placement",
-      "reset": "Reset"
+      "reset": "Reset",
+      "title": "Piece setup",
+      "hint": "Place pieces on the highlighted board squares.",
+      "totalScore": "Piece score",
+      "complete": "Done",
+      "pieceStat": "{{moves}} moves · {{cost}} pts"
     },
     "resultModal": {
       "playfulShort": "Casual",
@@ -1768,7 +1775,18 @@
       "mode": "Mode",
       "date": "Date",
       "score": "Score",
-      "result": "Result"
+      "result": "Result",
+      "missileUses": "Missile uses",
+      "scanUses": "Scan uses",
+      "missileUseLine": "{{color}} {{from}}→{{to}}",
+      "scanUseLine": "{{color}} {{point}} · {{result}}",
+      "scanHit": "hit",
+      "scanMiss": "miss",
+      "coord": "({{x}},{{y}})",
+      "uniformViewGroup": "Uniform display",
+      "uniformViewBlack": "View all as black",
+      "uniformViewWhite": "View all as white",
+      "uniformViewBoth": "View actual black and white"
     },
     "gameApplication": {
       "title": "Game application",

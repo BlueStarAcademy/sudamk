@@ -204,6 +204,7 @@ const BaseGameFooterPanel: React.FC<BaseGameFooterPanelProps> = ({
                     onAction={onAction as (a: ServerAction) => void}
                     layout="inline"
                     isSinglePlayer={unifiedBasePrePlayChrome}
+                    isMobile={isMobile}
                 />
             </div>
         );

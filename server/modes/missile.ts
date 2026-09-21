@@ -26,6 +26,10 @@ import {
 } from './finalizeItemPhase.js';
 import { applyMissileLandingCaptures, relocateMissileStoneMetadata } from './missileBoardUtils.js';
 import { isMissileFlightAnimationType } from '../../shared/utils/itemPhaseAnimationTypes.js';
+import {
+    countNonPassMoves,
+    recordMissileEvent,
+} from '../../shared/utils/gameRecordSessionEvents.js';
 
 type HandleActionResult = types.HandleActionResult;
 
@@ -601,6 +605,7 @@ export const handleMissileAction = async (game: types.LiveGameSession, action: t
             
             // moveHistory: 원래 자리의 이동 기록이 있으면 목적지로 변경, 없으면(배치돌) 새로 추가하지 않음
             const fromMoveIndex = findLatestOwnedMoveIndexAt(game, from, myPlayerEnum);
+            const afterNonPassCount = countNonPassMoves(game.moveHistory);
             if (fromMoveIndex !== -1) {
                 game.moveHistory[fromMoveIndex].x = to.x;
                 game.moveHistory[fromMoveIndex].y = to.y;
@@ -610,7 +615,15 @@ export const handleMissileAction = async (game: types.LiveGameSession, action: t
             relocateMissileStoneMetadata(game, from, to, myPlayerEnum);
 
             // 따내기는 발사 직후 보드에서 제거(비행 연출 중에도 따낸 돌이 사라지도록)
-            applyMissileLandingCaptures(game, to, myPlayerEnum);
+            const captured = applyMissileLandingCaptures(game, to, myPlayerEnum);
+            recordMissileEvent(game, {
+                moveIndex: fromMoveIndex,
+                afterNonPassCount,
+                player: myPlayerEnum,
+                from: { x: from.x, y: from.y },
+                to: { x: to.x, y: to.y },
+                captured,
+            });
             
             // 아이템 사용 시간 일시 정지 (애니메이션 중)
             game.itemUseDeadline = undefined;

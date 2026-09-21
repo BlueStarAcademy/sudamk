@@ -9,6 +9,8 @@ export const PC_UI_SCALE_QA_VIEWPORTS = [
     { label: 'hd-720', width: 1280, height: 720 },
     { label: 'ultrawide-1440', width: 2560, height: 1440 },
     { label: 'short-window', width: 1440, height: 600 },
+    { label: 'tablet-landscape-1280x800', width: 1280, height: 800 },
+    { label: 'tablet-landscape-1920x1200', width: 1920, height: 1200 },
 ] as const;
 
 /** DraggableWindow 플래그 감사 카테고리 (회귀 점검용) */

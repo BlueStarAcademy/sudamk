@@ -44,6 +44,7 @@ import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js
 import type { MobileViewportEntry } from '../shared/types/mobileViewportStack.js';
 import { getAppRouteNavigationKey } from '../shared/types/navigation.js';
 import { getQuickUtilityKindFromStack } from '../shared/utils/mobileViewportStackUtils.js';
+import { consumePostGameOpenHomeLobby } from '../shared/utils/pairArenaSessionRestore.js';
 import { syncDismissedScreenGuidesFromUser } from '../utils/screenGuideDismiss.js';
 import { normalizeDismissedScreenGuides } from '../shared/constants/screenGuideDismiss.js';
 import {
@@ -53,6 +54,7 @@ import {
     useTouchLayoutProfile,
     useIsPortrait,
     useHandheldPortraitLockActive,
+    subscribeLayoutViewportChange,
 } from './useIsMobileLayout.js';
 import { syncDocumentViewportHeightVar } from '../utils/layoutViewportCss.js';
 import { getPanelEdgeImages } from '../constants/panelEdges.js';
@@ -96,6 +98,7 @@ import { buildBoardFromMoves } from '../utils/sgfBoardLogic.js';
 import { mergePairPetTrainingSlotsPreserveRecentRestart } from '../shared/utils/pairPetTrainingSlotsClientMerge.js';
 import { pairTrainingClaimCompletedBySlotIndex, PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR } from '../components/pair/pairTrainingClaimInFlight.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { mergeSpeedLiveClocksOnClient, applySpeedClocksAfterOptimisticClientMove } from '../shared/utils/speedTimePressureSessionSync.js';
 import { preservePairTurnIfExistingAhead } from '../utils/preservePairTurnOnMerge.js';
 import {
     countConditionPotionsInInventory,
@@ -1359,19 +1362,24 @@ function preserveLiveStrategicMainClockOnMerge(
         return typeof m === 'number' && Number.isFinite(m) ? m : undefined;
     };
 
+    const speedClocks = mergeSpeedLiveClocksOnClient(incoming, existing);
+    const hasSpeedClocks = Object.keys(speedClocks).length > 0;
+
     return {
         ...merged,
         mode: incoming.mode ?? existing.mode ?? merged.mode,
-        blackTimeLeft: pickMainTime('blackTimeLeft'),
-        whiteTimeLeft: pickMainTime('whiteTimeLeft'),
-        turnStartTime:
-            typeof incoming.turnStartTime === 'number' && Number.isFinite(incoming.turnStartTime)
-                ? incoming.turnStartTime
-                : merged.turnStartTime,
-        turnDeadline:
-            typeof incoming.turnDeadline === 'number' && Number.isFinite(incoming.turnDeadline)
-                ? incoming.turnDeadline
-                : merged.turnDeadline,
+        blackTimeLeft: hasSpeedClocks ? speedClocks.blackTimeLeft : pickMainTime('blackTimeLeft'),
+        whiteTimeLeft: hasSpeedClocks ? speedClocks.whiteTimeLeft : pickMainTime('whiteTimeLeft'),
+        turnStartTime: hasSpeedClocks
+            ? speedClocks.turnStartTime
+            : typeof incoming.turnStartTime === 'number' && Number.isFinite(incoming.turnStartTime)
+              ? incoming.turnStartTime
+              : merged.turnStartTime,
+        turnDeadline: hasSpeedClocks
+            ? speedClocks.turnDeadline
+            : typeof incoming.turnDeadline === 'number' && Number.isFinite(incoming.turnDeadline)
+              ? incoming.turnDeadline
+              : merged.turnDeadline,
     };
 }
 
@@ -3197,11 +3205,13 @@ export const useApp = () => {
     );
 
     const clearMobileViewport = useCallback(
-        (opts?: { fromPopState?: boolean }) => {
+        (opts?: { fromPopState?: boolean; persistPairRoom?: boolean }) => {
             if (!usePortraitFirstShell) return;
             setMobileViewportStack((prev) => {
                 for (let i = prev.length - 1; i >= 0; i -= 1) {
-                    applyMobileViewportPopSideEffects(prev[i]);
+                    const entry = prev[i];
+                    if (opts?.persistPairRoom && entry.type === 'quickUtility') continue;
+                    applyMobileViewportPopSideEffects(entry);
                 }
                 syncActiveQuickUtilityFromStack([]);
                 return [];
@@ -3267,14 +3277,16 @@ export const useApp = () => {
     }, [openQuickUtilityViewport]);
 
     const closeQuickUtilityPanel = useCallback(
-        (opts?: { fromPopState?: boolean }) => {
+        (opts?: { fromPopState?: boolean; persistPairRoom?: boolean }) => {
             if (usePortraitFirstShell && mobileViewportStackRef.current.length > 0) {
                 clearMobileViewport(opts);
                 return;
             }
             setActiveQuickUtilityPanel((prev) => {
                 if (!prev) return prev;
-                applyQuickUtilitySideEffectsOnClose(prev);
+                if (!opts?.persistPairRoom) {
+                    applyQuickUtilitySideEffectsOnClose(prev);
+                }
                 return null;
             });
             if (
@@ -3291,7 +3303,7 @@ export const useApp = () => {
     );
 
     const dismissQuickMenuOnNavigation = useCallback(
-        (opts?: { fromPopState?: boolean }) => {
+        (opts?: { fromPopState?: boolean; persistPairRoom?: boolean }) => {
             if (usePortraitFirstShell && mobileViewportStackRef.current.length > 0) {
                 clearMobileViewport(opts);
             } else if (activeQuickUtilityPanelRef.current) {
@@ -3324,8 +3336,40 @@ export const useApp = () => {
         const prevKey = routeNavigationKeyRef.current;
         routeNavigationKeyRef.current = key;
         if (prevKey === null || prevKey === key) return;
-        dismissQuickMenuOnNavigation({ fromPopState: true });
+        if (prevKey.startsWith('game:')) return;
+        dismissQuickMenuOnNavigation({
+            fromPopState: true,
+            persistPairRoom: currentRoute.view === 'game',
+        });
     }, [currentRoute, dismissQuickMenuOnNavigation]);
+
+    useEffect(() => {
+        if (currentRoute.view !== 'profile') return;
+        const kind = consumePostGameOpenHomeLobby();
+        if (!kind) return;
+        if (kind === 'playful') {
+            if (!openQuickUtilityViewport('playgroundLobby')) {
+                setActiveQuickUtilityPanel('playgroundLobby');
+            }
+        } else if (!openQuickUtilityViewport('friendlyLobby')) {
+            setActiveQuickUtilityPanel('friendlyLobby');
+        }
+    }, [currentRoute, openQuickUtilityViewport]);
+
+    const reopenPostGameHomeLobbyIfNeeded = useCallback(() => {
+        const kind = consumePostGameOpenHomeLobby();
+        if (kind === 'playful') {
+            if (!openQuickUtilityViewport('playgroundLobby')) {
+                setActiveQuickUtilityPanel('playgroundLobby');
+            }
+            return;
+        }
+        if (kind === 'friendly' && !openQuickUtilityViewport('friendlyLobby')) {
+            setActiveQuickUtilityPanel('friendlyLobby');
+        }
+    }, [openQuickUtilityViewport]);
+    const reopenPostGameHomeLobbyIfNeededRef = useRef(reopenPostGameHomeLobbyIfNeeded);
+    reopenPostGameHomeLobbyIfNeededRef.current = reopenPostGameHomeLobbyIfNeeded;
 
     useEffect(() => {
         if (!usePortraitFirstShell || mobileViewportStack.length === 0) return;
@@ -5024,6 +5068,7 @@ export const useApp = () => {
                         }
                     }
                     const normalized = normalizeChessGoSession(updatedGame);
+                    applySpeedClocksAfterOptimisticClientMove(normalized, movePlayer, Date.now(), aiUserId);
                     return { ...currentGames, [gameId]: normalized };
                 }
                 if (sessionUsesCastleGo(game)) {
@@ -5038,6 +5083,7 @@ export const useApp = () => {
                         updatedGame.currentPlayer = Player.None;
                     }
                 }
+                applySpeedClocksAfterOptimisticClientMove(updatedGame, movePlayer, Date.now(), aiUserId);
                 return { ...currentGames, [gameId]: updatedGame };
             });
             return;
@@ -5166,6 +5212,7 @@ export const useApp = () => {
                         }
                     }
                     const normalized = normalizeChessGoSession(updatedGame);
+                    applySpeedClocksAfterOptimisticClientMove(normalized, movePlayer, Date.now(), aiUserId);
                     return { ...currentGames, [gameId]: normalized };
                 }
                 if (sessionUsesCastleGo(game)) {
@@ -5180,6 +5227,7 @@ export const useApp = () => {
                         updatedGame.currentPlayer = Player.None;
                     }
                 }
+                applySpeedClocksAfterOptimisticClientMove(updatedGame, movePlayer, Date.now(), aiUserId);
                 return { ...currentGames, [gameId]: updatedGame };
             });
             return;
@@ -7257,6 +7305,7 @@ export const useApp = () => {
                             }
                         });
                     }
+                    reopenPostGameHomeLobbyIfNeededRef.current();
                     const postRedirect =
                         typeof sessionStorage !== 'undefined' ? sessionStorage.getItem('postGameRedirect') : null;
                     if (postRedirect) {
@@ -7447,6 +7496,7 @@ export const useApp = () => {
                         });
                     }
                     // 나가기 클릭 시 설정된 대기실로 즉시 이동 (전략바둑 → #/waiting/strategic, 놀이바둑 → #/waiting/playful 등)
+                    reopenPostGameHomeLobbyIfNeededRef.current();
                     const postRedirect = sessionStorage.getItem('postGameRedirect');
                     if (postRedirect) {
                         sessionStorage.removeItem('postGameRedirect');
@@ -7541,6 +7591,7 @@ export const useApp = () => {
                         });
                     }
 
+                    reopenPostGameHomeLobbyIfNeededRef.current();
                     const postRedirect = sessionStorage.getItem('postGameRedirect');
                     if (postRedirect) {
                         sessionStorage.removeItem('postGameRedirect');
@@ -13963,14 +14014,7 @@ export const useApp = () => {
         };
 
         updateViewportVars();
-        window.addEventListener('resize', updateViewportVars);
-        window.addEventListener('orientationchange', updateViewportVars);
-        window.addEventListener('sudamr-portrait-lock-change', updateViewportVars);
-        return () => {
-            window.removeEventListener('resize', updateViewportVars);
-            window.removeEventListener('orientationchange', updateViewportVars);
-            window.removeEventListener('sudamr-portrait-lock-change', updateViewportVars);
-        };
+        return subscribeLayoutViewportChange(updateViewportVars);
     }, []);
 
     useEffect(() => {

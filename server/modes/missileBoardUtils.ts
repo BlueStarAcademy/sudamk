@@ -3,16 +3,20 @@ import { processMove } from '../goLogic.js';
 import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../../shared/utils/patternStoneConsume.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
+import {
+    countNonPassMoves,
+    recordMissileEvent,
+} from '../../shared/utils/gameRecordSessionEvents.js';
 
 /** 미사일 착지 후(이동 연출 종료 시점) 착점과 동일 규칙으로 따내기·점수 반영 */
 export function applyMissileLandingCaptures(
     game: types.LiveGameSession,
     to: types.Point,
     myPlayerEnum: types.Player,
-): void {
+): types.Point[] {
     const opponentEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
     const boardForCapture = game.boardState.map((row) => [...row]);
-    if (boardForCapture[to.y]?.[to.x] !== myPlayerEnum) return;
+    if (boardForCapture[to.y]?.[to.x] !== myPlayerEnum) return [];
     boardForCapture[to.y][to.x] = types.Player.None;
     const captureResult = processMove(
         boardForCapture,
@@ -22,6 +26,7 @@ export function applyMissileLandingCaptures(
         { opponentPlayer: opponentEnum },
     );
     applyMissileCaptureProcessResult(game, myPlayerEnum, opponentEnum, captureResult);
+    return captureResult.capturedStones ?? [];
 }
 
 export type MissileFlightAnimationSnapshot = {
@@ -117,6 +122,8 @@ export function applyMissileFlightBoardFromAnimation(
 
     const animationFrom = anim.from;
     const animationTo = anim.to;
+    const afterNonPassCount = countNonPassMoves(game.moveHistory);
+    let recordedMoveIndex = -1;
     if (animationFrom && animationTo) {
         const af = animationFrom;
         const at = animationTo;
@@ -155,6 +162,7 @@ export function applyMissileFlightBoardFromAnimation(
                 }
             }
         }
+        recordedMoveIndex = moveIndexToUpdate;
         if (moveIndexToUpdate !== -1) {
             game.moveHistory[moveIndexToUpdate].x = at.x;
             game.moveHistory[moveIndexToUpdate].y = at.y;
@@ -163,8 +171,19 @@ export function applyMissileFlightBoardFromAnimation(
         relocateMissileStoneMetadata(game, af, at, playerWhoMoved);
     }
 
+    let captured: types.Point[] = [];
     if (animationTo && !missileAnimationCapturesAppliedAtLaunch(anim)) {
-        applyMissileLandingCaptures(game, animationTo, playerWhoMoved);
+        captured = applyMissileLandingCaptures(game, animationTo, playerWhoMoved);
+    }
+    if (animationFrom && animationTo) {
+        recordMissileEvent(game, {
+            moveIndex: recordedMoveIndex,
+            afterNonPassCount,
+            player: playerWhoMoved,
+            from: { x: animationFrom.x, y: animationFrom.y },
+            to: { x: animationTo.x, y: animationTo.y },
+            captured,
+        });
     }
 }
 

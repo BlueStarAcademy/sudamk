@@ -11,6 +11,9 @@ export const WHITE_HIDDEN_STONE_IMG = "/images/Hidden.webp";
 // Black hidden stone: Heart-shaped knot
 export const BLACK_HIDDEN_STONE_IMG = "/images/Hidden.webp";
 
+/** 캐슬 바둑 중립 캐슬 돌 — 원형 금테 성(城) 토큰 */
+export const CASTLE_STONE_IMG = "/images/castle-stone.webp";
+
 // Lobby card images — 각 경기장 인게임 뒷배경과 동일 WebP
 export const STRATEGIC_GO_LOBBY_IMG = "/images/bg/strategicbg.webp";
 export const PLAYFUL_GO_LOBBY_IMG = "/images/bg/playfulbg.webp";

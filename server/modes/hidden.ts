@@ -28,6 +28,10 @@ import {
 } from './hiddenScanShared.js';
 import { isStrategicAiGoSession } from '../../shared/utils/strategicBoardItemTurn.js';
 import {
+    countNonPassMoves,
+    recordScanEvent,
+} from '../../shared/utils/gameRecordSessionEvents.js';
+import {
     mixGoClearHiddenItemPhaseTimers,
     mixGoOrPureModeIncludes,
     mixGoShouldUnstickHiddenItemSelectionPhase,
@@ -421,6 +425,13 @@ export const handleHiddenAction = (volatileState: types.VolatileState, game: typ
             if (evalResult.success) {
                 recordSoftHiddenScanDiscovery(game, user.id, evalResult);
             }
+            recordScanEvent(game, {
+                afterNonPassCount: countNonPassMoves(game.moveHistory),
+                player: myPlayerEnum,
+                x,
+                y,
+                success: evalResult.success,
+            });
             game[scanKey] = Math.max(0, (game[scanKey] ?? 0) - 1);
             game.animation = buildHiddenScanAnimation(now, user.id, x, y, evalResult.success);
             game.gameStatus = 'scanning_animating';

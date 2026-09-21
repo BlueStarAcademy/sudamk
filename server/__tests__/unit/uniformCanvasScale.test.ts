@@ -3,7 +3,7 @@ import {
     PC_DESIGN_CANVAS_HEIGHT,
     PC_DESIGN_CANVAS_WIDTH,
 } from '../../../shared/constants/viewportDesign.js';
-import { computeUniformFitScale, snapUniformCanvasScale } from '../../../utils/uniformCanvasScale.js';
+import { computeUniformFitScale, measurePcDesignCanvasFit, snapUniformCanvasScale } from '../../../utils/uniformCanvasScale.js';
 
 describe('snapUniformCanvasScale', () => {
     it('returns 1 when viewport fits design canvas', () => {
@@ -21,6 +21,33 @@ describe('snapUniformCanvasScale', () => {
 
     it('never exceeds 1', () => {
         expect(snapUniformCanvasScale(800, 600, PC_DESIGN_CANVAS_WIDTH, PC_DESIGN_CANVAS_HEIGHT)).toBeLessThanOrEqual(1);
+    });
+});
+
+describe('measurePcDesignCanvasFit', () => {
+    const tabletLandscapeViewports = [
+        { label: '10.1-1280x800', width: 1280, height: 800 },
+        { label: '10.1-1920x1200', width: 1920, height: 1200 },
+        { label: '10.1-1024x600', width: 1024, height: 600 },
+    ] as const;
+
+    it.each(tabletLandscapeViewports)(
+        'contains 16:9 canvas inside $label without overflowing',
+        ({ width, height }) => {
+            const fit = measurePcDesignCanvasFit(width, height);
+            expect(fit.width).toBeLessThanOrEqual(width);
+            expect(fit.height).toBeLessThanOrEqual(height);
+            expect(fit.width / fit.height).toBeCloseTo(16 / 9, 2);
+        },
+    );
+
+    it('shrinks width when height is the limiting side', () => {
+        const taller = measurePcDesignCanvasFit(1280, 800);
+        const shorter = measurePcDesignCanvasFit(1280, 640);
+        expect(shorter.height).toBeLessThan(taller.height);
+        expect(shorter.width).toBeLessThan(taller.width);
+        expect(shorter.width).toBeLessThanOrEqual(1280);
+        expect(shorter.height).toBeLessThanOrEqual(640);
     });
 });
 

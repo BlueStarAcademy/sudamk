@@ -701,13 +701,15 @@ export function tickPairOwnerStartDeadlines(volatileState: VolatileState, nowMs 
 
 /**
  * 페어 방에서 유저 제거(방장이면 남은 참가자에게 방장 이전 후 방 유지·불가 시 방 삭제, 그 외 멤버는 슬롯만 비움).
- * `phase === 'in_game'`·매칭 중 등에서는 방장 퇴장 시에도 기존처럼 방을 삭제한다.
+ * 대국 중(`phase === 'in_game'`) 껍데기는 유지한다. 매칭 중 퇴장은 기존처럼 방을 비운다.
  * @returns 방 목록을 변경했으면 true
  */
 export function leavePairWaitingRoomIfPresent(volatileState: VolatileState, userId: string): boolean {
     if (!volatileState.pairRooms) return false;
     const target = Object.values(volatileState.pairRooms).find((room) => userInPairRoomMembership(room, userId));
     if (!target) return false;
+    /** 대국 중 껍데기 방은 유지 — 경기 입장 시 로비 패널 닫힘이 PAIR_LEAVE_ROOM으로 방을 지우지 않게 한다. */
+    if (pairRoomShellInGame(target)) return false;
     abortPairRankedPetProposalsForRoom(volatileState, target.id);
     if (target.ownerId === userId) {
         const kept = tryTransferPairRoomWhenOwnerLeaves(volatileState, target, userId);
@@ -3275,58 +3277,77 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     }
                 }
                 const leaveArenaChannel = arenaChannelForGameSession(game);
-                const isPairGameLeave = leaveArenaChannel === 'pair';
-                // 싱글플레이 게임이 아닌 경우, 게임 모드를 strategic/playful로 변환 (페어 국은 전략 대기실이 아닌 페어 경기장으로 복귀)
-                let lobbyMode: GameMode | 'strategic' | 'playful' | undefined = undefined;
-                if (!game.isSinglePlayer && !isPairGameLeave) {
-                    if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
-                        lobbyMode = 'strategic';
-                    } else if (PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
-                        lobbyMode = 'playful';
+                const memberPairRoom = Object.values(volatileState.pairRooms ?? {}).find(
+                    (room) => userInPairRoomMembership(room, user.id) && !pairRoomShellInGame(room),
+                );
+                if (memberPairRoom) {
+                    const channel = arenaChannelFromPairLobbyChannel(memberPairRoom.lobbyChannel);
+                    const lobbyIntent = memberPairRoom.pairMode === 'ai' ? 'ai' : 'pvp';
+                    const nextStatus: UserStatusInfo = {
+                        status: UserStatus.Waiting,
+                        arenaChannel: channel,
+                        lobbyIntent,
+                    };
+                    if (channel === 'strategic' || channel === 'playful') {
+                        nextStatus.waitingLobby = channel;
+                    } else {
+                        nextStatus.inPairLobby = true;
                     }
-                }
-                // 싱글플레이 게임이거나 모드를 찾을 수 없는 경우 Online 상태로 변경 (게임 모드 없음)
-                if (game.isSinglePlayer || !lobbyMode || isPairGameLeave) {
-                    setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: UserStatus.Online });
+                    setUserStatusPreservingLobbyChannel(volatileState, user.id, nextStatus);
                 } else {
-                    if (lobbyMode === 'strategic' || lobbyMode === 'playful') {
-                        const linger = isLingerEndedPvpRoomCandidate(game);
-                        const prev = volatileState.userStatuses[user.id];
-                        const secondDetachFromEndedRoom =
-                            linger && prev?.status === UserStatus.Waiting && prev.gameId === gameId;
-                        if (secondDetachFromEndedRoom) {
-                            const wl: 'strategic' | 'playful' =
-                                prev.waitingLobby === 'strategic' || prev.waitingLobby === 'playful'
-                                    ? prev.waitingLobby
-                                    : lobbyMode;
-                            setUserStatusPreservingLobbyChannel(volatileState, user.id, {
-                                status: UserStatus.Waiting,
-                                waitingLobby: wl,
-                                arenaChannel: wl,
-                            });
-                            await maybeDeleteDetachedEndedPvpGame(volatileState, gameId);
-                        } else if (linger) {
-                            setUserStatusPreservingLobbyChannel(volatileState, user.id, {
-                                status: UserStatus.Waiting,
-                                waitingLobby: lobbyMode,
-                                arenaChannel: lobbyMode,
-                                gameId: game.id,
-                                mode: game.mode,
-                            });
+                    const isPairGameLeave = leaveArenaChannel === 'pair' || leaveArenaChannel === 'friendly';
+                    // 싱글플레이 게임이 아닌 경우, 게임 모드를 strategic/playful로 변환 (페어 국은 전략 대기실이 아닌 페어 경기장으로 복귀)
+                    let lobbyMode: GameMode | 'strategic' | 'playful' | undefined = undefined;
+                    if (!game.isSinglePlayer && !isPairGameLeave) {
+                        if (SPECIAL_GAME_MODES.some(m => m.mode === game.mode)) {
+                            lobbyMode = 'strategic';
+                        } else if (PLAYFUL_GAME_MODES.some(m => m.mode === game.mode)) {
+                            lobbyMode = 'playful';
+                        }
+                    }
+                    // 싱글플레이 게임이거나 모드를 찾을 수 없는 경우 Online 상태로 변경 (게임 모드 없음)
+                    if (game.isSinglePlayer || !lobbyMode || isPairGameLeave) {
+                        setUserStatusPreservingLobbyChannel(volatileState, user.id, { status: UserStatus.Online });
+                    } else {
+                        if (lobbyMode === 'strategic' || lobbyMode === 'playful') {
+                            const linger = isLingerEndedPvpRoomCandidate(game);
+                            const prev = volatileState.userStatuses[user.id];
+                            const secondDetachFromEndedRoom =
+                                linger && prev?.status === UserStatus.Waiting && prev.gameId === gameId;
+                            if (secondDetachFromEndedRoom) {
+                                const wl: 'strategic' | 'playful' =
+                                    prev.waitingLobby === 'strategic' || prev.waitingLobby === 'playful'
+                                        ? prev.waitingLobby
+                                        : lobbyMode;
+                                setUserStatusPreservingLobbyChannel(volatileState, user.id, {
+                                    status: UserStatus.Waiting,
+                                    waitingLobby: wl,
+                                    arenaChannel: wl,
+                                });
+                                await maybeDeleteDetachedEndedPvpGame(volatileState, gameId);
+                            } else if (linger) {
+                                setUserStatusPreservingLobbyChannel(volatileState, user.id, {
+                                    status: UserStatus.Waiting,
+                                    waitingLobby: lobbyMode,
+                                    arenaChannel: lobbyMode,
+                                    gameId: game.id,
+                                    mode: game.mode,
+                                });
+                            } else {
+                                setUserStatusPreservingLobbyChannel(volatileState, user.id, {
+                                    status: UserStatus.Waiting,
+                                    waitingLobby: lobbyMode,
+                                    arenaChannel: lobbyMode,
+                                });
+                            }
                         } else {
+                            const arenaChannel = arenaChannelForGameMode(lobbyMode as GameMode) ?? undefined;
                             setUserStatusPreservingLobbyChannel(volatileState, user.id, {
                                 status: UserStatus.Waiting,
-                                waitingLobby: lobbyMode,
-                                arenaChannel: lobbyMode,
+                                mode: lobbyMode as GameMode,
+                                arenaChannel,
                             });
                         }
-                    } else {
-                        const arenaChannel = arenaChannelForGameMode(lobbyMode as GameMode) ?? undefined;
-                        setUserStatusPreservingLobbyChannel(volatileState, user.id, {
-                            status: UserStatus.Waiting,
-                            mode: lobbyMode as GameMode,
-                            arenaChannel,
-                        });
                     }
                 }
             }

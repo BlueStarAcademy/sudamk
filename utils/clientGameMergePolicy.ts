@@ -869,6 +869,34 @@ function stripStaleJustCapturedOnMerge(
     return { ...incoming, justCaptured: [] };
 }
 
+function preserveLongerSessionArray<T>(incoming: T[] | undefined, existing: T[] | undefined): T[] | undefined {
+    const inLen = incoming?.length ?? 0;
+    const exLen = existing?.length ?? 0;
+    if (inLen >= exLen) return incoming ?? existing;
+    return existing;
+}
+
+/** 기보용 미사일/스캔/체스 로그: 슬림 패킷이 비우면 기존 값을 유지한다. */
+function preserveKifuEventLogsOnMerge(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    if (!existing) return incoming;
+    const missileEvents = preserveLongerSessionArray(incoming.missileEvents, existing.missileEvents);
+    const scanEvents = preserveLongerSessionArray(incoming.scanEvents, existing.scanEvents);
+    const chessEvents = preserveLongerSessionArray(incoming.chessEvents, existing.chessEvents);
+    const chessSetup =
+        (incoming.chessSetup?.length ?? 0) > 0
+            ? incoming.chessSetup
+            : existing.chessSetup;
+    let merged = incoming;
+    if (missileEvents !== incoming.missileEvents) merged = { ...merged, missileEvents };
+    if (scanEvents !== incoming.scanEvents) merged = { ...merged, scanEvents };
+    if (chessEvents !== incoming.chessEvents) merged = { ...merged, chessEvents };
+    if (chessSetup && chessSetup !== incoming.chessSetup) merged = { ...merged, chessSetup };
+    return merged;
+}
+
 /** 캐슬 바둑: 슬림 패킷이 castleStonePoints·확정 영토를 비우면 기존 값을 유지한다. */
 function preserveCastleSessionFieldsOnMerge(
     incoming: LiveGameSession,
@@ -1068,16 +1096,9 @@ function mergeChessSessionFieldsOnMerge(
         merged = { ...merged, lastChessMove: existing.lastChessMove };
     }
     {
-        const removedKeys = new Set<string>();
-        const mergedRemoved: NonNullable<LiveGameSession['chessGoRemovedPoints']> = [];
-        for (const p of [...(existing?.chessGoRemovedPoints ?? []), ...(incoming.chessGoRemovedPoints ?? [])]) {
-            const key = `${p.x},${p.y}`;
-            if (removedKeys.has(key)) continue;
-            removedKeys.add(key);
-            mergedRemoved.push({ x: p.x, y: p.y });
-        }
-        if (mergedRemoved.length > 0) {
-            merged = { ...merged, chessGoRemovedPoints: mergedRemoved };
+        // 서버 목록이 있으면 그대로 쓴다. 클라 옛 목록과 합치면 패 재착수·연결 돌이 상대에게 안 보인다.
+        if (Array.isArray(incoming.chessGoRemovedPoints)) {
+            merged = { ...merged, chessGoRemovedPoints: incoming.chessGoRemovedPoints };
         } else if (incoming.chessGoRemovedPoints === undefined && existing?.chessGoRemovedPoints?.length) {
             merged = { ...merged, chessGoRemovedPoints: existing.chessGoRemovedPoints };
         }
@@ -1123,6 +1144,7 @@ export function mergeLiveRejoinResponseWithExistingBoard(
         if (existing) {
             merged = preserveTerminalAnalysisResultOnMerge(merged, existing);
             merged = preserveCastleSessionFieldsOnMerge(merged, existing);
+            merged = preserveKifuEventLogsOnMerge(merged, existing);
             merged = mergeChessSessionFieldsOnMerge(merged, existing);
             const incomingSummaryKeys =
                 merged.summary && typeof merged.summary === 'object' ? Object.keys(merged.summary as object) : [];
@@ -1168,6 +1190,7 @@ export function mergeLiveRejoinResponseWithExistingBoard(
     };
     merged = preserveTerminalAnalysisResultOnMerge(merged, existing);
     merged = preserveCastleSessionFieldsOnMerge(merged, existing);
+    merged = preserveKifuEventLogsOnMerge(merged, existing);
     merged = mergeChessSessionFieldsOnMerge(merged, existing);
     const incomingSummaryKeys =
         merged.summary && typeof merged.summary === 'object' ? Object.keys(merged.summary as object) : [];
@@ -1315,8 +1338,11 @@ export function mergeGameUpdateByArena(
     /** 본경기·시작 확인 단계로 들어온 패킷이 임시 좌석을 들고 오면 잠금값으로 되돌린다(흑/백 영구 스왑 방지). */
     const seatLocked = coerceBaseSessionPlayingSeatLock(merged);
     const arenaMerged = mergeChessSessionFieldsOnMerge(
-        preserveCastleSessionFieldsOnMerge(
-            coerceAdventureLiveGameScoringTurnLimit(seatLocked),
+        preserveKifuEventLogsOnMerge(
+            preserveCastleSessionFieldsOnMerge(
+                coerceAdventureLiveGameScoringTurnLimit(seatLocked),
+                existing,
+            ),
             existing,
         ),
         existing,

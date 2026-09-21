@@ -55,7 +55,6 @@ const AppContent: React.FC = () => {
         hasClaimableQuest,
         settings,
         isNativeMobile,
-        isLargeTouchTablet,
         isPhoneHandheldTouch,
         usePortraitFirstShell,
         isNarrowViewport,
@@ -306,8 +305,8 @@ const AppContent: React.FC = () => {
     const backgroundClass = showMainBg ? 'bg-login-background' : 'bg-primary';
 
     const pcLikeMobileLayout = settings.graphics.pcLikeMobileLayout === true;
-    /** 8인치+ 태블릿(PC 셸)은 세로 스크롤 여유를 PC 화면 보기와 동일하게 둔다 */
-    const pcShellUsesScrollLayout = pcLikeMobileLayout || isLargeTouchTablet;
+    /** 짧은 데스크톱 창만 세로 스크롤. 가로 태블릿 PC 셸은 16:9 contain-fit(높이↓폭↓)을 유지한다. */
+    const pcShellUsesScrollLayout = pcLikeMobileLayout;
     /** 닉네임 설정: PC main 세로 스크롤로 빈 영역·이중 스크롤 방지 */
     const lockPcMainScroll = currentUser && currentRoute.view === 'set-nickname';
     /** 챔피언십 인게임 경기장: 퀵스트립 없이 본문만 풀 높이 (로비 #/tournament 는 유지) */
@@ -415,7 +414,16 @@ const AppContent: React.FC = () => {
         updateScale();
         const ro = new ResizeObserver(updateScale);
         ro.observe(el);
-        return () => ro.disconnect();
+        window.addEventListener('resize', updateScale);
+        window.addEventListener('orientationchange', updateScale);
+        const vv = window.visualViewport;
+        vv?.addEventListener('resize', updateScale);
+        return () => {
+            ro.disconnect();
+            window.removeEventListener('resize', updateScale);
+            window.removeEventListener('orientationchange', updateScale);
+            vv?.removeEventListener('resize', updateScale);
+        };
     }, [isNativeMobile]);
 
     return (
@@ -465,7 +473,10 @@ const AppContent: React.FC = () => {
             )}
 
             {usePortraitFirstShell ? (
-                <div className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative">
+                <div
+                    className="flex-1 flex flex-col min-h-0 min-w-0 w-full overflow-hidden relative"
+                    data-portrait-first-shell
+                >
                     <style>{`
                         /* PC 설계 크기 + transform scale( uniformPcScale ) 창은 상한을 쓰면 본문이 잘리고 버튼이 사라짐 → 제외 */
                         #sudamr-modal-root [data-draggable-window]:not([data-uniform-pc-scale="1"]) {
@@ -593,7 +604,7 @@ const AppContent: React.FC = () => {
                     <InstallPrompt />
                 </div>
             ) : (
-            /* 전체 앱을 16:9 박스 안에 넣고, 내부는 고정 캔버스(1920x1080)를 scale로 맞춰 “한 장 그림”처럼 동일 비율로 확대/축소 */
+            /* 가용 영역에 16:9 캔버스(1920x1080)를 contain-fit. aspect-ratio 박스는 16:10에서 폭이 넘쳐 좌우가 잘린다. */
             <div
                 className={`flex min-h-0 w-full flex-1 flex-col ${
                     lockPcMainScroll ? 'overflow-hidden' : pcShellUsesScrollLayout ? 'overflow-y-auto overscroll-y-contain' : 'overflow-hidden'
@@ -616,7 +627,7 @@ const AppContent: React.FC = () => {
                 )}
                 <div
                     ref={containerRef}
-                    className={`h-full max-h-full aspect-[16/9] overflow-hidden relative flex items-center justify-center min-h-0 min-w-0 max-w-full ${showLobbySideAds ? 'flex-1 w-auto' : 'w-full'}`}
+                    className={`h-full max-h-full overflow-hidden relative flex items-center justify-center min-h-0 min-w-0 max-w-full ${showLobbySideAds ? 'flex-1 w-auto' : 'w-full'}`}
                 >
                     {/* 스케일된 실제 픽셀 크기로 클립하면 transform과 부모 높이의 소수점 차이로 생기는 하단 틈/배경 끊김을 막는다 */}
                     <div

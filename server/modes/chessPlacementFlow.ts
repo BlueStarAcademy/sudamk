@@ -324,6 +324,9 @@ export function resolveChessPlacementAndTransition(game: types.LiveGameSession, 
     game.settings = normalized.settings;
     game.chessCaptureScore = normalized.chessCaptureScore;
     game.chessPieceMovedThisTurn = normalized.chessPieceMovedThisTurn;
+    if (!game.chessSetup?.length && game.chessPieces?.length) {
+        game.chessSetup = game.chessPieces.map((p) => ({ ...p }));
+    }
     transitionToPlayingOrUniformRoulette(game, now);
     return true;
 }
