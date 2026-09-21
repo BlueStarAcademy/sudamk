@@ -2,6 +2,7 @@ import React, { useMemo, useState, useEffect, useRef } from 'react';
 import { useLocalizedItemGrade } from '../shared/i18n/localizedCatalog.js';
 import { useTranslation } from 'react-i18next';
 import { User } from '../types.js';
+import { ItemGrade } from '../types/enums.js';
 import DraggableWindow from './DraggableWindow.js';
 import { useAppContext } from '../hooks/useAppContext.js';
 import { useNativeMobileShell } from '../hooks/useNativeMobileShell.js';
@@ -166,7 +167,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                             <span
                                                 className={`rounded-md border bg-gradient-to-b px-2 py-0.5 text-xs font-bold ${gradeClass}`}
                                             >
-                                                {localizedGrade(potion.grade)}
+                                                {localizedGrade(potion.grade as ItemGrade)}
                                             </span>
                                             {isSelected ? (
                                                 <span className="rounded-full bg-amber-400/20 px-2 py-0.5 text-xs font-bold text-amber-100">
@@ -179,7 +180,7 @@ const ConditionPotionModal: React.FC<ConditionPotionModalProps> = ({
                                             <span
                                                 className={`rounded border bg-gradient-to-b px-1.5 py-0.5 text-xs font-bold leading-none ${gradeClass}`}
                                             >
-                                                {localizedGrade(potion.grade)}
+                                                {localizedGrade(potion.grade as ItemGrade)}
                                             </span>
                                             {isSelected ? (
                                                 <span className="rounded bg-amber-400/25 px-1.5 py-0.5 text-xs font-bold leading-none text-amber-50">

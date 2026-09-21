@@ -2477,14 +2477,14 @@ const GameSummaryModal: React.FC<GameSummaryModalProps> = ({
                             <ResultModalXpRewardBadge
                                 variant="strategy"
                                 amount={mySummary.xp?.change ?? 0}
-                                compact={useCompactRewardSlots}
+                                density={useCompactRewardSlots ? 'compact' : 'comfortable'}
                             />
                         ) : null}
                         {isTrainingGround && (mySummary.pairPetXp?.change ?? 0) > 0 ? (
                             <ResultModalXpRewardBadge
                                 variant="pet"
                                 amount={mySummary.pairPetXp?.change ?? 0}
-                                compact={useCompactRewardSlots}
+                                density={useCompactRewardSlots ? 'compact' : 'comfortable'}
                             />
                         ) : null}
                         {/* 전략/펫 EXP는 상단 경험치 바 + 훈련장 보상 배지에서 표시 */}

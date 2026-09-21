@@ -14,7 +14,7 @@ import {
     type BaseStoneOverlayContext,
 } from '../shared/utils/baseHiddenMoveIndex.js';
 import { mapStoneToUniformDisplay, resolveTerritoryMarkerDisplayPlayer, resolveUniformStoneDisplayColorForBoard, territoryMarkerRgba } from '../shared/utils/uniformGoRules.js';
-import { detectAndConfirmTerritories } from '../shared/utils/castleGoRules.js';
+import { detectAndConfirmTerritories, type CastleGoSessionSlice } from '../shared/utils/castleGoRules.js';
 import type { ChessPieceState, ChessPieceType, ChessLastMoveMarker } from '../shared/types/entities.js';
 import { CHESS_GO_BOARD_SIZE, normalizeChessGoSession, sessionUsesChessGo } from '../shared/utils/chessGoRules.js';
 import { buildBoardCellStoneLookup } from '../utils/boardCellLookup.js';
@@ -886,6 +886,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         return normalizeChessGoSession({
             mode,
             settings: { boardSize: boardSizeProp, mixedModes } as LiveGameSession['settings'],
+            gameStatus,
             moveHistory: moveHistory ?? [],
             boardState: boardStateProp,
             chessPieces: chessPiecesProp,
@@ -897,6 +898,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
         usesChessGo,
         mode,
         mixedModes,
+        gameStatus,
         boardSizeProp,
         moveHistory,
         boardStateProp,
@@ -1177,6 +1179,12 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     return;
                 }
                 const slicePts = sliceEntries.length > 0 ? sumCapturePoints(sliceEntries) : 0;
+                const commitMoveFloatState = () => {
+                    lastFloatedMoveKeyRef.current = moveKey;
+                    prevCapturesForFloatRef.current = { ...captures };
+                    syncGrantedSnapshot();
+                    processedJustCapturedCountRef.current = list.length;
+                };
                 // PVP 낙관적 justCaptured=[] 직후 서버 잔류 페이로드로 같은 수순 점수 플로트가 반복되는 것 방지
                 if (sliceEntries.length > 0 && delta <= 0) {
                     commitMoveFloatState();
@@ -1208,13 +1216,6 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                     lastCaptureScoreFloatPushedMoveKeyRef.current = moveKey;
                     return;
                 }
-
-                const commitMoveFloatState = () => {
-                    lastFloatedMoveKeyRef.current = moveKey;
-                    prevCapturesForFloatRef.current = { ...captures };
-                    syncGrantedSnapshot();
-                    processedJustCapturedCountRef.current = list.length;
-                };
 
                 const capturerIdFromSlice = sliceEntries[0]?.capturerId;
                 const isMyCapture =
@@ -1484,7 +1485,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             boardState: displayBoardState,
             settings: { komi: 0 },
         };
-        return detectAndConfirmTerritories(slice, displayBoardState as BoardState);
+        return detectAndConfirmTerritories(slice as CastleGoSessionSlice, displayBoardState as BoardState);
     }, [castleStonePoints, confirmedTerritoryOwnerByPoint, displayBoardState, gameStatus]);
 
     const safeBoardSize = boardSize > 0 ? boardSize : 19;
@@ -1530,17 +1531,16 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
 
                 missileCompletionInFlightRef.current = signalKey;
                 try {
-                    const result = singlePlayer
-                        ? await dispatch({
-                              type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE',
-                              payload: { gameId },
-                          } as any)
-                        : await dispatch({
-                              type: 'MISSILE_ANIMATION_COMPLETE',
-                              payload: { gameId },
-                          });
-                    if (result && typeof result === 'object' && 'error' in result && (result as { error?: unknown }).error) {
-                        throw new Error(String((result as { error?: unknown }).error));
+                    if (singlePlayer) {
+                        await dispatch({
+                            type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE',
+                            payload: { gameId },
+                        } as ServerAction);
+                    } else {
+                        await dispatch({
+                            type: 'MISSILE_ANIMATION_COMPLETE',
+                            payload: { gameId },
+                        });
                     }
                     lastMissileCompletionSignalKeyRef.current = signalKey;
                 } catch (err) {

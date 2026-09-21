@@ -10,6 +10,7 @@ import {
     translateMythicStatName,
     translateSpecialStatName,
 } from '../shared/i18n/inventoryItemText.js';
+import type { TFunction } from 'i18next';
 import {
     isMythicGradeSpecialOptionType,
     isTranscendentGradeSpecialOptionType,
@@ -96,7 +97,7 @@ const MeterBar: React.FC<{ ratio: number; variant: 'amber' | 'violet' | 'emerald
 const formatMythicStat = (stat: MythicStat, _data: { count: number; totalValue: number }, t: (key: string, opts?: Record<string, unknown>) => string): React.ReactNode => {
     const row = MYTHIC_STATS_DATA[stat];
     if (!row) return <span className="leading-snug">{tx('inventory:equipmentEffects.unknownMythic')}</span>;
-    return <span className="leading-snug">{translateMythicStatDescription(stat, t)}</span>;
+    return <span className="leading-snug">{translateMythicStatDescription(stat, t as TFunction)}</span>;
 };
 
 const EquipmentEffectsModal: React.FC<EquipmentEffectsModalProps> = ({
