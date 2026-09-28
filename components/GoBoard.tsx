@@ -1396,8 +1396,9 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
             boardState.some((row: Player[]) => row && Array.isArray(row) && row.some((cell: Player) => cell !== Player.None && cell !== null && cell !== undefined));
 
         if (gameStatus === 'scoring') {
-            if (preservedBoardStateRef.current) return preservedBoardStateRef.current;
+            // playing→scoring이 마지막 수와 한 번에 오면 ref는 아직 이전 판이라, 유효한 현재 판을 우선한다.
             if (isBoardStateValid) return boardState;
+            if (preservedBoardStateRef.current) return preservedBoardStateRef.current;
             return boardState || [];
         }
 
