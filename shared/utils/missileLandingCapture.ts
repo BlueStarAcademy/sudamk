@@ -22,6 +22,23 @@ function removeCapturedBaseStoneMarkers(game: LiveGameSession, capturedStones: P
     game.baseStones = game.baseStones.filter((s) => !capturedKeys.has(`${s.x},${s.y}`));
 }
 
+/**
+ * 미사일은 턴을 소비하지 않는다(발사 후 같은 플레이어가 착수). 따라서 착지로 새 패 금지를 만들지 않고,
+ * 상대가 방금 패를 따내 생긴 금지(현재 플레이어 대상)는 유지한다.
+ * 단, 패 자리에 인접한 돌을 미사일로 따내 패 모양 자체가 사라졌으면 해제한다.
+ */
+export function resolveKoInfoAfterMissileLanding(
+    prevKoInfo: LiveGameSession['koInfo'] | undefined,
+    capturedStones: readonly Point[],
+): LiveGameSession['koInfo'] {
+    if (!prevKoInfo) return null;
+    const { point } = prevKoInfo;
+    const koShapeBroken = capturedStones.some(
+        (s) => Math.abs(s.x - point.x) + Math.abs(s.y - point.y) === 1,
+    );
+    return koShapeBroken ? null : prevKoInfo;
+}
+
 function isPveLikeForMissileCaptures(game: LiveGameSession): boolean {
     return (
         !!game.isSinglePlayer ||
@@ -44,7 +61,7 @@ export function applyMissileCaptureProcessResult(
 
     if (captureResult.capturedStones.length === 0) {
         game.boardState = captureResult.newBoardState;
-        game.koInfo = captureResult.newKoInfo ?? null;
+        game.koInfo = resolveKoInfoAfterMissileLanding(game.koInfo, []);
         return;
     }
 
@@ -128,5 +145,5 @@ export function applyMissileCaptureProcessResult(
     bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, myPlayerEnum, guildWarCapturePointsThisMove);
     stripPatternStonesAtConsumedIntersections(game);
     removeCapturedBaseStoneMarkers(game, captureResult.capturedStones);
-    game.koInfo = captureResult.newKoInfo ?? null;
+    game.koInfo = resolveKoInfoAfterMissileLanding(game.koInfo, captureResult.capturedStones);
 }

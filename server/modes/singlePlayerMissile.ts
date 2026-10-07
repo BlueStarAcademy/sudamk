@@ -4,6 +4,7 @@ import * as db from '../db.js';
 import { processMove } from '../goLogic.js';
 import { enforceBaseSeatLockIfDriftedDuringPlay, resumeGameTimer, pauseGameTimer, freezeMainTurnClock } from './shared.js';
 import { applyMissileCaptureProcessResult } from '../../shared/utils/missileLandingCapture.js';
+import { isMissileLandingKoViolation, MISSILE_KO_LANDING_ERROR } from './missileBoardUtils.js';
 import { recordPatternStoneConsumed, stripPatternStonesAtConsumedIntersections } from '../../shared/utils/patternStoneConsume.js';
 import { findLatestMoveIndexAtExcludingRecordedBaseStones } from '../../shared/utils/baseHiddenMoveIndex.js';
 
@@ -1023,6 +1024,10 @@ export const handleSinglePlayerMissileAction = async (game: types.LiveGameSessio
             if (to.x === from.x && to.y === from.y) {
                 console.warn(`[SinglePlayer Missile] LAUNCH_MISSILE failed: cannot move stone, from=${JSON.stringify(from)}, to=${JSON.stringify(to)}, direction=${direction}, gameId=${game.id}`);
                 return { error: "Cannot move stone." };
+            }
+
+            if (isMissileLandingKoViolation(game, from, to, myPlayerEnum, { isSinglePlayer: true })) {
+                return { error: MISSILE_KO_LANDING_ERROR };
             }
             
             // 히든 돌 공개 처리 (목적지에 히든 돌이 있는 경우)

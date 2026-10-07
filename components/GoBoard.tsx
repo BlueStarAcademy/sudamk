@@ -186,8 +186,10 @@ const AnimatedMissileStone: React.FC<{
     animation: Extract<AnimationData, { type: 'missile' }>;
     stone_radius: number;
     toSvgCoords: (p: Point) => { cx: number; cy: number };
-}> = ({ animation, stone_radius, toSvgCoords }) => {
-    const { from, to, player, duration } = animation;
+    uniformDisplayColor?: Player | null;
+}> = ({ animation, stone_radius, toSvgCoords, uniformDisplayColor }) => {
+    const { from, to, duration } = animation;
+    const player = mapStoneToUniformDisplay(animation.player, uniformDisplayColor);
     const fromCoords = toSvgCoords(from);
     const toCoords = toSvgCoords(to);
 
@@ -293,8 +295,10 @@ const AnimatedHiddenMissile: React.FC<{
     animation: MissileFlightAnimation;
     stone_radius: number;
     toSvgCoords: (p: Point) => { cx: number; cy: number };
-}> = ({ animation, stone_radius, toSvgCoords }) => {
-    const { from, to, player, duration } = animation;
+    uniformDisplayColor?: Player | null;
+}> = ({ animation, stone_radius, toSvgCoords, uniformDisplayColor }) => {
+    const { from, to, duration } = animation;
+    const player = mapStoneToUniformDisplay(animation.player, uniformDisplayColor);
     const fromCoords = toSvgCoords(from);
     const toCoords = toSvgCoords(to);
 
@@ -407,7 +411,8 @@ const AnimatedScanMarker: React.FC<{
     cellSize: number;
     /** 스캔 성공 시 해당 교차점의 돌 색 (히든 문양 오버레이용) */
     revealPlayer: Player;
-}> = ({ animation, toSvgCoords, stone_radius, boardSizePx, padding, cellSize, revealPlayer }) => {
+    uniformDisplayColor?: Player | null;
+}> = ({ animation, toSvgCoords, stone_radius, boardSizePx, padding, cellSize, revealPlayer, uniformDisplayColor }) => {
     const { point, success } = animation;
     const { cx, cy } = toSvgCoords(point);
     const size = stone_radius * 2.5;
@@ -474,7 +479,7 @@ const AnimatedScanMarker: React.FC<{
                     <g transform={`translate(${cx}, ${cy})`}>
                         <g className="scan-success-stone-wrap" style={resultPhaseStyle}>
                             <g opacity={0.58}>
-                                <Stone player={revealPlayer} cx={0} cy={0} isKnownHidden radius={stone_radius} />
+                                <Stone player={revealPlayer} uniformDisplayColor={uniformDisplayColor} cx={0} cy={0} isKnownHidden radius={stone_radius} />
                             </g>
                         </g>
                     </g>
@@ -2716,6 +2721,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                                 animation={animation}
                                                 stone_radius={stone_radius}
                                                 toSvgCoords={toSvgCoords}
+                                                uniformDisplayColor={activeUniformStoneDisplayColor}
                                             />
                                         </g>
                                     );
@@ -2727,6 +2733,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                             animation={animation}
                                             stone_radius={stone_radius}
                                             toSvgCoords={toSvgCoords}
+                                            uniformDisplayColor={activeUniformStoneDisplayColor}
                                         />
                                     );
                                 }
@@ -2738,6 +2745,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                         animation={asMissile}
                                         stone_radius={stone_radius}
                                         toSvgCoords={toSvgCoords}
+                                        uniformDisplayColor={activeUniformStoneDisplayColor}
                                     />
                                 );
                             })()}
@@ -2750,6 +2758,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                     padding={padding}
                                     cellSize={cell_size}
                                     revealPlayer={displayBoardState[animation.point.y]?.[animation.point.x] ?? Player.None}
+                                    uniformDisplayColor={activeUniformStoneDisplayColor}
                                 />
                             )}
                             {isHiddenRevealStatus &&
@@ -2768,6 +2777,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                                         <Stone
                                             key={`reveal-${s.point.x}-${s.point.y}-${s.player}`}
                                             player={s.player}
+                                            uniformDisplayColor={activeUniformStoneDisplayColor}
                                             cx={toSvgCoords(s.point).cx}
                                             cy={toSvgCoords(s.point).cy}
                                             isKnownHidden={!isMyJustPlacedRevealPoint}

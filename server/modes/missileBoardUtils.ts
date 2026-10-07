@@ -29,6 +29,38 @@ export function applyMissileLandingCaptures(
     return captureResult.capturedStones ?? [];
 }
 
+export const MISSILE_KO_LANDING_ERROR = '패 모양입니다. 미사일로 바로 다시 따낼 수 없습니다.';
+
+/**
+ * 발사 전에 착지점이 패 금지점인지 확인한다.
+ * 허용하면 `processMove`가 ko로 무효 처리되어 따내기 없이 돌만 이동해 보드가 어긋난다.
+ */
+export function isMissileLandingKoViolation(
+    game: types.LiveGameSession,
+    from: types.Point,
+    to: types.Point,
+    myPlayerEnum: types.Player,
+    options?: { isSinglePlayer?: boolean },
+): boolean {
+    const opponentEnum = myPlayerEnum === types.Player.Black ? types.Player.White : types.Player.Black;
+    const board = game.boardState.map((row) => [...row]);
+    if (board[from.y]?.[from.x] === myPlayerEnum) {
+        board[from.y][from.x] = types.Player.None;
+    }
+    if (!board[to.y]) return false;
+    const atTo = board[to.y][to.x];
+    if (atTo != null && atTo !== types.Player.None) return false;
+    board[to.y][to.x] = types.Player.None;
+    const result = processMove(
+        board,
+        { x: to.x, y: to.y, player: myPlayerEnum },
+        game.koInfo ?? null,
+        game.moveHistory.length,
+        { opponentPlayer: opponentEnum, isSinglePlayer: options?.isSinglePlayer, suppressOccupiedLog: true },
+    );
+    return !result.isValid && result.reason === 'ko';
+}
+
 export type MissileFlightAnimationSnapshot = {
     type: 'missile' | 'hidden_missile';
     from?: types.Point;

@@ -37,6 +37,14 @@ describe('uniformGoRules', () => {
         expect(resolveUniformStoneDisplayColorForBoard('no_contest', Player.White)).toBeNull();
     });
 
+    it('keeps uniform color through missile item phases', () => {
+        for (const status of ['missile_selecting', 'missile_animating']) {
+            const uniform = resolveUniformStoneDisplayColorForBoard(status, Player.White);
+            expect(uniform).toBe(Player.White);
+            expect(mapStoneToUniformDisplay(Player.Black, uniform)).toBe(Player.White);
+        }
+    });
+
     it('resolveTerritoryMarkerDisplayPlayer uses actual B/W during scoring', () => {
         expect(resolveTerritoryMarkerDisplayPlayer(Player.Black, 'playing', Player.White)).toBe(Player.White);
         expect(resolveTerritoryMarkerDisplayPlayer(Player.White, 'playing', Player.White)).toBe(Player.White);

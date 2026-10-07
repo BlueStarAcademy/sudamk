@@ -24,7 +24,12 @@ import {
     tryFinalizeMissileFlightFromAnimationState,
     type FinalizeItemPhaseOptions,
 } from './finalizeItemPhase.js';
-import { applyMissileLandingCaptures, relocateMissileStoneMetadata } from './missileBoardUtils.js';
+import {
+    applyMissileLandingCaptures,
+    isMissileLandingKoViolation,
+    MISSILE_KO_LANDING_ERROR,
+    relocateMissileStoneMetadata,
+} from './missileBoardUtils.js';
 import { isMissileFlightAnimationType } from '../../shared/utils/itemPhaseAnimationTypes.js';
 import {
     countNonPassMoves,
@@ -549,6 +554,10 @@ export const handleMissileAction = async (game: types.LiveGameSession, action: t
             if (to.x === from.x && to.y === from.y) {
                 console.warn(`[Missile Go] LAUNCH_MISSILE failed: cannot move stone, from=${JSON.stringify(from)}, to=${JSON.stringify(to)}, direction=${direction}, gameId=${game.id}`);
                 return { error: "Cannot move stone." };
+            }
+
+            if (isMissileLandingKoViolation(game, from, to, myPlayerEnum)) {
+                return { error: MISSILE_KO_LANDING_ERROR };
             }
             
             // 히든 돌 공개 처리 (목적지에 히든 돌이 있는 경우)
