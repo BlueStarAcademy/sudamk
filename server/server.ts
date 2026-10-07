@@ -20,6 +20,9 @@ try {
 // 즉시 stderr 출력 (크래시 시 로그에 아무것도 안 남는 경우 원인 파악용)
 process.stderr.write(`[Server] Bootstrap: pid=${process.pid} cwd=${process.cwd()} env_loaded\n`);
 
+import { initSentry, setupSentryExpressErrorHandler, captureServerException } from './sentry.js';
+initSentry();
+
 import express from 'express';
 import cors from 'cors';
 import compression from 'compression';
@@ -5086,6 +5089,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             res.status(200).json(fullState);
         } catch (e) {
             console.error('Get state error:', e);
+            captureServerException(e, { tags: { api: 'state' } });
             res.status(500).json({ message: '서버 오류가 발생했습니다.' });
         }
     });
@@ -5389,6 +5393,10 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                 code: e.code,
                 userId: req.body?.userId,
                 payload: req.body?.payload
+            });
+            captureServerException(e, {
+                tags: { api: 'action', actionType: String(req.body?.type || 'unknown') },
+                extra: { userId: req.body?.userId },
             });
             if (!res.headersSent) {
                 res.status(500).json({ 
@@ -5850,11 +5858,34 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
         });
     }
 
+    // Optional smoke route: only when SENTRY_SMOKE_SECRET is set and header matches.
+    // Used to verify Sentry issue creation in production without leaving an open crash endpoint.
+    app.get('/api/admin/sentry-smoke', (req, res, next) => {
+        const secret = process.env.SENTRY_SMOKE_SECRET?.trim();
+        if (!secret) {
+            return res.status(404).json({ message: 'Not found' });
+        }
+        const provided = String(req.headers['x-sentry-smoke-secret'] || '');
+        if (provided !== secret) {
+            return res.status(404).json({ message: 'Not found' });
+        }
+        next(new Error('Sentry smoke test intentional error'));
+    });
+
+    // Sentry Express 에러 핸들러 — 커스텀 500 응답 미들웨어 직전에 등록 (DSN 없으면 no-op)
+    setupSentryExpressErrorHandler(app);
+
     // Express 전역 에러 핸들러 (모든 라우트 정의 후에 추가)
     // 처리되지 않은 에러를 잡아서 500 응답 반환
     app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
         if (!res.headersSent) {
             applyCorsHeaders(req, res, PRODUCTION_ALLOWED_ORIGINS);
+        }
+        if (req.path !== '/api/health' && req.path !== '/') {
+            captureServerException(err, {
+                tags: { handler: 'expressErrorHandler', method: req.method },
+                extra: { path: req.path },
+            });
         }
         const errorInfo = {
             timestamp: new Date().toISOString(),
@@ -5939,6 +5970,9 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 // 전역 에러 핸들러 추가 (처리되지 않은 Promise rejection 및 예외 처리)
 // 전역 에러 핸들러: 프로세스가 절대 크래시되지 않도록 보장
 process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+    captureServerException(reason instanceof Error ? reason : new Error(String(reason?.message || reason)), {
+        tags: { handler: 'unhandledRejection' },
+    });
     // stderr로 강제 출력 (Railway 로그에 확실히 기록되도록)
     const errorInfo = {
         timestamp: new Date().toISOString(),
@@ -6032,6 +6066,7 @@ process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
 });
 
 process.on('uncaughtException', (error: Error) => {
+    captureServerException(error, { tags: { handler: 'uncaughtException' } });
     // stderr로 강제 출력 (Railway 로그에 확실히 기록되도록)
     const errorInfo = {
         timestamp: new Date().toISOString(),
