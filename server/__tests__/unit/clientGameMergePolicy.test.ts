@@ -510,6 +510,50 @@ describe('mergeGameUpdateByArena', () => {
         expect(merged.moveHistory).toHaveLength(3);
         expect(merged.boardState![5]![5]).toBe(Player.Black);
         expect(merged.boardState![7]![7]).toBe(Player.White);
+        expect(merged.currentPlayer).toBe(Player.White);
+    });
+
+    it('PVP chess: late CHESS_MOVE packet after optimistic stone does not hand the turn back', () => {
+        const pieces = generateChessGoInitialPieces(13);
+        const serverAfterPieceMove = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces.map((p) => ({ ...p })),
+            moveHistory: [{ x: 6, y: 6, player: Player.White }],
+            currentPlayer: Player.Black,
+            boardState: Array.from({ length: 13 }, () => Array(13).fill(Player.None)),
+        }) as LiveGameSession;
+        const pawn = serverAfterPieceMove.chessPieces!.find(
+            (p) => p.owner === Player.Black && p.type === 'pawn' && p.x === 5,
+        )!;
+        applyChessMoveToSession(serverAfterPieceMove, pawn.id, 5, 9);
+        serverAfterPieceMove.chessPieceMovedThisTurn = true;
+        serverAfterPieceMove.serverRevision = 11;
+
+        const clientAfterOptimisticStone = {
+            ...serverAfterPieceMove,
+            chessPieces: serverAfterPieceMove.chessPieces!.map((p) => ({ ...p })),
+            boardState: serverAfterPieceMove.boardState!.map((row) => [...row]),
+            moveHistory: [
+                { x: 6, y: 6, player: Player.White },
+                { x: 3, y: 3, player: Player.Black },
+            ],
+            currentPlayer: Player.White,
+            chessPieceMovedThisTurn: false,
+            serverRevision: 10,
+        } as LiveGameSession;
+        clientAfterOptimisticStone.boardState![3]![3] = Player.Black;
+
+        const merged = mergeGameUpdateByArena(serverAfterPieceMove, clientAfterOptimisticStone, {
+            source: 'game_update',
+        });
+        expect(merged.moveHistory).toHaveLength(2);
+        expect(merged.boardState![3]![3]).toBe(Player.Black);
+        expect(merged.currentPlayer).toBe(Player.White);
+        expect(merged.chessPieceMovedThisTurn).toBe(false);
+        expect(merged.chessPieces!.find((p) => p.id === pawn.id)!.y).toBe(9);
     });
 
     it('clears missile animation when incoming is playing even if animation is still attached', () => {

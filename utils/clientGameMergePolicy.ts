@@ -948,8 +948,13 @@ function preserveChessPlayingStateWhenMoveHistoryRegresses(
     };
 
     if (exLen > inLen || (exLen === inLen && !lastMovesMatch())) {
+        // 판·수순을 로컬로 유지하면 턴도 로컬 기준이어야 한다. 낡은 기물 이동 패킷의 currentPlayer만 받으면
+        // 착수 직후 내 차례·기물 미이동으로 되돌아가 두 번째 기물 이동이 서버에서 거절되며 판이 꼬인다.
+        const existingPairGame = existing!.settings?.pairGame;
         return {
             ...merged,
+            currentPlayer: existing!.currentPlayer,
+            settings: existingPairGame ? { ...merged.settings, pairGame: existingPairGame } : merged.settings,
             moveHistory: existing!.moveHistory,
             boardState: existing!.boardState,
             chessPieces: existing!.chessPieces,

@@ -2813,6 +2813,8 @@ export const useApp = () => {
     const pvpDicePlaceRevertRef = useRef<Record<string, LiveGameSession>>({});
     /** PVP 일반 착수(PLACE_STONE) 낙관 반영 실패 시 복구용 스냅샷 */
     const pvpPlaceStoneRevertRef = useRef<Record<string, LiveGameSession>>({});
+    /** 체스 바둑 기물 이동(CHESS_MOVE_PIECE) 낙관 반영 실패 시 복구용 스냅샷 */
+    const chessMoveRevertRef = useRef<Record<string, LiveGameSession>>({});
     /** TOWER_ADD_TURNS: fetch 전 낙관 보너스(+3) 적용분 — 실패 시 롤백 */
     const towerAddTurnOptimisticPendingByGameRef = useRef<Record<string, number>>({});
     /** SCAN_BOARD(싱글): fetch 전 낙관 -1 — 실패 시 롤백 */
@@ -4247,6 +4249,7 @@ export const useApp = () => {
                         boardState: game.boardState?.map((row) => [...row]) as LiveGameSession['boardState'],
                     };
                     if (!validateChessMove(copy, pieceId, toX!, toY!, myPlayer).ok) return null;
+                    chessMoveRevertRef.current[gameId] = JSON.parse(JSON.stringify(game)) as LiveGameSession;
                     applyChessMoveToSession(copy, pieceId, toX!, toY!, myPlayer);
                     copy.chessPieceMovedThisTurn = true;
                     const captureResult = resolveChessCapturesByLiberty(copy, myPlayer);
@@ -6563,6 +6566,26 @@ export const useApp = () => {
                 delete pvpPlaceStoneRevertRef.current[gid];
             };
 
+            const revertChessMoveSnapshot = () => {
+                if (action.type !== 'CHESS_MOVE_PIECE') return;
+                const gid = (action.payload as { gameId?: string })?.gameId;
+                if (!gid) return;
+                const snap = chessMoveRevertRef.current[gid];
+                delete chessMoveRevertRef.current[gid];
+                if (snap) {
+                    // 그사이 수순이 진행됐다면 스냅샷이 더 낡았으므로 서버 동기화에만 맡긴다.
+                    setLiveGames((c) => {
+                        const cur = c[gid];
+                        if (!cur || (cur.moveHistory?.length ?? 0) !== (snap.moveHistory?.length ?? 0)) return c;
+                        return { ...c, [gid]: snap };
+                    });
+                }
+                void handleAction({
+                    type: 'REQUEST_GAME_STATE_SYNC',
+                    payload: { gameId: gid },
+                } as ServerAction);
+            };
+
             const revertPveResignOptimistic = () => {
                 const entry = pveResignOptimisticRevertRef.current;
                 if (!entry) return;
@@ -7224,6 +7247,7 @@ export const useApp = () => {
                 }
                 revertPvpDicePlaceSnapshot();
                 revertPvpPlaceStoneSnapshot();
+                revertChessMoveSnapshot();
                 rollbackTowerAddTurnOptimistic();
             rollbackPveScanOptimistic();
                 revertPveResignOptimistic();
@@ -7361,6 +7385,7 @@ export const useApp = () => {
                     }
                     revertPvpDicePlaceSnapshot();
                     revertPvpPlaceStoneSnapshot();
+                    revertChessMoveSnapshot();
                     rollbackTowerAddTurnOptimistic();
             rollbackPveScanOptimistic();
                     revertPveResignOptimistic();
@@ -7380,6 +7405,10 @@ export const useApp = () => {
                 if (action.type === 'PLACE_STONE') {
                     const gid = (action.payload as { gameId?: string })?.gameId;
                     if (gid) delete pvpPlaceStoneRevertRef.current[gid];
+                }
+                if (action.type === 'CHESS_MOVE_PIECE') {
+                    const gid = (action.payload as { gameId?: string })?.gameId;
+                    if (gid) delete chessMoveRevertRef.current[gid];
                 }
                 if (action.type === 'MISSILE_ANIMATION_COMPLETE' && typeof actionGameId === 'string' && actionGameId.length > 0) {
                     setLiveGames((c) => patchLiveGameInMapById(c, actionGameId, mutateLiveMissilePresentationComplete));
@@ -9380,6 +9409,20 @@ export const useApp = () => {
                     if (snap) {
                         setLiveGames((c) => (c[gid] ? { ...c, [gid]: snap } : c));
                         delete pvpPlaceStoneRevertRef.current[gid];
+                    }
+                }
+            }
+            if (action.type === 'CHESS_MOVE_PIECE') {
+                const gid = (action.payload as { gameId?: string })?.gameId;
+                if (gid) {
+                    const snap = chessMoveRevertRef.current[gid];
+                    delete chessMoveRevertRef.current[gid];
+                    if (snap) {
+                        setLiveGames((c) => {
+                            const cur = c[gid];
+                            if (!cur || (cur.moveHistory?.length ?? 0) !== (snap.moveHistory?.length ?? 0)) return c;
+                            return { ...c, [gid]: snap };
+                        });
                     }
                 }
             }

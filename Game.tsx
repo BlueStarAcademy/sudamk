@@ -292,6 +292,10 @@ const scanTargetDelayMessage = () => tx('game:messages.scanTargetDelay');
 const chessPieceAlreadyMovedMessage = () => tx('game:messages.chessPieceAlreadyMoved');
 const chessGoStartMessage = () => tx('game:messages.chessPieceMoveHint');
 const CHESS_GO_START_FLASH_MS = 8000;
+/** 체스 바둑: 기물 이동 후 착수까지 최소 대기 */
+const CHESS_MOVE_STONE_COOLDOWN_MS = 250;
+/** 체스 바둑: 기물 이동 HTTP 성공 후 이동이 반영된 GAME_UPDATE(serverRevision 증가)를 기다리는 최대 시간 */
+const CHESS_MOVE_SETTLE_MAX_WAIT_AFTER_ACK_MS = 800;
 
 type PairSeat = NonNullable<NonNullable<LiveGameSession['settings']['pairGame']>['turnOrder']>[number];
 type PairClientTimes = { black: number; white: number };
@@ -807,6 +811,14 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     const strategicAiStoneLockRef = useRef(false);
     /** 체스 바둑: 기물 이동 HTTP가 끝나기 전 착수하면 서버 수순이 꼬이므로, 착수 전에만 대기한다(보드 클릭은 막지 않음). */
     const chessMoveFlightRef = useRef<Promise<unknown> | null>(null);
+    /**
+     * 체스 바둑: 기물 이동이 서버에서 확정될 때까지 착수를 잠근다.
+     * 확정 전에 낙관 착수하면 늦게 도착한 기물 이동 GAME_UPDATE가 턴을 되돌려 판이 꼬인다.
+     */
+    const chessMoveSettleRef = useRef<{ startedAt: number; baselineRevision: number; ackedAt: number | null } | null>(null);
+    const chessMoveSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+    const latestServerRevisionRef = useRef(session.serverRevision ?? 0);
+    latestServerRevisionRef.current = session.serverRevision ?? 0;
     const [strategicPetHintBoardOverlay, setStrategicPetHintBoardOverlay] = useState<{
         x: number;
         y: number;
@@ -3174,6 +3186,46 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         }
     }, [isMoveInFlight, session.moveHistory?.length, prevMoveCount, gameStatus, prevGameStatus, myBaseStoneCountForUnlock, prevMyBaseStoneCountForUnlock]);
 
+    const releaseChessMoveSettle = useCallback(() => {
+        if (chessMoveSettleTimerRef.current != null) {
+            clearTimeout(chessMoveSettleTimerRef.current);
+            chessMoveSettleTimerRef.current = null;
+        }
+        chessMoveSettleRef.current = null;
+    }, []);
+
+    const tryReleaseChessMoveSettle = useCallback(() => {
+        const settle = chessMoveSettleRef.current;
+        if (!settle || settle.ackedAt == null) return;
+        const now = Date.now();
+        const revisionArrived = latestServerRevisionRef.current > settle.baselineRevision;
+        const waitUntil = revisionArrived
+            ? settle.startedAt + CHESS_MOVE_STONE_COOLDOWN_MS
+            : Math.max(
+                  settle.startedAt + CHESS_MOVE_STONE_COOLDOWN_MS,
+                  settle.ackedAt + CHESS_MOVE_SETTLE_MAX_WAIT_AFTER_ACK_MS,
+              );
+        if (now >= waitUntil) {
+            releaseChessMoveSettle();
+            return;
+        }
+        if (chessMoveSettleTimerRef.current != null) clearTimeout(chessMoveSettleTimerRef.current);
+        chessMoveSettleTimerRef.current = setTimeout(() => {
+            chessMoveSettleTimerRef.current = null;
+            tryReleaseChessMoveSettle();
+        }, waitUntil - now);
+    }, [releaseChessMoveSettle]);
+
+    useEffect(() => {
+        tryReleaseChessMoveSettle();
+    }, [session.serverRevision, tryReleaseChessMoveSettle]);
+
+    useEffect(() => {
+        if (gameStatus !== 'playing') releaseChessMoveSettle();
+    }, [gameStatus, releaseChessMoveSettle]);
+
+    useEffect(() => releaseChessMoveSettle, [session.id, releaseChessMoveSettle]);
+
     // 싱글/타워 클라 착수 직후: 실제로 내 턴이 돌아오기 전까지 빠른 연타를 막는다.
     useEffect(() => {
         if (!pveLocalStonePlacementLockRef.current) return;
@@ -3400,6 +3452,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
             console.log('[Game] Move in flight or placement lock, ignoring additional click');
             return;
         }
+        if (chessMoveSettleRef.current) {
+            console.log('[Game] Chess piece move not yet confirmed by server, ignoring click');
+            return;
+        }
 
         if (
             usesChessGo &&
@@ -3468,16 +3524,43 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 if (destMove) {
                     const movedPieceId = selectedChessPieceId;
                     setSelectedChessPieceId(null);
-                    const chessMovePromise = handlers.handleAction({
-                        type: 'CHESS_MOVE_PIECE',
-                        payload: { gameId, pieceId: movedPieceId, toX: x, toY: y },
-                    } as ServerAction);
-                    chessMoveFlightRef.current = Promise.resolve(chessMovePromise);
-                    void chessMoveFlightRef.current.finally(() => {
-                        if (chessMoveFlightRef.current === chessMovePromise) {
-                            chessMoveFlightRef.current = null;
-                        }
-                    });
+                    if (chessMoveSettleTimerRef.current != null) {
+                        clearTimeout(chessMoveSettleTimerRef.current);
+                        chessMoveSettleTimerRef.current = null;
+                    }
+                    const settle = {
+                        startedAt: Date.now(),
+                        baselineRevision: latestServerRevisionRef.current,
+                        ackedAt: null as number | null,
+                    };
+                    chessMoveSettleRef.current = settle;
+                    const chessMovePromise = Promise.resolve(
+                        handlers.handleAction({
+                            type: 'CHESS_MOVE_PIECE',
+                            payload: { gameId, pieceId: movedPieceId, toX: x, toY: y },
+                        } as ServerAction),
+                    );
+                    chessMoveFlightRef.current = chessMovePromise;
+                    void chessMovePromise
+                        .then((res) => {
+                            if (chessMoveSettleRef.current !== settle) return;
+                            const hasErr =
+                                res && typeof res === 'object' && 'error' in res && (res as { error?: string }).error;
+                            if (hasErr) {
+                                releaseChessMoveSettle();
+                                return;
+                            }
+                            settle.ackedAt = Date.now();
+                            tryReleaseChessMoveSettle();
+                        })
+                        .catch(() => {
+                            if (chessMoveSettleRef.current === settle) releaseChessMoveSettle();
+                        })
+                        .finally(() => {
+                            if (chessMoveFlightRef.current === chessMovePromise) {
+                                chessMoveFlightRef.current = null;
+                            }
+                        });
                     return;
                 }
             }
@@ -4097,6 +4180,8 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         selectedChessPieceId,
         chessGoSession,
         rejectInvalidChessGoStonePlacement,
+        releaseChessMoveSettle,
+        tryReleaseChessMoveSettle,
     ]);
 
     const handleConfirmMove = useCallback(() => {
@@ -4113,6 +4198,10 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         // 이미 한 수가 처리 중이면 추가 확정 무시
         if (isMoveInFlight || pveLocalStonePlacementLockRef.current || strategicAiStoneLockRef.current) {
             console.log('[Game] Move in flight or placement lock, ignoring confirm');
+            return;
+        }
+        if (chessMoveSettleRef.current) {
+            console.log('[Game] Chess piece move not yet confirmed by server, ignoring confirm');
             return;
         }
         const petHintBoardLockUntilConfirm = strategicPetHintBoardInputLockUntilHistoryLenRef.current;
