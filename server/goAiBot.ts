@@ -97,6 +97,7 @@ import { resolveSinglePlayerAutoScoringTurnCap } from '../shared/utils/singlePla
 import {
     getArenaTurnCount,
     getValidStoneMoveCount,
+    resolveArenaConfiguredTurnLimit,
     resolveArenaFixedScoringTurnLimit,
 } from './utils/arenaTurnPolicy.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
@@ -619,7 +620,7 @@ export interface GoAiBotProfile {
 const getStrategicAiHiddenScheduleByTotalMoveCount = (
     game: LiveGameSession
 ): { plannedUses: number; firstGlobalMin: number; firstGlobalMax: number } => {
-    const rawLimit = Number((game.settings as any)?.scoringTurnLimit ?? (game.settings as any)?.autoScoringTurns ?? 0);
+    const rawLimit = resolveArenaConfiguredTurnLimit(game as any);
     const scoringLimit = Number.isFinite(rawLimit) ? Math.max(0, Math.floor(rawLimit)) : 0;
 
     // 수순 제한이 없으면 예전과 동일하게 1~30 구간에서 1회만(폴백)
@@ -649,7 +650,7 @@ const planStrategicAiHiddenTurns = (game: LiveGameSession, hiddenCount: number):
     const desiredUses = schedule.plannedUses > 0 && hiddenCount > 0 ? 1 : 0;
     if (desiredUses <= 0) return [];
 
-    const rawScoringCap = Number((game.settings as any)?.scoringTurnLimit ?? (game.settings as any)?.autoScoringTurns ?? 0);
+    const rawScoringCap = resolveArenaConfiguredTurnLimit(game as any);
     const scoringCap = Number.isFinite(rawScoringCap) && rawScoringCap > 0 ? Math.floor(rawScoringCap) : schedule.firstGlobalMax;
 
     // 전체 수순 번호 m(1부터)에서 AI의 턴 index로 변환.
@@ -1778,14 +1779,10 @@ function getBoardStateForAi(
     return aiBoardState;
 }
 
-/** 싱글/탑/모험 등 로비가 아닌 PvE 전략바둑(따내기·계가 가중 등에 공통 사용) */
+/** 싱글/탑/모험 등 로비가 아닌 PvE 전략바둑(따내기·계가 가중 등에 공통 사용) — 정책 kind 기준 */
 function isSinglePlayerOrTowerPve(game: types.LiveGameSession): boolean {
-    const cat = (game as any).gameCategory as string | undefined;
-    return (
-        !!game.isSinglePlayer ||
-        cat === 'tower' ||
-        cat === types.GameCategory.Adventure
-    );
+    const kind = resolveArenaSessionPolicy(game as any).kind;
+    return kind === 'singleplayer' || kind === 'tower' || kind === 'adventure';
 }
 
 /** 싱글/도전의 탑: 승패가 따내기 점수 기준 */
@@ -2664,9 +2661,7 @@ export async function makeGoAiBotMove(
         resolvedKataLevel = Number.isFinite(n) ? Math.max(-31, Math.min(10, Math.floor(n))) : -31;
     }
     const pairHasFixedScoringTurnLimit =
-        pairClassicGame &&
-        !captureRuleGame &&
-        Number((game.settings as any)?.scoringTurnLimit ?? 0) > 0;
+        pairClassicGame && resolveArenaSessionPolicy(game as any).turnLimitMode === 'scoringTurnLimit';
     if (process.env.NODE_ENV === 'development') {
         console.log(
             `[makeGoAiBotMove] game=${game.id} category=${(game as any).gameCategory ?? 'normal'} stage=${(game as any).stageId ?? '-'} floor=${(game as any).towerFloor ?? '-'} profileStep=${goAiProfileLevel} configuredKata=${configuredKataLevel ?? 'none'} resolvedKata=${resolvedKataLevel} pairSeat=${pairCurrentSeat?.participantId ?? 'none'} pairPhase=${pairKataPhase ?? 'none'} pairPly=${pairCurrentSeat ? pairValidPlyForNextMove : 'none'} pairFixed=${Number.isFinite(pairFixedKataLevel) ? Number(pairFixedKataLevel) : 'none'}`,

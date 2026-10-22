@@ -8,6 +8,7 @@ import { WEBSOCKET_ADMIN_FORCE_LOGOUT_CLOSE_CODE } from '../shared/constants/aut
 import { isSyntheticOnlineUserId } from '../shared/utils/syntheticOnlineUserIds.js';
 import { PVP_WS_DISCONNECT_GRACE_MS } from '../shared/utils/pvpDisconnectPolicy.js';
 import { getArenaTurnCount } from './utils/arenaTurnPolicy.js';
+import { getArenaStateBucket, resolveArenaKind } from '../shared/utils/liveSessionArenaKind.js';
 import { applyNormalizedChessGoInPlace } from '../shared/utils/chessGoRules.js';
 import { buildSpectatorGameView } from './utils/spectatorGameView.js';
 import { getLiveGameHumanParticipantIds } from './utils/liveGameParticipants.js';
@@ -503,7 +504,7 @@ export const createWebSocketServer = (server: Server) => {
                 
                 for (const game of limitedGames) {
                     try {
-                        const category = game.gameCategory || (game.isSinglePlayer ? 'singleplayer' : 'normal');
+                        const category = resolveArenaKind(game as any);
                         const optimizedGame = { ...game };
                         // 싱글/탑: moveHistory 제거 전에 totalTurns가 없으면 유효 수 기준으로 설정 (F5 후 자동계가까지 남은 턴이 Max로 초기화되는 버그 방지)
                         if ((category === 'singleplayer' || category === 'tower') && (optimizedGame.totalTurns == null || optimizedGame.totalTurns === 0)) {
@@ -525,9 +526,10 @@ export const createWebSocketServer = (server: Server) => {
                         delete (optimizedGame as any).boardState; // 대역폭 절약
                         delete (optimizedGame as any).moveHistory; // 대역폭 절약 (100명 동시 사용자 대응)
                         
-                        if (category === 'singleplayer') {
+                        const bucket = getArenaStateBucket(category);
+                        if (bucket === 'singlePlayerGames') {
                             singlePlayerGames[game.id] = optimizedGame;
-                        } else if (category === 'tower') {
+                        } else if (bucket === 'towerGames') {
                             towerGames[game.id] = optimizedGame;
                         } else {
                             liveGames[game.id] = optimizedGame;

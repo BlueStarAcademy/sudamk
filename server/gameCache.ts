@@ -3,6 +3,13 @@ import { volatileState } from './state.js';
 import * as db from './db.js';
 import { isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 import { applyNormalizedChessGoInPlace } from '../shared/utils/chessGoRules.js';
+import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+
+/** Single PVE-arena test for cache protection/merge (non-normal kind; markers/prefixes via resolveArenaKind). */
+function isPveSessionForCache(game: LiveGameSession | null | undefined): boolean {
+    if (!game) return false;
+    return resolveArenaSessionPolicy(game as any).kind !== 'normal';
+}
 
 function countPlacedMovesInHistory(h: LiveGameSession['moveHistory'] | undefined): number {
     if (!Array.isArray(h)) return 0;
@@ -92,7 +99,7 @@ function isPvpPreStartModalGame(game: LiveGameSession | undefined): boolean {
     if (!game) return false;
     const st = game.gameStatus;
     if (st === 'ended' || st === 'no_contest') return false;
-    if (game.isSinglePlayer || game.gameCategory === 'tower' || game.gameCategory === 'singleplayer' || game.gameCategory === 'adventure') {
+    if (resolveArenaSessionPolicy(game as any).kind !== 'normal') {
         return false;
     }
     if (st === 'pair_order_reveal' && isPairClassicGame(game.settings, game.mode)) return true;
@@ -108,14 +115,10 @@ function isProtectedPvpPreStartFromEviction(cached: { game: LiveGameSession; las
 
 function isActivePveCachedGame(gameId: string, game: LiveGameSession | null | undefined): boolean {
     if (!game) return false;
-    const isPveId = gameId.startsWith('sp-game-') || gameId.startsWith('tower-game-');
-    const isPveCategory =
-        game.isSinglePlayer === true ||
-        game.gameCategory === 'tower' ||
-        game.gameCategory === 'singleplayer' ||
-        game.gameCategory === 'adventure';
+    // resolveArenaKind inside the policy honours sp-game-/tower- id prefixes and adventure/guildwar markers.
+    const isPve = isPveSessionForCache({ ...game, id: game.id ?? gameId } as LiveGameSession);
     const isActive = game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest';
-    return (isPveId || isPveCategory) && isActive;
+    return isPve && isActive;
 }
 
 function isProtectedPveFromEviction(gameId: string, cached: { game: LiveGameSession; lastUpdated: number }, now: number): boolean {
@@ -167,7 +170,8 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
     const game = await db.getLiveGame(gameId);
     if (game) {
         // 도전의 탑: CONFIRM이 캐시에서만 'playing'으로 바꾸고 DB 저장은 비동기이므로, 캐시에 이미 'playing'이 있으면 DB의 'pending'으로 덮어쓰지 않음
-        const isTowerOrSp = gameId.startsWith('sp-game-') || gameId.startsWith('tower-');
+        const towerOrSpKind = resolveArenaSessionPolicy({ ...game, id: game.id ?? gameId } as any).kind;
+        const isTowerOrSp = towerOrSpKind === 'singleplayer' || towerOrSpKind === 'tower';
         if (isTowerOrSp && cached?.game && (cached.game as any).gameStatus === 'playing' && (game as any).gameStatus === 'pending') {
             cache.set(gameId, { game: cached.game, lastUpdated: now });
             return cached.game;
@@ -192,12 +196,7 @@ export async function getCachedGame(gameId: string): Promise<LiveGameSession | n
         return game;
     }
     // PVE(싱글/탑)·모험: pending 모달·DB 지연 시에도 만료 후 캐시 유지 (CONFIRM_AI_GAME_START 등)
-    if (
-        cached &&
-        (gameId.startsWith('sp-game-') ||
-            gameId.startsWith('tower-') ||
-            cached.game?.gameCategory === 'adventure')
-    ) {
+    if (cached && isPveSessionForCache({ ...cached.game, id: cached.game.id ?? gameId } as LiveGameSession)) {
         cache.set(gameId, { game: cached.game, lastUpdated: now });
         return cached.game;
     }
@@ -228,13 +227,7 @@ export function updateGameCache(game: LiveGameSession): void {
     ) {
         return;
     }
-    const isPve =
-        game.isSinglePlayer === true ||
-        game.gameCategory === 'tower' ||
-        game.gameCategory === 'singleplayer' ||
-        game.gameCategory === 'adventure' ||
-        game.gameCategory === 'guildwar';
-    if (isPve && prev?.game && compareLiveSessionProgressForPveMerge(prev.game, game) > 0) {
+    if (isPveSessionForCache(game) && prev?.game && compareLiveSessionProgressForPveMerge(prev.game, game) > 0) {
         return;
     }
     applyNormalizedChessGoInPlace(game);

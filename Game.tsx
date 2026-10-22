@@ -1741,9 +1741,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                   roomId: session.settings.pairGame.roomId,
                                   lobbyChannel: session.settings.pairGame.lobbyChannel ?? 'pair',
                                   lobbyIntent:
-                                      session.settings.pairGame.pairMode === 'ai' || session.isAiGame
-                                          ? 'ai'
-                                          : 'pvp',
+                                      resolveArenaSessionPolicy(session).matchAxis !== 'pvp' ? 'ai' : 'pvp',
                               },
                           }
                         : {}),
@@ -1764,7 +1762,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                             roomId: rid,
                             lobbyChannel: session.settings?.pairGame?.lobbyChannel ?? 'pair',
                             lobbyIntent:
-                                session.settings?.pairGame?.pairMode === 'ai' || session.isAiGame ? 'ai' : 'pvp',
+                                resolveArenaSessionPolicy(session).matchAxis !== 'pvp' ? 'ai' : 'pvp',
                         },
                     };
                     const existing = sessionStorage.getItem(key);
@@ -1775,7 +1773,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                 roomId: rid,
                                 lobbyChannel: session.settings?.pairGame?.lobbyChannel ?? 'pair',
                                 lobbyIntent:
-                                    session.settings?.pairGame?.pairMode === 'ai' || session.isAiGame ? 'ai' : 'pvp',
+                                    resolveArenaSessionPolicy(session).matchAxis !== 'pvp' ? 'ai' : 'pvp',
                             };
                         } catch {
                             // ignore

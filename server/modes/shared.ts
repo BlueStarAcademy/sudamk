@@ -40,13 +40,8 @@ const aiManualPauseResumeAvailableAt = new Map<string, number>();
 export function isAiLobbyPausableSession(
     game: Pick<LiveGameSession, 'isAiGame' | 'isSinglePlayer' | 'gameCategory'>,
 ): boolean {
-    const cat = (game as any).gameCategory as string | undefined;
-    return (
-        !!game.isAiGame &&
-        !game.isSinglePlayer &&
-        cat !== 'tower' &&
-        cat !== 'singleplayer'
-    );
+    const policy = resolveArenaSessionPolicy(game as any);
+    return policy.isStrategicAiLike && policy.kind !== 'tower' && policy.kind !== 'singleplayer';
 }
 
 /** 유저가 `RESUME_AI_GAME`으로 재개하기 전 수동 시계 정지 상태 */

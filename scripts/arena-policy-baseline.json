@@ -1,0 +1,386 @@
+{
+  "shared/constants/guildConstants.ts": {
+    "gameCategoryComparison": 1
+  },
+  "shared/constants/pveTutorials.ts": {
+    "gameCategoryComparison": 1
+  },
+  "shared/utils/adventureEncounterUi.ts": {
+    "gameCategoryComparison": 1
+  },
+  "shared/utils/arenaChannel.ts": {
+    "directPairGameAccess": 1
+  },
+  "shared/utils/effectivePairLobbyOwnerId.ts": {
+    "directPairGameAccess": 1
+  },
+  "shared/utils/guildWarMaxSingleCapturePoints.ts": {
+    "gameCategoryComparison": 1
+  },
+  "shared/utils/liveArenaPhaseGoldXpMultiplier.ts": {
+    "legacyFlagBranch": 1
+  },
+  "shared/utils/liveSessionSinglePlayerStage.ts": {
+    "legacyFlagBranch": 1
+  },
+  "shared/utils/missileLandingCapture.ts": {
+    "gameCategoryComparison": 2,
+    "legacyFlagBranch": 1
+  },
+  "shared/utils/pairArenaAiMatchSettings.ts": {
+    "directPairGameAccess": 1
+  },
+  "shared/utils/pairArenaIngameChrome.ts": {
+    "directPairGameAccess": 1
+  },
+  "shared/utils/pairArenaSessionRestore.ts": {
+    "directPairGameAccess": 2
+  },
+  "shared/utils/pairChessSetup.ts": {
+    "legacyFlagBranch": 2,
+    "directPairGameAccess": 5
+  },
+  "shared/utils/pairGameTurn.ts": {
+    "directPairGameAccess": 18
+  },
+  "shared/utils/pairGoKataResolve.ts": {
+    "directPairGameAccess": 2
+  },
+  "shared/utils/pveOpponentDisplay.ts": {
+    "legacyFlagBranch": 2
+  },
+  "shared/utils/rankedFixedTurnScoring.ts": {
+    "legacyFlagBranch": 3
+  },
+  "shared/utils/scoringStonePoints.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 1
+  },
+  "shared/utils/speedTimePressureSessionSync.ts": {
+    "legacyFlagBranch": 4
+  },
+  "shared/utils/strategicAiDifficulty.ts": {
+    "legacyFlagBranch": 2,
+    "directPairGameAccess": 1
+  },
+  "shared/utils/strategicBoardItemTurn.ts": {
+    "legacyFlagBranch": 2
+  },
+  "shared/utils/sumWeightedCapturePointsForCapturedStones.ts": {
+    "legacyFlagBranch": 1
+  },
+  "server/actions/aiActions.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 1
+  },
+  "server/actions/negotiationActions.ts": {
+    "legacyFlagBranch": 1,
+    "directPairGameAccess": 4
+  },
+  "server/actions/shopActions.ts": {
+    "gameCategoryComparison": 2,
+    "idPrefixKindCheck": 2
+  },
+  "server/actions/socialActions.ts": {
+    "gameCategoryComparison": 4,
+    "legacyFlagBranch": 10,
+    "directPairGameAccess": 16,
+    "idPrefixKindCheck": 1
+  },
+  "server/aiPlayer.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 9
+  },
+  "server/aiProcessingQueue.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 1
+  },
+  "server/aiSessionManager.ts": {
+    "legacyFlagBranch": 1,
+    "directPairGameAccess": 2
+  },
+  "server/db.ts": {
+    "gameCategoryComparison": 3,
+    "legacyFlagBranch": 1
+  },
+  "server/gameActions.ts": {
+    "legacyFlagBranch": 1,
+    "directPairGameAccess": 1
+  },
+  "server/gameCache.ts": {
+    "directPairGameAccess": 2
+  },
+  "server/gameModes.ts": {
+    "gameCategoryComparison": 12,
+    "legacyFlagBranch": 10
+  },
+  "server/goAiBot.ts": {
+    "gameCategoryComparison": 13,
+    "legacyFlagBranch": 35,
+    "directPairGameAccess": 2
+  },
+  "server/kataGoService.ts": {
+    "legacyFlagBranch": 1
+  },
+  "server/maybeDeleteDetachedEndedPvpGame.ts": {
+    "legacyFlagBranch": 2
+  },
+  "server/modes/alkkagi.ts": {
+    "legacyFlagBranch": 16
+  },
+  "server/modes/base.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 14
+  },
+  "server/modes/capture.ts": {
+    "directPairGameAccess": 5
+  },
+  "server/modes/castle.ts": {
+    "legacyFlagBranch": 1
+  },
+  "server/modes/chess.ts": {
+    "legacyFlagBranch": 2
+  },
+  "server/modes/chessPlacementFlow.ts": {
+    "legacyFlagBranch": 8,
+    "directPairGameAccess": 3
+  },
+  "server/modes/curling.ts": {
+    "legacyFlagBranch": 13
+  },
+  "server/modes/diceGo.ts": {
+    "legacyFlagBranch": 17
+  },
+  "server/modes/hidden.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 3
+  },
+  "server/modes/hiddenRevealPolicy.ts": {
+    "legacyFlagBranch": 4
+  },
+  "server/modes/hiddenRevealPreserve.ts": {
+    "legacyFlagBranch": 2
+  },
+  "server/modes/missile.ts": {
+    "gameCategoryComparison": 2
+  },
+  "server/modes/nigiri.ts": {
+    "legacyFlagBranch": 2
+  },
+  "server/modes/omok.ts": {
+    "legacyFlagBranch": 3
+  },
+  "server/modes/pvpStrategicPipeline.ts": {
+    "legacyFlagBranch": 2
+  },
+  "server/modes/shared.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 11,
+    "directPairGameAccess": 5
+  },
+  "server/modes/singlePlayerHidden.ts": {
+    "legacyFlagBranch": 3
+  },
+  "server/modes/singlePlayerMissile.ts": {
+    "legacyFlagBranch": 11,
+    "idPrefixKindCheck": 2
+  },
+  "server/modes/standard.ts": {
+    "gameCategoryComparison": 16,
+    "legacyFlagBranch": 25,
+    "directPairGameAccess": 3,
+    "idPrefixKindCheck": 2
+  },
+  "server/modes/thief.ts": {
+    "legacyFlagBranch": 12
+  },
+  "server/modes/towerPlayerHidden.ts": {
+    "gameCategoryComparison": 6
+  },
+  "server/pairNegotiationPairPetUsers.ts": {
+    "directPairGameAccess": 1
+  },
+  "server/pairPetKataHydration.ts": {
+    "directPairGameAccess": 2
+  },
+  "server/prisma/gameService.ts": {
+    "gameCategoryComparison": 4,
+    "legacyFlagBranch": 1
+  },
+  "server/pveItemSync.ts": {
+    "legacyFlagBranch": 2
+  },
+  "server/questService.ts": {
+    "gameCategoryComparison": 3
+  },
+  "server/repositories/mappers.ts": {
+    "legacyFlagBranch": 1
+  },
+  "server/server.ts": {
+    "gameCategoryComparison": 3,
+    "legacyFlagBranch": 4,
+    "directPairGameAccess": 2
+  },
+  "server/singlePlayerStageIdMigration.ts": {
+    "gameCategoryComparison": 2,
+    "legacyFlagBranch": 1
+  },
+  "server/socket.ts": {
+    "legacyFlagBranch": 1
+  },
+  "server/summaryService.ts": {
+    "gameCategoryComparison": 16,
+    "legacyFlagBranch": 26,
+    "directPairGameAccess": 8
+  },
+  "server/utils/actionPointSpendTiming.ts": {
+    "legacyFlagBranch": 3,
+    "directPairGameAccess": 6
+  },
+  "server/utils/adventureHeadStartCaptures.ts": {
+    "gameCategoryComparison": 1
+  },
+  "server/utils/boardBroadcastOmit.ts": {
+    "legacyFlagBranch": 1
+  },
+  "server/utils/captureTargets.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 1
+  },
+  "server/utils/liveGameBroadcastSignature.ts": {
+    "directPairGameAccess": 1
+  },
+  "server/utils/liveGameParticipants.ts": {
+    "directPairGameAccess": 2
+  },
+  "server/utils/serverMainLoopGameTick.ts": {
+    "legacyFlagBranch": 1
+  },
+  "utils/clientGameMergePolicy.ts": {
+    "directPairGameAccess": 1
+  },
+  "utils/endedPvpSessionStorage.ts": {
+    "legacyFlagBranch": 2
+  },
+  "utils/estimateAiPregameRewardSummary.ts": {
+    "gameCategoryComparison": 3,
+    "legacyFlagBranch": 3
+  },
+  "utils/gameDisplayNames.ts": {
+    "legacyFlagBranch": 1
+  },
+  "utils/matchPlayGuide.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 2
+  },
+  "utils/preGameSummaryFour.ts": {
+    "gameCategoryComparison": 6,
+    "legacyFlagBranch": 2
+  },
+  "utils/preservePairTurnOnMerge.ts": {
+    "directPairGameAccess": 2
+  },
+  "utils/strategicPvpGameRecord.ts": {
+    "directPairGameAccess": 1
+  },
+  "utils/towerPreGameDisplay.ts": {
+    "idPrefixKindCheck": 1
+  },
+  "hooks/useApp.ts": {
+    "gameCategoryComparison": 2,
+    "legacyFlagBranch": 2,
+    "directPairGameAccess": 10,
+    "idPrefixKindCheck": 2
+  },
+  "hooks/useClientGameState.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 2
+  },
+  "hooks/useClientTimer.ts": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 2
+  },
+  "components/AiGameDescriptionModal.tsx": {
+    "legacyFlagBranch": 2
+  },
+  "components/AlkkagiRoundSummary.tsx": {
+    "legacyFlagBranch": 1
+  },
+  "components/arenas/GoGameArena.tsx": {
+    "gameCategoryComparison": 9,
+    "legacyFlagBranch": 7,
+    "directPairGameAccess": 2
+  },
+  "components/arenas/SinglePlayerArena.tsx": {
+    "gameCategoryComparison": 2,
+    "legacyFlagBranch": 2
+  },
+  "components/CaptureBidModal.tsx": {
+    "directPairGameAccess": 2
+  },
+  "components/game/BaseCaptureMixBidFooterStrip.tsx": {
+    "directPairGameAccess": 2
+  },
+  "components/game/BaseGameFooterPanel.tsx": {
+    "gameCategoryComparison": 3,
+    "legacyFlagBranch": 2
+  },
+  "components/game/GameControls.tsx": {
+    "gameCategoryComparison": 20,
+    "legacyFlagBranch": 20,
+    "directPairGameAccess": 7
+  },
+  "components/game/GameModals.tsx": {
+    "gameCategoryComparison": 3,
+    "legacyFlagBranch": 7,
+    "directPairGameAccess": 1
+  },
+  "components/game/PlayerPanel.tsx": {
+    "gameCategoryComparison": 25,
+    "legacyFlagBranch": 16,
+    "directPairGameAccess": 3
+  },
+  "components/game/PreGameDescriptionLayout.tsx": {
+    "gameCategoryComparison": 2,
+    "legacyFlagBranch": 1
+  },
+  "components/game/Sidebar.tsx": {
+    "gameCategoryComparison": 12,
+    "legacyFlagBranch": 8,
+    "directPairGameAccess": 3
+  },
+  "components/game/TurnDisplay.tsx": {
+    "gameCategoryComparison": 7,
+    "legacyFlagBranch": 13,
+    "directPairGameAccess": 1
+  },
+  "components/GameSummaryModal.tsx": {
+    "gameCategoryComparison": 4,
+    "legacyFlagBranch": 7,
+    "directPairGameAccess": 4
+  },
+  "components/PairTurnOrderModal.tsx": {
+    "directPairGameAccess": 1
+  },
+  "components/PairWaitingLobby.tsx": {
+    "directPairGameAccess": 3
+  },
+  "components/SinglePlayerGameDescriptionModal.tsx": {
+    "gameCategoryComparison": 1,
+    "legacyFlagBranch": 1
+  },
+  "components/ThiefRoundSummary.tsx": {
+    "legacyFlagBranch": 1
+  },
+  "components/waiting-room/WaitingRoom.tsx": {
+    "legacyFlagBranch": 1
+  },
+  "components/WaitingRoom.tsx": {
+    "gameCategoryComparison": 2,
+    "legacyFlagBranch": 2
+  },
+  "Game.tsx": {
+    "legacyFlagBranch": 41,
+    "directPairGameAccess": 25
+  }
+}

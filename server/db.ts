@@ -7,6 +7,7 @@ import {
 } from '../shared/constants/e2eTestAccount.js';
 import { applyPgTestUserProfile, createPgTestUser } from './pgTestAccountService.ts';
 import { hashPassword } from './utils/passwordUtils.js';
+import { getArenaStateBucket } from '../shared/utils/liveSessionArenaKind.js';
 import { deepClone } from './utils/cloneHelper.js';
 import { getInitialState } from './initialData.ts';
 import {
@@ -963,10 +964,10 @@ export const getAllData = async (): Promise<Pick<AppState, 'users' | 'userCreden
     const towerGames: Record<string, LiveGameSession> = {};
     
     for (const game of allGames) {
-        const category = game.gameCategory || (game.isSinglePlayer ? 'singleplayer' : 'normal');
-        if (category === 'singleplayer') {
+        const bucket = getArenaStateBucket(game as any);
+        if (bucket === 'singlePlayerGames') {
             singlePlayerGames[game.id] = game;
-        } else if (category === 'tower') {
+        } else if (bucket === 'towerGames') {
             towerGames[game.id] = game;
         } else {
             liveGames[game.id] = game;

@@ -201,6 +201,7 @@ import {
     coerceAdventureLiveGameScoringTurnLimit,
     getClientArenaStateBucket,
     mergeGameUpdateByArena,
+    mergeInitialStateByArena,
     mergeLiveRejoinResponseWithExistingBoard,
     preserveTerminalAnalysisResultOnMerge,
     preserveTerminalGameSessionOnMerge,
@@ -10032,6 +10033,9 @@ export const useApp = () => {
                     setSinglePlayerGames(prev => {
                         const next = { ...prev, ...incoming };
                         for (const id of Object.keys(incoming)) {
+                            if (prev[id] && incoming[id]) next[id] = mergeInitialStateByArena(incoming[id], prev[id]);
+                        }
+                        for (const id of Object.keys(incoming)) {
                             let fromPayload = next[id];
                             if (!fromPayload) continue;
                             if (prev[id] && shouldKeepLocalSessionOverIncomingPending(prev[id], incoming[id])) {
@@ -10124,6 +10128,9 @@ export const useApp = () => {
                     const incoming = otherData.towerGames || {};
                     setTowerGames(prev => {
                         const next = { ...prev, ...incoming };
+                        for (const id of Object.keys(incoming)) {
+                            if (prev[id] && incoming[id]) next[id] = mergeInitialStateByArena(incoming[id], prev[id]);
+                        }
                         for (const id of Object.keys(incoming)) {
                             let fromPayload = next[id];
                             if (!fromPayload) continue;
@@ -13883,8 +13890,7 @@ export const useApp = () => {
             }
         }
         const isPveGameInStore = !!gameInStore && isSessionPveArena(gameInStore);
-        const gameCategoryInStore =
-            gameInStore?.gameCategory ?? (gameInStore?.isSinglePlayer ? 'singleplayer' : 'normal');
+        const gameCategoryInStore = gameInStore ? getSessionArenaKind(gameInStore) : 'normal';
         const isEndedPvpInStore =
             !!gameInStore &&
             gameCategoryInStore === 'normal' &&

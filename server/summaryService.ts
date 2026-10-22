@@ -2634,12 +2634,13 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         (SPECIAL_GAME_MODES.some((m) => m.mode === game.mode) || PLAYFUL_GAME_MODES.some((m) => m.mode === game.mode)) &&
         game.gameCategory !== 'adventure' &&
         !isGuildWarLiveSession(game as any);
-    const isPairAiGame = game.settings?.pairGame?.pairMode === 'ai';
-    /** 펫·2인 페어 AI는 `isAiGame`이 false일 수 있어 `pairMode === 'ai'`로 구분 */
-    const pairAiDifficultyMul =
-        game.settings?.pairGame?.pairMode === 'ai'
-            ? pairGoAiRewardRelativeToStep3Multiplier(resolveAiLobbyProfileStepFromSettings(game.settings as any, getKataServerRuntimeSnapshot().strategicLobbyKataByStep))
-            : 1;
+    const pairPolicy = resolveArenaSessionPolicy(game as any);
+    /** 펫·2인 페어 AI는 `isAiGame`이 false일 수 있어 정책 축(pve)으로 구분 */
+    const isPairAiGame = pairPolicy.isPairGame && pairPolicy.matchAxis === 'pve';
+    const isPairPvpGame = pairPolicy.isPairGame && pairPolicy.matchAxis === 'pvp';
+    const pairAiDifficultyMul = isPairAiGame
+        ? pairGoAiRewardRelativeToStep3Multiplier(resolveAiLobbyProfileStepFromSettings(game.settings as any, getKataServerRuntimeSnapshot().strategicLobbyKataByStep))
+        : 1;
     const { broadcastUserUpdate } = await import('./socket.js');
     const initialRatingByUserId: Record<string, number> = {};
     if (game.isRankedGame && !game.isAiGame) {
@@ -2805,7 +2806,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
             !isAiGame &&
             !isPairAiGame &&
             !isDraw &&
-            game.settings?.pairGame?.pairMode === 'pvp'
+            isPairPvpGame
         ) {
             const {
                 readPairNormalMatchScore,
@@ -2832,7 +2833,7 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         const pairCtx = { gameCategory: 'pair' as const, pairMode: game.settings?.pairGame?.pairMode as 'ai' | 'pvp' | undefined };
         updateQuestProgress(user, 'participate', game.mode, 1, pairCtx);
         if (isWinner) updateQuestProgress(user, 'win', game.mode, 1, pairCtx);
-        if (!isNoContest && game.settings?.pairGame?.pairMode === 'pvp') {
+        if (!isNoContest && isPairPvpGame) {
             updateQuestProgress(user, 'pair_pvp_participate', game.mode, 1, pairCtx);
             if (isWinner) updateQuestProgress(user, 'pair_pvp_win', game.mode, 1, pairCtx);
         }

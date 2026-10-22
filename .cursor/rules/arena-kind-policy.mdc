@@ -21,8 +21,23 @@ Apply this rule to changes touching:
 Use these entry points:
 
 - `resolveArenaSessionPolicy(session)` for arena kind, PVE/PVP/mixed-pair axis, pair composition, and policy flags.
+  Key fields: `kind`, `matchAxis`, `compositionMatchAxis` (composition-only axis; exposes
+  mixed pair even when `pairMode` declares pve/pvp), `hasMixedPairComposition`, `isPveLike`
+  (canonical pve|mixed_pair test), `pairTeamComposition` (incl. `ai_vs_ai`), `aiDispatchMode`
+  (`clientKick` single/tower, `serverQueue` adventure/guildwar, `mainLoop` lobby/pair AI, `none` PVP),
+  `scoringAuthority` (`clientSnapshot` only single/tower, else `server`), `turnLimitMode`
+  (authoritative: pair with a limit is `scoringTurnLimit`, not `none`).
 - `server/utils/arenaTurnPolicy.ts` for server turn counts, turn caps, PASS counting, and scoring snapshot authority.
-- `utils/clientGameMergePolicy.ts` for client-side merge corrections and arena-aware game update handling.
+  Use `resolveArenaConfiguredTurnLimit` for synchronous configured-limit reads; do not re-read
+  `settings.scoringTurnLimit/autoScoringTurns` directly.
+- `utils/clientGameMergePolicy.ts` for client-side merge corrections and arena-aware game update handling
+  (`mergeGameUpdateByArena`, `mergeInitialStateByArena` for INITIAL_STATE buckets).
+
+Enforcement: `npm run validate:arena-policy` (ratchet over
+`scripts/arena-policy-baseline.json`) fails CI when ad-hoc branching
+(`gameCategory ===`, raw `isAiGame/isSinglePlayer`, `settings.pairGame`, id-prefix kind checks)
+grows in any file. Only regenerate the baseline after a verified reduction:
+`node scripts/validate-arena-policy.mjs --write-baseline`.
 
 Do not introduce new direct branching like:
 

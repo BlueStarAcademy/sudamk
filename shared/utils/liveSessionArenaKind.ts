@@ -11,8 +11,13 @@ export type PairTeamComposition =
     | 'human_human_vs_ai'
     | 'human_ai_vs_ai'
     | 'human_human_vs_human_human'
+    | 'ai_vs_ai'
     | 'unknown';
 export type ArenaTurnLimitMode = 'none' | 'scoringTurnLimit' | 'autoScoringTurns' | 'stageAutoScoring';
+/** How AI turns are dispatched. Single source for the former 3 ad-hoc regimes. */
+export type ArenaAiDispatchMode = 'clientKick' | 'serverQueue' | 'mainLoop' | 'none';
+export type ArenaScoringAuthority = 'clientSnapshot' | 'server';
+/** @deprecated Only 'liveSession' is produced; championship sim does not use LiveGameSession. Kept for compat. */
 export type ArenaActionPipelineKind = 'liveSession' | 'championshipSim';
 export type ArenaItemConsumptionModel = 'inventory' | 'sessionCounter' | 'none';
 export type ArenaResultDisplayModel = 'instantEnd' | 'waitSummary' | 'waitScoringOverlay';
@@ -32,8 +37,15 @@ export type ArenaSessionPolicy = {
     matchAxis: ArenaMatchAxis;
     stateBucket: ArenaStateBucket;
     isPairGame: boolean;
-    pairLobbyChannel?: 'pair' | 'strategic' | 'playful';
+    pairLobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly';
     pairTeamComposition: PairTeamComposition;
+    /** matchAxis === 'pve' || 'mixed_pair'. Canonical PVE-like test; do not re-derive. */
+    isPveLike: boolean;
+    /** Axis implied by team composition alone, ignoring pairMode. Exposes mixed pair even when pairMode declares pve/pvp. */
+    compositionMatchAxis: ArenaMatchAxis;
+    hasMixedPairComposition: boolean;
+    aiDispatchMode: ArenaAiDispatchMode;
+    scoringAuthority: ArenaScoringAuthority;
     isStrategicAiLike: boolean;
     /** Server should be able to compute bot turns with the Kata/Go AI pipeline for this PVE arena. */
     usesServerKataAi: boolean;
@@ -169,6 +181,15 @@ function memberIsAiLike(kind: PairMemberKind | undefined, id: unknown): boolean 
     return kind === 'ai' || kind === 'pet' || id === aiUserId;
 }
 
+/** Canonical pet/AI seat test for pair games (pet counts as AI-like everywhere). */
+export function isPairMemberAiLike(kind: PairMemberKind | undefined, id?: unknown): boolean {
+    return memberIsAiLike(kind, id);
+}
+
+export function isPveLikeAxis(axis: ArenaMatchAxis): boolean {
+    return axis === 'pve' || axis === 'mixed_pair';
+}
+
 function teamKinds(members: Array<{ id?: string; kind?: PairMemberKind }> | undefined): { humans: number; aiLike: number } {
     const rows = Array.isArray(members) ? members : [];
     return rows.reduce(
@@ -200,7 +221,25 @@ export function resolvePairTeamComposition(settings: Pick<GameSettings, 'pairGam
     if (ordered === 'ai_vs_human_human') return 'human_human_vs_ai';
     if (ordered === 'ai_vs_human_ai') return 'human_ai_vs_ai';
     if (teamA === 'human_human' && teamB === 'human_human') return 'human_human_vs_human_human';
+    if (teamA === 'ai' && teamB === 'ai') return 'ai_vs_ai';
     return 'unknown';
+}
+
+const MIXED_PAIR_COMPOSITIONS: ReadonlySet<PairTeamComposition> = new Set([
+    'human_ai_vs_human_ai',
+    'human_human_vs_ai',
+    'human_ai_vs_ai',
+]);
+
+/** Axis implied by team composition alone (ignores pairMode declaration). */
+export function resolvePairCompositionMatchAxis(
+    settings: Pick<GameSettings, 'pairGame'> | null | undefined,
+): ArenaMatchAxis {
+    const composition = resolvePairTeamComposition(settings);
+    if (MIXED_PAIR_COMPOSITIONS.has(composition)) return 'mixed_pair';
+    if (composition === 'human_human_vs_human_human') return 'pvp';
+    if (composition === 'ai_vs_ai') return 'pve';
+    return settings?.pairGame ? 'mixed_pair' : 'pvp';
 }
 
 export function resolveArenaMatchAxis(session: SessionLike | null | undefined): ArenaMatchAxis {
@@ -211,9 +250,10 @@ export function resolveArenaMatchAxis(session: SessionLike | null | undefined): 
     }
 
     const pairComposition = resolvePairTeamComposition(session?.settings);
-    if (pairComposition === 'human_ai_vs_human_ai' || pairComposition === 'human_human_vs_ai' || pairComposition === 'human_ai_vs_ai') {
+    if (MIXED_PAIR_COMPOSITIONS.has(pairComposition)) {
         return 'mixed_pair';
     }
+    if (pairComposition === 'ai_vs_ai') return 'pve';
     if (isPairSessionLike(session)) {
         return pairComposition === 'human_human_vs_human_human' ? 'pvp' : 'mixed_pair';
     }
@@ -261,17 +301,23 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
                 !session?.isSinglePlayer &&
                 !session?.isAiGame));
 
-    const turnLimitMode: ArenaTurnLimitMode = captureRule || isPairGame
+    // Authoritative: pair games with a scoringTurnLimit use 'scoringTurnLimit' (not 'none').
+    // arenaTurnPolicy must branch on this instead of re-reading settings.
+    const turnLimitMode: ArenaTurnLimitMode = captureRule
         ? 'none'
-        : kind === GameCategory.SinglePlayer
-          ? 'stageAutoScoring'
-          : kind === GameCategory.Tower || kind === GameCategory.GuildWar
-            ? 'autoScoringTurns'
-              : Number((settings as any)?.autoScoringTurns ?? 0) > 0
+        : isPairGame
+          ? Number(settings?.scoringTurnLimit ?? 0) > 0
+              ? 'scoringTurnLimit'
+              : 'none'
+          : kind === GameCategory.SinglePlayer
+            ? 'stageAutoScoring'
+            : kind === GameCategory.Tower || kind === GameCategory.GuildWar
               ? 'autoScoringTurns'
-              : Number(settings?.scoringTurnLimit ?? 0) > 0
-                ? 'scoringTurnLimit'
-                : 'none';
+              : Number((settings as any)?.autoScoringTurns ?? 0) > 0
+                ? 'autoScoringTurns'
+                : Number(settings?.scoringTurnLimit ?? 0) > 0
+                  ? 'scoringTurnLimit'
+                  : 'none';
 
     const isStrategicAiLike = Boolean(session?.isAiGame) && kind !== GameCategory.SinglePlayer && kind !== GameCategory.Tower;
     const usesServerKataAi =
@@ -282,7 +328,21 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
             kind === GameCategory.GuildWar ||
             isStrategicAiLike);
 
-    const isPveLike = matchAxis === 'pve' || matchAxis === 'mixed_pair';
+    const isPveLike = isPveLikeAxis(matchAxis);
+    const compositionMatchAxis = isPairGame ? resolvePairCompositionMatchAxis(settings) : matchAxis;
+    const hasMixedPairComposition = MIXED_PAIR_COMPOSITIONS.has(pairTeamComposition);
+    const isClientAuthoritativeForScoringSnapshot =
+        kind === GameCategory.SinglePlayer || kind === GameCategory.Tower;
+    const aiDispatchMode: ArenaAiDispatchMode =
+        matchAxis === 'pvp' && !isPairGame
+            ? 'none'
+            : kind === GameCategory.SinglePlayer || kind === GameCategory.Tower
+              ? 'clientKick'
+              : kind === GameCategory.Adventure || kind === GameCategory.GuildWar
+                ? 'serverQueue'
+                : isPairGame || isStrategicAiLike || usesServerKataAi
+                  ? 'mainLoop'
+                  : 'none';
     const resultDisplayModel: ArenaResultDisplayModel =
         kind === GameCategory.SinglePlayer || kind === GameCategory.Tower
             ? 'waitScoringOverlay'
@@ -303,19 +363,24 @@ export function resolveArenaSessionPolicy(session: SessionLike | null | undefine
         isPairGame,
         pairLobbyChannel: settings?.pairGame?.lobbyChannel,
         pairTeamComposition,
+        isPveLike,
+        compositionMatchAxis,
+        hasMixedPairComposition,
+        aiDispatchMode,
+        scoringAuthority: isClientAuthoritativeForScoringSnapshot ? 'clientSnapshot' : 'server',
         isStrategicAiLike,
         usesServerKataAi,
         turnLimitMode,
         countPassAsTurn,
         usesAdventureScoringCap,
-        isClientAuthoritativeForScoringSnapshot: kind === GameCategory.SinglePlayer || kind === GameCategory.Tower,
+        isClientAuthoritativeForScoringSnapshot,
         deferAutoScoringAfterAi: usesServerKataAi,
         clearsItemPhaseAnimationOnPlaying:
             modeIncludesMissileRule(session?.mode, settings) || modeIncludesHiddenRule(session?.mode, settings),
         clearsMissileFlightAnimationOnPlaying:
             modeIncludesMissileRule(session?.mode, settings) || modeIncludesHiddenRule(session?.mode, settings),
         usesHiddenRule: hiddenRule,
-        masksHumanHiddenFromAi: hiddenRule && matchAxis === 'pve',
+        masksHumanHiddenFromAi: hiddenRule && isPveLike,
         requiresClientSyncBeforeAction: isPveLike,
         usesAutomaticBaseStonePlacement: baseRule && matchAxis !== 'pvp',
         // 전략 아이템(히든/스캔/미사일)은 협상 설정 기반 세션 카운터. 타워만 인벤토리 연동.

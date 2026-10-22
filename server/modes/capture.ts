@@ -88,7 +88,7 @@ const maybeAutoSubmitCaptureBids = (game: types.LiveGameSession) => {
 
     const pairGame = game.settings?.pairGame;
     if (pairGame) {
-        if (pairGame.pairMode !== 'ai') return;
+        if (resolveArenaSessionPolicy(game as any).matchAxis !== 'pve') return;
         (['teamA', 'teamB'] as const).forEach((teamId) => {
             const members = pairGame[teamId]?.members ?? [];
             const hasHuman = members.some((m) => m.kind === 'user');
@@ -301,13 +301,13 @@ export const handleCaptureAction = (game: types.LiveGameSession, action: types.S
                 return { error: "Not in confirmation phase." };
             }
             if (!game.preGameConfirmations) game.preGameConfirmations = {};
-            if (game.isAiGame || game.settings?.pairGame?.pairMode === 'ai') {
+            if (resolveArenaSessionPolicy(game as any).isPveLike) {
                 Object.assign(game.preGameConfirmations, getAiRevealConfirmations(game));
             }
             let revealConfirmKey = user.id;
             {
                 const pairGame = game.settings?.pairGame;
-                if (pairGame && pairGame.pairMode !== 'ai' && modeIncludesBaseCaptureMix(game.mode, game.settings)) {
+                if (pairGame && resolveArenaSessionPolicy(game as any).matchAxis !== 'pve' && modeIncludesBaseCaptureMix(game.mode, game.settings)) {
                     const teamId = getPairTeamIdForUser(game, user.id);
                     if (!teamId) return { error: '페어 팀 참가자만 확인할 수 있습니다.' };
                     revealConfirmKey = getPairTeamBidSubjectId(game, teamId);

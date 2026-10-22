@@ -4,6 +4,7 @@ import { aiUserId } from '../shared/constants/auth.js';
 import { normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
 import {
     getArenaStateBucket,
+    resolveArenaKind,
     resolveArenaSessionPolicy,
 } from '../shared/utils/liveSessionArenaKind.js';
 
@@ -403,17 +404,19 @@ function buildShellFromSnapshot(
         moveHistory: [],
         captures: { [Player.None]: 0, [Player.Black]: 0, [Player.White]: 0 },
         gameStatus: 'playing',
-    } as LiveGameSession;
+    } as unknown as LiveGameSession;
 
     if (parsed.stageId) (shell as { stageId?: string }).stageId = String(parsed.stageId);
     if (typeof parsed.towerFloor === 'number') shell.towerFloor = parsed.towerFloor;
     if (parsed.adventureStageId) (shell as { adventureStageId?: string }).adventureStageId = String(parsed.adventureStageId);
 
-    if (gameId.startsWith('sp-game-')) {
+    // Kind (incl. sp-game-/tower- prefixes and adventure/guildwar markers) comes from the policy only.
+    const shellKind = resolveArenaKind({ ...shell, id: gameId } as any);
+    if (shellKind === 'singleplayer') {
         shell.isSinglePlayer = true;
         shell.gameCategory = 'singleplayer' as LiveGameSession['gameCategory'];
-    } else if (gameId.startsWith('tower-')) {
-        shell.gameCategory = 'tower' as LiveGameSession['gameCategory'];
+    } else if (shellKind === 'tower' || shellKind === 'adventure' || shellKind === 'guildwar') {
+        shell.gameCategory = shellKind as LiveGameSession['gameCategory'];
     }
 
     return shell;

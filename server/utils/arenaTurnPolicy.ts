@@ -21,26 +21,30 @@ export function getArenaTurnCount(game: types.LiveGameSession): number {
     return policy.countPassAsTurn ? (game.moveHistory || []).length : getValidStoneMoveCount(game);
 }
 
+/** Synchronous configured limit (no stage-table lookup). 0 when policy says no limit. */
+export function resolveArenaConfiguredTurnLimit(game: types.LiveGameSession): number {
+    const policy = resolveArenaSessionPolicy(game as any);
+    if (policy.turnLimitMode === 'none') return 0;
+    const scoring = Number((game.settings as any)?.scoringTurnLimit ?? 0);
+    const auto = Number((game.settings as any)?.autoScoringTurns ?? 0);
+    if (policy.turnLimitMode === 'scoringTurnLimit') return scoring > 0 ? scoring : auto;
+    if (policy.turnLimitMode === 'autoScoringTurns') return auto > 0 ? auto : scoring;
+    // stageAutoScoring: stage lookup is async; configured fields are the sync approximation.
+    return auto > 0 ? auto : scoring;
+}
+
 export async function resolveArenaFixedScoringTurnLimit(game: types.LiveGameSession): Promise<number | undefined> {
     const policy = resolveArenaSessionPolicy(game as any);
     const scoringTurnLimit = Number((game.settings as any)?.scoringTurnLimit ?? 0);
     // human 1v1 PVP: 랭킹전만 수순 제한 계가 (상호 패스 계가 없음)
-    if (
-        policy.matchAxis === 'pvp' &&
-        policy.kind === GameCategory.Normal &&
-        !game.isAiGame &&
-        !game.isSinglePlayer &&
-        !policy.isPairGame
-    ) {
+    if (policy.matchAxis === 'pvp' && policy.kind === GameCategory.Normal && !policy.isPairGame && !policy.isPveLike) {
         if (isRankedFixedTurnScoringSession(game)) {
             return scoringTurnLimit;
         }
         return undefined;
     }
     if (policy.isPairGame) {
-        return scoringTurnLimit > 0 && !modeIncludesCaptureRule(game.mode, game.settings)
-            ? scoringTurnLimit
-            : undefined;
+        return policy.turnLimitMode === 'scoringTurnLimit' && scoringTurnLimit > 0 ? scoringTurnLimit : undefined;
     }
     if (policy.turnLimitMode === 'none' || modeIncludesCaptureRule(game.mode, game.settings)) {
         return undefined;
@@ -76,6 +80,6 @@ export async function resolveArenaTurnLimitState(game: types.LiveGameSession): P
 }
 
 export function arenaUsesClientAuthoritativeScoringSnapshot(game: types.LiveGameSession): boolean {
-    return resolveArenaSessionPolicy(game as any).isClientAuthoritativeForScoringSnapshot;
+    return resolveArenaSessionPolicy(game as any).scoringAuthority === 'clientSnapshot';
 }
 

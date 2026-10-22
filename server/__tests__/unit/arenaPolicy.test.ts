@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { GameCategory, GameMode, Player } from '../../../shared/types/enums.js';
 import type { GameSettings, LiveGameSession } from '../../../shared/types/index.js';
 import {
+    getArenaStateBucket,
     isPairHumanHumanPvpForTeamResign,
     resolveArenaKind,
     resolveArenaMatchAxis,
@@ -9,7 +10,12 @@ import {
     resolvePairTeamComposition,
 } from '../../../shared/utils/liveSessionArenaKind.js';
 import { getAdventureDesignScoringTurnLimit } from '../../../shared/utils/adventureBattleBoard.js';
-import { getArenaTurnCount, resolveArenaFixedScoringTurnLimit } from '../../utils/arenaTurnPolicy.js';
+import { coerceAdventureLiveGameScoringTurnLimit } from '../../../utils/clientGameMergePolicy.js';
+import {
+    getArenaTurnCount,
+    resolveArenaConfiguredTurnLimit,
+    resolveArenaFixedScoringTurnLimit,
+} from '../../utils/arenaTurnPolicy.js';
 
 const settings = (patch: Partial<GameSettings> = {}): GameSettings =>
     ({
@@ -211,7 +217,7 @@ describe('arena policy', () => {
         expect(pveStandard.usesAutomaticBaseStonePlacement).toBe(false);
     });
 
-    it('keeps pair turnLimitMode none but honors scoringTurnLimit for turn counting and auto scoring', async () => {
+    it('exposes pair turnLimitMode as scoringTurnLimit (policy is authoritative)', async () => {
         const pairSession = session({
             settings: settings({
                 scoringTurnLimit: 120,
@@ -235,10 +241,10 @@ describe('arena policy', () => {
             }),
         );
 
-        expect(pairPve.turnLimitMode).toBe('none');
+        expect(pairPve.turnLimitMode).toBe('scoringTurnLimit');
         expect(pairPve.matchAxis).toBe('pve');
         expect(pairPve.countPassAsTurn).toBe(true);
-        expect(pairPvp.turnLimitMode).toBe('none');
+        expect(pairPvp.turnLimitMode).toBe('scoringTurnLimit');
         expect(pairPvp.matchAxis).toBe('pvp');
         expect(pairPvp.countPassAsTurn).toBe(true);
         expect(await resolveArenaFixedScoringTurnLimit(pairSession)).toBe(120);
@@ -277,6 +283,160 @@ describe('arena policy', () => {
         });
         expect(isPairHumanHumanPvpForTeamResign(pairPvp)).toBe(true);
         expect(isPairHumanHumanPvpForTeamResign(session({ gameCategory: GameCategory.SinglePlayer, isSinglePlayer: true }))).toBe(false);
+    });
+
+    it('does not count PASS for capture PvP, singleplayer/tower, or normal AI lobby', () => {
+        const moves = [
+            { x: 1, y: 1, player: Player.Black },
+            { x: -1, y: -1, player: Player.White },
+            { x: 2, y: 2, player: Player.Black },
+        ];
+        expect(getArenaTurnCount(session({ mode: GameMode.Capture, moveHistory: moves }))).toBe(2);
+        expect(resolveArenaSessionPolicy(session({ mode: GameMode.Capture })).countPassAsTurn).toBe(false);
+        expect(
+            getArenaTurnCount(session({ gameCategory: GameCategory.SinglePlayer, isSinglePlayer: true, moveHistory: moves })),
+        ).toBe(2);
+        expect(getArenaTurnCount(session({ gameCategory: GameCategory.Tower, moveHistory: moves }))).toBe(2);
+        expect(getArenaTurnCount(session({ gameCategory: GameCategory.Normal, isAiGame: true, moveHistory: moves }))).toBe(2);
+        expect(resolveArenaConfiguredTurnLimit(session({ mode: GameMode.Capture }))).toBe(0);
+    });
+
+    it('covers adventure board caps for all sizes and capture exclusion', () => {
+        expect(getAdventureDesignScoringTurnLimit(7)).toBe(30);
+        expect(getAdventureDesignScoringTurnLimit(9)).toBe(40);
+        expect(getAdventureDesignScoringTurnLimit(19)).toBe(200);
+        const captureAdventure = session({
+            gameCategory: GameCategory.Adventure,
+            mode: GameMode.Capture,
+            isAiGame: true,
+        });
+        expect(resolveArenaSessionPolicy(captureAdventure).usesAdventureScoringCap).toBe(false);
+        const wrong = session({
+            gameCategory: GameCategory.Adventure,
+            isAiGame: true,
+            settings: settings({ boardSize: 11, scoringTurnLimit: 85 }),
+        });
+        expect((coerceAdventureLiveGameScoringTurnLimit(wrong as any).settings as any).scoringTurnLimit).toBe(60);
+        const already = session({
+            gameCategory: GameCategory.Adventure,
+            isAiGame: true,
+            settings: settings({ boardSize: 11, scoringTurnLimit: 60 }),
+        });
+        expect(coerceAdventureLiveGameScoringTurnLimit(already as any)).toBe(already);
+    });
+
+    it('classifies kind fallbacks and state buckets', () => {
+        expect(resolveArenaKind(null)).toBe('normal');
+        expect(resolveArenaKind({ id: 'sp-game-1' } as any)).toBe('singleplayer');
+        expect(resolveArenaKind({ id: 'x', towerFloor: 3 } as any)).toBe('tower');
+        expect(resolveArenaKind({ id: 'x', guildWarBoardId: 'board-1' } as any)).toBe('guildwar');
+        expect(getArenaStateBucket(session({ gameCategory: GameCategory.SinglePlayer }))).toBe('singlePlayerGames');
+        expect(getArenaStateBucket(session({ gameCategory: GameCategory.Tower }))).toBe('towerGames');
+        expect(getArenaStateBucket(session({ gameCategory: GameCategory.Adventure }))).toBe('liveGames');
+    });
+
+    it('covers pair compositions incl. human-human, ai-vs-ai, unknown and mixed axis without pairMode', () => {
+        expect(
+            resolvePairTeamComposition(
+                pairSettings(
+                    [
+                        { id: 'h1', kind: 'user' },
+                        { id: 'h2', kind: 'user' },
+                    ],
+                    [
+                        { id: 'h3', kind: 'user' },
+                        { id: 'h4', kind: 'user' },
+                    ],
+                    'pvp',
+                ),
+            ),
+        ).toBe('human_human_vs_human_human');
+        expect(resolvePairTeamComposition(pairSettings([{ id: 'a1', kind: 'ai' }], [{ id: 'a2', kind: 'ai' }]))).toBe('ai_vs_ai');
+        expect(resolvePairTeamComposition(undefined)).toBe('unknown');
+        expect(resolvePairTeamComposition(pairSettings([{ id: 'h1', kind: 'user' }], [{ id: 'h2', kind: 'user' }]))).toBe('unknown');
+
+        const noMode = pairSettings(
+            [
+                { id: 'h1', kind: 'user' },
+                { id: 'pet1', kind: 'pet' },
+            ],
+            [
+                { id: 'h2', kind: 'user' },
+                { id: 'pet2', kind: 'pet' },
+            ],
+        );
+        (noMode.pairGame as any).pairMode = undefined;
+        const mixed = session({ settings: settings(noMode as any) });
+        expect(resolveArenaMatchAxis(mixed)).toBe('mixed_pair');
+        const mixedPolicy = resolveArenaSessionPolicy(mixed);
+        expect(mixedPolicy.compositionMatchAxis).toBe('mixed_pair');
+        expect(mixedPolicy.hasMixedPairComposition).toBe(true);
+        expect(mixedPolicy.isPveLike).toBe(true);
+
+        // pairMode declares pvp, but composition stays visible via compositionMatchAxis
+        const declaredPvp = resolveArenaSessionPolicy(
+            session({
+                settings: settings(
+                    pairSettings(
+                        [
+                            { id: 'h1', kind: 'user' },
+                            { id: 'pet1', kind: 'pet' },
+                        ],
+                        [
+                            { id: 'h2', kind: 'user' },
+                            { id: 'pet2', kind: 'pet' },
+                        ],
+                        'pvp',
+                    ) as any,
+                ),
+            }),
+        );
+        expect(declaredPvp.matchAxis).toBe('pvp');
+        expect(declaredPvp.compositionMatchAxis).toBe('mixed_pair');
+    });
+
+    it('exposes aiDispatchMode, scoringAuthority, isPveLike and hidden masking per axis', () => {
+        const sp = resolveArenaSessionPolicy(session({ gameCategory: GameCategory.SinglePlayer, isSinglePlayer: true }));
+        expect(sp.aiDispatchMode).toBe('clientKick');
+        expect(sp.scoringAuthority).toBe('clientSnapshot');
+        expect(sp.isPveLike).toBe(true);
+        const adv = resolveArenaSessionPolicy(session({ gameCategory: GameCategory.Adventure, isAiGame: true }));
+        expect(adv.aiDispatchMode).toBe('serverQueue');
+        expect(adv.scoringAuthority).toBe('server');
+        const pvp = resolveArenaSessionPolicy(session({ gameCategory: GameCategory.Normal, isAiGame: false }));
+        expect(pvp.aiDispatchMode).toBe('none');
+        expect(pvp.isPveLike).toBe(false);
+        const hiddenMixed = resolveArenaSessionPolicy(
+            session({
+                mode: GameMode.Hidden,
+                settings: settings({
+                    scoringTurnLimit: 60,
+                    ...(pairSettings(
+                        [
+                            { id: 'h1', kind: 'user' },
+                            { id: 'pet1', kind: 'pet' },
+                        ],
+                        [{ id: 'ai1', kind: 'ai' }],
+                    ) as any),
+                }),
+            }),
+        );
+        expect(hiddenMixed.masksHumanHiddenFromAi).toBe(true);
+    });
+
+    it('resolves guildwar mirrored turn limit preferring autoScoringTurns', async () => {
+        const gw = session({
+            gameCategory: GameCategory.GuildWar,
+            isAiGame: false,
+            settings: settings({ autoScoringTurns: 20, scoringTurnLimit: 99 } as any),
+        });
+        expect(await resolveArenaFixedScoringTurnLimit(gw)).toBe(20);
+        const gwNoAuto = session({
+            gameCategory: GameCategory.GuildWar,
+            isAiGame: false,
+            settings: settings({ scoringTurnLimit: 99 } as any),
+        });
+        expect(await resolveArenaFixedScoringTurnLimit(gwNoAuto)).toBeUndefined();
     });
 });
 

@@ -400,7 +400,7 @@ export function buildOptimisticAiLobbyStartSession(
     now: number = Date.now(),
 ): LiveGameSession | null {
     const policy = resolveArenaSessionPolicy(session as any);
-    if (!session.isAiGame || policy.kind === 'singleplayer' || policy.kind === 'tower') {
+    if (!policy.isStrategicAiLike) {
         return null;
     }
     if (session.gameStatus !== 'pending') return null;
@@ -674,7 +674,7 @@ export function shouldIgnoreStalePendingAiLobbyStartRegression(
     if (!existing || incoming.gameStatus !== 'pending') return false;
     if (existing.gameStatus === 'pending') return false;
     const existingPolicy = resolveArenaSessionPolicy(existing as any);
-    if (!existing.isAiGame || existingPolicy.kind === 'singleplayer' || existingPolicy.kind === 'tower') {
+    if (!existingPolicy.isStrategicAiLike) {
         return false;
     }
 
@@ -1359,5 +1359,13 @@ export function mergeGameUpdateByArena(
         return arenaMerged;
     }
     return preserveTerminalGameSessionOnMerge(arenaMerged, existing);
+}
+
+/** INITIAL_STATE bucket merge entry point: all buckets must go through mergeGameUpdateByArena. */
+export function mergeInitialStateByArena(
+    incoming: LiveGameSession,
+    existing: LiveGameSession | undefined,
+): LiveGameSession {
+    return mergeGameUpdateByArena(incoming, existing, { source: 'initial_state' });
 }
 
