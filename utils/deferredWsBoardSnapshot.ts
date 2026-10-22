@@ -250,6 +250,28 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
     const clientBoardOk = isSubstantiveBoardState(clientSnap.boardState);
     const historiesSharePrefix = moveHistoriesSharePrefix(server.moveHistory, clientSnap.moveHistory);
 
+    // Hidden-reveal finalization changes the board WITHOUT adding a move:
+    // captured stones are removed and the capturing (hidden) stone is settled
+    // at pendingCapture.move. Slim packets omit boardState, so the merged
+    // "server" board is really the pre-reveal client board. Treating it as
+    // authoritative (same move count) made the capturing stone vanish and
+    // captured stones linger on the opponent's screen. Replay from the
+    // authoritative moveHistory instead whenever we leave the reveal phase.
+    if (
+        clientSnap.gameStatus === 'hidden_reveal_animating' &&
+        server.gameStatus === 'playing' &&
+        historiesSharePrefix
+    ) {
+        const moveHistory = server.moveHistory ?? clientSnap.moveHistory;
+        const replayed = replayStrategicBoardFromMoveHistory(
+            { ...server, moveHistory },
+            clientSnap,
+        );
+        if (replayed) {
+            return { boardState: replayed, moveHistory };
+        }
+    }
+
     // Server-authoritative advance (Kata PVE AI stone): accept when histories share a prefix,
     // or when the packet includes a real board. Divergent slim/stale longer packets still fall
     // through so lobby AI delayed-display protection keeps the already-drawn client board.

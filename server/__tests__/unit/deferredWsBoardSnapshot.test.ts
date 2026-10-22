@@ -332,6 +332,67 @@ describe('resolveStrategicPvePlayingBoardAndMoveHistory', () => {
     });
 });
 
+describe('hidden reveal finalization (board changes without a new move)', () => {
+    const empty5 = () =>
+        Array.from({ length: 5 }, () => Array(5).fill(Player.None)) as number[][];
+    // Black hidden at (1,1) captures White at (2,1); surrounding black at (2,0),(2,2),(3,1)
+    const history = [
+        { x: 2, y: 1, player: Player.White },
+        { x: 2, y: 0, player: Player.Black },
+        { x: 2, y: 2, player: Player.Black },
+        { x: 3, y: 1, player: Player.Black },
+        { x: 1, y: 1, player: Player.Black },
+    ];
+    const preRevealBoard = () => {
+        const b = empty5();
+        b[1][2] = Player.White;
+        b[0][2] = Player.Black;
+        b[2][2] = Player.Black;
+        b[1][3] = Player.Black;
+        return b;
+    };
+
+    it('replays board when leaving hidden_reveal_animating so capturing hidden stone appears and captured stone is gone', () => {
+        // Merged "server" snapshot after reveal: playing, slim (board inherited from pre-reveal client)
+        const server = {
+            gameStatus: 'playing',
+            moveHistory: history,
+            boardState: preRevealBoard(),
+            settings: { boardSize: 5 },
+        } as unknown as LiveGameSession;
+        const client = {
+            gameStatus: 'hidden_reveal_animating',
+            moveHistory: history,
+            boardState: preRevealBoard(),
+            settings: { boardSize: 5 },
+        } as unknown as LiveGameSession;
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
+        expect(resolved.boardState?.[1]?.[1]).toBe(Player.Black);
+        expect(resolved.boardState?.[1]?.[2]).toBe(Player.None);
+        expect(resolved.boardState?.[0]?.[2]).toBe(Player.Black);
+    });
+
+    it('does not replay when previous status was not hidden reveal (same-length stale packets keep client board)', () => {
+        const server = {
+            gameStatus: 'playing',
+            moveHistory: history,
+            boardState: preRevealBoard(),
+            settings: { boardSize: 5 },
+        } as unknown as LiveGameSession;
+        const client = {
+            gameStatus: 'playing',
+            moveHistory: history,
+            boardState: preRevealBoard(),
+            settings: { boardSize: 5 },
+        } as unknown as LiveGameSession;
+
+        const resolved = resolveStrategicPvePlayingBoardAndMoveHistory(server, client);
+        // Without the reveal transition the stale-board guard keeps the merged board as-is.
+        expect(resolved.boardState?.[1]?.[2]).toBe(Player.White);
+    });
+});
+
 describe('resolveChessPvePlayingSession', () => {
     const chessPieces = generateChessGoInitialPieces(13);
 
