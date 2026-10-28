@@ -63,6 +63,8 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
                             locationPrefix={t('locationPrefix.home', { ns: 'lobby' })}
                             compactTournamentMobile={isMobile}
                             arenaPremium
+                            /** 모달 셸이 키보드를 올릴 때는 이중 lift 방지. 임베드 뷰포트는 ChatWindow가 처리 */
+                            keyboardAvoid={embedded || !isMobile}
                         />
                     </div>
                 </div>
@@ -84,6 +86,7 @@ const ChatQuickModal: React.FC<ChatQuickModalProps> = ({
             variant="store"
             mobileViewportFit={isMobile}
             mobileLockViewportHeight={isMobile}
+            mobileKeyboardAvoid={isMobile}
             mobileViewportMaxHeightVh={isMobile ? NATIVE_MOBILE_CHAT_MODAL_MAX_HEIGHT_VH : NATIVE_MOBILE_MODAL_MAX_HEIGHT_VH}
             bodyPaddingClassName={
                 isMobile

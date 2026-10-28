@@ -21,6 +21,7 @@ import {
 import ChatInlineMessageRow from './ChatInlineMessageRow.js';
 import { guildChatHistoryEntryToChatMessage } from '../../shared/utils/guildChatMessageAdapter.js';
 import { useTranslation } from 'react-i18next';
+import MobileKeyboardAvoidingChatShell from '../mobile/MobileKeyboardAvoidingChatShell.js';
 
 interface ChatWindowProps {
     messages: ChatMessage[];
@@ -34,6 +35,11 @@ interface ChatWindowProps {
     compactTournamentMobile?: boolean;
     /** 퀵메뉴 채팅 모달: 인게임 대국실과 같은 슬레이트·스카이 톤 UI */
     arenaPremium?: boolean;
+    /**
+     * 모바일 키보드 회피. 부모가 DraggableWindow `mobileKeyboardAvoid`로 이미 처리할 때 false.
+     * 기본 true.
+     */
+    keyboardAvoid?: boolean;
 }
 
 const ChatWindow: React.FC<ChatWindowProps> = ({
@@ -45,6 +51,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     compactHome = false,
     compactTournamentMobile = false,
     arenaPremium = false,
+    keyboardAvoid = true,
 }) => {
     const { t } = useTranslation('lobby');
     const { t: tGuild } = useTranslation('guild');
@@ -208,7 +215,10 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
     const emptyMuted = arenaPremium ? 'text-slate-500' : 'text-tertiary';
 
     return (
-        <div className={rootClass}>
+        <MobileKeyboardAvoidingChatShell
+            enabled={keyboardAvoid}
+            className={rootClass}
+        >
             {hasGuildChatAccess ? (
                 <div className={tabBarClass}>
                     <button type="button" onClick={() => setActiveTab('global')} className={globalTabClass}>
@@ -339,7 +349,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                    </Button>
                </form>
             </div>
-        </div>
+        </MobileKeyboardAvoidingChatShell>
     );
 };
 

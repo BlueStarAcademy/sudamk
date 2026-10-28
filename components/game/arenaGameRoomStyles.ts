@@ -19,8 +19,9 @@ export function pveIngameFooterReservedHeightClass(_isMobile?: boolean): string 
  * `gameStatus` 전후로 하단 블록 높이가 달라져도 바둑판 영역이 밀리지 않도록 고정 높이.
  */
 export function onlineGameControlsCompactFooterMinHeightClass(isMobile: boolean): string {
+    // 모바일: 인게임 하단 광고 슬롯 제거 후 조작 행만 확보 → 상단 바둑판(체스 포함) 확대
     return isMobile
-        ? 'box-border h-[11.5rem] min-h-[11.5rem] max-h-[11.5rem] overflow-hidden'
+        ? 'box-border h-[8rem] min-h-[8rem] max-h-[8rem] overflow-hidden'
         : 'box-border h-[10.75rem] min-h-[10.75rem] max-h-[10.75rem] overflow-hidden';
 }
 

@@ -2,15 +2,11 @@ import * as db from './db.js';
 import { clearAiSession } from './aiSessionManager.js';
 import { broadcast } from './socket.js';
 import { stashEndedPvpGameRecordSnapshot } from './gameRecordSnapshot.js';
+import { sessionShouldRetainEndedPvpLingerRoom } from '../shared/utils/pairArenaSessionRestore.js';
 import type { LiveGameSession, VolatileState } from '../types/index.js';
 
 function isLingerEndedPvpRoomCandidate(game: LiveGameSession): boolean {
-    return (
-        (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') &&
-        !game.isSinglePlayer &&
-        !game.isAiGame &&
-        !Boolean((game.settings as { pairGame?: unknown } | undefined)?.pairGame)
-    );
+    return sessionShouldRetainEndedPvpLingerRoom(game);
 }
 
 /** 종료 PVP 대국실에 플레이어/관전자/리매치 협상이 더 없을 때만 DB에서 제거 */

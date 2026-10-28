@@ -556,6 +556,50 @@ describe('mergeGameUpdateByArena', () => {
         expect(merged.chessPieces!.find((p) => p.id === pawn.id)!.y).toBe(9);
     });
 
+    it('PVP chess: same-length divergent last move prefers server (spam-click board desync)', () => {
+        const pieces = generateChessGoInitialPieces(13);
+        const existing = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 5, y: 5, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            lastMove: { x: 5, y: 5 },
+            serverRevision: 20,
+        }) as LiveGameSession;
+        existing.boardState = Array.from({ length: 13 }, () => Array(13).fill(Player.None));
+        existing.boardState![6]![6] = Player.Black;
+        existing.boardState![5]![5] = Player.White;
+
+        const incoming = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces,
+            // 슬림 WS: boardState 생략, 서버 수순만 전달
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            lastMove: { x: 7, y: 7 },
+            serverRevision: 21,
+        }) as LiveGameSession;
+        delete (incoming as { boardState?: unknown }).boardState;
+
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.moveHistory![1]).toEqual({ x: 7, y: 7, player: Player.White });
+        expect(merged.boardState![7]![7]).toBe(Player.White);
+        expect(merged.boardState![5]![5]).toBe(Player.None);
+        expect(merged.currentPlayer).toBe(Player.Black);
+    });
+
     it('clears missile animation when incoming is playing even if animation is still attached', () => {
         const anim = {
             type: 'missile',

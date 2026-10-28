@@ -14,6 +14,7 @@ import ChatInlineMessageRow from '../waiting-room/ChatInlineMessageRow.js';
 import { guildChatHistoryEntryToChatMessage } from '../../shared/utils/guildChatMessageAdapter.js';
 import { useTranslation } from 'react-i18next';
 import { GUILD_UI_ICON_CLASS, GUILD_UI_ICONS } from '../../shared/constants/guildUiIcons.js';
+import MobileKeyboardAvoidingChatShell from '../mobile/MobileKeyboardAvoidingChatShell.js';
 
 // 고급 버튼 스타일 함수
 const luxuryButtonBase =
@@ -467,12 +468,13 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
         : (guild.chatHistory ?? []).map((msg) => guildChatHistoryEntryToChatMessage(msg, allUsers, t));
 
     return (
-        <div
+        <MobileKeyboardAvoidingChatShell
             className={`relative flex h-full flex-col overflow-hidden rounded-xl border-2 border-stone-600/60 bg-gradient-to-br from-stone-900/85 via-neutral-800/80 to-stone-900/85 shadow-lg ${
                 isNativeMobile ? 'px-2 py-2 sm:p-4' : 'p-4'
             }`}
+            forceMobile={isNativeMobile}
         >
-            <div className="absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10 pointer-events-none"></div>
+            <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-stone-500/10 via-gray-500/5 to-stone-500/10"></div>
             <div
                 className={`flex flex-shrink-0 rounded-lg bg-gray-900/70 relative z-10 ${isNativeMobile ? 'mb-1 p-0.5' : 'mb-3 p-1'}`}
             >
@@ -638,7 +640,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                     </form>
                 )}
             </div>
-        </div>
+        </MobileKeyboardAvoidingChatShell>
     );
 };
 

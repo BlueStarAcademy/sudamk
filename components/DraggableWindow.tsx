@@ -33,6 +33,7 @@ import {
 import { resolvePcModalPortalPolicy } from '../utils/pcModalPortalPolicy.js';
 import MobileModalTitleBar from './mobile/MobileModalTitleBar.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS as MOBILE_MODAL_CLOSE_BUTTON_CLASS } from '../shared/constants/mobileModalChrome.js';
+import { useMobileKeyboardBottomInset } from '../hooks/useMobileKeyboardBottomInset.js';
 import { useTranslation } from 'react-i18next';
 
 /** 공지 게시판 모달과 동일한 텍스트 「닫기」 버튼 스타일 (DraggableWindow·커스텀 모달 공통) */
@@ -112,6 +113,12 @@ interface DraggableWindowProps {
      * true면 initialHeight를 기준으로 한 고정 높이(뷰포트 상한까지)를 유지 — 채팅 등 본문이 flex로 꽉 차야 할 때.
      */
     mobileLockViewportHeight?: boolean;
+
+    /**
+     * 모바일 소프트 키보드가 열리면 창을 키보드 위로 올리고 max-height를 visualViewport에 맞춘다.
+     * 채팅 퀵모달 등 입력창이 하단에 있는 모달에 사용.
+     */
+    mobileKeyboardAvoid?: boolean;
 
     /**
      * 뷰포트 맞춤 셸에서 본문 래퍼의 flex-1 성장을 끄고, 창 높이를 자식 콘텐츠에 맞춤(짧은 확인·상세 팝업용).
@@ -474,6 +481,7 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     mobileViewportMaxHeightCss,
     mobileViewportDvhBottomGapPx,
     mobileLockViewportHeight = false,
+    mobileKeyboardAvoid = false,
     bodyShrinkToContent = false,
     bodyScrollable = true,
     bodyNoScroll = false,
@@ -807,6 +815,16 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
             useReadableSmallPcViewportPortal ||
             /** `mobileViewportFit`만 켠 데스크톱(짧은 창 등): 예전엔 여기가 false여 셸·스티키 푸터가 비활성 → 일괄 사용 등 하단 버튼 잘림 */
             (mobileViewportFit === true && !modalLayerUsesDesignPixels));
+
+    const mobileKeyboardAvoidActive =
+        mobileKeyboardAvoid &&
+        !modalLayerUsesDesignPixels &&
+        (effectiveIsCompactViewport || isNativeMobile);
+    const {
+        insetPx: mobileKeyboardInsetPx,
+        visualViewportHeightPx: mobileKeyboardVvHeightPx,
+        isOpen: mobileKeyboardOpen,
+    } = useMobileKeyboardBottomInset(mobileKeyboardAvoidActive);
 
     /** in-canvas modal-root는 App 캔버스 scale을 이미 따름 — 이중 transform scale 방지 */
     const useUniformPcScaleLayout = uniformPcScale && !useMobileViewportFitLayout && !modalLayerUsesDesignPixels;
@@ -1391,9 +1409,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
 
     /** 항상 center 기준 + 드래그 오프셋 (모바일 미니멀 크롬은 항상 중앙 고정) */
-    const positionTranslate = useMobileMinimalChrome
+    const positionTranslateBase = useMobileMinimalChrome
         ? 'translate(-50%, -50%)'
         : `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`;
+    const positionTranslate =
+        mobileKeyboardLiftTranslateY > 0
+            ? `${positionTranslateBase} translateY(-${mobileKeyboardLiftTranslateY}px)`
+            : positionTranslateBase;
     const transformStyle = positionTranslate;
 
 
@@ -1438,9 +1460,13 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
     const mobileViewportFitMaxHeightCss = mobileViewportMaxHeightCss ?? (isNativeMobile ? viewportMaxHeightCss : 'calc(100dvh - 8px)');
     const mobileViewportFitDvhBottomGapPx =
         mobileViewportDvhBottomGapPx !== undefined ? mobileViewportDvhBottomGapPx : isNativeMobile ? 32 : 28;
-    const mobileViewportFitFrameMaxHeightCss = isNativeMobile
-        ? `min(${mobileViewportFitMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - ${mobileViewportFitDvhBottomGapPx}px)))`
-        : `min(${mobileViewportFitMaxHeightCss}, calc(100dvh - ${mobileViewportFitDvhBottomGapPx}px))`;
+    const mobileViewportFitFrameMaxHeightCss = mobileKeyboardOpen && mobileKeyboardVvHeightPx > 0
+        ? `${Math.max(220, mobileKeyboardVvHeightPx - 8)}px`
+        : isNativeMobile
+          ? `min(${mobileViewportFitMaxHeightCss}, min(${effectiveMobileMaxHeightVh}dvh, calc(100dvh - ${mobileViewportFitDvhBottomGapPx}px)))`
+          : `min(${mobileViewportFitMaxHeightCss}, calc(100dvh - ${mobileViewportFitDvhBottomGapPx}px))`;
+    const mobileKeyboardLiftTranslateY =
+        mobileKeyboardOpen && mobileKeyboardInsetPx > 0 ? Math.round(mobileKeyboardInsetPx / 2) : 0;
     /** 균일 scale(모든 화면)·실측 scale: max-height로 레이아웃이 먼저 잘리면 스크롤·하단 버튼 잘림 유발 */
     const relaxOuterMaxHeight = useCompactScaleToFitLayout || uniformLayout;
     /** 실측·uniform 균일 scale 시 본문 스크롤 없음(줄바꿈·비율은 transform으로 유지). 뷰포트 맞춤만 스크롤 허용 */

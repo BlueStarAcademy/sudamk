@@ -62,6 +62,55 @@ describe('restorePairRoomsAfterEndedGame', () => {
         expect(room.teamA.members.find((m: { id: string }) => m.id === 'guest-1')?.ready).toBe(false);
         expect(volatileState.userStatuses['guest-1'].status).toBe('waiting');
     });
+
+    it('restores friendly duo shell via pairWaitingRoomReturn even if membership lists are empty', () => {
+        const volatileState: any = {
+            userStatuses: {
+                'owner-1': { status: 'in-game', gameId: 'g-duo' },
+                'guest-1': { status: 'in-game', gameId: 'g-duo' },
+            },
+            pairRooms: {
+                'pair-room-friendly-duo': {
+                    id: 'pair-room-friendly-duo',
+                    code: '2',
+                    mode: 'pvp',
+                    pairMode: 'pvp',
+                    roomKind: 'duo_match',
+                    lobbyChannel: 'friendly',
+                    visibility: 'public',
+                    passwordProtected: false,
+                    phase: 'in_game',
+                    title: '친선',
+                    ownerId: 'owner-1',
+                    ownerName: '방장',
+                    ownerReady: true,
+                    partnerId: 'guest-1',
+                    partnerName: '손님',
+                    partnerReady: true,
+                    matchStartedAt: Date.now(),
+                    selectedGameMode: GameMode.Standard,
+                    settings: {},
+                    teamA: { id: 'teamA', name: 'A', members: [] },
+                    teamB: { id: 'teamB', name: 'B', members: [] },
+                    createdAt: Date.now(),
+                },
+            },
+        };
+
+        const game = {
+            id: 'g-duo',
+            gameStatus: 'ended',
+            mode: GameMode.Standard,
+            player1: { id: 'owner-1', nickname: '방장' },
+            player2: { id: 'guest-1', nickname: '손님' },
+            settings: {
+                pairWaitingRoomReturn: { roomId: 'pair-room-friendly-duo', lobbyChannel: 'friendly' },
+            },
+        } as LiveGameSession;
+
+        expect(restorePairRoomsAfterEndedGame(volatileState, game)).toBe(true);
+        expect(volatileState.pairRooms['pair-room-friendly-duo'].phase).toBe('waiting');
+    });
 });
 
 describe('leavePairWaitingRoomIfPresent', () => {

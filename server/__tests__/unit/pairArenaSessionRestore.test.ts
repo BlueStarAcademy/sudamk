@@ -8,6 +8,7 @@ import {
     isPersistentPairWaitingRoomId,
     normalizePairArenaLobbyChannel,
     postGameHomeLobbyKindFromChannel,
+    sessionShouldRetainEndedPvpLingerRoom,
     stashPostGamePairRoomLobbyReturn,
 } from '../../../shared/utils/pairArenaSessionRestore.js';
 
@@ -67,11 +68,42 @@ describe('pairArenaSessionRestore', () => {
         expect(sessionStorage.getItem(POST_GAME_OPEN_HOME_LOBBY_SESSION_KEY)).toBeNull();
     });
 
+    it('stashes restore from pairWaitingRoomReturn for duo classic 1:1 (no pairGame)', () => {
+        stashPostGamePairRoomLobbyReturn({
+            settings: {
+                pairWaitingRoomReturn: { roomId: 'pair-room-friendly-duo', lobbyChannel: 'friendly' },
+            },
+        });
+        expect(sessionStorage.getItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY)).toBe('pair-room-friendly-duo');
+        expect(consumePostGameOpenHomeLobby()).toBe('friendly');
+    });
+
     it('does not stash reopen keys for ranked synthetic room ids', () => {
         stashPostGamePairRoomLobbyReturn({
             settings: { pairGame: { roomId: 'pair-duo-ranked-a-b', lobbyChannel: 'friendly', pairMode: 'pvp' } },
         });
         expect(sessionStorage.getItem(POST_GAME_PAIR_ROOM_RESTORE_SESSION_KEY)).toBeNull();
         expect(consumePostGameOpenHomeLobby()).toBeNull();
+    });
+
+    it('does not linger ended duo friendly games that return to a waiting room', () => {
+        expect(
+            sessionShouldRetainEndedPvpLingerRoom({
+                gameStatus: 'ended',
+                isSinglePlayer: false,
+                isAiGame: false,
+                settings: {
+                    pairWaitingRoomReturn: { roomId: 'pair-room-friendly-duo', lobbyChannel: 'friendly' },
+                },
+            }),
+        ).toBe(false);
+        expect(
+            sessionShouldRetainEndedPvpLingerRoom({
+                gameStatus: 'ended',
+                isSinglePlayer: false,
+                isAiGame: false,
+                settings: {},
+            }),
+        ).toBe(true);
     });
 });

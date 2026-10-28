@@ -20,14 +20,15 @@ import {
     resolvePairChessSetupDraftKey,
 } from '../../shared/utils/pairChessSetup.js';
 
+/** PC·모바일 공통: 바둑판 상단 절반을 덮어 상대 진영 마스크 역할을 겸함 */
 const PANEL_SHELL_DESKTOP =
-    'pointer-events-auto absolute left-1/2 top-1.5 z-40 w-[min(99%,46rem)] -translate-x-1/2 overflow-hidden rounded-[1.35rem] ' +
-    'border border-amber-500/30 bg-[#0a0d14]/96 shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_28px_60px_-20px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.09)] ' +
-    'ring-1 ring-amber-400/15 backdrop-blur-xl sm:top-2';
+    'pointer-events-auto absolute inset-x-0 top-0 z-40 flex h-1/2 max-h-[50%] w-full flex-col overflow-hidden rounded-b-[1.35rem] ' +
+    'border-b border-x border-amber-500/30 bg-[#0a0d14]/96 shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_28px_60px_-20px_rgba(0,0,0,0.92),inset_0_1px_0_rgba(255,255,255,0.09)] ' +
+    'ring-1 ring-amber-400/15 backdrop-blur-xl';
 
 const PANEL_SHELL_MOBILE =
-    'pointer-events-auto relative z-40 w-full overflow-hidden rounded-xl ' +
-    'border border-amber-500/30 bg-[#0a0d14]/96 shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_12px_24px_-16px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.09)] ' +
+    'pointer-events-auto absolute inset-x-0 top-0 z-40 flex h-1/2 max-h-[50%] w-full flex-col overflow-hidden rounded-b-xl ' +
+    'border-b border-x border-amber-500/30 bg-[#0a0d14]/96 shadow-[0_0_0_1px_rgba(251,191,36,0.08),0_12px_24px_-16px_rgba(0,0,0,0.9),inset_0_1px_0_rgba(255,255,255,0.09)] ' +
     'ring-1 ring-amber-400/15 backdrop-blur-xl';
 
 const PANEL_GLOW =
@@ -118,7 +119,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
     const stoneColor =
         myPlayerEnum === Player.Black || myPlayerEnum === Player.White ? myPlayerEnum : Player.Black;
 
-    const actionBtnSize = isMobile ? 'min-h-[1.85rem] rounded-lg px-2 py-1 text-[10px]' : 'min-h-[3.1rem] px-4 py-2.5 text-sm';
+    const actionBtnSize = isMobile ? 'min-h-[1.6rem] rounded-md px-1.5 py-0.5 text-[9px]' : 'min-h-[3.1rem] px-4 py-2.5 text-sm';
     const panelShell = isMobile ? PANEL_SHELL_MOBILE : PANEL_SHELL_DESKTOP;
 
     const pieceButtons = useMemo(
@@ -142,7 +143,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                         className={[
                             'group relative flex flex-col items-center overflow-hidden border transition-all duration-200',
                             isMobile
-                                ? 'snap-start w-[4.25rem] min-w-[4.25rem] shrink-0 rounded-lg px-1 py-1'
+                                ? 'snap-start w-[3.75rem] min-w-[3.75rem] shrink-0 rounded-lg px-0.5 py-0.5'
                                 : 'rounded-2xl px-2 py-2 sm:px-2.5 sm:py-2.5 min-w-[5.5rem]',
                             selected
                                 ? 'border-amber-300/70 bg-[radial-gradient(circle_at_50%_0%,rgba(251,191,36,0.28),transparent_55%),linear-gradient(165deg,#2a2218_0%,#12151c_55%,#07090f_100%)] shadow-[0_0_0_1px_rgba(251,191,36,0.35),0_0_28px_-6px_rgba(251,191,36,0.45),inset_0_1px_0_rgba(255,255,255,0.14)] ring-2 ring-amber-400/50'
@@ -161,7 +162,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                         <ChessSetupPieceStonePreview
                             pieceType={type}
                             stoneColor={stoneColor}
-                            size={isMobile ? 32 : 54}
+                            size={isMobile ? 28 : 54}
                             selected={selected}
                         />
                         <span
@@ -205,7 +206,7 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
         return (
             <div className={panelShell}>
                 <div className={PANEL_GLOW} aria-hidden />
-                <div className={`relative text-center ${isMobile ? 'px-3 py-2' : 'px-5 py-4'}`}>
+                <div className={`relative flex min-h-0 flex-1 flex-col justify-center text-center ${isMobile ? 'px-3 py-2' : 'px-5 py-4'}`}>
                     <p className={`font-semibold text-sky-200/95 ${isMobile ? 'text-xs' : 'text-sm'}`}>
                         {tx('game:chessPlacement.hostPlacing')}
                     </p>
@@ -295,26 +296,26 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
             <div className={panelShell}>
                 <div className={PANEL_GLOW} aria-hidden />
                 <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
-                <div className="relative px-2 py-1.5">
-                    <div className="flex items-center gap-1.5">
-                        <span className="inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-md border border-amber-500/35 bg-amber-500/10 text-[10px] text-amber-200">
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-1.5 py-1">
+                    <div className="flex items-center gap-1">
+                        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border border-amber-500/35 bg-amber-500/10 text-[9px] text-amber-200">
                             ♚
                         </span>
-                        <h3 className="min-w-0 truncate bg-gradient-to-r from-amber-100 via-amber-50 to-teal-100 bg-clip-text text-[12px] font-extrabold tracking-tight text-transparent">
+                        <h3 className="min-w-0 truncate bg-gradient-to-r from-amber-100 via-amber-50 to-teal-100 bg-clip-text text-[11px] font-extrabold tracking-tight text-transparent">
                             {tx('game:chessPlacement.title')}
                         </h3>
-                        <div className="ml-auto flex items-center gap-1 rounded-md border border-amber-400/35 bg-[linear-gradient(145deg,#1a1510_0%,#0c0e14_45%,#050608_100%)] px-1.5 py-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                            <span className="whitespace-nowrap text-[8px] font-bold tracking-wide text-amber-200/85">
+                        <div className="ml-auto flex items-center gap-0.5 rounded-md border border-amber-400/35 bg-[linear-gradient(145deg,#1a1510_0%,#0c0e14_45%,#050608_100%)] px-1 py-px shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                            <span className="whitespace-nowrap text-[7px] font-bold tracking-wide text-amber-200/85">
                                 {tx('game:chessPlacement.totalScore')}
                             </span>
-                            <span className="text-sm font-black leading-none tabular-nums text-amber-50">{usedScore}</span>
-                            <span className="text-[10px] font-medium leading-none text-slate-500">/</span>
-                            <span className="text-[11px] font-extrabold leading-none tabular-nums text-teal-100/90">
+                            <span className="text-xs font-black leading-none tabular-nums text-amber-50">{usedScore}</span>
+                            <span className="text-[9px] font-medium leading-none text-slate-500">/</span>
+                            <span className="text-[10px] font-extrabold leading-none tabular-nums text-teal-100/90">
                                 {budget}
                             </span>
                         </div>
                     </div>
-                    <div className="mt-1 h-1 overflow-hidden rounded-full bg-black/50 ring-1 ring-inset ring-white/10">
+                    <div className="mt-0.5 h-0.5 overflow-hidden rounded-full bg-black/50 ring-1 ring-inset ring-white/10">
                         <div
                             className="h-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-teal-400 transition-[width] duration-300 ease-out"
                             style={{ width: `${scoreRatio * 100}%` }}
@@ -322,16 +323,16 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                     </div>
                     {statusPills}
                     {myReady && (
-                        <p className="mt-1 truncate text-[9px] font-medium leading-tight text-emerald-200/90">
+                        <p className="mt-0.5 truncate text-[8px] font-medium leading-tight text-emerald-200/90">
                             {isAiGame
                                 ? tx('game:chessPlacement.completeStarting')
                                 : tx('game:chessPlacement.completeWaiting')}
                         </p>
                     )}
-                    <div className="mt-1.5 rounded-lg border border-white/[0.06] bg-black/25 p-1 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
+                    <div className="mt-1 min-h-0 flex-1 rounded-lg border border-white/[0.06] bg-black/25 p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
                         <div className={PIECE_ROW_MOBILE}>{pieceButtons}</div>
                     </div>
-                    <div className="mt-1.5">{actionButtons}</div>
+                    <div className="mt-1 shrink-0">{actionButtons}</div>
                 </div>
             </div>
         );
@@ -342,8 +343,8 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
             <div className={PANEL_GLOW} aria-hidden />
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
 
-            <div className="relative px-5 py-4">
-                <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 py-3 sm:py-4">
+                <div className="mb-2 flex flex-wrap items-start justify-between gap-2 sm:mb-3 sm:gap-3">
                     <div>
                         <div className="flex items-center gap-2">
                             <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-amber-500/35 bg-amber-500/10 text-xs text-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
@@ -388,13 +389,13 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                     </div>
                 </div>
 
-                {!isAiGame && <div className="mb-3">{statusPills}</div>}
+                {!isAiGame && <div className="mb-2 sm:mb-3">{statusPills}</div>}
 
-                <div className="mb-3 rounded-2xl border border-white/[0.06] bg-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:p-3">
+                <div className="mb-2 min-h-0 flex-1 rounded-2xl border border-white/[0.06] bg-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:mb-3 sm:p-3">
                     <div className="flex flex-wrap items-stretch justify-center gap-2 sm:gap-2.5">{pieceButtons}</div>
                 </div>
 
-                {actionButtons}
+                <div className="shrink-0">{actionButtons}</div>
             </div>
 
             <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-teal-400/20 to-transparent" />

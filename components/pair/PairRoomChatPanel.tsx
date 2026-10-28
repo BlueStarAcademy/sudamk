@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { PairRoomChatLine } from '../../types/api.js';
 import { type WaitingLobbyPanelTone, pairRoomChatInteriorChrome } from '../waiting-room/waitingLobbyHomePanelStyles.js';
+import MobileKeyboardAvoidingChatShell from '../mobile/MobileKeyboardAvoidingChatShell.js';
 
 export type PairRoomChatScope = 'room' | 'team';
 
@@ -77,18 +78,16 @@ const PairRoomChatPanel: React.FC<Props> = ({
         setDraft('');
     };
 
+    const rootClass = fillAvailableHeight
+        ? interior && interiorChrome
+            ? `flex h-full min-h-0 flex-1 flex-col ${interiorChrome.rootFill}`
+            : 'flex h-full min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-black/30'
+        : interior && interiorChrome
+          ? `flex flex-col ${interiorChrome.rootFixed} ${compact ? 'min-h-[8.5rem]' : 'min-h-[11rem]'}`
+          : `flex flex-col rounded-xl border border-white/10 bg-black/30 ${compact ? 'min-h-[8.5rem]' : 'min-h-[11rem]'}`;
+
     return (
-        <div
-            className={
-                fillAvailableHeight
-                    ? interior && interiorChrome
-                        ? `flex h-full min-h-0 flex-1 flex-col ${interiorChrome.rootFill}`
-                        : 'flex h-full min-h-0 flex-1 flex-col rounded-xl border border-white/10 bg-black/30'
-                    : interior && interiorChrome
-                      ? `flex flex-col ${interiorChrome.rootFixed} ${compact ? 'min-h-[8.5rem]' : 'min-h-[11rem]'}`
-                      : `flex flex-col rounded-xl border border-white/10 bg-black/30 ${compact ? 'min-h-[8.5rem]' : 'min-h-[11rem]'}`
-            }
-        >
+        <MobileKeyboardAvoidingChatShell className={rootClass}>
             {!roomOnlyChat ? (
                 <div
                     className={
@@ -219,7 +218,7 @@ const PairRoomChatPanel: React.FC<Props> = ({
                     {t('room.send')}
                 </button>
             </form>
-        </div>
+        </MobileKeyboardAvoidingChatShell>
     );
 };
 export default PairRoomChatPanel;

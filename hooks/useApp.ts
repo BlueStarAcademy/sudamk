@@ -44,7 +44,10 @@ import type { QuickUtilityPanelKind } from '../shared/types/quickUtilityPanel.js
 import type { MobileViewportEntry } from '../shared/types/mobileViewportStack.js';
 import { getAppRouteNavigationKey } from '../shared/types/navigation.js';
 import { getQuickUtilityKindFromStack } from '../shared/utils/mobileViewportStackUtils.js';
-import { consumePostGameOpenHomeLobby } from '../shared/utils/pairArenaSessionRestore.js';
+import {
+    consumePostGameOpenHomeLobby,
+    sessionShouldRetainEndedPvpLingerRoom,
+} from '../shared/utils/pairArenaSessionRestore.js';
 import { syncDismissedScreenGuidesFromUser } from '../utils/screenGuideDismiss.js';
 import { normalizeDismissedScreenGuides } from '../shared/constants/screenGuideDismiss.js';
 import {
@@ -1261,10 +1264,10 @@ function applyStrategicPlayingBoardAndMoveHistoryResolve(
     if (merged.gameStatus !== 'playing') return merged;
     if (sessionUsesChessGo(merged)) {
         const policy = resolveArenaSessionPolicy(merged as any);
-        if (policy.matchAxis === 'pve') {
-            return resolveChessPvePlayingSession(merged, clientSnapshot);
-        }
-        return merged;
+        // PVP·혼합페어는 동일 길이 분기 수순을 서버 권위로 맞춘다(연속 클릭 낙관적 착수 고착 방지).
+        return resolveChessPvePlayingSession(merged, clientSnapshot, {
+            preferServerOnHistoryConflict: policy.matchAxis !== 'pve',
+        });
     }
     if (merged.mode === GameMode.Dice || merged.mode === GameMode.Thief) return merged;
     const policy = resolveArenaSessionPolicy(merged as any);
@@ -6427,6 +6430,8 @@ export const useApp = () => {
         }
 
         let dicePlaceGameId: string | undefined;
+        let acquiredPlaceStoneLockKey: string | null = null;
+        let acquiredAiSyncLockKey: string | null = null;
         const rollbackTowerAddTurnOptimistic = () => {
             if (action.type !== 'TOWER_ADD_TURNS') return;
             const gid = (action.payload as { gameId?: string })?.gameId;
@@ -6834,9 +6839,10 @@ export const useApp = () => {
                 actionGameId.length > 0 &&
                 typeof actionPayload?.x === 'number' &&
                 typeof actionPayload?.y === 'number';
-            const placeStoneDedupeKey = isPlaceStoneAction
-                ? `${actionGameId}:${actionPayload!.x},${actionPayload!.y}`
-                : null;
+            // 좌표별이 아니라 게임 단위로 잠근다. 상대 턴 연속 클릭·다른 교차점 연타가
+            // 낙관적 착수를 여러 번 태워 보드가 갈라지는 것을 막는다.
+            // finally에서 다른 요청의 잠금을 지우지 않도록, 이 호출이 잡은 키만 해제한다.
+            const placeStoneDedupeKey = isPlaceStoneAction ? `PLACE_STONE:${actionGameId}` : null;
             if (isAiSyncAction) {
                 const aiSyncDedupeKey = `${action.type}:${actionGameId}`;
                 if (inFlightAiSyncActionRef.current.has(aiSyncDedupeKey)) {
@@ -6846,6 +6852,7 @@ export const useApp = () => {
                     return;
                 }
                 inFlightAiSyncActionRef.current.add(aiSyncDedupeKey);
+                acquiredAiSyncLockKey = aiSyncDedupeKey;
             }
             if (placeStoneDedupeKey) {
                 if (inFlightPlaceStoneActionRef.current.has(placeStoneDedupeKey)) {
@@ -6855,6 +6862,7 @@ export const useApp = () => {
                     return;
                 }
                 inFlightPlaceStoneActionRef.current.add(placeStoneDedupeKey);
+                acquiredPlaceStoneLockKey = placeStoneDedupeKey;
             }
 
             const confirmAiLobbyGameId =
@@ -7546,12 +7554,12 @@ export const useApp = () => {
                         }
 
                         const g = liveGamesRef.current[gameId];
+                        // 친선·놀이 방 복귀(pairWaitingRoomReturn/pairGame.roomId) 대국은 linger 하지 않고 대기 방으로 나간다.
                         const retainEndedPvpRoom =
                             g &&
                             !isSessionStrategicAiLike(g) &&
                             getSessionArenaKind(g) !== 'singleplayer' &&
-                            (g.gameStatus === 'ended' || g.gameStatus === 'no_contest') &&
-                            !(g.settings as { pairGame?: unknown } | undefined)?.pairGame;
+                            sessionShouldRetainEndedPvpLingerRoom(g);
 
                         flushSync(() => {
                             const removeFromTowerSp = () => {
@@ -9462,23 +9470,11 @@ export const useApp = () => {
             });
             showError(err.message || tx('common:errors.requestProcessingFailed'));
         } finally {
-            const finalActionGameId = ((action as any).payload as { gameId?: string } | undefined)?.gameId;
-            const finalIsAiSyncAction =
-                (action.type === 'REQUEST_SERVER_AI_MOVE' || action.type === 'REQUEST_GAME_STATE_SYNC') &&
-                typeof finalActionGameId === 'string' &&
-                finalActionGameId.length > 0;
-            if (finalIsAiSyncAction) {
-                inFlightAiSyncActionRef.current.delete(`${action.type}:${finalActionGameId}`);
+            if (acquiredAiSyncLockKey) {
+                inFlightAiSyncActionRef.current.delete(acquiredAiSyncLockKey);
             }
-            if (
-                action.type === 'PLACE_STONE' &&
-                typeof finalActionGameId === 'string' &&
-                finalActionGameId.length > 0
-            ) {
-                const finalPayload = (action as any).payload as { x?: number; y?: number } | undefined;
-                if (typeof finalPayload?.x === 'number' && typeof finalPayload?.y === 'number') {
-                    inFlightPlaceStoneActionRef.current.delete(`${finalActionGameId}:${finalPayload.x},${finalPayload.y}`);
-                }
+            if (acquiredPlaceStoneLockKey) {
+                inFlightPlaceStoneActionRef.current.delete(acquiredPlaceStoneLockKey);
             }
             if (dicePlaceGameId) {
                 const gid = dicePlaceGameId;

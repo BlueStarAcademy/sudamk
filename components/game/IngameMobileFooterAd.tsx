@@ -1,21 +1,9 @@
 import React from 'react';
-import { tx } from '../../shared/i18n/runtimeText.js';
-import { isBannerHiddenForGameStatus } from '../../constants/ads.js';
-import AdBanner from '../ads/AdBanner.js';
 
-/** 인게임 모바일: 조작 패널(footer) 하단 320×50 배너 — 대국 중(BANNER_HIDDEN_GAME_STATUSES)에는 비노출 */
-const IngameMobileFooterAd: React.FC<{ isMobile: boolean; gameStatus?: string }> = ({ isMobile, gameStatus }) => {
-    if (!isMobile || isBannerHiddenForGameStatus(gameStatus)) return null;
-    return (
-        <div className="mt-1 flex w-full shrink-0 justify-center border-t border-slate-600/25 pt-1.5">
-            <div
-                className="h-[50px] w-[320px] max-w-full shrink-0 overflow-hidden rounded-md border border-slate-600/20 bg-black/20"
-                aria-label={tx("common:ads.label")}
-            >
-                <AdBanner position="ingame_footer" className="min-h-0" />
-            </div>
-        </div>
-    );
-};
+/**
+ * 인게임 모바일 하단 배너 — 바둑판 공간을 확보하기 위해 비활성화.
+ * 호출부는 유지하되 렌더하지 않는다(푸터 고정 높이도 광고 슬롯 없이 축소됨).
+ */
+const IngameMobileFooterAd: React.FC<{ isMobile: boolean; gameStatus?: string }> = () => null;
 
 export default IngameMobileFooterAd;

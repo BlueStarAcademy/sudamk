@@ -1128,6 +1128,15 @@ export type GameSettings = {
    * pairGame.lobbyChannel === 'friendly' 인 경우에도 동일하게 취급한다.
    */
   friendlyLobbyMatch?: boolean;
+  /**
+   * duo_match 2인 친선처럼 대국은 일반 1:1(`pairGame` 없음)이지만,
+   * 종료 후 시작 전 대기 방으로 복귀할 때 쓰는 껍데기 방 정보.
+   * `pairGame`으로 넣으면 페어 좌석/턴 정책이 켜지므로 분리한다.
+   */
+  pairWaitingRoomReturn?: {
+    roomId: string;
+    lobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly';
+  };
   /** 훈련장 심법/단짝 수련 대국 — 승리 시 표 보상, 대기실 AI 보상 제외 */
   trainingGround?: import('../constants/trainingGround.js').TrainingGroundGameMeta;
   pairGame?: {

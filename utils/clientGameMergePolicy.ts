@@ -947,7 +947,16 @@ function preserveChessPlayingStateWhenMoveHistoryRegresses(
         );
     };
 
-    if (exLen > inLen || (exLen === inLen && !lastMovesMatch())) {
+    const matchAxis = resolveArenaSessionPolicy(merged as any).matchAxis;
+    const keepLocalOnSameLengthDiverge = matchAxis === 'pve';
+
+    // 로컬이 한 수 앞선 경우(낙관적 착수 / 낡은 서버 패킷): 판·수순·턴을 로컬 기준으로 유지.
+    // 동일 길이인데 마지막 수만 다른 경우: PVE는 AI 지연 표시를 위해 로컬 유지,
+    // PVP·혼합페어는 서버 수순을 받아 normalize가 판을 재구성하게 둔다(서로 다른 착점 고착 방지).
+    const shouldKeepLocal =
+        exLen > inLen || (exLen === inLen && !lastMovesMatch() && keepLocalOnSameLengthDiverge);
+
+    if (shouldKeepLocal) {
         // 판·수순을 로컬로 유지하면 턴도 로컬 기준이어야 한다. 낡은 기물 이동 패킷의 currentPlayer만 받으면
         // 착수 직후 내 차례·기물 미이동으로 되돌아가 두 번째 기물 이동이 서버에서 거절되며 판이 꼬인다.
         const existingPairGame = existing!.settings?.pairGame;
@@ -1144,7 +1153,10 @@ export function mergeLiveRejoinResponseWithExistingBoard(
     incoming: LiveGameSession,
 ): LiveGameSession {
     if (incoming.mode === GameMode.Chess && incoming.gameStatus === 'playing') {
-        const chessResolved = resolveChessPvePlayingSession(incoming, existing ?? incoming);
+        const rejoinAxis = resolveArenaSessionPolicy(incoming as any).matchAxis;
+        const chessResolved = resolveChessPvePlayingSession(incoming, existing ?? incoming, {
+            preferServerOnHistoryConflict: rejoinAxis !== 'pve',
+        });
         let merged: LiveGameSession = chessResolved;
         if (existing) {
             merged = preserveTerminalAnalysisResultOnMerge(merged, existing);

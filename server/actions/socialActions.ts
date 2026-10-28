@@ -1352,6 +1352,10 @@ export function restorePairRoomsAfterEndedGame(
     if (game.gameStatus !== 'ended' && game.gameStatus !== 'no_contest') return false;
 
     const payloadRoomId = typeof game.settings?.pairGame?.roomId === 'string' ? game.settings.pairGame.roomId : '';
+    const waitingRoomReturnId =
+        typeof game.settings?.pairWaitingRoomReturn?.roomId === 'string'
+            ? game.settings.pairWaitingRoomReturn.roomId
+            : '';
     const playerIds = new Set<string>();
     if (game.player1?.id) playerIds.add(game.player1.id);
     if (game.player2?.id) playerIds.add(game.player2.id);
@@ -1367,8 +1371,9 @@ export function restorePairRoomsAfterEndedGame(
         const roomMemberIds = pairRoomHumanMemberIdSet(room);
         const hasAnyPlayer = [...playerIds].some((id) => roomMemberIds.has(id));
         const shellRoomIdMatch =
-            Boolean(payloadRoomId) &&
-            (payloadRoomId === room.id || payloadRoomId.includes(room.id));
+            (Boolean(payloadRoomId) &&
+                (payloadRoomId === room.id || payloadRoomId.includes(room.id))) ||
+            (Boolean(waitingRoomReturnId) && waitingRoomReturnId === room.id);
         if (!shellRoomIdMatch && !hasAnyPlayer) continue;
         if (room.phase !== 'in_game' && !room.matchStartedAt) continue;
 
@@ -5399,8 +5404,13 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     const ownerUser = await db.getUser(target.ownerId);
                     if (!ownerUser) return { error: '참가자 정보를 찾지 못했습니다.' };
                     const aiOpponent = getAiUser(requestedModeDuo);
+                    // 대국은 일반 1:1(AI) — pairGame 없이 두되, 종료 후 대기 방 복귀를 위해 껍데기 id만 남긴다.
                     pairSettingsDuo = { ...DEFAULT_GAME_SETTINGS, ...target.settings, ...payloadSettingsDuo };
                     delete (pairSettingsDuo as { pairGame?: unknown }).pairGame;
+                    pairSettingsDuo.pairWaitingRoomReturn = {
+                        roomId: target.id,
+                        lobbyChannel: (target.lobbyChannel ?? startLobbyCh) as types.ArenaChannel,
+                    };
                     if (startLobbyCh === 'friendly') {
                         pairSettingsDuo.friendlyLobbyMatch = true;
                     }
@@ -5425,8 +5435,14 @@ export const handleSocialAction = async (volatileState: VolatileState, action: S
                     const partnerUser = await db.getUser(guestMember.id);
                     if (!partnerUser) return { error: '참가자 정보를 찾지 못했습니다.' };
                     // 친선전 2인: 방 UI는 페어 로비이나 대국은 일반 1:1
+                    // pairGame을 넣으면 페어 좌석/턴 정책이 켜지므로 제거하고,
+                    // 종료 후「대기실로」복귀용 방 id만 pairWaitingRoomReturn에 남긴다.
                     pairSettingsDuo = { ...DEFAULT_GAME_SETTINGS, ...target.settings, ...payloadSettingsDuo };
                     delete (pairSettingsDuo as { pairGame?: unknown }).pairGame;
+                    pairSettingsDuo.pairWaitingRoomReturn = {
+                        roomId: target.id,
+                        lobbyChannel: (target.lobbyChannel ?? startLobbyCh) as types.ArenaChannel,
+                    };
                     if (startLobbyCh === 'friendly') {
                         pairSettingsDuo.friendlyLobbyMatch = true;
                     }

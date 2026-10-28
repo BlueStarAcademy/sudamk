@@ -144,7 +144,10 @@ import {
     transformPairArenaAiMatchSettings,
 } from './shared/utils/pairArenaAiMatchSettings.js';
 import { arenaLobbyHashFromSession } from './shared/utils/arenaLobbyDestination.js';
-import { stashPostGamePairRoomLobbyReturn } from './shared/utils/pairArenaSessionRestore.js';
+import {
+    resolvePostGamePairRoomRestore,
+    stashPostGamePairRoomLobbyReturn,
+} from './shared/utils/pairArenaSessionRestore.js';
 import type { GameSettings } from './types/index.js';
 import { AI_HIDDEN_ITEM_THINKING_DURATION_MS } from './shared/constants/gameSettings.js';
 // AI 유저 ID (싱글플레이에서 AI 차례 판단용)
@@ -525,15 +528,18 @@ const pairMobileTeamHighlightClass = (
     return black ? 'border border-slate-500/65 bg-slate-950 text-slate-100' : 'border border-amber-200/85 bg-amber-50 text-slate-950';
 };
 
-/** 모바일 페어: 상단 1행 — 팀 대국자(아바타·속성)만 */
-const PairMobileTeamProfilePanel: React.FC<{
+/** 모바일 페어: 아바타(+레벨) 옆 — 위 점수·닉 / 아래 시간 */
+const PairMobileTeamCompactPanel: React.FC<{
     session: LiveGameSession;
+    clientTimes: PairClientTimes;
     player: Player.Black | Player.White;
     viewerUserId?: string;
-}> = ({ session, player, viewerUserId }) => {
+}> = ({ session, clientTimes, player, viewerUserId }) => {
     const black = player === Player.Black;
     const seats = sortPairSeatsBySeatId((session.settings.pairGame?.turnOrder ?? []).filter((seat) => seat.player === player));
     const showPairMobileRpsRow = seats.some((s) => s.kind === 'pet' || s.kind === 'ai');
+    const colorTime = black ? clientTimes.black : clientTimes.white;
+    const score = session.captures?.[player] ?? 0;
     const currentSeat = getCurrentPairTurnSeat(session.settings);
     const inPairTurnPhase = session.gameStatus === 'playing' || session.gameStatus === 'hidden_placing';
     const isMyTurnHighlight =
@@ -545,10 +551,12 @@ const PairMobileTeamProfilePanel: React.FC<{
 
     return (
         <div
-            className={`flex min-h-[3.25rem] min-w-0 flex-1 items-center justify-center gap-1.5 rounded-xl px-1.5 py-1 shadow-lg ${pairMobileTeamHighlightClass(black, isMyTurnHighlight)}`}
+            className={`flex min-h-0 min-w-0 flex-1 items-stretch gap-1 overflow-hidden rounded-xl px-1 py-1 shadow-lg ${
+                black ? 'flex-row' : 'flex-row-reverse'
+            } ${pairMobileTeamHighlightClass(black, isMyTurnHighlight)}`}
             aria-current={isMyTurnHighlight ? 'true' : undefined}
         >
-            <div className="flex shrink-0 flex-col items-center gap-0.5">
+            <div className="flex shrink-0 flex-col items-center justify-center gap-0.5 self-stretch">
                 <div className="flex -space-x-2">
                     {seats.map((seat) => {
                         const display = pairSeatDisplayInfo(session, seat);
@@ -572,69 +580,69 @@ const PairMobileTeamProfilePanel: React.FC<{
                                 {seat.kind === 'pet' || seat.kind === 'ai' ? (
                                     <PairPetRpsBadge
                                         attribute={session.settings.pairGame?.pairPetRpsAttributeByParticipantId?.[seat.participantId]}
-                                        anchorSizePx={22}
+                                        anchorSizePx={18}
                                     />
                                 ) : (
-                                    <span className="inline-block h-[15px] w-[15px] shrink-0" aria-hidden />
+                                    <span className="inline-block h-[12px] w-[12px] shrink-0" aria-hidden />
                                 )}
                             </span>
                         ))}
                     </div>
                 ) : null}
+                <div className="flex max-w-[3.5rem] flex-col items-center gap-px overflow-hidden">
+                    {seats.map((seat) => {
+                        const display = pairSeatDisplayInfo(session, seat);
+                        const nameMatch = /^Lv\.(\d+)\s+(.+)$/.exec(display.name);
+                        const levelText = nameMatch ? `Lv.${nameMatch[1]}` : '';
+                        if (!levelText) return null;
+                        return (
+                            <span
+                                key={`${seat.seatId}-lv`}
+                                className="max-w-full truncate text-[8px] font-black tabular-nums leading-none opacity-85"
+                            >
+                                {levelText}
+                            </span>
+                        );
+                    })}
+                </div>
             </div>
-        </div>
-    );
-};
-
-/** 모바일 페어: 상단 2행 — 거울 배치: 흑 시계→점수 | (수순) | 백 점수→시계 */
-const PairMobileTeamTimeScorePanel: React.FC<{
-    session: LiveGameSession;
-    clientTimes: PairClientTimes;
-    player: Player.Black | Player.White;
-    viewerUserId?: string;
-}> = ({ session, clientTimes, player, viewerUserId }) => {
-    const black = player === Player.Black;
-    const colorTime = black ? clientTimes.black : clientTimes.white;
-    const score = session.captures?.[player] ?? 0;
-    const currentSeat = getCurrentPairTurnSeat(session.settings);
-    const inPairTurnPhase = session.gameStatus === 'playing' || session.gameStatus === 'hidden_placing';
-    const isMyTurnHighlight =
-        Boolean(viewerUserId) &&
-        inPairTurnPhase &&
-        currentSeat != null &&
-        currentSeat.player === player &&
-        pairSeatAllowsViewerStonePlacement(currentSeat, viewerUserId);
-
-    const clockEl = (
-        <div
-            className={`min-w-0 flex-1 truncate font-mono text-[11px] font-black leading-none tabular-nums sm:text-[12px] ${black ? 'text-left' : 'text-right'}`}
-        >
-            {formatPairClock(colorTime)}
-        </div>
-    );
-    const scoreEl = (
-        <div className={`flex shrink-0 items-baseline gap-0.5 ${black ? 'justify-start' : 'justify-end'}`}>
-            <span className="text-[8px] font-black opacity-70 sm:text-[9px]">{tx('game:playerPanel.score')}</span>
-            <span className="font-mono text-base font-black leading-none tabular-nums sm:text-lg">{score}</span>
-        </div>
-    );
-
-    return (
-        <div
-            className={`flex min-h-0 min-w-0 flex-1 flex-row items-center gap-1.5 rounded-xl px-1.5 py-0.5 shadow-lg ${pairMobileTeamHighlightClass(black, isMyTurnHighlight)}`}
-            aria-current={isMyTurnHighlight ? 'true' : undefined}
-        >
-            {black ? (
-                <>
-                    {clockEl}
-                    {scoreEl}
-                </>
-            ) : (
-                <>
-                    {scoreEl}
-                    {clockEl}
-                </>
-            )}
+            <div className="flex min-w-0 flex-1 flex-col justify-center gap-0.5 overflow-hidden">
+                <div className={`flex min-w-0 items-center gap-1 ${black ? 'flex-row' : 'flex-row-reverse'}`}>
+                    <div
+                        className={`flex min-w-0 flex-1 flex-col gap-px overflow-hidden rounded-md border px-1.5 py-0.5 shadow-sm ${
+                            black
+                                ? 'border-white/20 bg-black/55 items-start text-left'
+                                : 'border-slate-500/55 bg-white/85 items-end text-right'
+                        }`}
+                    >
+                        {seats.map((seat) => {
+                            const display = pairSeatDisplayInfo(session, seat);
+                            const nameMatch = /^Lv\.(\d+)\s+(.+)$/.exec(display.name);
+                            const nickname = nameMatch ? nameMatch[2] : display.name;
+                            return (
+                                <span
+                                    key={`${seat.seatId}-nick`}
+                                    className="min-w-0 max-w-full truncate text-[9px] font-black leading-tight"
+                                    title={nickname}
+                                >
+                                    {nickname}
+                                </span>
+                            );
+                        })}
+                    </div>
+                    <div className="flex shrink-0 flex-col items-center justify-center rounded-md border border-current/20 px-1 py-0.5">
+                        <span className="text-[8px] font-black opacity-70">{tx('game:playerPanel.score')}</span>
+                        <span className="font-mono text-sm font-black leading-none tabular-nums">{score}</span>
+                    </div>
+                </div>
+                <div
+                    className={`min-w-0 truncate font-mono text-[11px] font-black leading-none tabular-nums ${
+                        black ? 'text-left' : 'text-right'
+                    }`}
+                >
+                    {formatPairClock(colorTime)}
+                </div>
+            </div>
         </div>
     );
 };
@@ -642,15 +650,15 @@ const PairMobileTeamTimeScorePanel: React.FC<{
 const PairMobileMoveCountBox: React.FC<{ session: LiveGameSession }> = ({ session }) => {
     const { label, primary, secondary } = getPairMoveCountDisplay(session);
     return (
-        <div className="relative z-[1] flex min-w-[3.5rem] w-[3.5rem] shrink-0 flex-col items-center justify-center rounded-xl border border-amber-300/55 bg-black/75 px-1 py-1 text-center text-amber-50 shadow-lg ring-1 ring-amber-400/15 sm:min-w-[4.25rem] sm:w-[4.25rem]">
+        <div className="relative z-[1] flex min-w-[3.5rem] w-[3.5rem] shrink-0 flex-col items-center justify-center self-stretch rounded-xl border border-amber-300/55 bg-black/75 px-1 py-1 text-center text-amber-50 shadow-lg ring-1 ring-amber-400/15 sm:min-w-[3.75rem] sm:w-[3.75rem]">
             <div className="whitespace-nowrap text-[8px] font-black leading-tight tracking-[0.12em] text-amber-200/85">{label}</div>
             {secondary != null ? (
                 <div className="mt-0.5 flex items-baseline justify-center gap-px tabular-nums">
-                    <span className="font-mono text-lg font-black leading-none text-amber-300">{primary}</span>
-                    <span className="font-mono text-[11px] font-bold leading-none text-amber-200/70">/{secondary}</span>
+                    <span className="font-mono text-base font-black leading-none text-amber-300">{primary}</span>
+                    <span className="font-mono text-[10px] font-bold leading-none text-amber-200/70">/{secondary}</span>
                 </div>
             ) : (
-                <div className="font-mono text-xl font-black leading-none tabular-nums">{primary}</div>
+                <div className="font-mono text-lg font-black leading-none tabular-nums">{primary}</div>
             )}
         </div>
     );
@@ -689,17 +697,20 @@ const PairIngameTopPanel: React.FC<{
 }> = ({ session, clientTimes, mobile = false, pairMobileViewerUserId }) => {
     if (mobile) {
         return (
-            <div className="flex w-full shrink-0 flex-col gap-1.5 px-1 pb-0.5">
-                <div className="flex w-full min-h-[3.25rem] flex-shrink-0 items-stretch gap-0.5">
-                    <PairMobileTeamProfilePanel session={session} player={Player.Black} viewerUserId={pairMobileViewerUserId} />
-                    <div className="w-[3.5rem] min-w-[3.5rem] shrink-0 sm:w-[4.25rem] sm:min-w-[4.25rem]" aria-hidden />
-                    <PairMobileTeamProfilePanel session={session} player={Player.White} viewerUserId={pairMobileViewerUserId} />
-                </div>
-                <div className="flex min-h-[4.5rem] w-full flex-shrink-0 items-stretch gap-0.5">
-                    <PairMobileTeamTimeScorePanel session={session} clientTimes={clientTimes} player={Player.Black} viewerUserId={pairMobileViewerUserId} />
-                    <PairMobileMoveCountBox session={session} />
-                    <PairMobileTeamTimeScorePanel session={session} clientTimes={clientTimes} player={Player.White} viewerUserId={pairMobileViewerUserId} />
-                </div>
+            <div className="flex h-[5.75rem] min-h-[5.75rem] max-h-[5.75rem] w-full shrink-0 items-stretch gap-1 overflow-hidden px-1 pb-0.5">
+                <PairMobileTeamCompactPanel
+                    session={session}
+                    clientTimes={clientTimes}
+                    player={Player.Black}
+                    viewerUserId={pairMobileViewerUserId}
+                />
+                <PairMobileMoveCountBox session={session} />
+                <PairMobileTeamCompactPanel
+                    session={session}
+                    clientTimes={clientTimes}
+                    player={Player.White}
+                    viewerUserId={pairMobileViewerUserId}
+                />
             </div>
         );
     }
@@ -1732,18 +1743,19 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                     ...(isTower && (session as any).blackTurnLimitBonus != null
                         ? { blackTurnLimitBonus: Number((session as any).blackTurnLimitBonus) || 0 }
                         : {}),
-                    ...(!session.isAiGame &&
-                    session.settings?.pairGame?.roomId &&
-                    typeof session.settings.pairGame.roomId === 'string' &&
-                    session.settings.pairGame.roomId.length > 0
-                        ? {
-                              pairArenaRestore: {
-                                  roomId: session.settings.pairGame.roomId,
-                                  lobbyChannel: session.settings.pairGame.lobbyChannel ?? 'pair',
-                                  lobbyIntent:
-                                      resolveArenaSessionPolicy(session).matchAxis !== 'pvp' ? 'ai' : 'pvp',
-                              },
-                          }
+                    ...(!session.isAiGame
+                        ? (() => {
+                              const restore = resolvePostGamePairRoomRestore(session);
+                              return restore
+                                  ? {
+                                        pairArenaRestore: {
+                                            roomId: restore.roomId,
+                                            lobbyChannel: restore.lobbyChannel,
+                                            lobbyIntent: restore.lobbyIntent,
+                                        },
+                                    }
+                                  : {};
+                          })()
                         : {}),
                     timestamp: Date.now()
                 };
@@ -1752,29 +1764,24 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 console.error(`[Game] Failed to save game state to sessionStorage:`, e);
             }
         } else {
-            const rid = session.settings?.pairGame?.roomId;
-            if (!session.isAiGame && typeof rid === 'string' && rid.length > 0) {
+            const restore = !session.isAiGame ? resolvePostGamePairRoomRestore(session) : null;
+            if (restore) {
                 try {
                     const key = GAME_STATE_STORAGE_KEY;
+                    const pairArenaRestore = {
+                        roomId: restore.roomId,
+                        lobbyChannel: restore.lobbyChannel,
+                        lobbyIntent: restore.lobbyIntent,
+                    };
                     const merged: Record<string, unknown> = {
                         gameId,
-                        pairArenaRestore: {
-                            roomId: rid,
-                            lobbyChannel: session.settings?.pairGame?.lobbyChannel ?? 'pair',
-                            lobbyIntent:
-                                resolveArenaSessionPolicy(session).matchAxis !== 'pvp' ? 'ai' : 'pvp',
-                        },
+                        pairArenaRestore,
                     };
                     const existing = sessionStorage.getItem(key);
                     if (existing) {
                         try {
                             Object.assign(merged, JSON.parse(existing));
-                            merged.pairArenaRestore = {
-                                roomId: rid,
-                                lobbyChannel: session.settings?.pairGame?.lobbyChannel ?? 'pair',
-                                lobbyIntent:
-                                    resolveArenaSessionPolicy(session).matchAxis !== 'pvp' ? 'ai' : 'pvp',
-                            };
+                            merged.pairArenaRestore = pairArenaRestore;
                         } catch {
                             // ignore
                         }
@@ -1785,7 +1792,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                 }
             }
         }
-    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, (session as any).humanHiddenStonePoints, session.castleStonePoints, session.confirmedTerritoryOwnerByPoint, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).scans_p1, (session as any).scans_p2, (session as any).missiles_p1, (session as any).missiles_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated, session.isAiGame, session.settings?.pairGame?.roomId, session.settings?.pairGame?.lobbyChannel]);
+    }, [restoredBoardState, session.moveHistory, session.captures, session.gameStatus, session.currentPlayer, session.itemUseDeadline, session.pausedTurnTimeLeft, session.turnDeadline, session.turnStartTime, session.revealAnimationEndTime, session.animation, (session as any).aiHiddenItemAnimationEndTime, session.pendingCapture, session.newlyRevealed, session.revealedHiddenMoves, session.baseStoneCaptures, session.hiddenStoneCaptures, session.permanentlyRevealedStones, session.blackPatternStones, session.whitePatternStones, (session as any).consumedPatternIntersections, session.hiddenMoves, (session as any).humanHiddenStonePoints, session.castleStonePoints, session.confirmedTerritoryOwnerByPoint, session.totalTurns, session.round, gameId, gameStatus, isSinglePlayer, session.gameCategory, useRefreshSessionStorageMerge, session.gameStartTime, session.blackTimeLeft, session.whiteTimeLeft, (session as any).adventureEncounterDeadlineMs, (session as any).adventureEncounterFrozenHumanMsRemaining, (session as any).hidden_stones_p1, (session as any).hidden_stones_p2, (session as any).scans_p1, (session as any).scans_p2, (session as any).missiles_p1, (session as any).missiles_p2, (session as any).aiInitialHiddenStone, (session as any).aiInitialHiddenStoneIsPrePlaced, (session as any).blackTurnLimitBonus, isBoardRotated, session.isAiGame, session.settings?.pairGame?.roomId, session.settings?.pairGame?.lobbyChannel, session.settings?.pairWaitingRoomReturn?.roomId, session.settings?.pairWaitingRoomReturn?.lobbyChannel]);
     
     // 도전의 탑/싱글/전략바둑 수순 제한: 새로고침 후 서버 페이로드에 문양돌·totalTurns·moveHistory가 없을 수 있으므로 sessionStorage에서 복원해 표시
     const sessionWithRestoredPatternStones = useMemo(() => {
@@ -4728,10 +4735,13 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         sessionPolicy.kind,
         session.adventureStageId,
         session.adventureMonsterCodexId,
+        session,
         session.mode,
         session.settings?.pairGame,
         session.settings?.pairGame?.lobbyChannel,
         session.settings?.pairGame?.roomId,
+        session.settings?.pairWaitingRoomReturn?.roomId,
+        session.settings?.pairWaitingRoomReturn?.lobbyChannel,
         gameId,
         gameStatus,
         isNoContestLeaveAvailable,

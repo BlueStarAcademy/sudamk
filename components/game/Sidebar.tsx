@@ -32,6 +32,7 @@ import { isBannerHiddenForGameStatus } from '../../constants/ads.js';
 import PveBriefStartModal from '../pve/PveBriefStartModal.js';
 import AiGameDescriptionModal from '../AiGameDescriptionModal.js';
 import { SUDAMR_MODAL_CLOSE_BUTTON_CLASS } from '../DraggableWindow.js';
+import MobileKeyboardAvoidingChatShell from '../mobile/MobileKeyboardAvoidingChatShell.js';
 import { resolveLiveSessionSinglePlayerStageRow } from '../../shared/utils/liveSessionSinglePlayerStage.js';
 import { formatSinglePlayerStageShortName } from '../../utils/singlePlayerStageDisplayName.js';
 import { resolveArenaSessionPolicy, isAdventureSessionLike } from '../../shared/utils/liveSessionArenaKind.js';
@@ -530,7 +531,10 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
             : t('sidebar.chatPlaceholderBracket');
     
     return (
-        <div className={arenaGameRoomChatShellClass}>
+        <MobileKeyboardAvoidingChatShell
+            className={arenaGameRoomChatShellClass}
+            forceMobile={drawerUi}
+        >
             {globalChatOnly ? (
                 <h3 className={`${arenaGameRoomPanelTitleClass} mb-2 flex-shrink-0`}>{t('sidebar.globalChat')}</h3>
             ) : (
@@ -724,7 +728,7 @@ export const ChatPanel: React.FC<Omit<SidebarProps, 'onLeaveOrResign' | 'isNoCon
                    </form>
                 </div>
             )}
-        </div>
+        </MobileKeyboardAvoidingChatShell>
     );
 };
 

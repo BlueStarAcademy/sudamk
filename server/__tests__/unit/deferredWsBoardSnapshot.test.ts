@@ -527,6 +527,65 @@ describe('resolveChessPvePlayingSession', () => {
         expect(resolved.winner).toBe(Player.Black);
         expect(resolved.winReason).toBe('chess_checkmate');
     });
+
+    it('PVP preferServer: same-length divergent last move takes server stone (spam-click desync)', () => {
+        const server = {
+            mode: GameMode.Chess,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            lastMove: { x: 7, y: 7 },
+        } as LiveGameSession;
+        const client = {
+            ...server,
+            // 낙관적 착수가 서버와 다른 교차점에 고정된 상태
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 5, y: 5, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+            lastMove: { x: 5, y: 5 },
+        } as LiveGameSession;
+
+        const resolved = resolveChessPvePlayingSession(server, client, {
+            preferServerOnHistoryConflict: true,
+        });
+        expect(resolved.moveHistory![1]).toEqual({ x: 7, y: 7, player: Player.White });
+        expect(resolved.boardState![7]![7]).toBe(Player.White);
+        expect(resolved.boardState![5]![5]).toBe(Player.None);
+        expect(resolved.currentPlayer).toBe(Player.Black);
+    });
+
+    it('PVE default: same-length divergent last move keeps client (AI delay display)', () => {
+        const client = {
+            mode: GameMode.Chess,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 7, y: 7, player: Player.White },
+            ],
+            currentPlayer: Player.Black,
+        } as LiveGameSession;
+        const server = {
+            ...client,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 8, y: 8, player: Player.White },
+            ],
+        } as LiveGameSession;
+
+        const resolved = resolveChessPvePlayingSession(server, client);
+        expect(resolved.moveHistory![1]).toEqual({ x: 7, y: 7, player: Player.White });
+        expect(resolved.boardState![7]![7]).toBe(Player.White);
+        expect(resolved.boardState![8]![8]).toBe(Player.None);
+    });
 });
 
 describe('shouldResolveStrategicPlayingBoardForMatchAxis', () => {

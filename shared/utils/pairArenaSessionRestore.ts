@@ -94,18 +94,59 @@ export function consumePostGameOpenHomeLobby(): PostGameHomeLobbyKind | null {
     }
 }
 
+export type PostGamePairRoomRestoreSource = {
+    settings?: {
+        pairGame?: { roomId?: string | null; lobbyChannel?: unknown; pairMode?: unknown } | null;
+        pairWaitingRoomReturn?: { roomId?: string | null; lobbyChannel?: unknown } | null;
+    } | null;
+};
+
+/** pairGame 페어국 또는 duo 1:1의 pairWaitingRoomReturn에서 복귀 방 정보를 읽는다. */
+export function resolvePostGamePairRoomRestore(
+    session: PostGamePairRoomRestoreSource,
+): { roomId: string; lobbyChannel: PairArenaLobbyChannel; lobbyIntent: ArenaLobbyIntent } | null {
+    const pairGame = session.settings?.pairGame;
+    if (isPersistentPairWaitingRoomId(pairGame?.roomId)) {
+        return {
+            roomId: pairGame.roomId,
+            lobbyChannel: normalizePairArenaLobbyChannel(pairGame.lobbyChannel),
+            lobbyIntent: pairGame.pairMode === 'ai' ? 'ai' : 'pvp',
+        };
+    }
+    const shell = session.settings?.pairWaitingRoomReturn;
+    if (!isPersistentPairWaitingRoomId(shell?.roomId)) return null;
+    return {
+        roomId: shell.roomId,
+        lobbyChannel: normalizePairArenaLobbyChannel(shell.lobbyChannel),
+        lobbyIntent: 'pvp',
+    };
+}
+
 /**
  * 친선·놀이 대기실 방에서 시작한 대국이 끝나면 같은 방으로 돌아가도록 복원 키를 남긴다.
  * 홈 퀵유틸 임베드가 이 키를 읽어 대기실을 다시 연다.
  */
-export function stashPostGamePairRoomLobbyReturn(session: {
-    settings?: {
-        pairGame?: { roomId?: string | null; lobbyChannel?: unknown; pairMode?: unknown } | null;
-    } | null;
-}): void {
-    const roomId = session.settings?.pairGame?.roomId;
-    if (!isPersistentPairWaitingRoomId(roomId)) return;
-    const lobbyChannel = normalizePairArenaLobbyChannel(session.settings?.pairGame?.lobbyChannel);
-    stashPairArenaRoomRestoreForLobbyNavigation(roomId, lobbyChannel);
-    stashPostGameOpenHomeLobby(postGameHomeLobbyKindFromChannel(lobbyChannel));
+export function stashPostGamePairRoomLobbyReturn(session: PostGamePairRoomRestoreSource): void {
+    const restore = resolvePostGamePairRoomRestore(session);
+    if (!restore) return;
+    stashPairArenaRoomRestoreForLobbyNavigation(restore.roomId, restore.lobbyChannel);
+    stashPostGameOpenHomeLobby(postGameHomeLobbyKindFromChannel(restore.lobbyChannel));
+}
+
+/**
+ * 종료 후 대국실에 남는 PVP linger 후보.
+ * 친선·놀이 방 껍데기(`pairWaitingRoomReturn` / `pairGame.roomId`)로 복귀할 대국은 제외한다.
+ */
+export function sessionShouldRetainEndedPvpLingerRoom(session: {
+    gameStatus?: string | null;
+    isSinglePlayer?: boolean;
+    isAiGame?: boolean;
+    settings?: PostGamePairRoomRestoreSource['settings'];
+} | null | undefined): boolean {
+    if (!session) return false;
+    if (session.gameStatus !== 'ended' && session.gameStatus !== 'no_contest') return false;
+    if (session.isSinglePlayer || session.isAiGame) return false;
+    if (resolvePostGamePairRoomRestore(session)) return false;
+    if (session.settings?.pairGame) return false;
+    return true;
 }

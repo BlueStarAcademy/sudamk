@@ -1,7 +1,7 @@
 import type { LiveGameSession } from '../types.js';
 import { GameMode, Player } from '../types.js';
 import type { ArenaMatchAxis } from '../shared/utils/liveSessionArenaKind.js';
-import { normalizeChessGoSession } from '../shared/utils/chessGoRules.js';
+import { normalizeChessGoSession, sessionUsesChessGo } from '../shared/utils/chessGoRules.js';
 import { processMoveClient } from '../client/goLogicClient.js';
 
 /** playing 중 슬림 WS(moveHistory만·boardState 생략)에서 판·수순을 맞출 대상 */
@@ -392,29 +392,44 @@ function chessSessionLastMovesMatch(a: LiveGameSession, b: LiveGameSession): boo
     return !!(lastA && lastB && lastA.x === lastB.x && lastA.y === lastB.y && lastA.player === lastB.player);
 }
 
+export type ResolveChessPlayingOptions = {
+    /**
+     * PVP·혼합페어: 동일 길이·분기 수순은 서버를 권위로 둔다(낙관적 착수 고착·서로 다른 마지막 수 방지).
+     * PVE(기본 false): AI 지연 표시 중 낡은 서버 스냅샷이 오면 클라 수순을 유지한다.
+     */
+    preferServerOnHistoryConflict?: boolean;
+};
+
 function pickChessPlayingAuthoritativeSnapshot(
     server: LiveGameSession,
     client: LiveGameSession,
+    opts?: ResolveChessPlayingOptions,
 ): LiveGameSession {
     const serverMhLen = wsSessionMoveHistoryLen(server);
     const clientMhLen = wsSessionMoveHistoryLen(client);
+    const preferServer = opts?.preferServerOnHistoryConflict === true;
 
-    if (!moveHistoriesSharePrefix(server.moveHistory, client.moveHistory)) return client;
+    if (!moveHistoriesSharePrefix(server.moveHistory, client.moveHistory)) {
+        return preferServer ? server : client;
+    }
     if (serverMhLen > clientMhLen) return server;
     if (clientMhLen > serverMhLen) return client;
-    if (serverMhLen > 0 && !chessSessionLastMovesMatch(server, client)) return client;
+    if (serverMhLen > 0 && !chessSessionLastMovesMatch(server, client)) {
+        return preferServer ? server : client;
+    }
     return server;
 }
 
 /**
- * 체스 바둑 PVE playing: 슬림·낡은 WS/HTTP 패킷이 moveHistory·chessPieces를 되돌리면
- * AI 바둑돌이 사라지거나 다른 교차점에 두는 것처럼 보인다.
+ * 체스 바둑 playing: 슬림·낡은 WS/HTTP 패킷과 낙관적 착수를 한 판·수순으로 맞춘다.
+ * PVE는 AI 지연 표시를 위해 분기 시 클라를 우선하고, PVP는 preferServerOnHistoryConflict로 서버를 우선한다.
  */
 export function resolveChessPvePlayingSession(
     server: LiveGameSession,
     client: LiveGameSession | undefined,
+    opts?: ResolveChessPlayingOptions,
 ): LiveGameSession {
-    if (server.mode !== GameMode.Chess) return server;
+    if (!sessionUsesChessGo(server)) return server;
     const clientSnap = client ?? server;
     if (
         (clientSnap.gameStatus === 'ended' || clientSnap.gameStatus === 'no_contest') &&
@@ -422,7 +437,7 @@ export function resolveChessPvePlayingSession(
     ) {
         return normalizeChessGoSession(clientSnap);
     }
-    const authoritative = pickChessPlayingAuthoritativeSnapshot(server, clientSnap);
+    const authoritative = pickChessPlayingAuthoritativeSnapshot(server, clientSnap, opts);
 
     const merged: LiveGameSession = {
         ...clientSnap,
@@ -436,6 +451,8 @@ export function resolveChessPvePlayingSession(
         koInfo: authoritative.koInfo,
         lastMove: authoritative.lastMove,
         captures: authoritative.captures,
+        // 권위 스냅샷의 턴을 써야 낙관적 착수(클라 선행) 직후 서버 낡은 currentPlayer로 되돌리지 않음
+        currentPlayer: authoritative.currentPlayer,
     };
 
     return normalizeChessGoSession(merged);

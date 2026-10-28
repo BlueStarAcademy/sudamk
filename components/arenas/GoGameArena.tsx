@@ -16,7 +16,6 @@ import ChessPiecePlacementPanel from '../game/ChessPiecePlacementPanel.js';
 import {
     resolvePairChessSetupDraftKey,
     resolvePairChessSetupPlayerColor,
-    shouldMaskChessPlacementOpponentHalf,
 } from '../../shared/utils/pairChessSetup.js';
 import { isPairClassicGame } from '../../shared/utils/pairGameTurn.js';
 
@@ -393,7 +392,6 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
 
     const isAdventureBoardLayout = session.gameCategory === 'adventure';
     const showChessPlacementPanel = gameStatus === 'chess_piece_placement';
-    const dockChessPlacementPanel = isMobile && showChessPlacementPanel;
     const chessPlacementPanel = showChessPlacementPanel ? (
         <ChessPiecePlacementPanel
             session={displaySession}
@@ -431,22 +429,11 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                     </span>
                 </button>
             )}
-            {/* 바둑판은 항상 정사각형으로, 주어진 공간 안에 맞춰 축소/확대 */}
-            <div
-                className={`relative flex h-full max-h-full w-full max-w-full min-h-0 min-w-0 overflow-hidden ${
-                    dockChessPlacementPanel ? 'flex-col items-stretch self-stretch' : 'items-center justify-center'
-                }`}
-            >
-                {dockChessPlacementPanel && (
-                    <div className="w-full shrink-0 px-0.5 pt-0.5 pb-1">{chessPlacementPanel}</div>
-                )}
-                <div
-                    className={`relative flex min-h-0 min-w-0 items-center justify-center overflow-hidden ${
-                        dockChessPlacementPanel ? 'w-full flex-1' : 'h-full max-h-full w-full max-w-full'
-                    }`}
-                >
-                <div className="relative aspect-square h-full max-h-full w-full max-w-full min-h-0 min-w-0 overflow-hidden">
-                {!dockChessPlacementPanel && chessPlacementPanel}
+            {/* 바둑판은 항상 정사각형으로, 가용 영역의 min(가로,세로)에 맞춤(모바일 체스·광고 제거 후 공간 최대화) */}
+            <div className="relative flex h-full max-h-full w-full max-w-full min-h-0 min-w-0 items-center justify-center overflow-hidden">
+                <div className="relative flex h-full max-h-full w-full max-w-full min-h-0 min-w-0 items-center justify-center overflow-hidden [container-type:size]">
+                <div className="relative aspect-square h-[min(100cqw,100cqh)] w-[min(100cqw,100cqh)] max-h-full max-w-full min-h-0 min-w-0 overflow-hidden">
+                {chessPlacementPanel}
                 <GoBoard
                 boardState={chessPlacementBoardState ?? boardStateForDisplay}
                 boardSize={boardSizeForDisplay}
@@ -501,11 +488,7 @@ const GoGameArena: React.FC<GoGameArenaProps> = (props) => {
                 }
                 highlightStyle={isChessPlacementPhase && selectedSetupPieceType ? 'green-dot' : 'ring'}
                 chessSetupSelectionToken={selectedSetupPieceType ?? ''}
-                chessPlacementMaskOpponentHalf={
-                    isChessPlacementPhase &&
-                    chessPlacementColor != null &&
-                    shouldMaskChessPlacementOpponentHalf(session)
-                }
+                chessPlacementMaskOpponentHalf={false}
                 chessPieces={chessPlacementPieces ?? displaySession.chessPieces}
                 chessGoRemovedPoints={displaySession.chessGoRemovedPoints}
                 chessPieceMovedThisTurn={displaySession.chessPieceMovedThisTurn}

@@ -7,6 +7,7 @@ import Avatar from '../Avatar.js';
 import { formatDateTimeKST } from '../../utils/timeUtils.js';
 import { ADMIN_USER_ID, ADMIN_NICKNAME } from '../../constants/index.js';
 import { mergeStaffNicknameDisplayClass } from '../../shared/utils/staffNicknameDisplay.js';
+import MobileKeyboardAvoidingChatShell from '../mobile/MobileKeyboardAvoidingChatShell.js';
 
 interface GuildChatProps {
     guildId: string;
@@ -86,8 +87,8 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
     };
 
     return (
-        <div className="flex flex-col h-full">
-            <div className="flex-1 overflow-y-auto space-y-2 mb-4">
+        <MobileKeyboardAvoidingChatShell className="flex h-full flex-col">
+            <div className="mb-4 flex-1 space-y-2 overflow-y-auto">
                 {messages.map((message) => {
                     const author = allUsers?.find(u => u.id === message.authorId);
                     const msgUser = (message as { user?: { id?: string; nickname?: string; avatarId?: string; borderId?: string }; authorId?: string })?.user;
@@ -151,7 +152,7 @@ const GuildChat: React.FC<GuildChatProps> = ({ guildId, messages, onMessagesUpda
                     {t('chat.send')}
                 </Button>
             </div>
-        </div>
+        </MobileKeyboardAvoidingChatShell>
     );
 };
 
