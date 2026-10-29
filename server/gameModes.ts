@@ -59,7 +59,8 @@ import {
 // - 클라이언트는 연출(착점·따낸 점수·계가 중 오버레이) 후에 영토/결과를 표시
 type ScoringPrecomputeEntry = {
     startedAt: number;
-    promise: Promise<types.AnalysisResult>;
+    /** Resolves to analysis on success, or null if precompute failed (never rejects). */
+    promise: Promise<types.AnalysisResult | null>;
     preservedGameState?: Record<string, unknown>;
     preservedTimeInfo?: {
         blackTimeLeft?: number;
@@ -99,6 +100,8 @@ function isAnticipatedScoringPrecomputeEligible(game: types.LiveGameSession): bo
  * 착수로 passCount가 리셋되면 `invalidateScoringPrecompute`로 무효화한다.
  */
 export function maybeStartAnticipatedScoringPrecompute(game: types.LiveGameSession): void {
+    // CI/integration has no KataGo binary; skip fire-and-forget spawn entirely under Vitest.
+    if (process.env.VITEST === 'true') return;
     if (!isAnticipatedScoringPrecomputeEligible(game)) return;
     if ((game.passCount ?? 0) < 1) return;
     startScoringKataGoPrecomputeIfNeeded(game, 'anticipated_first_pass');
@@ -220,7 +223,14 @@ function startScoringKataGoPrecomputeCore(
             return baseAnalysis;
         })
         .catch((e) => {
-            throw e;
+            // Fire-and-forget anticipated precompute must not become an unhandled rejection
+            // (e.g. CI without a KataGo binary). Resolve null so awaiters can fall through.
+            console.warn(
+                `[getGameResult] KataGo scoring precompute failed (${logLabel}) for game ${game.id}:`,
+                e instanceof Error ? e.message : e,
+            );
+            scoringPrecompute.delete(game.id);
+            return null;
         });
     entry = {
         startedAt: nowMs,
@@ -939,7 +949,9 @@ export const getGameResult = async (game: LiveGameSession): Promise<LiveGameSess
             if (pre) {
                 scoringPrecompute.delete(game.id);
                 console.log(`[getGameResult] Using precomputed KataGo analysis for game ${game.id} (startedAt=${pre.startedAt})`);
-                return await pre.promise;
+                const precomputed = await pre.promise;
+                if (precomputed) return precomputed;
+                // Precompute resolved null (engine missing / analyze failed) — fall through to a fresh attempt.
             }
 
             const opts: any = {
