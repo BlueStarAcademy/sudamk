@@ -60,6 +60,8 @@ describe('START_SINGLE_PLAYER_GAME', () => {
         expect(result.error).toBeUndefined();
         expect(result.clientResponse?.gameId).toBeTruthy();
         expect(result.clientResponse?.game?.stageId).toBe('입문-1');
-        expect(user.dismissedScreenGuides).toContain('first_run_walkthrough');
+        // Walkthrough stays open through in-game pet hint; only dismiss home guide.
+        expect(user.dismissedScreenGuides).toContain('home');
+        expect(user.dismissedScreenGuides).not.toContain('first_run_walkthrough');
     });
 });

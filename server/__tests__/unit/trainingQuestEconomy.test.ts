@@ -71,7 +71,9 @@ describe('trainingQuestEconomy', () => {
             levels,
         });
         expect(coerced.converted).toBe(true);
-        expect(coerced.value).toBe(Math.floor(legacyGold / levels[0]!.rewardAmount));
+        expect(coerced.value).toBe(
+            Math.min(Math.floor(legacyGold / levels[0]!.rewardAmount), xpToMax),
+        );
         expect(coerced.value).toBeLessThanOrEqual(xpToMax);
 
         // 이미 사이클 단위면 유지

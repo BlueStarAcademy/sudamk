@@ -138,6 +138,7 @@ export function totalEnhanceXpBetweenLevels(
  * 환산 조건(미마킹 + 생산량>1):
  * - 사이클 만렙 XP 합보다 크거나
  * - 옛 공식 Lv1→2 필요량(`maxCapacity × 10`) 이상 (한 레벨치 이상 골드 XP)
+ * 환산 결과는 만렙 사이클 XP 합으로 상한 (거대 골드 뱅크의 즉시 만렙 방지).
  */
 export function coerceAccumulatedCollectionToCycleXp(args: {
     accumulatedCollection: number;
@@ -157,7 +158,10 @@ export function coerceAccumulatedCollectionToCycleXp(args: {
     const xpToMaxFrom1 = totalEnhanceXpBetweenLevels(args.levels, 1, 10);
     const legacyLevel1GoldXp = Math.max(1, args.levels[0]?.maxCapacity ?? 1) * 10;
     if ((xpToMaxFrom1 > 0 && acc > xpToMaxFrom1) || acc >= legacyLevel1GoldXp) {
-        return { value: Math.floor(acc / per), converted: true };
+        // Cap at man-level cycle XP so a huge legacy gold bank cannot still fund instant max enhance.
+        const cycles = Math.floor(acc / per);
+        const value = xpToMaxFrom1 > 0 ? Math.min(cycles, xpToMaxFrom1) : cycles;
+        return { value, converted: true };
     }
     return { value: acc, converted: false };
 }
