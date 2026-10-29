@@ -69,7 +69,7 @@
     "test:unit": "vitest run server/__tests__/unit",
     "test:integration": "vitest run server/__tests__/integration",
     "test:e2e": "playwright test",
-    "test:e2e:smoke": "playwright test --grep @smoke",
+    "test:e2e:smoke": "playwright test e2e/smoke.spec.ts --project=chromium",
     "test:e2e:full": "playwright test",
     "test:ci": "npm run typecheck && npm run validate:client-imports && npm run validate:arena-policy && npm run test:unit && npm run test:integration && npm run test:e2e",
     "test:ci:pr": "npm run typecheck && npm run validate:client-imports && npm run validate:arena-policy && npm run test:unit && npm run test:integration && npm run test:e2e:smoke",
