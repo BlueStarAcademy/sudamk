@@ -72,8 +72,9 @@ jobs:
       - name: Generate Prisma client
         run: npm run prisma:generate
 
-      - name: Apply migrations (E2E DB)
-        run: npm run prisma:migrate:deploy
+      - name: Apply schema (E2E DB)
+        # Fresh CI Postgres: sync full schema.prisma (migrate history lags columns like User.isAdmin).
+        run: npx prisma db push --schema prisma/schema.prisma --accept-data-loss --force-reset
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
@@ -90,17 +91,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          last_body=""
           for i in $(seq 1 90); do
-            body=$(curl -fsS "http://localhost:4000/" 2>/dev/null || echo "")
-            if echo "$body" | grep -q '"database":"connected"'; then
+            last_body=$(curl -fsS "http://localhost:4000/" 2>/dev/null || echo "")
+            if echo "$last_body" | grep -q '"database":"connected"'; then
               echo "Database ready (attempt $i)"
               exit 0
             fi
-            echo "Waiting for DB init... ($i)"
+            echo "Waiting for DB init... ($i) body=${last_body:-<empty>}"
             sleep 2
           done
-          echo "--- /tmp/e2e-app.log (tail) ---"
-          tail -n 200 /tmp/e2e-app.log || true
+          echo "--- last health body ---"
+          echo "${last_body:-<empty>}"
+          echo "--- /tmp/e2e-app.log (startup / DB errors) ---"
+          grep -E '\[Server Startup\]|\[DB\]|Error during server|Database initialized|does not exist|P20[0-9]{2}|Bootstrap' /tmp/e2e-app.log || true
+          echo "--- /tmp/e2e-app.log (full, last 400) ---"
+          tail -n 400 /tmp/e2e-app.log || true
           exit 1
 
       - name: Wait for Vite
