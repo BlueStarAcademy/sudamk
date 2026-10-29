@@ -71,7 +71,7 @@ export function applyMixModeSettingsConstraints(settings: GameSettings): GameSet
     next.mixedModes = mixed;
 
     if (mixIncludesChess(mixed)) {
-        if (!CHESS_BOARD_SIZES.includes(next.boardSize as number)) {
+        if (!(CHESS_BOARD_SIZES as readonly number[]).includes(next.boardSize as number)) {
             next.boardSize = CHESS_BOARD_SIZES[0] as GameSettings['boardSize'];
         }
         const chessBoard = next.boardSize ?? 13;

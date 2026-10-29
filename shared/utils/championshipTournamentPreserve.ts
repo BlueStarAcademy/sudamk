@@ -336,7 +336,7 @@ export function mergeTerminalTournamentPreserveScoringBoard(
                             moveCount,
                         ),
                         lastMove: prevGame.lastMove ?? resolvedGame?.lastMove,
-                        status: 'scoring',
+                        status: 'scoring' as const,
                         winnerId: resolvedGame?.winnerId ?? prevGame.winnerId,
                         finalScore: resolvedGame?.finalScore ?? prevGame.finalScore,
                         scoringAnalysis: prevGame.scoringAnalysis ?? resolvedGame?.scoringAnalysis,
@@ -355,7 +355,7 @@ export function mergeTerminalTournamentPreserveScoringBoard(
                 };
             }),
         };
-    });
+    }) as TournamentState['rounds'];
 }
 
 /** complete 적용 시 서버 기보가 빈약하면 로컬 finished 보드를 유지 */

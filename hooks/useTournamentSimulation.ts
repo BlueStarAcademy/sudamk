@@ -262,7 +262,7 @@ const resolveInitialTournament = (tournament: TournamentState | null, currentUse
         : tournament;
     const { tournament: repairedIncoming } = currentUser
         ? recoverStuckChampionshipRoundInProgress(pointerRepaired, currentUser.id)
-        : { tournament: pointerRepaired, recovered: false };
+        : { tournament: pointerRepaired };
     const finalize = (state: TournamentState | null): TournamentState | null =>
         state && currentUser ? applyUserConditionSnapshotToTournament(state, currentUser) : state;
     if (!currentUser) return finalize(repairedIncoming);
@@ -327,7 +327,7 @@ type CompleteSimulationPayload = {
 };
 
 const sendRealGameCompleteWithRetry = (
-    handleAction: (action: { type: 'COMPLETE_TOURNAMENT_SIMULATION'; payload: CompleteSimulationPayload }) => Promise<unknown>,
+    handleAction: (action: any) => Promise<unknown>,
     payload: CompleteSimulationPayload,
 ) => {
     const send = async (attempt: number) => {

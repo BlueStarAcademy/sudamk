@@ -105,6 +105,11 @@ import { shouldOmitBoardStateInBroadcast } from './utils/boardBroadcastOmit.js';
 
 const AI_EVALUATION_MOVE_OPTIONS = { ignoreSuicide: true, suppressOccupiedLog: true } as const;
 
+/** Chess/Castle APIs expect Black|White; AI seat is never Player.None in practice. */
+function asBwPlayer(player: Player): Player.Black | Player.White {
+    return player === Player.White ? Player.White : Player.Black;
+}
+
 /** 싱글·탑·로비 AI 등: 마지막 AI 수가 판에 보이고 착수음이 난 뒤 계가 — 클라 렌더·오디오 여유 */
 const PVE_DEFERRED_AUTO_SCORING_AFTER_LAST_AI_MS = 1200;
 const pveDeferredAutoScoringTimers = new Map<string, ReturnType<typeof setTimeout>>();
@@ -827,7 +832,7 @@ const applyAiCaptureOutcome = (
                 capturePoints: points,
             });
         }
-        applyChessCaptureScoreForRemovedStones(game, result.capturedStones, aiPlayerEnum);
+        applyChessCaptureScoreForRemovedStones(game, result.capturedStones, asBwPlayer(aiPlayerEnum));
         bumpGuildWarMaxSingleCapturePointsForPlayer(game as any, aiPlayerEnum, guildWarCapturePointsThisMove);
         return false;
     }
@@ -1863,7 +1868,12 @@ function evaluateAiGoPlacementMove(
         );
     }
     if (sessionUsesChessGo(game)) {
-        return processChessGoMove(game, move, game.koInfo, game.moveHistory.length);
+        return processChessGoMove(
+            game,
+            { ...move, player: asBwPlayer(move.player) },
+            game.koInfo,
+            game.moveHistory.length,
+        );
     }
     return processMove(
         game.boardState,
@@ -2814,7 +2824,7 @@ export async function makeGoAiBotMove(
     if (sessionUsesChessGo(game) && !game.chessPieceMovedThisTurn) {
         const { repairChessGoSessionState, tryAiChessPieceMove } = await import('./modes/chess.js');
         repairChessGoSessionState(game);
-        await tryAiChessPieceMove(game, aiPlayerEnum, goAiProfileLevel);
+        await tryAiChessPieceMove(game, asBwPlayer(aiPlayerEnum), goAiProfileLevel);
         if (game.gameStatus === 'ended' || game.gameStatus === 'no_contest') {
             return;
         }
@@ -3321,7 +3331,7 @@ export async function makeGoAiBotMove(
         : isChessGame
           ? processChessGoMove(
                 game,
-                { ...selectedMove, player: aiPlayerEnum },
+                { ...selectedMove, player: asBwPlayer(aiPlayerEnum) },
                 game.koInfo,
                 game.moveHistory.length,
             )
@@ -3585,7 +3595,7 @@ export async function makeGoAiBotMove(
     if (isChessGame) {
         const { tryEndChessOnKingCapture, repairChessGoSessionState } = await import('./modes/chess.js');
         repairChessGoSessionState(game);
-        if (await tryEndChessOnKingCapture(game, aiPlayerEnum)) {
+        if (await tryEndChessOnKingCapture(game, asBwPlayer(aiPlayerEnum))) {
             await db.saveGame(game);
             return;
         }
@@ -3901,7 +3911,7 @@ export async function makeGoAiBotMove(
 
 function hasAnyValidBoardMove(game: types.LiveGameSession, aiPlayer: Player): boolean {
     if (sessionUsesChessGo(game)) {
-        return enumerateLegalChessGoStonePlacements(game, aiPlayer).length > 0;
+        return enumerateLegalChessGoStonePlacements(game, asBwPlayer(aiPlayer)).length > 0;
     }
     const boardSize = game.settings.boardSize;
 
@@ -3934,7 +3944,7 @@ function findAllValidMoves(
         return enumerateLegalCastleMoves(game, aiPlayer);
     }
     if (sessionUsesChessGo(game)) {
-        return enumerateLegalChessGoStonePlacements(game, aiPlayer);
+        return enumerateLegalChessGoStonePlacements(game, asBwPlayer(aiPlayer));
     }
     const validMoves: Point[] = [];
     const boardSize = game.settings.boardSize;
@@ -3972,7 +3982,7 @@ function findAllValidMovesFast(
         return enumerateLegalCastleMoves(game, aiPlayer);
     }
     if (sessionUsesChessGo(game)) {
-        return enumerateLegalChessGoStonePlacements(game, aiPlayer);
+        return enumerateLegalChessGoStonePlacements(game, asBwPlayer(aiPlayer));
     }
     const validMoves: Point[] = [];
     const boardSize = game.settings.boardSize;

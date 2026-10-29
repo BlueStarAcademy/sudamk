@@ -58,7 +58,8 @@ export type AppRoute = {
         | 'guildboss'
         | 'guildwar'
         | 'tower'
-        | 'adventure';
+        | 'adventure'
+        | 'help';
     params: any;
 };
 
@@ -114,6 +115,8 @@ export function parseHash(hash: string): AppRoute {
             return { view: 'tower', params: {} };
         case 'adventure':
             return { view: 'adventure', params: { stageId: rest[0] || null } };
+        case 'help':
+            return { view: 'help', params: { categoryId: rest[0] || null, subId: rest[1] || null } };
         case 'admin':
             return { view: 'admin', params: {} };
         case 'register':

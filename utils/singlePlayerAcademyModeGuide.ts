@@ -214,6 +214,5 @@ export function resolveSinglePlayerAcademyModeGuideTabs(
     return mix.map((m) => tabForMode(m, ctx));
   }
 
-  const mode = session.mode === GameMode.Mix ? resolvedMode : session.mode;
-  return [tabForMode(mode, ctx)];
+  return [tabForMode(resolvedMode, ctx)];
 }

@@ -1312,7 +1312,7 @@ function resetPairRoomReadinessAfterLobbyConfigChange(room: types.PairRoomState)
     clearPairOwnerStartDeadline(room);
 }
 
-function mergePairRoomLobbyGameSettings(room: types.PairRoomState, payload: { selectedGameMode?: GameMode; settings?: types.GameSettings }) {
+function mergePairRoomLobbyGameSettings(room: types.PairRoomState, payload: { selectedGameMode?: GameMode; settings?: Partial<types.GameSettings> }) {
     room.selectedGameMode = resolvePairWaitingRoomSelectedGameMode(room, payload.selectedGameMode ?? room.selectedGameMode);
     room.settings = {
         ...DEFAULT_GAME_SETTINGS,
@@ -1765,7 +1765,8 @@ function applyPairRoomKindTransition(room: types.PairRoomState, normalizedKind: 
         room.partnerId = undefined;
         room.partnerName = undefined;
     }
-    room.partnerReady = !room.partnerId ? normalizedKind === 'friendly_4p' : false;
+    // All PairLobbyRoomKindLiteral values return above; keep partner unset-ready as fallback.
+    room.partnerReady = false;
 }
 
 type PairLobbyOwnerPatchPayload = {

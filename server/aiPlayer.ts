@@ -124,6 +124,7 @@ const aiNicknames: Record<GameMode, string> = {
     [GameMode.Hidden]: '히든 바둑봇',
     [GameMode.Missile]: '미사일 바둑봇',
     [GameMode.Mix]: '믹스룰 바둑봇',
+    [GameMode.Uniform]: '일색 바둑봇',
     [GameMode.Dice]: '주사위 바둑봇',
     [GameMode.Omok]: '오목 봇',
     [GameMode.Ttamok]: '따목 봇',

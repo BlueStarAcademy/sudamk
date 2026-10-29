@@ -103,7 +103,7 @@ const Lobby: React.FC<LobbyProps> = ({ lobbyType }) => {
       <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 ${isNativeMobile ? 'gap-2.5' : 'gap-5 sm:gap-7'}`}
       >
         {modes.map(game => (
-          <GameCard key={game.mode} {...game} available={gameModeAvailability[game.mode] ?? game.available} onSelect={() => handlers.handleEnterWaitingRoom(game.mode)} hoverColorClass={hoverColorClass} />
+          <GameCard key={game.mode} {...game} available={Boolean(gameModeAvailability[game.mode] ?? game.available)} onSelect={() => handlers.handleEnterWaitingRoom(game.mode)} hoverColorClass={hoverColorClass} />
         ))}
       </div>
     </section>

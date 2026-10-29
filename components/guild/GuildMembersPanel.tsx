@@ -548,7 +548,7 @@ const GuildMembersPanel: React.FC<GuildMembersPanelProps> = ({ guild, myMemberIn
                         (() => {
                             const u = allUsers.find(x => x.id === managingMember.userId || (managingMember.userId === ADMIN_USER_ID && x.isAdmin));
                             const borderId = managingMember.borderId ?? u?.borderId;
-                            return borderId ? BORDER_POOL.find(b => b.id === borderId)?.url : undefined;
+                            return borderId ? (BORDER_POOL.find(b => b.id === borderId)?.url ?? undefined) : undefined;
                         })()
                     }
                     isMaster={isMaster}

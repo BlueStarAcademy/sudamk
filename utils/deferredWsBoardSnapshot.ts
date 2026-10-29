@@ -284,12 +284,14 @@ export function resolveStrategicPvePlayingBoardAndMoveHistory(
             { ...server, moveHistory },
             clientSnap,
         );
+        const resolvedBoard =
+            (isSubstantiveBoardState(replayed) && replayed) ||
+            (clientBoardOk ? clientSnap.boardState : undefined) ||
+            replayed ||
+            clientSnap.boardState ||
+            server.boardState;
         return {
-            boardState: isSubstantiveBoardState(replayed)
-                ? replayed
-                : clientBoardOk
-                  ? clientSnap.boardState
-                  : replayed,
+            boardState: resolvedBoard!,
             moveHistory,
         };
     }

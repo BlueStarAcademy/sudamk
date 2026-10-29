@@ -2,7 +2,8 @@ import React, { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useSta
 import { useTranslation } from 'react-i18next';
 import i18n from '../shared/i18n/config.js';
 
-const pt = (key: string, opts?: Record<string, unknown>) => i18n.t(`pair:${key}`, opts);
+const pt = (key: string, opts?: string | Record<string, unknown>) =>
+    typeof opts === 'string' ? i18n.t(`pair:${key}`, { defaultValue: opts }) : i18n.t(`pair:${key}`, opts);
 import Button from './Button.js';
 import DraggableWindow from './DraggableWindow.js';
 import PcLobbyCenterRightColumn from './shell/PcLobbyCenterRightColumn.js';
@@ -309,6 +310,7 @@ type PairRoom = {
     pairPetQueueKind?: 'ranked' | 'normal';
     pairAiDuoInviteShell?: boolean;
     pairLobbyAiSeatSlots?: { teamB: Array<0 | 1> };
+    pairLobbyPetSeatSlots?: { teamA: Array<0 | 1> };
 };
 
 /** AI 팀페어(사람+사람 vs AI+AI) — 페어·전략 초대 셸 */
@@ -622,7 +624,7 @@ function pairLobbyListDisplayRoomKind(room: PairRoom, channelFallback?: PairWait
 type PairLobbyListRoomKindFilter = 'all' | RoomKind;
 
 function pairLobbyListRoomKindFilterOptionsForChannel(
-    lobbyChannel: 'pair' | 'strategic' | 'playful',
+    lobbyChannel: 'pair' | 'strategic' | 'playful' | 'friendly',
     lobbyIntent: ArenaLobbyIntent = 'pvp',
 ): ReadonlyArray<{ value: PairLobbyListRoomKindFilter; label: string }> {
     const all = { value: 'all' as const, label: pt('filters.allRoomKinds') };
@@ -657,7 +659,7 @@ function pairLobbyListGameModeFilterShortLabel(name: string): string {
 }
 
 function pairLobbyListGameModeFilterOptionsForChannel(
-    lobbyChannel: 'pair' | 'strategic' | 'playful',
+    lobbyChannel: 'pair' | 'strategic' | 'playful' | 'friendly',
 ): ReadonlyArray<{ value: 'all' | GameMode; label: string }> {
     const allGameModes = { value: 'all' as const, label: pt('filters.allGameModes') };
     if (lobbyChannel === 'strategic') {
@@ -1734,7 +1736,8 @@ const PairWaitingLobby: React.FC<PairWaitingLobbyProps> = ({
     }, [myRoomAnyLobbyChannel, handlers, isPairAiWaitingLobby]);
 
     const selectMatchQueue = useCallback(
-        (queue: 'ranked' | 'normal') => {
+        (queue: import('./waiting-room/RankedMatchPanel.js').ArenaMatchQueueKind) => {
+            if (queue !== 'ranked' && queue !== 'normal') return;
             if (lobbyChannel !== 'strategic' || lobbyIntent !== 'pvp') return;
             if (queue === matchQueueKind) return;
             if (aggregateLobbyRankedMatching) {

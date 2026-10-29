@@ -1215,9 +1215,8 @@ export const forfeitRemainingNeighborhoodLeagueMatches = async (
         await processMatchCompletion(state, user, next.match, next.roundIndex, { suppressAutoAdvance: true });
     }
 
-    if (state.status !== 'complete') {
-        applyTournamentCompleteStatus(state);
-    }
+    // Early return above excludes complete/eliminated; always finalize remaining league forfeits.
+    applyTournamentCompleteStatus(state);
     state.currentSimulatingMatch = null;
     state.nextRoundStartTime = null;
 };

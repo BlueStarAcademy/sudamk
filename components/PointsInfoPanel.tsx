@@ -130,7 +130,7 @@ const PointsInfoPanel: React.FC<{
                 <div className="mb-1.5 flex w-full max-w-full shrink-0 justify-center gap-1">
                     {TOURNAMENT_ARENA_META.map((a, i) => (
                         <button
-                            key={a.arena}
+                            key={a.arenaKey}
                             type="button"
                             onClick={() => setArenaTab(i)}
                             className={`min-w-0 flex-1 rounded-lg border px-1 py-1.5 text-center text-[11px] font-bold leading-tight transition-colors sm:text-xs ${
@@ -139,7 +139,7 @@ const PointsInfoPanel: React.FC<{
                                     : 'border-white/10 bg-black/30 text-zinc-400 hover:border-amber-500/35 hover:text-zinc-200'
                             }`}
                         >
-                            {a.arena}
+                            {t(`championship.points.${a.titleKey}`)}
                         </button>
                     ))}
                 </div>
@@ -154,7 +154,7 @@ const PointsInfoPanel: React.FC<{
 
                     return (
                         <div
-                            key={arenaData.arena}
+                            key={arenaData.arenaKey}
                             className={`${arenaCardClass} ${compact ? 'mx-auto w-full max-w-full' : ''} ${embedded && !arenaTabs ? '' : !embedded ? 'p-2' : ''}`}
                         >
                             <h4

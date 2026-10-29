@@ -1372,8 +1372,12 @@ function preserveLiveStrategicMainClockOnMerge(
     return {
         ...merged,
         mode: incoming.mode ?? existing.mode ?? merged.mode,
-        blackTimeLeft: hasSpeedClocks ? speedClocks.blackTimeLeft : pickMainTime('blackTimeLeft'),
-        whiteTimeLeft: hasSpeedClocks ? speedClocks.whiteTimeLeft : pickMainTime('whiteTimeLeft'),
+        blackTimeLeft: hasSpeedClocks
+            ? (speedClocks.blackTimeLeft ?? merged.blackTimeLeft)
+            : (pickMainTime('blackTimeLeft') ?? merged.blackTimeLeft),
+        whiteTimeLeft: hasSpeedClocks
+            ? (speedClocks.whiteTimeLeft ?? merged.whiteTimeLeft)
+            : (pickMainTime('whiteTimeLeft') ?? merged.whiteTimeLeft),
         turnStartTime: hasSpeedClocks
             ? speedClocks.turnStartTime
             : typeof incoming.turnStartTime === 'number' && Number.isFinite(incoming.turnStartTime)
@@ -1971,18 +1975,6 @@ function shouldSkipRejoinBecauseBoardHydrated(game: LiveGameSession | undefined)
     if (!hasHydratedBoardGridForRejoin(game)) return false;
     if (game && sessionUsesChessGo(game)) return false;
     return true;
-}
-
-/** 격자 행렬만 있고 돌이 하나도 없는 패킷(종료·슬림 WS)을 "유효한 서버 보드"로 취급하지 않기 위함 */
-function boardGridHasAnyStones(board: LiveGameSession['boardState'] | undefined): boolean {
-    const b = board;
-    if (!b || !Array.isArray(b)) return false;
-    return b.some(
-        (row) =>
-            row &&
-            Array.isArray(row) &&
-            row.some((c: unknown) => c !== 0 && c != null && c !== undefined),
-    );
 }
 
 /** `/api/game/rejoin`·계가 폴링 응답이 종료 직후 판 없이 오면 빈 격자·턴 알림으로 덮어쓰는 것을 막는다. */
@@ -5061,11 +5053,13 @@ export const useApp = () => {
                 if (usesChessGo) {
                     updatedGame.chessPieceMovedThisTurn = false;
                     commitChessGoPlacementCaptures(updatedGame, x, y, capturedStones);
-                    if (capturedStones.length > 0) {
+                    const chessCapturer =
+                        movePlayer === Player.Black || movePlayer === Player.White ? movePlayer : null;
+                    if (capturedStones.length > 0 && chessCapturer) {
                         const chessCapture = applyChessCaptureScoreForRemovedStones(
                             updatedGame,
                             capturedStones,
-                            movePlayer,
+                            chessCapturer,
                         );
                         if (chessCapture.kingCaptured) {
                             updatedGame.gameStatus = 'ended';
@@ -5205,11 +5199,13 @@ export const useApp = () => {
                 if (usesChessGo) {
                     updatedGame.chessPieceMovedThisTurn = false;
                     commitChessGoPlacementCaptures(updatedGame, x, y, capturedStones);
-                    if (capturedStones.length > 0) {
+                    const chessCapturer =
+                        movePlayer === Player.Black || movePlayer === Player.White ? movePlayer : null;
+                    if (capturedStones.length > 0 && chessCapturer) {
                         const chessCapture = applyChessCaptureScoreForRemovedStones(
                             updatedGame,
                             capturedStones,
-                            movePlayer,
+                            chessCapturer,
                         );
                         if (chessCapture.kingCaptured) {
                             updatedGame.gameStatus = 'ended';
@@ -7025,45 +7021,48 @@ export const useApp = () => {
                                 errorMessage,
                             );
                         }
-                        if (typeof actionGameId === 'string' && actionGameId.length > 0) {
-                            const gid = actionGameId;
-                            const localGame =
-                                towerGamesRef.current[gid] ??
-                                singlePlayerGamesRef.current[gid] ??
-                                liveGamesRef.current[gid];
-                            if (localGame && isGameNotFoundServerError(errorMessage)) {
-                                flushSync(() => {
-                                    setTowerGames((c) => {
-                                        if (!c[gid]) return c;
-                                        const next = { ...c };
-                                        delete next[gid];
-                                        return next;
-                                    });
-                                    setSinglePlayerGames((c) => {
-                                        if (!c[gid]) return c;
-                                        const next = { ...c };
-                                        delete next[gid];
-                                        return next;
-                                    });
-                                    setLiveGames((c) => {
-                                        if (!c[gid]) return c;
-                                        const next = { ...c };
-                                        delete next[gid];
-                                        return next;
-                                    });
+                        const gid =
+                            typeof actionGameId === 'string' && actionGameId.length > 0
+                                ? actionGameId
+                                : undefined;
+                        const localGame = gid
+                            ? towerGamesRef.current[gid] ??
+                              singlePlayerGamesRef.current[gid] ??
+                              liveGamesRef.current[gid]
+                            : undefined;
+                        if (gid && localGame && isGameNotFoundServerError(errorMessage)) {
+                            flushSync(() => {
+                                setTowerGames((c) => {
+                                    if (!c[gid]) return c;
+                                    const next = { ...c };
+                                    delete next[gid];
+                                    return next;
                                 });
-                            } else if (
-                                localGame &&
-                                isGameAlreadyEndedServerError(errorMessage) &&
-                                localGame.gameStatus !== 'ended' &&
-                                localGame.gameStatus !== 'no_contest' &&
-                                localGame.gameStatus !== 'scoring'
-                            ) {
-                                void handleAction({
-                                    type: 'REQUEST_GAME_STATE_SYNC',
-                                    payload: { gameId: gid },
-                                } as ServerAction);
-                            }
+                                setSinglePlayerGames((c) => {
+                                    if (!c[gid]) return c;
+                                    const next = { ...c };
+                                    delete next[gid];
+                                    return next;
+                                });
+                                setLiveGames((c) => {
+                                    if (!c[gid]) return c;
+                                    const next = { ...c };
+                                    delete next[gid];
+                                    return next;
+                                });
+                            });
+                        } else if (
+                            gid &&
+                            localGame &&
+                            isGameAlreadyEndedServerError(errorMessage) &&
+                            localGame.gameStatus !== 'ended' &&
+                            localGame.gameStatus !== 'no_contest' &&
+                            localGame.gameStatus !== 'scoring'
+                        ) {
+                            void handleAction({
+                                type: 'REQUEST_GAME_STATE_SYNC',
+                                payload: { gameId: gid },
+                            } as ServerAction);
                         }
                         revertPvpDicePlaceSnapshot();
                         revertPvpPlaceStoneSnapshot();
@@ -7878,11 +7877,7 @@ export const useApp = () => {
                                     prevG,
                                     mergePveHttpActionGameResponse(merged, prevG, action.type),
                                 );
-                                if (
-                                    action.type === 'PLACE_STONE' &&
-                                    !!(action.payload as { isHidden?: boolean })?.isHidden &&
-                                    prevG
-                                ) {
+                                if (prevG) {
                                     next = mergeTowerServerGameWithClientBoardIfStale(next, prevG);
                                 }
                                 return { ...prev, [gid]: { ...(prevG || ({} as LiveGameSession)), ...next } };
@@ -8530,7 +8525,7 @@ export const useApp = () => {
                 if (result.enhancementAnimationTarget) setEnhancementAnimationTarget(result.enhancementAnimationTarget);
                 const redirectToTournament = result.clientResponse?.redirectToTournament || result.redirectToTournament;
                 if (redirectToTournament) {
-                    if (action.type !== 'USE_CONDITION_POTION' && action.type !== 'BUY_CONDITION_POTION') {
+                    if (action.type !== 'BUY_CONDITION_POTION') {
                         const targetHash = `#/tournament/${redirectToTournament}`;
                         if (window.location.hash !== targetHash) {
                             console.log(`[handleAction] ${action.type} - Redirecting to tournament:`, redirectToTournament);
@@ -8843,6 +8838,10 @@ export const useApp = () => {
                         action.type === 'SCAN_BOARD' ||
                         action.type === 'REVEAL_OPPONENT_HIDDEN' ||
                         action.type === 'START_MISSILE_SELECTION' ||
+                        action.type === 'LAUNCH_MISSILE' ||
+                        action.type === 'CANCEL_MISSILE_SELECTION' ||
+                        action.type === 'MISSILE_INVALID_SELECTION' ||
+                        action.type === 'MISSILE_ANIMATION_COMPLETE' ||
                         action.type === 'REQUEST_STRATEGIC_PET_HINT' ||
                         (action.type === 'BUY_TOWER_ITEM' && !!game))
                 ) {
@@ -10792,6 +10791,7 @@ export const useApp = () => {
                                 }
 
                                 const mergedUser = applyUserUpdate(userUpdatePatch, 'USER_UPDATE-websocket');
+                                if (!mergedUser) return;
                                 console.log('[WebSocket] Applied USER_UPDATE for currentUser:', {
                                     inventoryLength: mergedUser.inventory?.length,
                                     gold: mergedUser.gold,
@@ -14097,9 +14097,9 @@ export const useApp = () => {
         const statusInfo = Array.isArray(onlineUsers) ? onlineUsers.find((u) => u && u.id === userId) : null;
         const withOnlineStatus = (u: UserWithStatus): UserWithStatus => ({
             ...u,
+            ...(statusInfo || { status: UserStatus.Online }),
             equipment: u.equipment || {},
             inventory: u.inventory || [],
-            ...(statusInfo || { status: UserStatus.Online }),
         });
         const showUserInViewport = (user: UserWithStatus, pushStack = true) => {
             setViewingUser(user);
@@ -14164,6 +14164,7 @@ export const useApp = () => {
 
     const setCurrentUserAndRoute = useCallback((user: User, options?: { activeGame?: LiveGameSession }) => {
         const mergedUser = applyUserUpdate(user, 'setCurrentUserAndRoute');
+        if (!mergedUser) return;
         console.log('[setCurrentUserAndRoute] User set:', {
             id: mergedUser.id,
             inventoryLength: mergedUser.inventory?.length,

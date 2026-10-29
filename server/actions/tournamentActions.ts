@@ -1832,9 +1832,8 @@ export const handleTournamentAction = async (volatileState: VolatileState, actio
                         r.matches.some(m => m.isUserMatch && !m.isFinished)
                     );
                     if (!hasNextUserMatch) {
-                        if (tournamentState.status !== 'eliminated') {
-                            tournamentState.status = 'complete';
-                        }
+                        // Outer guard already excluded eliminated / round_in_progress.
+                        tournamentState.status = 'complete';
                         tournamentState.nextRoundStartTime = null;
                     }
                 }

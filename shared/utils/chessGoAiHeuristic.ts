@@ -348,7 +348,10 @@ export function pickBestChessMoveFromCandidates(
 }
 
 export function pickAiChessMoveIfAny(
-    session: Pick<LiveGameSession, 'boardState' | 'chessPieces' | 'chessPieceMovedThisTurn'>,
+    session: Pick<
+        LiveGameSession,
+        'boardState' | 'chessPieces' | 'chessPieceMovedThisTurn' | 'settings' | 'captures' | 'chessCaptureScore' | 'chessGoRemovedPoints'
+    >,
     actingPlayer: Player.Black | Player.White,
     profileLevel: number,
     random = Math.random(),

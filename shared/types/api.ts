@@ -51,6 +51,9 @@ export type ChatMessage = {
   system: boolean;
   timestamp: number;
   location?: string;
+  /** 시스템 메시지 i18n 키 (길드 채팅 등) */
+  i18nKey?: string;
+  i18nParams?: Record<string, string | number | boolean | undefined>;
   actionInfo?: {
       message: string;
       scoreChange: number;

@@ -280,9 +280,9 @@ const Router: React.FC = () => {
         currentRoute.view === 'guildwar';
     const activeGameBlocksLobby =
         Boolean(activeGame) &&
-        activeGame.gameStatus !== 'ended' &&
-        activeGame.gameStatus !== 'no_contest' &&
-        activeGame.gameStatus !== 'rematch_pending';
+        activeGame!.gameStatus !== 'ended' &&
+        activeGame!.gameStatus !== 'no_contest' &&
+        activeGame!.gameStatus !== 'rematch_pending';
     if (
         activeGameBlocksLobby &&
         currentRoute.view !== 'game' &&

@@ -16,6 +16,7 @@
     "../node_modules",
     "../components",
     "../hooks",
-    "../client"
+    "../client",
+    "**/__tests__/**"
   ]
 }

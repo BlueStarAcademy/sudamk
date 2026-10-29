@@ -652,7 +652,7 @@ const TurnDisplay: React.FC<TurnDisplayProps> = ({
                 <BaseKomiGuideTicker
                     text={boardRuleFlashMessage}
                     isMobile={isMobile}
-                    isSinglePlayer={isSinglePlayer}
+                    isSinglePlayer={Boolean(isSinglePlayer)}
                 />
             </div>
         );

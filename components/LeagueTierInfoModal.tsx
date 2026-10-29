@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import i18n from '../shared/i18n/config.js';
 import DraggableWindow from './DraggableWindow.js';
 import { LEAGUE_DATA, LEAGUE_WEEKLY_REWARDS } from '../constants';
 import { LeagueRewardTier, LeagueTier } from '../types.js';
@@ -9,22 +10,24 @@ interface LeagueTierInfoModalProps {
     isTopmost?: boolean;
 }
 
+const lt = (key: string, opts?: Record<string, unknown>) => i18n.t(`inventory:${key}`, opts);
+
 const formatRankRange = (start: number, end: number) => {
-    return start === end ? t('leagueTier.rankPlace', { rank: start }) : t('leagueTier.rankRange', { start, end });
+    return start === end ? lt('leagueTier.rankPlace', { rank: start }) : lt('leagueTier.rankRange', { start, end });
 };
 
 const getOutcomeLabel = (tier: LeagueTier, outcome: LeagueRewardTier['outcome']) => {
     // 챌린저 리그는 최상위 티어이므로 promote outcome도 잔류로 표시
     if (outcome === 'promote' && tier === LeagueTier.Challenger) {
-        return t('leagueTier.stay');
+        return lt('leagueTier.stay');
     }
     switch (outcome) {
         case 'promote':
-            return t('leagueTier.promote');
+            return lt('leagueTier.promote');
         case 'maintain':
-            return t('leagueTier.stay');
+            return lt('leagueTier.stay');
         case 'demote':
-            return t('leagueTier.demote');
+            return lt('leagueTier.demote');
         default:
             return '';
     }
@@ -70,11 +73,11 @@ const buildOutcomeSummary = (tier: LeagueTier, rewards: LeagueRewardTier[]) => {
         const parts: string[] = [];
         if (mergedRanges.length > 0) {
             const rangeTexts = mergedRanges.map(r => formatRankRange(r.start, r.end));
-            parts.push(t('leagueTier.stayLine', { ranges: rangeTexts.join(', ') }));
+            parts.push(lt('leagueTier.stayLine', { ranges: rangeTexts.join(', ') }));
         }
         if (outcomeRanges.demote.length > 0) {
             const demoteTexts = outcomeRanges.demote.map(r => formatRankRange(r.start, r.end));
-            parts.push(t('leagueTier.demoteLine', { ranges: demoteTexts.join(', ') }));
+            parts.push(lt('leagueTier.demoteLine', { ranges: demoteTexts.join(', ') }));
         }
         return parts.join(' / ');
     }

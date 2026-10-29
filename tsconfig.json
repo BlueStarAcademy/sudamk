@@ -17,6 +17,8 @@
   "exclude": [
     "server",
     "node_modules",
-    "dist"
+    "dist",
+    "guide",
+    "electron"
   ]
 }

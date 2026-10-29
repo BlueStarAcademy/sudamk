@@ -6,7 +6,7 @@ import { tx } from '../shared/i18n/runtimeText.js';
 
 export type UseConditionPotionActionDeps = {
     getCurrentUser: () => User | null;
-    applyUserUpdate: (updates: Partial<User>, source: string) => User;
+    applyUserUpdate: (updates: Partial<User>, source: string) => User | null;
     showError: (message: string) => void;
     markConnectionRestored: () => void;
     useInFlightRef: { current: boolean };

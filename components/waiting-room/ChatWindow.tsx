@@ -252,7 +252,7 @@ const ChatWindow: React.FC<ChatWindowProps> = ({
                             rowClassName={compactMsg}
                             onUserClick={handleUserClick}
                             onViewUser={onViewUser}
-                            allUsers={allUsers}
+                            allUsers={allUsers as import('../../types.js').UserWithStatus[]}
                             currentUserId={currentUserWithStatus.id}
                             onOpenViewingItem={(item, isOwn) => handlers.openViewingItem(item, isOwn)}
                         />

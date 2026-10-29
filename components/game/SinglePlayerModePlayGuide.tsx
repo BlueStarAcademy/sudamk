@@ -76,7 +76,7 @@ const SinglePlayerModePlayGuide: React.FC<SinglePlayerModePlayGuideProps> = ({ t
                 {t(step.titleKey as any)}
               </p>
               <p className="mt-0.5 text-[0.72rem] font-semibold leading-snug text-white/84 sm:text-xs">
-                {t(step.bodyKey as any, step.bodyParams as any)}
+                {String(t(step.bodyKey as any, step.bodyParams as any))}
               </p>
             </div>
           </div>

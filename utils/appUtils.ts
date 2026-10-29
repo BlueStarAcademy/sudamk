@@ -12,10 +12,8 @@ export {
     normalizeLegacyHomeHash,
 } from '../shared/types/navigation.js';
 
-export type AppRoute = {
-    view: 'login' | 'register' | 'kakao-callback' | 'google-callback' | 'set-nickname' | 'profile' | 'arena' | 'pvp' | 'ai' | 'game' | 'admin' | 'tournament' | 'singleplayer' | 'guild' | 'guildboss' | 'guildwar' | 'tower' | 'adventure';
-    params: any;
-};
+export type { AppRoute } from '../shared/types/navigation.js';
+import type { AppRoute } from '../shared/types/navigation.js';
 
 function parseLobbyChannel(value: string | undefined): ArenaChannel | null {
     if (value === 'strategic' || value === 'pair' || value === 'playful' || value === 'friendly') {
@@ -231,6 +229,8 @@ export function parseHash(hash: string): AppRoute {
             return { view: 'guildwar', params: {} };
         case 'tower': return { view: 'tower', params: {} };
         case 'adventure': return { view: 'adventure', params: { stageId: rest[0] || null } };
+        case 'help':
+            return { view: 'help', params: { categoryId: rest[0] || null, subId: rest[1] || null } };
         case 'admin': return { view: 'admin', params: {} };
         case 'register': return { view: 'register', params: {} };
         case 'set-nickname': return { view: 'set-nickname', params: {} };

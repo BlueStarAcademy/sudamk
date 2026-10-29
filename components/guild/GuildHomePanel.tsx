@@ -514,7 +514,7 @@ export const GuildChat: React.FC<{ guild: GuildType, myMemberInfo: GuildMember |
                                 rowClassName={msgClass}
                                 onUserClick={handleChatUserClick}
                                 onViewUser={handlers.openViewingUser}
-                                allUsers={allUsers}
+                                allUsers={allUsers as import('../../types.js').UserWithStatus[]}
                                 currentUserId={currentUserWithStatus?.id}
                                 onOpenViewingItem={(item, isOwn) => handlers.openViewingItem(item, isOwn)}
                                 suffix={

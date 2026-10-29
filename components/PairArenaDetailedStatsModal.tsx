@@ -397,6 +397,7 @@ export const PairArenaStatsPanel: React.FC<PairArenaStatsPanelProps> = ({
 
 /** 페어 경기장 상세 전적 단독 창 */
 const PairArenaDetailedStatsModal: React.FC<PairArenaDetailedStatsModalProps> = ({ currentUser, onClose, onAction }) => {
+    const { t: tGame } = useTranslation('game');
     const { isNativeMobile } = useNativeMobileShell();
 
     return (

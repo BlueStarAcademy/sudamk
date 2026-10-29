@@ -1046,7 +1046,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
             const dbMod = await import('./db.js');
             let isE2eAccount = false;
             for (const seed of E2E_TEST_ACCOUNTS) {
-                const creds = await dbMod.getUserCredentialByUsername(seed.loginUsername);
+                const creds = await dbMod.getUserCredentials(seed.loginUsername);
                 if (creds?.userId === userId) {
                     isE2eAccount = true;
                     break;

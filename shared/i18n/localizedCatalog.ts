@@ -169,10 +169,13 @@ const ITEM_GRADE_KEYS: Record<ItemGrade, string> = {
     transcendent: 'filters.gradeTranscendent',
 };
 
-/** Item grade display names (exchange filter labels). */
+/** Item grade display names (exchange filter labels). Accepts enum or grade string keys (e.g. EquipmentGradeKey). */
 export function useLocalizedItemGrade() {
     const { t } = useTranslation('exchange');
-    return useCallback((grade: ItemGrade) => t(ITEM_GRADE_KEYS[grade]), [t]);
+    return useCallback((grade: ItemGrade | string) => {
+        const key = ITEM_GRADE_KEYS[grade as ItemGrade];
+        return key ? t(key) : String(grade);
+    }, [t]);
 }
 
 const EQUIPMENT_SLOT_KEYS: Record<EquipmentSlot, string> = {

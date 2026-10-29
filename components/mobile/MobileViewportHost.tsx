@@ -1,4 +1,4 @@
-import React, { Suspense, lazy } from 'react';
+import React, { Suspense, lazy, useMemo } from 'react';
 import { useAppContext } from '../../hooks/useAppContext.js';
 import QuickUtilityPanel from '../quick-panel/QuickUtilityPanel.js';
 import NavTitleBar from '../shell/NavTitleBar.js';
@@ -11,6 +11,7 @@ import {
     MOBILE_VIEWPORT_ENTRY_TITLES,
     type MobileViewportEntry,
 } from '../../shared/types/mobileViewportStack.js';
+import { mergeWaitingRoomPublicChatMessages } from '../../shared/utils/waitingRoomGlobalChatMerge.js';
 import ModalChunkFallback from '../ui/ModalChunkFallback.js';
 
 const GameRecordViewerModal = lazy(() => import('../GameRecordViewerModal.js'));
@@ -65,8 +66,12 @@ const MobileViewportHost: React.FC<MobileViewportHostProps> = ({ stack, onBack }
         combatSubOptionBonuses,
         specialStatBonuses,
         aggregatedMythicStats,
-        mergedPublicChatMessages,
+        waitingRoomChats,
     } = useAppContext();
+    const mergedPublicChatMessages = useMemo(
+        () => mergeWaitingRoomPublicChatMessages(waitingRoomChats),
+        [waitingRoomChats],
+    );
 
     const entry = stack[stack.length - 1];
     if (!entry || !currentUserWithStatus) return null;

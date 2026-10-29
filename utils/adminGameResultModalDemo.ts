@@ -132,7 +132,7 @@ function buildDemoSummary(user: UserWithStatus): GameSummary {
 }
 
 /** 관리자 홈 모달 미리보기용 PVP 경기 결과 데모 세션 */
-export function buildAdminGameResultModalDemoSession(user: UserWithStatus): LiveGameSession {
+export function buildAdminGameResultModalDemoSession(user: User | UserWithStatus): LiveGameSession {
     const now = Date.now();
     const gameDurationMs = 18 * 60 * 1000;
     const opponent = buildDemoOpponent();
@@ -192,7 +192,7 @@ export function buildAdminGameResultModalDemoSession(user: UserWithStatus): Live
         isAiGame: false,
         isSinglePlayer: false,
         analysisResult: { system: buildDemoAnalysisResult() },
-        summary: { [user.id]: buildDemoSummary(user) },
+        summary: { [user.id]: buildDemoSummary(user as UserWithStatus) },
         currentActionButtons: {},
         disconnectionCounts: {},
     } as unknown as LiveGameSession;

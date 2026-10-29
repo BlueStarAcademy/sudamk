@@ -149,12 +149,12 @@ export function buildConditionPotionUserPatch(
         | null
         | undefined;
     if (tournament?.players?.length) {
-        patch[stateKey] = {
+        (patch as Record<string, unknown>)[stateKey] = {
             ...tournament,
             players: tournament.players.map((p) =>
                 p.id === user.id ? { ...p, condition: newCondition } : p,
             ),
-        } as User[typeof stateKey];
+        };
     }
 
     return { ok: true, patch, recoveryAmount, newCondition };

@@ -6,6 +6,16 @@ export type VisualViewportSize = {
     offsetTop: number;
 };
 
+type WindowLike = {
+    innerHeight: number;
+    visualViewport?: { height: number; offsetTop: number } | null;
+};
+
+function getBrowserWindow(): WindowLike | undefined {
+    const g = globalThis as { window?: WindowLike };
+    return typeof g.window !== 'undefined' ? g.window : undefined;
+}
+
 /**
  * 레이아웃 뷰포트 대비 visualViewport 하단이 가려진 양(키보드 등).
  * iOS/Android 소프트 키보드가 열리면 보통 threshold 이상으로 커지고, 닫히면 0에 가깝다.
@@ -14,15 +24,13 @@ export function measureMobileKeyboardBottomInset(opts?: {
     innerHeight?: number;
     visualViewport?: VisualViewportSize | null;
 }): number {
-    const innerHeight =
-        opts?.innerHeight ?? (typeof window !== 'undefined' ? window.innerHeight : 0);
+    const win = getBrowserWindow();
+    const innerHeight = opts?.innerHeight ?? win?.innerHeight ?? 0;
     const vv =
         opts && 'visualViewport' in opts
             ? opts.visualViewport
-            : typeof window !== 'undefined'
-              ? window.visualViewport
-                ? { height: window.visualViewport.height, offsetTop: window.visualViewport.offsetTop }
-                : null
+            : win?.visualViewport
+              ? { height: win.visualViewport.height, offsetTop: win.visualViewport.offsetTop }
               : null;
     if (!vv || !(innerHeight > 0) || !(vv.height > 0)) return 0;
     const inset = Math.max(0, Math.round(innerHeight - vv.height - vv.offsetTop));
@@ -33,16 +41,13 @@ export function measureVisualViewportHeight(opts?: {
     fallbackHeight?: number;
     visualViewport?: VisualViewportSize | null;
 }): number {
+    const win = getBrowserWindow();
     const vv =
         opts && 'visualViewport' in opts
             ? opts.visualViewport
-            : typeof window !== 'undefined'
-              ? window.visualViewport
-                ? { height: window.visualViewport.height, offsetTop: window.visualViewport.offsetTop }
-                : null
+            : win?.visualViewport
+              ? { height: win.visualViewport.height, offsetTop: win.visualViewport.offsetTop }
               : null;
     if (vv && vv.height > 0) return Math.round(vv.height);
-    return Math.round(
-        opts?.fallbackHeight ?? (typeof window !== 'undefined' ? window.innerHeight : 0),
-    );
+    return Math.round(opts?.fallbackHeight ?? win?.innerHeight ?? 0);
 }

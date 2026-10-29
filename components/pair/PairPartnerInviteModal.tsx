@@ -180,7 +180,7 @@ const PairPartnerInviteModal: React.FC<Props> = ({
                 brief?.blockArenaPartnerInvites === true || cached?.blockArenaPartnerInvites === true,
             status: UserStatus.Offline,
             friendIds: [],
-        } as UserWithStatus;
+        } as unknown as UserWithStatus;
     };
 
     const statusMap = useMemo(

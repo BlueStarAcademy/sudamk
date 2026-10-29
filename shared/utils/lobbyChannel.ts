@@ -33,18 +33,21 @@ export function buildLobbyChannelStatusMap(params: {
     const map: LobbyChannelStatusMap = {};
     for (const u of params.users) {
         if (!u?.id) continue;
-        map[u.id] = { status: u.status, lobbyChannel: u.lobbyChannel ?? undefined };
+        map[u.id] = {
+            status: u.status ?? UserStatus.Online,
+            lobbyChannel: u.lobbyChannel ?? undefined,
+        };
     }
     const viewer = params.viewer;
     if (viewer?.id) {
         const ch =
-            resolveLobbyChannel(viewer) ??
+            resolveLobbyChannel({ lobbyChannel: viewer.lobbyChannel ?? undefined }) ??
             (isValidLobbyChannel(params.viewerChannel) ? params.viewerChannel : null) ??
             resolveLobbyChannel(map[viewer.id]) ??
             LOBBY_CHANNEL_MIN;
         map[viewer.id] = {
             status: viewer.status ?? map[viewer.id]?.status ?? UserStatus.Online,
-            lobbyChannel: ch,
+            lobbyChannel: ch ?? undefined,
         };
     }
     return map;

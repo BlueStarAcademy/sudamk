@@ -29,7 +29,9 @@ export type FacilityTierParams = {
     intervalByLevel?: readonly number[];
 };
 
-export const isItemRewardType = (rewardType: TrainingQuestRewardType): boolean =>
+export const isItemRewardType = (
+    rewardType: TrainingQuestRewardType,
+): rewardType is 'enhance_stone' | 'equipment_box' =>
     rewardType === 'enhance_stone' || rewardType === 'equipment_box';
 
 export const isCurrencyRewardType = (rewardType: TrainingQuestRewardType): boolean =>

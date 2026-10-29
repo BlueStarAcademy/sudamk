@@ -672,7 +672,9 @@ export const handleAction = async (volatileState: VolatileState, action: ServerA
             actionTypeStr === 'START_HIDDEN_PLACEMENT' ||
             actionTypeStr === 'START_SCANNING' ||
             actionTypeStr === 'SCAN_BOARD' ||
-            actionTypeStr === 'REVEAL_OPPONENT_HIDDEN'
+            actionTypeStr === 'REVEAL_OPPONENT_HIDDEN' ||
+            actionTypeStr === 'START_MISSILE_SELECTION' ||
+            actionTypeStr === 'LAUNCH_MISSILE'
         ) {
             const { getCachedGame, updateGameCache } = await import('./gameCache.js');
             /** 타워 SCAN_BOARD: 핸들러는 세션을 먼저 깎는데 인벤 소비가 실패하면 sync가 세션을 다시 올려 '스캔이 돌아오는' 현상이 난다 → 소비 실패 시 롤백 */

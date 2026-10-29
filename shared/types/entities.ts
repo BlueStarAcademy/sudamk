@@ -4,6 +4,9 @@ import { UserStatusInfo, ChatMessage } from './api.js';
 import type { UnifiedResultContract } from './resultContract.js';
 import type { PairTrainingClaimClientSummary } from './pairTrainingClaim.js';
 
+// Re-export board primitives so `import { Point, Move, BoardState } from '.../entities'` works.
+export type { Point, Move, BoardState };
+
 // --- Item & Equipment ---
 
 /** 페어 AI 펫 인스턴스 메타(인벤 `pair-pet-*` 행에 부착) */
@@ -1578,6 +1581,8 @@ export type LiveGameSession = {
   aiHiddenItemTurns?: number[];
   aiHiddenItemsUsedCount?: number;
   aiHiddenItemAnimationEndTime?: number;
+  /** 전략 로비 AI: Kata 승률이 낮을 때 bestMove 우선 모드 */
+  kataPreferBestMoveLowWinrate?: boolean;
   /** 싱글·탑 PVE: 마지막 AI 수 직후 착수 애니 후 이 시각에 도달하면 계가 시작 */
   pendingAutoScoringKickoffAt?: number;
   noContestInitiatorIds?: string[];
@@ -1646,6 +1651,10 @@ export type LiveGameSession = {
   humanHiddenStonePoints?: Array<Point & { player?: Player }>;
   /** PVE: AI 히든 착수 좌표(서버 AI 수·hiddenMoves 슬림 패킷 누락 시 포획 공개 연출 복구) */
   aiHiddenStonePoints?: Array<Point & { player?: Player }>;
+  /** PVE: AI 시작 히든 돌(미공개). 슬림 병합·클라이언트 복구용 */
+  aiInitialHiddenStone?: Point | null;
+  /** AI 시작 히든이 배치 단계에서 미리 놓였는지 */
+  aiInitialHiddenStoneIsPrePlaced?: boolean;
   scans_p1?: number;
   scans_p2?: number;
   hidden_stones_p1?: number;
@@ -2005,6 +2014,9 @@ export type GuildMember = {
   guildId: string;
   userId: string;
   nickname?: string;
+  /** 길드 패널 표시용 — User 아바타/테두리와 동기화될 수 있음 */
+  avatarId?: string | null;
+  borderId?: string | null;
   role: 'leader' | 'officer' | 'member';
   joinDate: number;
   contributionTotal: number;

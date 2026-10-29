@@ -467,7 +467,7 @@ const StrategicPairPvpSymbolCard: React.FC<{
                     alt={t('strategicLobbyAlt')}
                     className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                     decoding="async"
-                    fetchpriority="high"
+                    fetchPriority="high"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-cyan-950/45 via-black/25 to-transparent" />
                 <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-cyan-300/55 bg-cyan-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-cyan-100">
@@ -494,7 +494,7 @@ const StrategicPairPvpSymbolCard: React.FC<{
                     alt={t('pairArenaAlt')}
                     className="absolute inset-0 h-full w-full object-cover object-center transition-transform duration-300 group-hover:scale-[1.03]"
                     decoding="async"
-                    fetchpriority="high"
+                    fetchPriority="high"
                 />
                 <div className="pointer-events-none absolute inset-0 bg-gradient-to-r from-violet-950/45 via-black/25 to-transparent" />
                 <span className="pointer-events-none absolute left-2 top-2 rounded-md border border-violet-300/55 bg-violet-900/70 px-2 py-0.5 text-xs font-black tracking-wide text-violet-100">
@@ -1157,7 +1157,7 @@ const Profile: React.FC<ProfileProps> = () => {
     );
     
     const getArenaLobbyLockReason = useCallback(
-        (key: 'strategicLobby' | 'playfulLobby') => {
+        (key: 'strategicLobby' | 'normalLobby' | 'playfulLobby') => {
             if (arenaAdminBypass || mergedArena[key]) return null;
             if (!serverArena[key]) return t('maintenance');
             const combinedLevel = currentUserWithStatus.userLevel;
@@ -1206,8 +1206,8 @@ const Profile: React.FC<ProfileProps> = () => {
     );
 
     const onSelectMatchArena = () => {
-        const rankedOpen = !getArenaEntryLockReason('strategicLobby');
-        const normalOpen = !getArenaEntryLockReason('normalLobby');
+        const rankedOpen = !getArenaLobbyLockReason('strategicLobby');
+        const normalOpen = !getArenaLobbyLockReason('normalLobby');
         if (!rankedOpen && !normalOpen) {
             tryArenaEnter('strategicLobby', () => {
                 handlers.openMatchArena?.();

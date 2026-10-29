@@ -1,5 +1,6 @@
 import React from 'react';
 import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { LiveGameSession, ServerAction, User, ThiefRoundSummary as ThiefRoundSummaryType } from '../types.js';
 import Avatar from './Avatar.js';
 import Button from './Button.js';
@@ -15,7 +16,7 @@ interface ThiefRoundSummaryProps {
     onAction: (action: ServerAction) => void;
 }
 
-const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: User) => {
+const renderPlayerSummary = (summary: ThiefRoundSummaryType['player1'], user: User, t: TFunction) => {
     const avatarUrl = AVATAR_POOL.find(a => a.id === user.avatarId)?.url;
     const borderUrl = BORDER_POOL.find(b => b.id === user.borderId)?.url;
     const isThief = summary.role === 'thief';
@@ -98,8 +99,8 @@ const ThiefRoundSummary: React.FC<ThiefRoundSummaryProps> = ({ session, currentU
                 <p className="text-center text-sm font-medium leading-snug text-zinc-200 sm:text-[15px]">{description}</p>
 
                 <div className="grid min-h-0 shrink grid-cols-2 gap-1.5 sm:gap-2">
-                    {renderPlayerSummary(summaryP1, player1)}
-                    {renderPlayerSummary(summaryP2, player2)}
+                    {renderPlayerSummary(summaryP1, player1, t)}
+                    {renderPlayerSummary(summaryP2, player2, t)}
                 </div>
 
                 <div className="min-h-0 shrink-0">

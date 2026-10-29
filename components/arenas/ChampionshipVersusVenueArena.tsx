@@ -439,6 +439,7 @@ function normalizeVersusOpponentRowsFromRaw(rows: unknown[]): OpponentRow[] {
                     losses: 0,
                 },
                 i + 1,
+                CHAMPIONSHIP_ABILITY_KATA_LADDER,
             );
         }
         return buildDemoOpponentRow(
@@ -454,6 +455,7 @@ function normalizeVersusOpponentRowsFromRaw(rows: unknown[]): OpponentRow[] {
                 losses: typeof r.losses === 'number' ? r.losses : 0,
             },
             i + 1,
+            CHAMPIONSHIP_ABILITY_KATA_LADDER,
         );
     });
 }
@@ -2465,10 +2467,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                                             match={matchForBoard}
                                             currentUser={user}
                                             tournamentFinished={!!completedVersusMatch?.isFinished}
-                                            tournamentForResult={null}
                                             dungeonBoardCenterMode={versusBoardCenterMode}
                                             dungeonPlayersEnteringHint={versusPetPlayersEnteringHint}
-                                            finalStandings={null}
                                             suppressFinishedResultCard
                                             territoryAnalysis={versusTerritoryAnalysis}
                                         />
@@ -2757,10 +2757,8 @@ const ChampionshipVersusVenueArena: React.FC<{ venue: ChampionshipVersusVenueKin
                 match={matchForBoard}
                 currentUser={user}
                 tournamentFinished={!!completedVersusMatch?.isFinished}
-                tournamentForResult={null}
                 dungeonBoardCenterMode={versusBoardCenterMode}
                 dungeonPlayersEnteringHint={versusPetPlayersEnteringHint}
-                finalStandings={null}
                 suppressFinishedResultCard
                 territoryAnalysis={versusTerritoryAnalysis}
             />

@@ -114,6 +114,7 @@ import {
     readStrategicNormalMatchRecord,
 } from '../shared/utils/unifiedRankedStatsMigration.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
+import { recordActionPointRestore } from '../shared/utils/actionPointRegen.js';
 import { resolveLiveArenaPhaseGoldXpMultiplier } from '../shared/utils/liveArenaPhaseGoldXpMultiplier.js';
 import { effectivePvpEntryApCostForUser } from '../shared/utils/pairPetArenaApDiscount.js';
 import {
@@ -2803,7 +2804,6 @@ async function processPairGoGameSummary(game: LiveGameSession): Promise<void> {
         if (
             game.isNormalMatchQueue &&
             !isNoContest &&
-            !isAiGame &&
             !isPairAiGame &&
             !isDraw &&
             isPairPvpGame

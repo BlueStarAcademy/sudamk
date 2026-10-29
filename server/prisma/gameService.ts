@@ -604,7 +604,11 @@ export async function deleteActiveGamesForPlayer(playerId: string): Promise<numb
     });
     const idsToDelete: string[] = [];
     for (const row of rows) {
-      const game = mapRowToGame(row);
+      const game = mapRowToGame({
+        ...row,
+        status: 'unknown',
+        category: null,
+      });
       if (game && (game.player1?.id === playerId || game.player2?.id === playerId)) {
         idsToDelete.push(row.id);
       }

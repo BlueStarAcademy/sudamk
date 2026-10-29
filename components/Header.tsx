@@ -102,7 +102,7 @@ const ResourceDisplay = memo<{
             } ${className ?? ''}`}
         >
             <div className={`bg-primary flex flex-shrink-0 items-center justify-center rounded-full ${iconShell}`}>
-                <img src={resourceIcons[icon]} alt={t(`resources.${icon}`)} className={`object-contain ${iconImg}`} decoding="async" fetchpriority="high" />
+                <img src={resourceIcons[icon]} alt={t(`resources.${icon}`)} className={`object-contain ${iconImg}`} decoding="async" fetchPriority="high" />
             </div>
             <span className={`font-bold text-primary whitespace-nowrap ${valueClass}`}>
                 {formattedValue}

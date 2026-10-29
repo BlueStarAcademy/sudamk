@@ -743,8 +743,7 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
         (phase === 'demo' && hiddenStep !== 'item') ||
         (phase === 'practice' && hiddenItemArmed) ||
         (isHidden && phase === 'done');
-    const hiddenLeftDisplay =
-        hiddenStep === 'item' || (phase === 'practice' && hiddenStep === 'item' && !hiddenItemArmed) ? 1 : 0;
+    const hiddenLeftDisplay = hiddenStep === 'item' ? 1 : 0;
 
     const scanItemPulse =
         (phase === 'demo' && demoPlaying && hiddenStep === 'scanItem') ||
@@ -816,9 +815,7 @@ const PveInteractiveTutorialModal: React.FC<Props> = ({ tutorialId, onComplete, 
     })();
 
     const showCaptureFlash =
-        (isMissile &&
-            (missileStep === 'capture' ||
-                (phase === 'done' && (missileStep === 'done' || missileStep === 'capture')))) ||
+        (isMissile && (missileStep === 'capture' || (phase === 'done' && missileStep === 'done'))) ||
         (isHidden &&
             (hiddenStep === 'captureReveal' ||
                 (phase === 'done' && hiddenStep === 'done')));

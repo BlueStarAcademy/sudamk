@@ -28,7 +28,7 @@ interface ItemObtainedModalProps {
     isTopmost?: boolean;
 }
 
-const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string, name: string, background: string }> = {
+const gradeStyles: Record<ItemGrade, { bg: string, text: string, shadow: string, background: string }> = {
     normal: { bg: 'bg-zinc-700', text: 'text-zinc-100', shadow: 'shadow-zinc-900/50', background: '/images/equipments/normalbgi.webp' },
     uncommon: { bg: 'bg-emerald-800', text: 'text-emerald-100', shadow: 'shadow-emerald-500/50', background: '/images/equipments/uncommonbgi.webp' },
     rare: { bg: 'bg-sky-800', text: 'text-sky-100', shadow: 'shadow-sky-500/50', background: '/images/equipments/rarebgi.webp' },

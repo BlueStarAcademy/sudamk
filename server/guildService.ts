@@ -374,9 +374,10 @@ export const ensureDefaultResearchLevels = (guild: Guild): boolean => {
         guild.research = {} as Guild['research'];
         dirty = true;
     }
+    const research = guild.research!;
     for (const id of Object.values(GuildResearchId) as GuildResearchId[]) {
-        if (!guild.research[id]) {
-            guild.research[id] = { level: 1 };
+        if (!research[id]) {
+            research[id] = { level: 1 };
             dirty = true;
         }
     }
@@ -403,14 +404,15 @@ export const checkCompletedResearch = (
     if (!guild.research) {
         guild.research = {} as Guild['research'];
     }
-    if (!guild.research[completedTaskId]) {
-        guild.research[completedTaskId] = { level: 0 };
+    const research = guild.research!;
+    if (!research[completedTaskId]) {
+        research[completedTaskId] = { level: 0 };
     }
-    guild.research[completedTaskId]!.level += 1;
+    research[completedTaskId]!.level += 1;
     guild.researchTask = null;
 
     console.log(
-        `[GuildResearch] Completed ${completedTaskId} for guild ${guild.id || guild.name}: level → ${guild.research[completedTaskId]!.level}`
+        `[GuildResearch] Completed ${completedTaskId} for guild ${guild.id || guild.name}: level → ${research[completedTaskId]!.level}`
     );
     return completedTaskId;
 };

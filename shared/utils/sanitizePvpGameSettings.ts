@@ -119,7 +119,7 @@ export function sanitizePvpGameSettings(
     const chessRule = mode === GameMode.Chess || mixIncludesChess(next.mixedModes);
 
     if (castleRule) {
-        if (!CASTLE_BOARD_SIZES.includes(next.boardSize as number) && mode === GameMode.Castle) {
+        if (!(CASTLE_BOARD_SIZES as readonly number[]).includes(next.boardSize as number) && mode === GameMode.Castle) {
             next.boardSize = CASTLE_BOARD_SIZES[0] as GameSettings['boardSize'];
         }
         next.castleCount = clampCastleCount(
@@ -132,7 +132,7 @@ export function sanitizePvpGameSettings(
     }
 
     if (chessRule) {
-        if (!CHESS_BOARD_SIZES.includes(next.boardSize as number)) {
+        if (!(CHESS_BOARD_SIZES as readonly number[]).includes(next.boardSize as number)) {
             next.boardSize = CHESS_BOARD_SIZES[0] as GameSettings['boardSize'];
         }
         next.komi = getDefaultChessKomiByBoardSize(next.boardSize ?? 13);

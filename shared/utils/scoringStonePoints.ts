@@ -2,7 +2,7 @@ import type { Point } from '../types/enums.js';
 import { Player } from '../types/enums.js';
 import { isStrategicAiGoSession } from './strategicBoardItemTurn.js';
 import { getChessGoStoneCapturePointValue, sessionUsesChessGo } from './chessGoRules.js';
-import type { ChessPieceState } from '../types/entities.js';
+import type { ChessPieceState, LiveGameSession } from '../types/entities.js';
 
 /**
  * 계가·사석 집계 시 사용: 착수 중 따냈을 때와 동일한 규칙으로, 해당 교차점 돌의 집 점수 가중치를 반환한다.
@@ -70,8 +70,12 @@ function wasRevealedHiddenStone(game: ScoringStoneSessionSlice, stone: Point): b
 export function getStoneCapturePointValueForScoring(game: ScoringStoneSessionSlice, stone: Point, stoneOwner: Player): number {
     if (stoneOwner !== Player.Black && stoneOwner !== Player.White) return 1;
 
-    if (sessionUsesChessGo(game as ScoringStoneSessionSlice & { mode: string; settings: { mixedModes?: string[] | null } })) {
-        return getChessGoStoneCapturePointValue(game, stone, stoneOwner);
+    if (sessionUsesChessGo(game as Pick<LiveGameSession, 'mode' | 'settings'>)) {
+        return getChessGoStoneCapturePointValue(
+            { chessPieces: game.chessPieces ?? undefined },
+            stone,
+            stoneOwner,
+        );
     }
 
     if (isBaseStoneAt(game, stone)) return 5;

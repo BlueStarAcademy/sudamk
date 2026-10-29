@@ -159,7 +159,7 @@ export function resolveFirstRunGuideProgress(
     const sessions = activeHatcherySessions(user);
     if (sessions.length > 0) {
         const claimReady = sessions.some(
-            (session) => now >= hatcheryEndsAt(session.startedAt, session.slotIndex, session, user),
+            (session) => now >= hatcheryEndsAt(session.startedAt, session.slotIndex, session, user as User),
         );
         return claimReady ? 'claimReady' : 'hatching';
     }

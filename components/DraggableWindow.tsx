@@ -1408,18 +1408,6 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
 
 
 
-    /** 항상 center 기준 + 드래그 오프셋 (모바일 미니멀 크롬은 항상 중앙 고정) */
-    const positionTranslateBase = useMobileMinimalChrome
-        ? 'translate(-50%, -50%)'
-        : `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`;
-    const positionTranslate =
-        mobileKeyboardLiftTranslateY > 0
-            ? `${positionTranslateBase} translateY(-${mobileKeyboardLiftTranslateY}px)`
-            : positionTranslateBase;
-    const transformStyle = positionTranslate;
-
-
-
     if (!isInitialized) return null;
 
     
@@ -1467,6 +1455,15 @@ const DraggableWindow: React.FC<DraggableWindowProps> = ({
           : `min(${mobileViewportFitMaxHeightCss}, calc(100dvh - ${mobileViewportFitDvhBottomGapPx}px))`;
     const mobileKeyboardLiftTranslateY =
         mobileKeyboardOpen && mobileKeyboardInsetPx > 0 ? Math.round(mobileKeyboardInsetPx / 2) : 0;
+    /** 항상 center 기준 + 드래그 오프셋 (모바일 미니멀 크롬은 항상 중앙 고정) */
+    const positionTranslateBase = useMobileMinimalChrome
+        ? 'translate(-50%, -50%)'
+        : `translate(calc(-50% + ${position.x}px), calc(-50% + ${position.y}px))`;
+    const positionTranslate =
+        mobileKeyboardLiftTranslateY > 0
+            ? `${positionTranslateBase} translateY(-${mobileKeyboardLiftTranslateY}px)`
+            : positionTranslateBase;
+    const transformStyle = positionTranslate;
     /** 균일 scale(모든 화면)·실측 scale: max-height로 레이아웃이 먼저 잘리면 스크롤·하단 버튼 잘림 유발 */
     const relaxOuterMaxHeight = useCompactScaleToFitLayout || uniformLayout;
     /** 실측·uniform 균일 scale 시 본문 스크롤 없음(줄바꿈·비율은 transform으로 유지). 뷰포트 맞춤만 스크롤 허용 */

@@ -967,6 +967,9 @@ export const handleSinglePlayerAction = async (volatileState: VolatileState, act
         }
         case 'SINGLE_PLAYER_SYNC_PENDING_STAGE': {
             const { gameId, regenerateBoard } = payload as { gameId?: string; regenerateBoard?: boolean };
+            if (!gameId) {
+                return { error: 'Invalid single player game.' };
+            }
             const { getCachedGame, updateGameCache } = await import('../gameCache.js');
             let game = await getCachedGame(gameId);
             if (!game) game = await db.getLiveGame(gameId);

@@ -276,7 +276,7 @@ const TrainingGroundPanel: React.FC = () => {
                                         abilityUnlocked={abilityUnlocked}
                                         sequentialUnlocked={sequentialUnlocked}
                                         selected={selectedKata === level}
-                                        cleared={clearedLevels.includes(level)}
+                                        cleared={(clearedLevels ?? []).includes(level)}
                                         boardSize={boardSize}
                                         unlockAbility={trainingGroundUnlockTotalAbility(level, track)}
                                         showKataUserXp={track === 'kata'}

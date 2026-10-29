@@ -127,13 +127,14 @@ export function effectiveStrategicRankedQueueApCostForUser(
 export function effectivePvpEntryApCostForUser(
     user: Pick<User, 'inventory' | 'equippedPairPetTemplateId' | 'equippedPairPetInventoryItemId'>,
     mode: GameMode,
-    pairGameLobbyChannel?: 'pair' | 'strategic' | 'playful',
+    pairGameLobbyChannel?: 'pair' | 'strategic' | 'playful' | 'friendly',
 ): number {
     const base = basePvpActionPointCostForMode(mode);
     const spec = resolveEquippedPairPetSpecialization(user);
     if (pairGameLobbyChannel === 'strategic' || pairGameLobbyChannel === 'playful' || pairGameLobbyChannel === 'pair') {
         return apCostAfterPairPetArenaDiscount(base, pairGameLobbyChannel, spec);
     }
+    // friendly(및 미지정): 모드 기반 할인 — 친선전은 페어 탭 전용 할인 미적용
     const arena: PairPetArenaApLobbyChannel = PLAYFUL_GAME_MODES.some((m) => m.mode === mode) ? 'playful' : 'strategic';
     return apCostAfterPairPetArenaDiscount(base, arena, spec);
 }

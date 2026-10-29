@@ -685,7 +685,7 @@ export function boardHasStrayLegacyFlankStones(
 }
 
 function rebuildChessGoBoardPreservingGoStones(
-    session: Pick<LiveGameSession, 'moveHistory' | 'chessPieces'>,
+    session: Pick<LiveGameSession, 'moveHistory' | 'chessPieces' | 'chessGoRemovedPoints' | 'settings'>,
     pieces: ChessPieceState[],
 ): BoardState {
     return rebuildChessGoBoardFromSession({ ...session, chessPieces: pieces });
@@ -753,8 +753,16 @@ export function needsChessGoLayoutRepair(
 export function reconcileChessGoClientSession<
     T extends Pick<
         LiveGameSession,
-        'mode' | 'settings' | 'moveHistory' | 'boardState' | 'chessPieces' | 'chessCaptureScore' | 'chessPieceMovedThisTurn'
-    >,
+        | 'mode'
+        | 'settings'
+        | 'gameStatus'
+        | 'moveHistory'
+        | 'boardState'
+        | 'chessPieces'
+        | 'chessCaptureScore'
+        | 'chessPieceMovedThisTurn'
+    > &
+        Partial<Pick<LiveGameSession, 'chessGoRemovedPoints'>>,
 >(session: T): T {
     return normalizeChessGoSession(session);
 }

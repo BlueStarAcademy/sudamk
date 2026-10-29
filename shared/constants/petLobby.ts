@@ -176,6 +176,8 @@ export type PairPetShopSku = {
     quantity: number;
     /** KST 일일 구매 상한 (`dailyShopPurchases[sku]`와 연동). 0 이하면 무제한 */
     dailyLimit: number;
+    /** 상점 카드 이미지 URL */
+    image: string;
     /** 상세 설명(호버·툴팁) */
     description: string;
     /** 상점 카드 한 줄 요약 */

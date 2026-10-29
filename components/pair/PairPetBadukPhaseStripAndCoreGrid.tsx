@@ -20,13 +20,13 @@ export type PairPetBadukStripLayout = 'default' | 'dense' | 'homeColumn';
 export interface PairPetBadukPhaseStripAndCoreGridProps {
     currentUser: User;
     item: InventoryItem;
-    statsGridVariant: 'modal' | 'panel';
+    statsGridVariant: 'modal' | 'panel' | 'panelFit';
     /** 스트립·그리드 간격·글꼴 — homeColumn: 홈 대표펫 칸에 맞춤 최소 높이 */
     layout?: PairPetBadukStripLayout;
     /** @deprecated `layout="dense"`와 동일 */
     dense?: boolean;
     /** 지정 시 6코어 그리드 밀도(레이아웃 유도값보다 우선) — `panelFit` 상세 등 */
-    coreGridDensity?: 'default' | 'compact' | 'micro' | 'fit';
+    coreGridDensity?: 'default' | 'compact' | 'micro' | 'fit' | 'panelCompact';
     /** 네이티브 홈 대표펫: 스트립·코어 그리드 세로·가로 여백 축소, 스크롤 없이 맞춤 */
     mobileHomeRepPet?: boolean;
     /** 펫 관리 모달 정보 탭 — 작은 스트립·2×3 코어 그리드 */

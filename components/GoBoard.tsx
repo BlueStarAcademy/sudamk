@@ -1541,7 +1541,7 @@ const GoBoard: React.FC<GoBoardProps> = (props) => {
                         await dispatch({
                             type: 'SINGLE_PLAYER_CLIENT_MISSILE_ANIMATION_COMPLETE',
                             payload: { gameId },
-                        } as ServerAction);
+                        } as unknown as ServerAction);
                     } else {
                         await dispatch({
                             type: 'MISSILE_ANIMATION_COMPLETE',

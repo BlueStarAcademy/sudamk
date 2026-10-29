@@ -315,6 +315,9 @@ export function processCastleMove(
 ): CastleMoveResult {
     const { x, y, player } = move;
     const boardSize = boardState.length;
+    if (player !== Player.Black && player !== Player.White) {
+        return { isValid: false, reason: 'occupied', newBoardState: boardState, capturedStones: [], newKoInfo: koInfo };
+    }
     const opponent = player === Player.Black ? Player.White : Player.Black;
 
     if (y < 0 || y >= boardSize || x < 0 || x >= boardSize) {

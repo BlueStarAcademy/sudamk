@@ -31,9 +31,10 @@ export function resolveInitialLocale() {
 }
 
 export function applyDocumentLocale(locale: string) {
-    if (typeof document === 'undefined') return;
-    document.documentElement.lang = locale;
-    document.documentElement.dir = RTL_LOCALES.has(locale as never) ? 'rtl' : 'ltr';
+    const doc = (globalThis as { document?: { documentElement: { lang: string; dir: string } } }).document;
+    if (!doc) return;
+    doc.documentElement.lang = locale;
+    doc.documentElement.dir = RTL_LOCALES.has(locale as never) ? 'rtl' : 'ltr';
 }
 
 void i18n.use(initReactI18next).init({

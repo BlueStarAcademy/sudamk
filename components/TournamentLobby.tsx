@@ -133,6 +133,7 @@ const DungeonStageSelector: React.FC<{ dungeonType: TournamentType; currentUser:
 };
 
 const WeeklyCompetitorsPanel_DEPRECATED: React.FC<{ setHasRankChanged: (changed: boolean) => void }> = ({ setHasRankChanged }) => {
+    const { t } = useTranslation('tournament');
     const { currentUserWithStatus, allUsers, handlers } = useAppContext();
     const prevRankRef = useRef<number | null>(null);
     const [timeLeft, setTimeLeft] = useState('');
@@ -1471,7 +1472,7 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                                             />
                                         ) : (
                                             <PairPetHomeEmptyDetailFrame
-                                                variant={championshipPetEmbed.detailVariant}
+                                                variant={championshipPetEmbed.detailVariant ?? 'panelFit'}
                                                 petManagementModal={championshipPetEmbed.petManagementModal}
                                                 onRequestEquip={openPairLobbyForRepresentativePet}
                                             />
@@ -1693,7 +1694,7 @@ const TournamentLobby: React.FC<TournamentLobbyProps> = ({ presentation = 'full'
                                         ) : (
                                             <div className="flex w-full shrink-0 flex-col rounded-xl border border-fuchsia-500/40 bg-gradient-to-b from-zinc-900/92 to-zinc-950 p-1.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)] ring-1 ring-inset ring-fuchsia-500/18 sm:p-2">
                                                 <PairPetHomeEmptyDetailFrame
-                                                    variant={championshipPetEmbed.detailVariant}
+                                                    variant={championshipPetEmbed.detailVariant ?? 'panelFit'}
                                                     petManagementModal={championshipPetEmbed.petManagementModal}
                                                     onRequestEquip={openPairLobbyForRepresentativePet}
                                                 />

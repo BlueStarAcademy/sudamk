@@ -156,9 +156,11 @@ export function useKeyedAsyncAction(options: UseKeyedAsyncActionOptions = {}) {
     );
 
     const isPending = useCallback((key: string) => pendingKeys.has(key), [pendingKeys]);
+    const pendingKey = pendingKeys.size > 0 ? pendingKeys.values().next().value ?? null : null;
 
     return {
         pendingKeys,
+        pendingKey,
         isAnyPending: pendingKeys.size > 0,
         isPending,
         run,
