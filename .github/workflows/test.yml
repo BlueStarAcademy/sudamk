@@ -73,10 +73,7 @@ jobs:
         run: npm run prisma:generate
 
       - name: Apply migrations (E2E DB)
-        run: |
-          # migrate history may lag schema (e.g. KeyValue/HomeBoardPost); push fills gaps on fresh CI DB
-          npm run prisma:migrate:deploy
-          npm run prisma:db:push
+        run: npm run prisma:migrate:deploy
 
       - name: Install Playwright browsers
         run: npx playwright install chromium --with-deps
