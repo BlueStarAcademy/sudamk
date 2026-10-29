@@ -41,6 +41,7 @@ jobs:
   e2e:
     runs-on: ubuntu-latest
     needs: unit-and-integration
+    timeout-minutes: 20
     services:
       postgres:
         image: postgres:15
@@ -115,10 +116,17 @@ jobs:
       - name: Run E2E tests
         # Full chromium suite can hang on lobby/match flows; smoke keeps CI green.
         # Re-enable full suite after those specs are CI-stable.
-        run: npm run test:e2e:smoke
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          echo "Health: $(curl -fsS http://localhost:4000/ || true)"
+          echo "Vite: $(curl -fsS -o /dev/null -w '%{http_code}' http://localhost:5173/ || true)"
+          # Hard wall so a stuck browser launch cannot burn the job.
+          timeout 240s npx playwright test --project=chromium --grep @smoke --reporter=line
         env:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: 'http://localhost:5173'
+          DEBUG: 'pw:browser*'
 
       - name: Upload Playwright report
         if: failure()
