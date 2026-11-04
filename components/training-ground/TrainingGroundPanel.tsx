@@ -180,7 +180,7 @@ const TrainingGroundPanel: React.FC = () => {
                                 <div className="hidden w-px shrink-0 self-stretch bg-amber-700/40 sm:block" aria-hidden />
                                 <div className="h-px w-full shrink-0 bg-amber-700/40 sm:hidden" aria-hidden />
 
-                                <div className="flex min-w-0 shrink-0 items-stretch gap-1.5 sm:gap-2">
+                                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2">
                                     <div className="flex shrink-0 flex-col justify-center gap-1">
                                         <p className="px-0.5 text-[10px] font-extrabold tracking-wide text-amber-200/80 sm:text-[11px]">
                                             {t('trainingGroundUi.boardSize')}
@@ -234,24 +234,26 @@ const TrainingGroundPanel: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="w-px shrink-0 self-stretch bg-amber-700/40" aria-hidden />
+                                    <div className="hidden w-px shrink-0 self-stretch bg-amber-700/40 sm:block" aria-hidden />
 
-                                    <div className="shrink-0 w-full sm:w-[8.25rem]">
-                                        <TrainingGroundRewardPanel
-                                            track={track}
-                                            kataLevel={selectedKata}
-                                            boardSize={boardSize}
-                                        />
-                                    </div>
+                                    <div className="flex min-w-0 w-full items-stretch gap-1.5 sm:w-auto sm:gap-2">
+                                        <div className="min-w-0 flex-1 sm:w-[8.25rem] sm:flex-none">
+                                            <TrainingGroundRewardPanel
+                                                track={track}
+                                                kataLevel={selectedKata}
+                                                boardSize={boardSize}
+                                            />
+                                        </div>
 
-                                    <div className="flex shrink-0 flex-col items-center justify-center overflow-visible self-center">
-                                        <TrainingGroundEnterButton
-                                            variant={enterButtonVariant}
-                                            disabled={!canStartSelected && !canRestoreEntry}
-                                            remaining={ticket.remaining}
-                                            max={ticket.max}
-                                            onClick={() => startStageWithBoard(boardSize)}
-                                        />
+                                        <div className="flex shrink-0 items-center justify-center self-center">
+                                            <TrainingGroundEnterButton
+                                                variant={enterButtonVariant}
+                                                disabled={!canStartSelected && !canRestoreEntry}
+                                                remaining={ticket.remaining}
+                                                max={ticket.max}
+                                                onClick={() => startStageWithBoard(boardSize)}
+                                            />
+                                        </div>
                                     </div>
                                 </div>
                             </div>
