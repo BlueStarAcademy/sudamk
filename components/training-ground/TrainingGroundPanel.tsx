@@ -180,12 +180,12 @@ const TrainingGroundPanel: React.FC = () => {
                                 <div className="hidden w-px shrink-0 self-stretch bg-amber-700/40 sm:block" aria-hidden />
                                 <div className="h-px w-full shrink-0 bg-amber-700/40 sm:hidden" aria-hidden />
 
-                                <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-stretch sm:gap-2">
+                                <div className="flex min-w-0 items-stretch gap-1.5 sm:gap-2">
                                     <div className="flex shrink-0 flex-col justify-center gap-1">
                                         <p className="px-0.5 text-[10px] font-extrabold tracking-wide text-amber-200/80 sm:text-[11px]">
                                             {t('trainingGroundUi.boardSize')}
                                         </p>
-                                        <div className="flex items-center gap-1.5 sm:gap-2.5">
+                                        <div className="flex items-center gap-1 sm:gap-2.5">
                                             {TRAINING_GROUND_BOARD_SIZES.map((size) => {
                                                 const sizeEnabled = isTrainingGroundModeCompatibleWithBoard(
                                                     selectedMode,
@@ -214,7 +214,7 @@ const TrainingGroundPanel: React.FC = () => {
                                                             <img
                                                                 src={TRAINING_GROUND_BOARD_IMAGES[size]}
                                                                 alt={`${size}`}
-                                                                className="h-11 w-11 object-cover sm:h-14 sm:w-14"
+                                                                className="h-9 w-9 object-cover sm:h-14 sm:w-14"
                                                             />
                                                         </span>
                                                         <span
@@ -234,9 +234,9 @@ const TrainingGroundPanel: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    <div className="hidden w-px shrink-0 self-stretch bg-amber-700/40 sm:block" aria-hidden />
+                                    <div className="w-px shrink-0 self-stretch bg-amber-700/40" aria-hidden />
 
-                                    <div className="flex min-w-0 w-full items-stretch gap-1.5 sm:w-auto sm:gap-2">
+                                    <div className="flex min-w-0 flex-1 items-stretch gap-1.5 sm:flex-none sm:gap-2">
                                         <div className="min-w-0 flex-1 sm:w-[8.25rem] sm:flex-none">
                                             <TrainingGroundRewardPanel
                                                 track={track}

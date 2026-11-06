@@ -99,7 +99,7 @@ const TrainingGroundEnterButton: React.FC<TrainingGroundEnterButtonProps> = ({
             disabled={disabled}
             onClick={onClick}
             aria-label={ariaLabel}
-            className={`group relative isolate flex h-[4.25rem] w-[7.25rem] shrink-0 flex-col overflow-hidden rounded-xl border px-2 py-2 transition duration-200 sm:h-[4.5rem] sm:w-[8.25rem] sm:px-2.5 ${
+            className={`group relative isolate flex h-[4.25rem] w-[5.5rem] shrink-0 flex-col overflow-hidden rounded-xl border px-1.5 py-1.5 transition duration-200 sm:h-[4.5rem] sm:w-[8.25rem] sm:px-2.5 ${
                 tone.shell
             } ${
                 disabled
@@ -128,7 +128,7 @@ const TrainingGroundEnterButton: React.FC<TrainingGroundEnterButtonProps> = ({
                     ) : (
                         <EnterIcon className={tone.icon} />
                     )}
-                    <span className="text-[13px] font-black tracking-wide sm:text-sm">{primaryLabel}</span>
+                    <span className="text-[12px] font-black tracking-wide sm:text-sm">{primaryLabel}</span>
                 </span>
                 <span
                     className={`inline-flex min-w-[2.75rem] items-center justify-center rounded-full border px-2 py-0.5 text-[10px] font-extrabold tabular-nums leading-none sm:text-[11px] ${tone.badge}`}
