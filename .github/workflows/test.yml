@@ -8,7 +8,8 @@ on:
 
 jobs:
   unit-and-integration:
-    runs-on: ubuntu-latest
+    # ubuntu-latest is migrating to 26.04; Playwright 1.58 does not support it yet.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v6
 
@@ -39,7 +40,8 @@ jobs:
           NODE_ENV: 'test'
 
   e2e:
-    runs-on: ubuntu-latest
+    # ubuntu-latest is migrating to 26.04; Playwright 1.58 does not support it yet.
+    runs-on: ubuntu-24.04
     needs: unit-and-integration
     timeout-minutes: 20
     services:
