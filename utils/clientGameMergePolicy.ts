@@ -1016,8 +1016,11 @@ export function shouldIgnoreStalePvpChessPrePlayRegression(
 function mergeChessSessionFieldsOnMerge(
     incoming: LiveGameSession,
     existing: LiveGameSession | undefined,
+    /** spread 이전 원본 패킷. 생략 필드와 기존 값 스프레드를 구분할 때 사용 */
+    originalIncoming?: LiveGameSession,
 ): LiveGameSession {
     if (!incomingUsesChessGo(incoming)) return incoming;
+    const packet = originalIncoming ?? incoming;
     let merged: LiveGameSession = preserveChessPlayingStateWhenMoveHistoryRegresses(
         { ...incoming },
         existing,
@@ -1103,17 +1106,39 @@ function mergeChessSessionFieldsOnMerge(
     if (incoming.chessCaptureScore == null && existing?.chessCaptureScore) {
         merged = { ...merged, chessCaptureScore: existing.chessCaptureScore };
     }
-    if (incoming.chessPieceMovedThisTurn == null && existing?.chessPieceMovedThisTurn != null) {
-        merged = { ...merged, chessPieceMovedThisTurn: existing.chessPieceMovedThisTurn };
+    {
+        const mhAdvanced =
+            existing != null &&
+            (merged.moveHistory?.length ?? 0) > (existing.moveHistory?.length ?? 0);
+        const turnChanged =
+            existing != null &&
+            merged.currentPlayer != null &&
+            existing.currentPlayer != null &&
+            merged.currentPlayer !== existing.currentPlayer;
+        if (packet.chessPieceMovedThisTurn == null && existing?.chessPieceMovedThisTurn != null) {
+            // 턴/수순이 진행됐는데 슬림 패킷이 필드를 빼면 {...existing,...incoming} 스프레드로
+            // true가 고착되어 기물 이동·착수가 막힌다.
+            if (!mhAdvanced && !turnChanged) {
+                merged = { ...merged, chessPieceMovedThisTurn: existing.chessPieceMovedThisTurn };
+            } else {
+                merged = { ...merged, chessPieceMovedThisTurn: false };
+            }
+        } else if (
+            (mhAdvanced || turnChanged) &&
+            packet.chessPieceMovedThisTurn == null &&
+            merged.chessPieceMovedThisTurn === true
+        ) {
+            merged = { ...merged, chessPieceMovedThisTurn: false };
+        }
     }
-    if (incoming.lastChessMove === undefined && existing?.lastChessMove) {
+    if (packet.lastChessMove === undefined && existing?.lastChessMove) {
         merged = { ...merged, lastChessMove: existing.lastChessMove };
     }
     {
         // 서버 목록이 있으면 그대로 쓴다. 클라 옛 목록과 합치면 패 재착수·연결 돌이 상대에게 안 보인다.
-        if (Array.isArray(incoming.chessGoRemovedPoints)) {
-            merged = { ...merged, chessGoRemovedPoints: incoming.chessGoRemovedPoints };
-        } else if (incoming.chessGoRemovedPoints === undefined && existing?.chessGoRemovedPoints?.length) {
+        if (Array.isArray(packet.chessGoRemovedPoints)) {
+            merged = { ...merged, chessGoRemovedPoints: packet.chessGoRemovedPoints };
+        } else if (packet.chessGoRemovedPoints === undefined && existing?.chessGoRemovedPoints?.length) {
             merged = { ...merged, chessGoRemovedPoints: existing.chessGoRemovedPoints };
         }
     }
@@ -1363,6 +1388,7 @@ export function mergeGameUpdateByArena(
             existing,
         ),
         existing,
+        incomingWithLock,
     );
     const isPveStartConfirm =
         _context.actionType === 'CONFIRM_SINGLE_PLAYER_GAME_START' ||

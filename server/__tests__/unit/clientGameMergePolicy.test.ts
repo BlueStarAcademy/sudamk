@@ -513,6 +513,40 @@ describe('mergeGameUpdateByArena', () => {
         expect(merged.currentPlayer).toBe(Player.White);
     });
 
+    it('PVP chess: slim packet omitting chessPieceMovedThisTurn clears flag after turn advance', () => {
+        const pieces = generateChessGoInitialPieces(13);
+        const existing = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces,
+            moveHistory: [{ x: 6, y: 6, player: Player.Black }],
+            currentPlayer: Player.Black,
+            chessPieceMovedThisTurn: true,
+        }) as LiveGameSession;
+
+        const incoming = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces,
+            moveHistory: [
+                { x: 6, y: 6, player: Player.Black },
+                { x: 3, y: 3, player: Player.White },
+            ],
+            currentPlayer: Player.White,
+            // slim GAME_UPDATE: field omitted
+            chessPieceMovedThisTurn: undefined,
+        }) as LiveGameSession;
+        delete (incoming as { chessPieceMovedThisTurn?: boolean }).chessPieceMovedThisTurn;
+
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.chessPieceMovedThisTurn).toBe(false);
+        expect(merged.currentPlayer).toBe(Player.White);
+    });
+
     it('PVP chess: late CHESS_MOVE packet after optimistic stone does not hand the turn back', () => {
         const pieces = generateChessGoInitialPieces(13);
         const serverAfterPieceMove = minimalSession({

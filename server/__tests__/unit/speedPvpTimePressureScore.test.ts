@@ -166,3 +166,73 @@ describe('speed PVP time-pressure scoring', () => {
         expect(game.whiteTimeLeft).toBe(60);
     });
 });
+
+describe('applyStandardClocksAfterOptimisticClientMove', () => {
+    it('settles mover main time and opens next turnDeadline for PVP byoyomi/main clocks', async () => {
+        const { applyStandardClocksAfterOptimisticClientMove } = await import(
+            '../../../shared/utils/speedTimePressureSessionSync.js'
+        );
+        const now = 5_000_000;
+        const game = {
+            id: 'pvp-clock',
+            mode: GameMode.Chess,
+            isAiGame: false,
+            isSinglePlayer: false,
+            gameStatus: 'playing',
+            currentPlayer: Player.White,
+            blackTimeLeft: 120,
+            whiteTimeLeft: 90,
+            blackByoyomiPeriodsLeft: 3,
+            whiteByoyomiPeriodsLeft: 3,
+            turnDeadline: now + 40_000,
+            turnStartTime: now - 20_000,
+            settings: {
+                timeLimit: 5,
+                byoyomiCount: 3,
+                byoyomiTime: 30,
+                timeIncrement: 0,
+            },
+        } as any;
+
+        applyStandardClocksAfterOptimisticClientMove(game, Player.Black, now);
+
+        expect(game.blackTimeLeft).toBe(40);
+        expect(game.whiteTimeLeft).toBe(90);
+        expect(game.turnStartTime).toBe(now);
+        expect(game.turnDeadline).toBe(now + 90_000);
+        expect(game.pausedTurnTimeLeft).toBeUndefined();
+    });
+
+    it('opens a fresh byoyomi period when next player main time is exhausted', async () => {
+        const { applyStandardClocksAfterOptimisticClientMove } = await import(
+            '../../../shared/utils/speedTimePressureSessionSync.js'
+        );
+        const now = 6_000_000;
+        const game = {
+            id: 'pvp-byoyomi',
+            mode: GameMode.Standard,
+            isAiGame: false,
+            isSinglePlayer: false,
+            gameStatus: 'playing',
+            currentPlayer: Player.White,
+            blackTimeLeft: 0,
+            whiteTimeLeft: 0,
+            blackByoyomiPeriodsLeft: 2,
+            whiteByoyomiPeriodsLeft: 3,
+            turnDeadline: now + 12_000,
+            turnStartTime: now - 18_000,
+            settings: {
+                timeLimit: 0,
+                byoyomiCount: 3,
+                byoyomiTime: 30,
+                timeIncrement: 0,
+            },
+        } as any;
+
+        applyStandardClocksAfterOptimisticClientMove(game, Player.Black, now);
+
+        expect(game.blackTimeLeft).toBe(0);
+        expect(game.turnDeadline).toBe(now + 30_000);
+        expect(game.turnStartTime).toBe(now);
+    });
+});

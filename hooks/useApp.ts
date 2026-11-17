@@ -101,7 +101,7 @@ import { buildBoardFromMoves } from '../utils/sgfBoardLogic.js';
 import { mergePairPetTrainingSlotsPreserveRecentRestart } from '../shared/utils/pairPetTrainingSlotsClientMerge.js';
 import { pairTrainingClaimCompletedBySlotIndex, PAIR_TRAINING_CLAIM_ALREADY_CLAIMED_ERROR } from '../components/pair/pairTrainingClaimInFlight.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
-import { mergeSpeedLiveClocksOnClient, applySpeedClocksAfterOptimisticClientMove } from '../shared/utils/speedTimePressureSessionSync.js';
+import { mergeSpeedLiveClocksOnClient, applyClocksAfterOptimisticClientMove } from '../shared/utils/speedTimePressureSessionSync.js';
 import { preservePairTurnIfExistingAhead } from '../utils/preservePairTurnOnMerge.js';
 import {
     countConditionPotionsInInventory,
@@ -1360,8 +1360,9 @@ function preserveLiveStrategicMainClockOnMerge(
     const pickMainTime = (key: 'blackTimeLeft' | 'whiteTimeLeft'): number | undefined => {
         const inc = incoming[key];
         const ext = existing[key];
-        if (typeof inc === 'number' && Number.isFinite(inc) && inc > 0) return inc;
-        if (typeof ext === 'number' && Number.isFinite(ext) && ext > 0) return ext;
+        // 0도 유효값이다(메인시간 소진→초읽기). >0만 허용하면 초읽기 진입 후에도 옛 메인시간이 남는다.
+        if (typeof inc === 'number' && Number.isFinite(inc) && inc >= 0) return inc;
+        if (typeof ext === 'number' && Number.isFinite(ext) && ext >= 0) return ext;
         const m = merged[key];
         return typeof m === 'number' && Number.isFinite(m) ? m : undefined;
     };
@@ -5069,7 +5070,7 @@ export const useApp = () => {
                         }
                     }
                     const normalized = normalizeChessGoSession(updatedGame);
-                    applySpeedClocksAfterOptimisticClientMove(normalized, movePlayer, Date.now(), aiUserId);
+                    applyClocksAfterOptimisticClientMove(normalized, movePlayer, Date.now(), aiUserId);
                     return { ...currentGames, [gameId]: normalized };
                 }
                 if (sessionUsesCastleGo(game)) {
@@ -5084,7 +5085,7 @@ export const useApp = () => {
                         updatedGame.currentPlayer = Player.None;
                     }
                 }
-                applySpeedClocksAfterOptimisticClientMove(updatedGame, movePlayer, Date.now(), aiUserId);
+                applyClocksAfterOptimisticClientMove(updatedGame, movePlayer, Date.now(), aiUserId);
                 return { ...currentGames, [gameId]: updatedGame };
             });
             return;
@@ -5215,7 +5216,7 @@ export const useApp = () => {
                         }
                     }
                     const normalized = normalizeChessGoSession(updatedGame);
-                    applySpeedClocksAfterOptimisticClientMove(normalized, movePlayer, Date.now(), aiUserId);
+                    applyClocksAfterOptimisticClientMove(normalized, movePlayer, Date.now(), aiUserId);
                     return { ...currentGames, [gameId]: normalized };
                 }
                 if (sessionUsesCastleGo(game)) {
@@ -5230,7 +5231,7 @@ export const useApp = () => {
                         updatedGame.currentPlayer = Player.None;
                     }
                 }
-                applySpeedClocksAfterOptimisticClientMove(updatedGame, movePlayer, Date.now(), aiUserId);
+                applyClocksAfterOptimisticClientMove(updatedGame, movePlayer, Date.now(), aiUserId);
                 return { ...currentGames, [gameId]: updatedGame };
             });
             return;

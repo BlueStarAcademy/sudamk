@@ -41,10 +41,17 @@ const ACTION_BTN_BASE =
     'after:pointer-events-none after:absolute after:inset-x-3 after:top-0 after:h-px after:bg-gradient-to-r after:from-transparent after:via-white/35 after:to-transparent ' +
     'hover:-translate-y-px hover:brightness-110 active:translate-y-px active:brightness-95 disabled:pointer-events-none disabled:opacity-40 disabled:grayscale disabled:shadow-none disabled:hover:translate-y-0';
 
-const PIECE_ROW_MOBILE =
-    'flex w-full min-w-0 flex-nowrap items-stretch gap-1.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-0.5 py-0.5 ' +
+const PIECE_ROW_SCROLL =
+    'flex h-full w-full min-h-0 min-w-0 flex-nowrap items-stretch gap-1.5 overflow-x-auto overflow-y-hidden overscroll-x-contain px-0.5 py-0.5 ' +
     'snap-x snap-mandatory touch-pan-x [-webkit-overflow-scrolling:touch] [scrollbar-width:thin] ' +
     '[scrollbar-color:rgba(251,191,36,0.45)_transparent] [&::-webkit-scrollbar]:h-[3px] [&::-webkit-scrollbar-thumb]:rounded-full [&::-webkit-scrollbar-thumb]:bg-amber-400/45';
+
+/** 기물 목록이 액션 버튼 위로 넘치지 않도록 독립 스크롤 영역으로 고정 */
+const PIECE_AREA =
+    'min-h-0 flex-1 overflow-hidden border border-white/[0.06] bg-black/25 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]';
+
+const ACTION_BAR =
+    'relative z-10 shrink-0 border-t border-white/[0.06] bg-[#0a0d14]/95 pt-1.5 backdrop-blur-sm';
 
 interface ChessPiecePlacementPanelProps {
     session: LiveGameSession;
@@ -141,10 +148,10 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                         onClick={() => onSelectPieceType(selected ? null : type)}
                         title={tx('game:chessPlacement.pieceTitle', { label, moves, cost })}
                         className={[
-                            'group relative flex flex-col items-center overflow-hidden border transition-all duration-200',
+                            'group relative flex h-full max-h-full shrink-0 flex-col items-center justify-center overflow-hidden border transition-all duration-200',
                             isMobile
-                                ? 'snap-start w-[3.75rem] min-w-[3.75rem] shrink-0 rounded-lg px-0.5 py-0.5'
-                                : 'rounded-2xl px-2 py-2 sm:px-2.5 sm:py-2.5 min-w-[5.5rem]',
+                                ? 'snap-start w-[3.75rem] min-w-[3.75rem] rounded-lg px-0.5 py-0.5'
+                                : 'snap-start w-[5.25rem] min-w-[5.25rem] rounded-2xl px-2 py-1.5 sm:w-[5.75rem] sm:min-w-[5.75rem] sm:px-2.5 sm:py-2',
                             selected
                                 ? 'border-amber-300/70 bg-[radial-gradient(circle_at_50%_0%,rgba(251,191,36,0.28),transparent_55%),linear-gradient(165deg,#2a2218_0%,#12151c_55%,#07090f_100%)] shadow-[0_0_0_1px_rgba(251,191,36,0.35),0_0_28px_-6px_rgba(251,191,36,0.45),inset_0_1px_0_rgba(255,255,255,0.14)] ring-2 ring-amber-400/50'
                                 : 'border-white/[0.08] bg-[linear-gradient(165deg,rgba(30,35,48,0.95)_0%,rgba(12,14,20,0.98)_100%)] shadow-[inset_0_1px_0_rgba(255,255,255,0.07),0_10px_24px_-14px_rgba(0,0,0,0.8)] hover:border-amber-500/25 hover:bg-[linear-gradient(165deg,rgba(38,44,58,0.98)_0%,rgba(14,16,24,0.99)_100%)]',
@@ -162,11 +169,11 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                         <ChessSetupPieceStonePreview
                             pieceType={type}
                             stoneColor={stoneColor}
-                            size={isMobile ? 28 : 54}
+                            size={isMobile ? 28 : 44}
                             selected={selected}
                         />
                         <span
-                            className={`relative font-bold tracking-wide text-amber-50/95 ${isMobile ? 'mt-0.5 text-[9px] leading-tight' : 'mt-1 text-xs'}`}
+                            className={`relative shrink-0 font-bold tracking-wide text-amber-50/95 ${isMobile ? 'mt-0.5 text-[9px] leading-tight' : 'mt-0.5 text-[11px] leading-tight'}`}
                         >
                             {label}{' '}
                             <span className="font-extrabold text-amber-200">
@@ -174,10 +181,10 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
                             </span>
                         </span>
                         <span
-                            className={`relative font-semibold tabular-nums text-slate-300 ${
+                            className={`relative shrink-0 font-semibold tabular-nums text-slate-300 ${
                                 isMobile
                                     ? 'mt-px text-[8px] leading-none'
-                                    : 'mt-0.5 rounded-full border border-white/10 bg-black/35 px-1.5 py-px text-[9px]'
+                                    : 'mt-0.5 rounded-full border border-white/10 bg-black/35 px-1.5 py-px text-[9px] leading-none'
                             }`}
                         >
                             {tx('game:chessPlacement.pieceStat', { moves, cost })}
@@ -296,43 +303,45 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
             <div className={panelShell}>
                 <div className={PANEL_GLOW} aria-hidden />
                 <div className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
-                <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-1.5 py-1">
-                    <div className="flex items-center gap-1">
-                        <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border border-amber-500/35 bg-amber-500/10 text-[9px] text-amber-200">
-                            ♚
-                        </span>
-                        <h3 className="min-w-0 truncate bg-gradient-to-r from-amber-100 via-amber-50 to-teal-100 bg-clip-text text-[11px] font-extrabold tracking-tight text-transparent">
-                            {tx('game:chessPlacement.title')}
-                        </h3>
-                        <div className="ml-auto flex items-center gap-0.5 rounded-md border border-amber-400/35 bg-[linear-gradient(145deg,#1a1510_0%,#0c0e14_45%,#050608_100%)] px-1 py-px shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
-                            <span className="whitespace-nowrap text-[7px] font-bold tracking-wide text-amber-200/85">
-                                {tx('game:chessPlacement.totalScore')}
+                <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-1.5 py-1">
+                    <div className="shrink-0">
+                        <div className="flex items-center gap-1">
+                            <span className="inline-flex h-4 w-4 shrink-0 items-center justify-center rounded border border-amber-500/35 bg-amber-500/10 text-[9px] text-amber-200">
+                                ♚
                             </span>
-                            <span className="text-xs font-black leading-none tabular-nums text-amber-50">{usedScore}</span>
-                            <span className="text-[9px] font-medium leading-none text-slate-500">/</span>
-                            <span className="text-[10px] font-extrabold leading-none tabular-nums text-teal-100/90">
-                                {budget}
-                            </span>
+                            <h3 className="min-w-0 truncate bg-gradient-to-r from-amber-100 via-amber-50 to-teal-100 bg-clip-text text-[11px] font-extrabold tracking-tight text-transparent">
+                                {tx('game:chessPlacement.title')}
+                            </h3>
+                            <div className="ml-auto flex items-center gap-0.5 rounded-md border border-amber-400/35 bg-[linear-gradient(145deg,#1a1510_0%,#0c0e14_45%,#050608_100%)] px-1 py-px shadow-[inset_0_1px_0_rgba(255,255,255,0.08)]">
+                                <span className="whitespace-nowrap text-[7px] font-bold tracking-wide text-amber-200/85">
+                                    {tx('game:chessPlacement.totalScore')}
+                                </span>
+                                <span className="text-xs font-black leading-none tabular-nums text-amber-50">{usedScore}</span>
+                                <span className="text-[9px] font-medium leading-none text-slate-500">/</span>
+                                <span className="text-[10px] font-extrabold leading-none tabular-nums text-teal-100/90">
+                                    {budget}
+                                </span>
+                            </div>
                         </div>
+                        <div className="mt-0.5 h-0.5 overflow-hidden rounded-full bg-black/50 ring-1 ring-inset ring-white/10">
+                            <div
+                                className="h-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-teal-400 transition-[width] duration-300 ease-out"
+                                style={{ width: `${scoreRatio * 100}%` }}
+                            />
+                        </div>
+                        {statusPills}
+                        {myReady && (
+                            <p className="mt-0.5 truncate text-[8px] font-medium leading-tight text-emerald-200/90">
+                                {isAiGame
+                                    ? tx('game:chessPlacement.completeStarting')
+                                    : tx('game:chessPlacement.completeWaiting')}
+                            </p>
+                        )}
                     </div>
-                    <div className="mt-0.5 h-0.5 overflow-hidden rounded-full bg-black/50 ring-1 ring-inset ring-white/10">
-                        <div
-                            className="h-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-teal-400 transition-[width] duration-300 ease-out"
-                            style={{ width: `${scoreRatio * 100}%` }}
-                        />
+                    <div className={`${PIECE_AREA} mt-1 rounded-lg p-0.5`}>
+                        <div className={PIECE_ROW_SCROLL}>{pieceButtons}</div>
                     </div>
-                    {statusPills}
-                    {myReady && (
-                        <p className="mt-0.5 truncate text-[8px] font-medium leading-tight text-emerald-200/90">
-                            {isAiGame
-                                ? tx('game:chessPlacement.completeStarting')
-                                : tx('game:chessPlacement.completeWaiting')}
-                        </p>
-                    )}
-                    <div className="mt-1 min-h-0 flex-1 rounded-lg border border-white/[0.06] bg-black/25 p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                        <div className={PIECE_ROW_MOBILE}>{pieceButtons}</div>
-                    </div>
-                    <div className="mt-1 shrink-0">{actionButtons}</div>
+                    <div className={`${ACTION_BAR} mt-1 border-t-0 bg-transparent pt-0 backdrop-blur-none`}>{actionButtons}</div>
                 </div>
             </div>
         );
@@ -343,59 +352,61 @@ const ChessPiecePlacementPanel: React.FC<ChessPiecePlacementPanelProps> = ({
             <div className={PANEL_GLOW} aria-hidden />
             <div className="pointer-events-none absolute inset-x-8 top-0 h-px bg-gradient-to-r from-transparent via-amber-300/45 to-transparent" />
 
-            <div className="relative flex min-h-0 flex-1 flex-col overflow-y-auto overscroll-contain px-5 py-3 sm:py-4">
-                <div className="mb-2 flex flex-wrap items-start justify-between gap-2 sm:mb-3 sm:gap-3">
-                    <div>
-                        <div className="flex items-center gap-2">
-                            <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-amber-500/35 bg-amber-500/10 text-xs text-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
-                                ♚
-                            </span>
-                            <h3 className="bg-gradient-to-r from-amber-100 via-amber-50 to-teal-100 bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
-                                {tx('game:chessPlacement.title')}
-                            </h3>
+            <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden px-5 py-3 sm:py-4">
+                <div className="mb-2 shrink-0 sm:mb-3">
+                    <div className="flex flex-wrap items-start justify-between gap-2 sm:gap-3">
+                        <div>
+                            <div className="flex items-center gap-2">
+                                <span className="inline-flex h-6 w-6 items-center justify-center rounded-lg border border-amber-500/35 bg-amber-500/10 text-xs text-amber-200 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)]">
+                                    ♚
+                                </span>
+                                <h3 className="bg-gradient-to-r from-amber-100 via-amber-50 to-teal-100 bg-clip-text text-lg font-extrabold tracking-tight text-transparent">
+                                    {tx('game:chessPlacement.title')}
+                                </h3>
+                            </div>
+                            {!myReady && (
+                                <p className="mt-1.5 max-w-[14rem] text-xs font-medium leading-snug text-teal-100/90 sm:max-w-none">
+                                    {tx('game:chessPlacement.hint')}
+                                </p>
+                            )}
+                            {myReady && (
+                                <p className="mt-1.5 max-w-[14rem] text-xs font-medium leading-snug text-emerald-200/90 sm:max-w-none">
+                                    {isAiGame
+                                        ? tx('game:chessPlacement.completeStarting')
+                                        : tx('game:chessPlacement.completeWaiting')}
+                                </p>
+                            )}
                         </div>
-                        {!myReady && (
-                            <p className="mt-1.5 max-w-[14rem] text-xs font-medium leading-snug text-teal-100/90 sm:max-w-none">
-                                {tx('game:chessPlacement.hint')}
-                            </p>
-                        )}
-                        {myReady && (
-                            <p className="mt-1.5 max-w-[14rem] text-xs font-medium leading-snug text-emerald-200/90 sm:max-w-none">
-                                {isAiGame
-                                    ? tx('game:chessPlacement.completeStarting')
-                                    : tx('game:chessPlacement.completeWaiting')}
-                            </p>
-                        )}
+
+                        <div className="relative min-w-[10rem] overflow-hidden rounded-2xl border border-amber-400/35 bg-[linear-gradient(145deg,#1a1510_0%,#0c0e14_45%,#050608_100%)] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_28px_-12px_rgba(0,0,0,0.85),0_0_24px_-8px_rgba(251,191,36,0.25)] ring-1 ring-amber-300/15">
+                            <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_0%,rgba(251,191,36,0.18),transparent_55%)]" />
+                            <div className="relative text-center">
+                                <span className="text-xs font-bold tracking-wide text-amber-200/85">
+                                    {tx('game:chessPlacement.totalScore')}
+                                </span>
+                            </div>
+                            <div className="relative mt-1 flex items-end justify-center gap-1.5 tabular-nums">
+                                <span className="text-3xl font-black leading-none text-amber-50">{usedScore}</span>
+                                <span className="pb-0.5 text-base font-medium text-slate-500">/</span>
+                                <span className="pb-0.5 text-xl font-extrabold text-teal-100/90">{budget}</span>
+                            </div>
+                            <div className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-black/50 ring-1 ring-inset ring-white/10">
+                                <div
+                                    className="h-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-teal-400 shadow-[0_0_10px_rgba(251,191,36,0.45)] transition-[width] duration-300 ease-out"
+                                    style={{ width: `${scoreRatio * 100}%` }}
+                                />
+                            </div>
+                        </div>
                     </div>
 
-                    <div className="relative min-w-[10rem] overflow-hidden rounded-2xl border border-amber-400/35 bg-[linear-gradient(145deg,#1a1510_0%,#0c0e14_45%,#050608_100%)] px-4 py-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.1),0_12px_28px_-12px_rgba(0,0,0,0.85),0_0_24px_-8px_rgba(251,191,36,0.25)] ring-1 ring-amber-300/15">
-                        <div className="pointer-events-none absolute inset-0 bg-[radial-gradient(circle_at_30%_0%,rgba(251,191,36,0.18),transparent_55%)]" />
-                        <div className="relative text-center">
-                            <span className="text-xs font-bold tracking-wide text-amber-200/85">
-                                {tx('game:chessPlacement.totalScore')}
-                            </span>
-                        </div>
-                        <div className="relative mt-1 flex items-end justify-center gap-1.5 tabular-nums">
-                            <span className="text-3xl font-black leading-none text-amber-50">{usedScore}</span>
-                            <span className="pb-0.5 text-base font-medium text-slate-500">/</span>
-                            <span className="pb-0.5 text-xl font-extrabold text-teal-100/90">{budget}</span>
-                        </div>
-                        <div className="relative mt-2 h-1.5 overflow-hidden rounded-full bg-black/50 ring-1 ring-inset ring-white/10">
-                            <div
-                                className="h-full rounded-full bg-gradient-to-r from-amber-600 via-amber-400 to-teal-400 shadow-[0_0_10px_rgba(251,191,36,0.45)] transition-[width] duration-300 ease-out"
-                                style={{ width: `${scoreRatio * 100}%` }}
-                            />
-                        </div>
-                    </div>
+                    {!isAiGame && <div className="mt-2 sm:mt-3">{statusPills}</div>}
                 </div>
 
-                {!isAiGame && <div className="mb-2 sm:mb-3">{statusPills}</div>}
-
-                <div className="mb-2 min-h-0 flex-1 rounded-2xl border border-white/[0.06] bg-black/25 p-2.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] sm:mb-3 sm:p-3">
-                    <div className="flex flex-wrap items-stretch justify-center gap-2 sm:gap-2.5">{pieceButtons}</div>
+                <div className={`${PIECE_AREA} mb-2 rounded-2xl p-2 sm:mb-3 sm:p-2.5`}>
+                    <div className={`${PIECE_ROW_SCROLL} justify-center gap-2 sm:gap-2.5`}>{pieceButtons}</div>
                 </div>
 
-                <div className="shrink-0">{actionButtons}</div>
+                <div className={ACTION_BAR}>{actionButtons}</div>
             </div>
 
             <div className="pointer-events-none absolute inset-x-8 bottom-0 h-px bg-gradient-to-r from-transparent via-teal-400/20 to-transparent" />

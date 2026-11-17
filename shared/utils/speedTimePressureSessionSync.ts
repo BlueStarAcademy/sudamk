@@ -1,7 +1,11 @@
 import type { LiveGameSession } from '../types/index.js';
 import { GameMode, Player } from '../types/enums.js';
 import { getSpeedTurnPenaltyPointsFromElapsedSec } from './speedTimePressureDisplay.js';
-import { getSpeedPerMoveSeconds } from './gameTimeControl.js';
+import {
+    getFischerIncrementSeconds,
+    getSpeedPerMoveSeconds,
+    isFischerStyleTimeControl,
+} from './gameTimeControl.js';
 
 export function isSessionSpeedTimePressureMode(session: LiveGameSession): boolean {
     return (
@@ -253,6 +257,82 @@ export function applySpeedClocksAfterOptimisticClientMove(
     if (!isSessionSpeedTimePressureMode(game) || game.gameStatus !== 'playing') return;
     applySpeedMoveClockEnd(game, movePlayer, nowMs, aiUserId);
     applySpeedNextTurnClockStart(game, nowMs);
+}
+
+/**
+ * PVP 일반(비스피드) 낙관적 착수: 서버 accountMainClockAfterMove + startNextTurnClock과 동일하게
+ * 둔 사람 잔여시간을 확정하고 다음 턴 turnDeadline을 연다.
+ * (미적용 시 상대 시계가 이전 턴 deadline으로 남거나 초읽기가 멈춘 것처럼 보인다)
+ */
+export function applyStandardClocksAfterOptimisticClientMove(
+    game: LiveGameSession,
+    movePlayer: Player,
+    nowMs: number,
+): void {
+    if (game.gameStatus !== 'playing') return;
+    if (isSessionSpeedTimePressureMode(game)) return;
+    if (game.isAiGame || game.isSinglePlayer) return;
+
+    const timeLimit = Number(game.settings?.timeLimit ?? 0);
+    const byoyomiCount = Number(game.settings?.byoyomiCount ?? 0);
+    const byoyomiTime = Number(game.settings?.byoyomiTime ?? 0);
+    const hasTimeControl =
+        timeLimit > 0 || (byoyomiCount > 0 && byoyomiTime > 0) || Number(game.settings?.timeIncrement ?? 0) > 0;
+    if (!hasTimeControl) return;
+
+    if (movePlayer !== Player.Black && movePlayer !== Player.White) return;
+
+    const timeKey = movePlayer === Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+    const byoyomiKey = movePlayer === Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+    const isFischer = isFischerStyleTimeControl(game as any);
+    const fischerIncrement = getFischerIncrementSeconds(game as any);
+    const isInByoyomi =
+        Number(game[timeKey] ?? 0) <= 0 && byoyomiCount > 0 && Number(game[byoyomiKey] ?? 0) > 0 && !isFischer;
+
+    if (isInByoyomi) {
+        game[timeKey] = 0;
+    } else if (typeof game.turnDeadline === 'number' && Number.isFinite(game.turnDeadline)) {
+        game[timeKey] = Math.max(0, (game.turnDeadline - nowMs) / 1000) + fischerIncrement;
+    } else if (typeof game.pausedTurnTimeLeft === 'number' && Number.isFinite(game.pausedTurnTimeLeft)) {
+        game[timeKey] = Math.max(0, game.pausedTurnTimeLeft) + fischerIncrement;
+    } else if (fischerIncrement > 0) {
+        game[timeKey] = Math.max(0, Number(game[timeKey] ?? 0)) + fischerIncrement;
+    }
+
+    game.pausedTurnTimeLeft = undefined;
+
+    const nextPlayer = game.currentPlayer;
+    if (nextPlayer !== Player.Black && nextPlayer !== Player.White) {
+        game.turnDeadline = undefined;
+        game.turnStartTime = nowMs;
+        return;
+    }
+
+    const nextTimeKey = nextPlayer === Player.Black ? 'blackTimeLeft' : 'whiteTimeLeft';
+    const nextByoyomiKey = nextPlayer === Player.Black ? 'blackByoyomiPeriodsLeft' : 'whiteByoyomiPeriodsLeft';
+    const isNextInByoyomi =
+        Number(game[nextTimeKey] ?? 0) <= 0 &&
+        byoyomiCount > 0 &&
+        Number(game[nextByoyomiKey] ?? 0) > 0 &&
+        !isFischer;
+    game.turnDeadline = isNextInByoyomi
+        ? nowMs + byoyomiTime * 1000
+        : nowMs + Math.max(0, Number(game[nextTimeKey] ?? 0)) * 1000;
+    game.turnStartTime = nowMs;
+}
+
+/** 낙관적 착수 공통: 스피드면 수당 시계, 아니면 PVP 메인/초읽기 시계를 갱신한다. */
+export function applyClocksAfterOptimisticClientMove(
+    game: LiveGameSession,
+    movePlayer: Player,
+    nowMs: number,
+    aiUserId: string,
+): void {
+    if (isSessionSpeedTimePressureMode(game)) {
+        applySpeedClocksAfterOptimisticClientMove(game, movePlayer, nowMs, aiUserId);
+        return;
+    }
+    applyStandardClocksAfterOptimisticClientMove(game, movePlayer, nowMs);
 }
 
 type SpeedLiveClockFields = Pick<

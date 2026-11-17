@@ -3,6 +3,7 @@ import { GameMode, Player } from '../../../shared/types/enums.js';
 import type { LiveGameSession, User } from '../../../shared/types/index.js';
 import {
     applyChessMoveInternal,
+    repairChessGoSessionState,
 } from '../../../server/modes/chess.js';
 import {
     generateChessGoInitialPieces,
@@ -144,5 +145,36 @@ describe('PVP chess go combined turn (piece move + stone)', () => {
         expect(result.error).toBeUndefined();
         expect(game.chessPieceMovedThisTurn).toBe(true);
         expect(game.currentPlayer).toBe(Player.Black);
+    });
+
+    it('repair before occupancy: stale raw boardState does not block a legal stone', () => {
+        const game = makePvpPlayingChessSession();
+        let placeX = -1;
+        let placeY = -1;
+        outer: for (let y = 0; y < 13; y++) {
+            for (let x = 0; x < 13; x++) {
+                if (game.boardState[y]![x] === Player.None) {
+                    placeX = x;
+                    placeY = y;
+                    break outer;
+                }
+            }
+        }
+        expect(placeX).toBeGreaterThanOrEqual(0);
+
+        // 서버에 남은 낡은 boardState: 재구성하면 빈 자리인데 raw에는 자기 돌이 남아 있음
+        game.boardState = game.boardState.map((row) => [...row]) as LiveGameSession['boardState'];
+        game.boardState[placeY]![placeX] = Player.Black;
+
+        repairChessGoSessionState(game);
+        expect(game.boardState[placeY]![placeX]).toBe(Player.None);
+
+        const moveResult = processChessGoMove(
+            game,
+            { x: placeX, y: placeY, player: Player.Black },
+            game.koInfo,
+            game.moveHistory.length,
+        );
+        expect(moveResult.isValid).toBe(true);
     });
 });

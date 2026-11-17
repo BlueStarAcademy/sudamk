@@ -1381,7 +1381,10 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             // 낙관적 업데이트로 이미 둔 수를 보내면 finalStoneCheck에서 거절되어 턴이 안 넘어가는 버그 방지.
 
             const isChessGoPlacement = sessionUsesChessGo(game);
+            // 체스바둑: boardState는 chessPieces+moveHistory 재구성이 진실원천.
+            // 점유 검사·착수 전에 먼저 repair 하지 않으면 낡은 boardState로 400이 난다.
             if (isChessGoPlacement) {
+                repairChessGoSessionState(game);
                 if (!isPlayableChessGoIntersection(game, x, y)) {
                     if (process.env.NODE_ENV === 'development') {
                         console.warn(
@@ -1428,15 +1431,16 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
                 ...(pairCurrentSeat ? { actorId: pairCurrentSeat.participantId, pairSeatId: pairCurrentSeat.seatId } : {}),
             };
             
-            // 치명적 버그 방지: 자신의 돌 위에 착점 시도 차단 (모든 게임 모드)
+            // 치명적 버그 방지: 자신의 돌 위에 착점 시도 차단
+            // 체스바둑은 위에서 repair+isPlayable로 이미 검사했으므로 raw board 재검사 생략
             const finalStoneCheck = game.boardState[y][x];
-            if (finalStoneCheck === myPlayerEnum) {
+            if (!isChessGoPlacement && finalStoneCheck === myPlayerEnum) {
                 console.error(`[handleStandardAction] CRITICAL BUG PREVENTION: Attempted to place stone on own stone at (${x}, ${y}), gameId=${game.id}, finalStoneCheck=${finalStoneCheck}, myPlayerEnum=${myPlayerEnum}`);
                 return { error: '이미 자신의 돌이 놓인 자리입니다.' };
             }
             
             // 싱글플레이/도전의 탑/AI 대국에서 상대 돌 위 착점은 숨김돌 공개 케이스 외에는 차단
-            if (game.isSinglePlayer || game.gameCategory === GameCategory.Tower || game.isAiGame) {
+            if (!isChessGoPlacement && (game.isSinglePlayer || game.gameCategory === GameCategory.Tower || game.isAiGame)) {
                 if (finalStoneCheck === opponentPlayerEnum) {
                     if (tryStartRevealOnlyOpponentHiddenAttack(game, myPlayerEnum, x, y, now)) {
                         return {};
@@ -1467,10 +1471,7 @@ const handleStandardActionCore = async (volatileState: types.VolatileState, game
             }
 
             const isCastleGame = sessionUsesCastleGo(game);
-            const isChessGame = sessionUsesChessGo(game);
-            if (isChessGame) {
-                repairChessGoSessionState(game);
-            }
+            const isChessGame = isChessGoPlacement;
             const result = isCastleGame
                 ? processCastleMove(
                       game,
