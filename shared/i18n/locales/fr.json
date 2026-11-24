@@ -5194,6 +5194,7 @@
       "offerAmount": "Demande de change",
       "requestAmount": "Montant d'échange souhaité",
       "postOrderHint": "Lors de l'inscription, les marchandises fournies seront immédiatement déduites. Lorsqu'un autre utilisateur complète une demande, vous pouvez la recevoir dans l'onglet règlement.",
+      "postOrderFeeHint": "Frais de mise en vente : 10 % or + 10 % diamants (min. {{minDiamonds}} diamants). Frais non remboursables.",
       "postOrder": "Enregistrer une demande de change",
       "myOpenOrders": "ma demande de change",
       "cancelOrder": "annulation",

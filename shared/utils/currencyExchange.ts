@@ -516,3 +516,38 @@ export function validateCurrencyExchangeOrderAmounts(
     }
     return null;
 }
+
+export type CurrencyExchangePostingFees = {
+    /** 거래 골드 측 10% 등록 수수료 */
+    goldFee: number;
+    /** 거래 다이아 측 10% 등록 수수료 */
+    diamondFee: number;
+    /** 에스크로 + 골드 수수료로 차감될 골드 */
+    goldDeduct: number;
+    /** 에스크로 + 다이아 수수료로 차감될 다이아 */
+    diamondDeduct: number;
+};
+
+/**
+ * P2P 환전 등록 수수료: 골드 측·다이아 측 각각 10%.
+ * 에스크로(from)는 해당 재화에서 함께 차감. 수수료는 취소 시 환불되지 않음.
+ */
+export function computeCurrencyExchangePostingFees(
+    fromCurrency: 'gold' | 'diamonds',
+    fromAmount: number,
+    toAmount: number,
+    options?: { waiveFees?: boolean },
+): CurrencyExchangePostingFees {
+    const from = clampGameInt(fromAmount, { min: 0 });
+    const to = clampGameInt(toAmount, { min: 0 });
+    const goldSide = fromCurrency === 'gold' ? from : to;
+    const diamondSide = fromCurrency === 'diamonds' ? from : to;
+    const goldFee = options?.waiveFees ? 0 : exchangeListingFeeFromPrice(goldSide);
+    const diamondFee = options?.waiveFees ? 0 : exchangeListingFeeFromPrice(diamondSide);
+    return {
+        goldFee,
+        diamondFee,
+        goldDeduct: (fromCurrency === 'gold' ? from : 0) + goldFee,
+        diamondDeduct: (fromCurrency === 'diamonds' ? from : 0) + diamondFee,
+    };
+}

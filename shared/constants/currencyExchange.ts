@@ -47,7 +47,8 @@ export const CURRENCY_EXCHANGE_INSTANT_DAILY_MAX_GOLD_FROM_DIAMONDS =
 
 /** P2P 환전 요청 최소 금액 */
 export const CURRENCY_EXCHANGE_MIN_GOLD = 100;
-export const CURRENCY_EXCHANGE_MIN_DIAMONDS = 1;
+/** P2P 환전: 다이아 측 최소(등록·요청 모두). 10% 수수료가 최소 1다이아 이상 발생하도록 10 */
+export const CURRENCY_EXCHANGE_MIN_DIAMONDS = 10;
 
 /** 유저당 동시에 열 수 있는 P2P 환전 요청 수 */
 export const CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER = 1;

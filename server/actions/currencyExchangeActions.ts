@@ -7,6 +7,7 @@ import { CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS, CURRENCY_EXCHANGE_INSTANT_MIN_G
 import {
     applyInstantDailyUsage,
     clampInstantExchangeInputToDailyLimit,
+    computeCurrencyExchangePostingFees,
     computeInstantDiamondsToGold,
     computeInstantGoldToDiamonds,
     validateCurrencyExchangeOrderAmounts,
@@ -203,11 +204,34 @@ export async function handleCurrencyExchangeAction(
             if (openCount >= CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER) {
                 return { error: `동시에 등록할 수 있는 환전 요청은 ${CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER}건까지입니다.` };
             }
-            // 등록 수수료(10%)는 요청 등록 시 즉시 차감되며, 취소 시 환불되지 않음(에스크로는 from만).
-            const listingFee = user.isAdmin ? 0 : exchangeListingFeeFromPrice(from);
-            const totalDeduct = from + listingFee;
-            if (!deductCurrency(user, fromCurrency, totalDeduct)) {
-                return { error: fromCurrency === 'gold' ? '골드가 부족합니다.' : '다이아가 부족합니다.' };
+            // 등록 수수료: 골드 측·다이아 측 각 10% 즉시 차감. 취소 시 환불되지 않음(에스크로는 from만 반환).
+            const { goldFee, diamondFee, goldDeduct, diamondDeduct } = computeCurrencyExchangePostingFees(
+                fromCurrency,
+                from,
+                to,
+                { waiveFees: !!user.isAdmin },
+            );
+            if ((user.gold ?? 0) < goldDeduct) {
+                return {
+                    error:
+                        goldFee > 0 && fromCurrency !== 'gold'
+                            ? `골드가 부족합니다. (등록 수수료 ${goldFee.toLocaleString()}골드 필요)`
+                            : '골드가 부족합니다.',
+                };
+            }
+            if ((user.diamonds ?? 0) < diamondDeduct) {
+                return {
+                    error:
+                        diamondFee > 0 && fromCurrency !== 'diamonds'
+                            ? `다이아가 부족합니다. (등록 수수료 ${diamondFee}다이아 필요)`
+                            : '다이아가 부족합니다.',
+                };
+            }
+            if (goldDeduct > 0 && !deductCurrency(user, 'gold', goldDeduct)) {
+                return { error: '골드가 부족합니다.' };
+            }
+            if (diamondDeduct > 0 && !deductCurrency(user, 'diamonds', diamondDeduct)) {
+                return { error: '다이아가 부족합니다.' };
             }
 
             const now = Date.now();

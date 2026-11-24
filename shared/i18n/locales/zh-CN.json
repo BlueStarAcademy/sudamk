@@ -5194,6 +5194,7 @@
       "offerAmount": "货币兑换请求",
       "requestAmount": "期望兑换金额",
       "postOrderHint": "注册后，所提供的商品将立即扣除。 当其他用户完成请求时，您可以在结算选项卡中收到该请求。",
+      "postOrderFeeHint": "上架手续费：金币10% + 钻石10%（最少 {{minDiamonds}} 钻石）。手续费不予退还。",
       "postOrder": "登记货币兑换请求",
       "myOpenOrders": "我的货币兑换请求",
       "cancelOrder": "消除",

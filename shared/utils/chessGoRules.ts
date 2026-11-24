@@ -399,6 +399,34 @@ export function shouldPreserveChessGoMidgameState(
     return hasChessPiecesMovedFromStandardOpening(session.chessPieces);
 }
 
+/** remainingMoves 합 — 값이 작을수록 기물 이동이 더 진행된 상태 */
+export function sumChessPiecesRemainingMoves(pieces: ChessPieceState[] | undefined | null): number {
+    if (!pieces?.length) return Number.POSITIVE_INFINITY;
+    return pieces.reduce((sum, p) => sum + Math.max(0, Number(p.remainingMoves ?? 0)), 0);
+}
+
+/**
+ * 동일 수순 길이에서 낡은 기물 좌표 패킷이 낙관적 기물 이동을 덮지 않게 한다.
+ * remainingMoves가 더 적거나, lastChessMove만 로컬에 있으면 로컬 기물을 유지한다.
+ */
+export function shouldPreferExistingChessPiecesOverIncoming(
+    existing: Pick<LiveGameSession, 'chessPieces' | 'lastChessMove' | 'chessPieceMovedThisTurn'> | undefined,
+    incoming: Pick<LiveGameSession, 'chessPieces' | 'lastChessMove' | 'chessPieceMovedThisTurn'> | undefined,
+): boolean {
+    if (!existing?.chessPieces?.length || !incoming?.chessPieces?.length) return false;
+    const existingRemain = sumChessPiecesRemainingMoves(existing.chessPieces);
+    const incomingRemain = sumChessPiecesRemainingMoves(incoming.chessPieces);
+    if (Number.isFinite(existingRemain) && Number.isFinite(incomingRemain) && existingRemain < incomingRemain) {
+        return true;
+    }
+    if (existing.lastChessMove && !incoming.lastChessMove) return true;
+    if (existing.chessPieceMovedThisTurn === true && incoming.chessPieceMovedThisTurn !== true) {
+        // 같은 턴 기물 이동 직후 슬림/낡은 패킷이 moved 플래그·좌표를 되돌리는 경우
+        if (existingRemain <= incomingRemain) return true;
+    }
+    return false;
+}
+
 export function buildChessGoOpeningBoardState(pieces: ChessPieceState[], boardSize: number): BoardState {
     return applyChessPiecesToBoard(createEmptyBoardState(boardSize), pieces);
 }

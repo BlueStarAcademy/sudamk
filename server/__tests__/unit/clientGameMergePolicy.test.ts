@@ -21,6 +21,7 @@ import type { LiveGameSession } from '../../../shared/types/index.js';
 import {
     applyChessMoveToSession,
     generateChessGoInitialPieces,
+    normalizeChessGoSession,
     CHESS_GO_BOARD_SIZE,
 } from '../../../shared/utils/chessGoRules.js';
 
@@ -513,6 +514,49 @@ describe('mergeGameUpdateByArena', () => {
         expect(merged.currentPlayer).toBe(Player.White);
     });
 
+    it('PVP chess: same-MH stale piece coords do not overwrite fresher optimistic piece move', () => {
+        const pieces = generateChessGoInitialPieces(13);
+        const existing = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            chessPieces: pieces.map((p) => ({ ...p })),
+            moveHistory: [{ x: 6, y: 6, player: Player.White }],
+            currentPlayer: Player.Black,
+            chessPieceMovedThisTurn: true,
+        }) as LiveGameSession;
+        Object.assign(existing, normalizeChessGoSession(existing));
+        const pawn = existing.chessPieces!.find(
+            (p) => p.owner === Player.Black && p.type === 'pawn' && p.x === 5,
+        )!;
+        applyChessMoveToSession(existing, pawn.id, 5, 9);
+        existing.chessPieceMovedThisTurn = true;
+        existing.lastChessMove = {
+            from: { x: 5, y: 10 },
+            to: { x: 5, y: 9 },
+            player: Player.Black,
+        };
+        Object.assign(existing, normalizeChessGoSession(existing));
+
+        const incoming = minimalSession({
+            mode: GameMode.Chess,
+            isAiGame: false,
+            gameStatus: 'playing',
+            settings: { boardSize: 13, komi: 6.5 },
+            // stale: still at opening pawn row with full remainingMoves
+            chessPieces: pieces.map((p) => ({ ...p })),
+            moveHistory: [{ x: 6, y: 6, player: Player.White }],
+            currentPlayer: Player.Black,
+            chessPieceMovedThisTurn: false,
+        }) as LiveGameSession;
+        Object.assign(incoming, normalizeChessGoSession(incoming));
+
+        const merged = mergeGameUpdateByArena(incoming, existing, { source: 'game_update' });
+        expect(merged.chessPieces!.find((p) => p.id === pawn.id)!.y).toBe(9);
+        expect(merged.chessPieceMovedThisTurn).toBe(true);
+        expect(merged.lastChessMove?.to).toEqual({ x: 5, y: 9 });
+    });
     it('PVP chess: slim packet omitting chessPieceMovedThisTurn clears flag after turn advance', () => {
         const pieces = generateChessGoInitialPieces(13);
         const existing = minimalSession({

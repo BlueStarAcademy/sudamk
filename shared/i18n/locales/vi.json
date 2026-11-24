@@ -5194,6 +5194,7 @@
       "offerAmount": "Yêu cầu đổi tiền",
       "requestAmount": "Số tiền trao đổi mong muốn",
       "postOrderHint": "Khi đăng ký, hàng hóa cung cấp sẽ bị trừ ngay. Khi người dùng khác hoàn thành yêu cầu, bạn có thể nhận được yêu cầu đó trong tab giải quyết.",
+      "postOrderFeeHint": "Phí đăng: 10% vàng + 10% kim cương (tối thiểu {{minDiamonds}} kim cương). Phí không hoàn lại.",
       "postOrder": "Đăng ký yêu cầu đổi tiền",
       "myOpenOrders": "yêu cầu đổi tiền của tôi",
       "cancelOrder": "hủy bỏ",

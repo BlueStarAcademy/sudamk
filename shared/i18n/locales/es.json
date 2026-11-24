@@ -5194,6 +5194,7 @@
       "offerAmount": "Solicitud de cambio de moneda",
       "requestAmount": "Cantidad de cambio deseada",
       "postOrderHint": "Al registrarse, los bienes proporcionados se deducirán inmediatamente. Cuando otro usuario completa una solicitud, podrás recibirla en la pestaña de liquidación.",
+      "postOrderFeeHint": "Tarifa de listado: 10% oro + 10% diamantes (mín. {{minDiamonds}} diamantes). No reembolsable.",
       "postOrder": "Registrar una solicitud de cambio de moneda",
       "myOpenOrders": "mi solicitud de cambio de moneda",
       "cancelOrder": "cancelación",

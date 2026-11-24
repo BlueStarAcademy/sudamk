@@ -5194,6 +5194,7 @@
       "offerAmount": "Bitte um Währungsumtausch",
       "requestAmount": "Gewünschter Umtauschbetrag",
       "postOrderHint": "Bei der Registrierung werden die bereitgestellten Waren sofort abgezogen. Wenn ein anderer Benutzer eine Anfrage abschließt, können Sie diese auf der Registerkarte „Abrechnung“ erhalten.",
+      "postOrderFeeHint": "Einstellgebühr: 10% Gold + 10% Diamanten (min. {{minDiamonds}} Diamanten). Gebühren nicht erstattbar.",
       "postOrder": "Registrieren Sie eine Währungsumtauschanfrage",
       "myOpenOrders": "meine Währungsumtauschanfrage",
       "cancelOrder": "Stornierung",

@@ -80,6 +80,7 @@ import {
     isLegacyChessGoLayout,
     isPlayableChessGoIntersection,
     normalizeChessGoSession,
+    shouldPreferExistingChessPiecesOverIncoming,
     processChessGoMove,
     reconcileChessGoClientSession,
     sessionUsesChessGo,
@@ -296,9 +297,9 @@ const chessPieceAlreadyMovedMessage = () => tx('game:messages.chessPieceAlreadyM
 const chessGoStartMessage = () => tx('game:messages.chessPieceMoveHint');
 const CHESS_GO_START_FLASH_MS = 8000;
 /** 체스 바둑: 기물 이동 후 착수까지 최소 대기 */
-const CHESS_MOVE_STONE_COOLDOWN_MS = 250;
-/** 체스 바둑: 기물 이동 HTTP 성공 후 이동이 반영된 GAME_UPDATE(serverRevision 증가)를 기다리는 최대 시간 */
-const CHESS_MOVE_SETTLE_MAX_WAIT_AFTER_ACK_MS = 800;
+const CHESS_MOVE_STONE_COOLDOWN_MS = 280;
+/** 체스 바둑: 기물 이동 HTTP 성공 후 로컬 기물 좌표 확정/WS 반영을 기다리는 최대 시간 */
+const CHESS_MOVE_SETTLE_MAX_WAIT_AFTER_ACK_MS = 1200;
 
 type PairSeat = NonNullable<NonNullable<LiveGameSession['settings']['pairGame']>['turnOrder']>[number];
 type PairClientTimes = { black: number; white: number };
@@ -823,13 +824,22 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     /** 체스 바둑: 기물 이동 HTTP가 끝나기 전 착수하면 서버 수순이 꼬이므로, 착수 전에만 대기한다(보드 클릭은 막지 않음). */
     const chessMoveFlightRef = useRef<Promise<unknown> | null>(null);
     /**
-     * 체스 바둑: 기물 이동이 서버에서 확정될 때까지 착수를 잠근다.
+     * 체스 바둑: 기물 이동이 서버/로컬에 확정될 때까지 착수를 잠근다.
      * 확정 전에 낙관 착수하면 늦게 도착한 기물 이동 GAME_UPDATE가 턴을 되돌려 판이 꼬인다.
      */
-    const chessMoveSettleRef = useRef<{ startedAt: number; baselineRevision: number; ackedAt: number | null } | null>(null);
+    const chessMoveSettleRef = useRef<{
+        startedAt: number;
+        baselineRevision: number;
+        ackedAt: number | null;
+        pieceId: string;
+        toX: number;
+        toY: number;
+    } | null>(null);
     const chessMoveSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
     const latestServerRevisionRef = useRef(session.serverRevision ?? 0);
     latestServerRevisionRef.current = session.serverRevision ?? 0;
+    const sessionRefForChessSettle = useRef(session);
+    sessionRefForChessSettle.current = session;
     const [strategicPetHintBoardOverlay, setStrategicPetHintBoardOverlay] = useState<{
         x: number;
         y: number;
@@ -1388,21 +1398,43 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                                     row?.some((c) => c !== Player.None),
                                 ))
                         ) {
+                            const storedPieces = Array.isArray(parsed.chessPieces) ? parsed.chessPieces : null;
+                            const sessionPieces = session.chessPieces;
+                            // 저장된 기물이 더 오래됐으면(remainingMoves가 큼) 라이브 세션 기물을 우선한다.
+                            const preferSessionPieces =
+                                sessionPieces &&
+                                storedPieces &&
+                                shouldPreferExistingChessPiecesOverIncoming(
+                                    {
+                                        chessPieces: sessionPieces,
+                                        lastChessMove: session.lastChessMove,
+                                        chessPieceMovedThisTurn: session.chessPieceMovedThisTurn,
+                                    },
+                                    {
+                                        chessPieces: storedPieces,
+                                        lastChessMove: parsed.lastChessMove,
+                                        chessPieceMovedThisTurn: parsed.chessPieceMovedThisTurn,
+                                    },
+                                );
                             const reconciled = normalizeChessGoSession({
                                 ...session,
                                 moveHistory:
                                     storedMoveCount > serverMoveCount
                                         ? parsed.moveHistory
                                         : session.moveHistory,
-                                chessPieces:
-                                    Array.isArray(parsed.chessPieces) && parsed.chessPieces.length > 0
-                                        ? parsed.chessPieces
-                                        : session.chessPieces,
+                                chessPieces: preferSessionPieces
+                                    ? sessionPieces
+                                    : storedPieces && storedPieces.length > 0
+                                      ? storedPieces
+                                      : sessionPieces,
                                 chessGoRemovedPoints:
                                     parsed.chessGoRemovedPoints ?? session.chessGoRemovedPoints,
                                 chessPieceMovedThisTurn:
                                     parsed.chessPieceMovedThisTurn ?? session.chessPieceMovedThisTurn,
                                 chessCaptureScore: parsed.chessCaptureScore ?? session.chessCaptureScore,
+                                lastChessMove: preferSessionPieces
+                                    ? session.lastChessMove
+                                    : (parsed.lastChessMove ?? session.lastChessMove),
                                 currentPlayer:
                                     storedMoveCount > serverMoveCount
                                         ? (parsed.currentPlayer ?? session.currentPlayer)
@@ -3203,27 +3235,37 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         const settle = chessMoveSettleRef.current;
         if (!settle || settle.ackedAt == null) return;
         const now = Date.now();
+        const latest = sessionRefForChessSettle.current;
+        const pieceConfirmed = latest.chessPieces?.some(
+            (p) => p.id === settle.pieceId && p.x === settle.toX && p.y === settle.toY,
+        );
+        const movedFlag = latest.chessPieceMovedThisTurn === true;
         const revisionArrived = latestServerRevisionRef.current > settle.baselineRevision;
-        const waitUntil = revisionArrived
-            ? settle.startedAt + CHESS_MOVE_STONE_COOLDOWN_MS
-            : Math.max(
-                  settle.startedAt + CHESS_MOVE_STONE_COOLDOWN_MS,
-                  settle.ackedAt + CHESS_MOVE_SETTLE_MAX_WAIT_AFTER_ACK_MS,
-              );
-        if (now >= waitUntil) {
+        // revision만으로 풀면 무관한 GAME_UPDATE에 착수가 열려 기물 좌표가 어긋난 채로 착수된다.
+        const locallyConfirmed = Boolean(pieceConfirmed && (movedFlag || revisionArrived));
+        const minWaitAt = settle.startedAt + CHESS_MOVE_STONE_COOLDOWN_MS;
+        const failOpenAt = settle.ackedAt + CHESS_MOVE_SETTLE_MAX_WAIT_AFTER_ACK_MS;
+        if ((locallyConfirmed && now >= minWaitAt) || now >= failOpenAt) {
             releaseChessMoveSettle();
             return;
         }
+        const waitUntil = locallyConfirmed ? minWaitAt : Math.min(failOpenAt, Math.max(minWaitAt, now + 50));
         if (chessMoveSettleTimerRef.current != null) clearTimeout(chessMoveSettleTimerRef.current);
         chessMoveSettleTimerRef.current = setTimeout(() => {
             chessMoveSettleTimerRef.current = null;
             tryReleaseChessMoveSettle();
-        }, waitUntil - now);
+        }, Math.max(16, waitUntil - now));
     }, [releaseChessMoveSettle]);
 
     useEffect(() => {
         tryReleaseChessMoveSettle();
-    }, [session.serverRevision, tryReleaseChessMoveSettle]);
+    }, [
+        session.serverRevision,
+        session.chessPieceMovedThisTurn,
+        session.chessPieces,
+        session.lastChessMove,
+        tryReleaseChessMoveSettle,
+    ]);
 
     useEffect(() => {
         if (gameStatus !== 'playing') releaseChessMoveSettle();
@@ -3268,10 +3310,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     }, []);
 
     const applyOptimisticAiUserMove = useCallback((x: number, y: number): boolean => {
-        // 체스 바둑: 기물 이동 직후 session.boardState가 chessPieces와 어긋나면 착수 후 기물이 되돌아가는 것처럼 보임
+        // 체스 바둑: 기물 이동 직후 최신 session(ref) 기준으로 착수해야 기물이 되돌아가 보이지 않음
+        const latestSession = usesChessGo ? sessionRefForChessSettle.current : session;
+        const latestChessSession = usesChessGo ? normalizeChessGoSession(latestSession) : null;
         const boardStateToUse =
-            usesChessGo && chessGoSession.boardState?.length
-                ? chessGoSession.boardState
+            usesChessGo && latestChessSession?.boardState?.length
+                ? latestChessSession.boardState
                 : session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
                   ? session.boardState
                   : restoredBoardState || session.boardState;
@@ -3281,12 +3325,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (myPlayerEnum !== Player.Black && myPlayerEnum !== Player.White) return false;
         try {
             const moveResult =
-                usesChessGo
+                usesChessGo && latestChessSession
                     ? processChessGoMove(
-                          chessGoSession,
+                          latestChessSession,
                           { x, y, player: myPlayerEnum },
-                          session.koInfo,
-                          session.moveHistory?.length || 0,
+                          latestSession.koInfo,
+                          latestSession.moveHistory?.length || 0,
                       )
                     : mode === GameMode.Castle
                       ? processCastleMove(
@@ -3325,6 +3369,7 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         handlers,
         mode,
         myPlayerEnum,
+        usesChessGo,
         chessGoSession.boardState,
         restoredBoardState,
         session,
@@ -3335,9 +3380,11 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
     ]);
 
     const applyOptimisticPairUserMove = useCallback((x: number, y: number): boolean => {
+        const latestSession = usesChessGo ? sessionRefForChessSettle.current : session;
+        const latestChessSession = usesChessGo ? normalizeChessGoSession(latestSession) : null;
         const boardStateToUse =
-            usesChessGo && chessGoSession.boardState?.length
-                ? chessGoSession.boardState
+            usesChessGo && latestChessSession?.boardState?.length
+                ? latestChessSession.boardState
                 : session.boardState && Array.isArray(session.boardState) && session.boardState.length > 0
                   ? session.boardState
                   : restoredBoardState || session.boardState;
@@ -3346,12 +3393,12 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
         if (myPlayerEnum !== Player.Black && myPlayerEnum !== Player.White) return false;
         try {
             const moveResult =
-                usesChessGo
+                usesChessGo && latestChessSession
                     ? processChessGoMove(
-                          chessGoSession,
+                          latestChessSession,
                           { x, y, player: myPlayerEnum },
-                          session.koInfo,
-                          session.moveHistory?.length || 0,
+                          latestSession.koInfo,
+                          latestSession.moveHistory?.length || 0,
                       )
                     : mode === GameMode.Castle
                       ? processCastleMove(
@@ -3537,6 +3584,9 @@ const Game: React.FC<GameComponentProps> = ({ session }) => {
                         startedAt: Date.now(),
                         baselineRevision: latestServerRevisionRef.current,
                         ackedAt: null as number | null,
+                        pieceId: movedPieceId,
+                        toX: x,
+                        toY: y,
                     };
                     chessMoveSettleRef.current = settle;
                     const chessMovePromise = Promise.resolve(

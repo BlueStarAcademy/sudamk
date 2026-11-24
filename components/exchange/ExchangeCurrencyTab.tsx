@@ -6,9 +6,10 @@ import Button from '../Button.js';
 import DraggableWindow from '../DraggableWindow.js';
 import ResourceActionButton from '../ui/ResourceActionButton.js';
 import { getApiUrl } from '../../utils/apiConfig.js';
-import { clampDigitsOnlyInputString, clampGameInt, exchangeListingFeeFromPrice } from '../../shared/utils/gameIntegerField.js';
+import { clampDigitsOnlyInputString, clampGameInt } from '../../shared/utils/gameIntegerField.js';
 import {
     clampInstantExchangeInputToDailyLimit,
+    computeCurrencyExchangePostingFees,
     computeInstantDiamondsToGold,
     computeInstantGoldToDiamonds,
     computeDesiredExchangeAmountFromMarketRate,
@@ -18,6 +19,7 @@ import {
     instantGoldPerDiamondWhenSellingDiamonds,
     maxInstantBasePayAffordable,
     resolveMarketDisplayGoldPerDiamondFromSnapshot,
+    validateCurrencyExchangeOrderAmounts,
     validateInstantExchangeDailyLimit,
 } from '../../shared/utils/currencyExchange.js';
 import type { CurrencyExchangeMarketRateSnapshot } from '../../shared/utils/currencyExchange.js';
@@ -31,6 +33,7 @@ import {
     CURRENCY_EXCHANGE_INSTANT_MIN_DIAMONDS,
     CURRENCY_EXCHANGE_INSTANT_MIN_GOLD,
     CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER,
+    CURRENCY_EXCHANGE_MIN_DIAMONDS,
 } from '../../shared/constants/currencyExchange.js';
 import { formatWalletCurrencyAmount, formatWalletDiamonds } from '../../shared/utils/walletAmountDisplay.js';
 import { maxExchangeListPrice } from '../../shared/constants/numericLimits.js';
@@ -287,9 +290,12 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
 
     const orderFromParsed = useMemo(() => Math.max(0, Math.floor(Number(orderFromAmount) || 0)), [orderFromAmount]);
     const orderToParsed = useMemo(() => Math.max(0, Math.floor(Number(orderToAmount) || 0)), [orderToAmount]);
-    const orderRegistrationFee = useMemo(
-        () => exchangeListingFeeFromPrice(clampGameInt(orderFromParsed, { min: 0 })),
-        [orderFromParsed],
+    const orderRegistrationFees = useMemo(
+        () =>
+            computeCurrencyExchangePostingFees(orderFromCurrency, orderFromParsed, orderToParsed, {
+                waiveFees: !!currentUser.isAdmin,
+            }),
+        [orderFromCurrency, orderFromParsed, orderToParsed, currentUser.isAdmin],
     );
 
     const myOpenOrder = myOpenOrders[0] ?? null;
@@ -414,16 +420,20 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
             window.alert(t('currency.alerts.invalidAmount'));
             return;
         }
+        const amountError = validateCurrencyExchangeOrderAmounts(orderFromCurrency, from, to);
+        if (amountError) {
+            window.alert(amountError);
+            return;
+        }
         if (myOpenOrders.length >= CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER) {
             window.alert(t('currency.alerts.maxOpenOrders', { count: CURRENCY_EXCHANGE_MAX_OPEN_ORDERS_PER_USER }));
             return;
         }
-        const totalNeeded = from + orderRegistrationFee;
-        if (orderFromCurrency === 'gold' && walletGold < totalNeeded) {
+        if (walletGold < orderRegistrationFees.goldDeduct) {
             window.alert(t('alerts.insufficientGold'));
             return;
         }
-        if (orderFromCurrency === 'diamonds' && walletDiamonds < totalNeeded) {
+        if (walletDiamonds < orderRegistrationFees.diamondDeduct) {
             window.alert(t('alerts.insufficientDiamonds'));
             return;
         }
@@ -603,12 +613,20 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                             </div>
                             <div className={`flex items-center justify-between gap-2 ${mobileExchange ? 'text-sm' : 'text-base'}`}>
                                 <span className="font-semibold text-slate-400">{t('currency.feePercent')}</span>
-                                <CurrencyAmountDisplay
-                                    amount={orderRegistrationFee}
-                                    currency={orderFromCurrency}
-                                    iconClassName="h-5 w-5"
-                                    amountClassName={`${exchTy.amount} text-rose-300/90`}
-                                />
+                                <span className="inline-flex flex-wrap items-center justify-end gap-2">
+                                    <CurrencyAmountDisplay
+                                        amount={orderRegistrationFees.goldFee}
+                                        currency="gold"
+                                        iconClassName="h-5 w-5"
+                                        amountClassName={`${exchTy.amount} text-rose-300/90`}
+                                    />
+                                    <CurrencyAmountDisplay
+                                        amount={orderRegistrationFees.diamondFee}
+                                        currency="diamonds"
+                                        iconClassName="h-5 w-5"
+                                        amountClassName={`${exchTy.amount} text-rose-300/90`}
+                                    />
+                                </span>
                             </div>
                             <div className={`flex items-center justify-between gap-2 border-t border-white/[0.06] pt-2.5 ${mobileExchange ? 'text-sm' : 'text-base'}`}>
                                 <span className="font-semibold text-slate-400">{t('currency.requestAmount')}</span>
@@ -1085,7 +1103,12 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
 
                     {(!mobileExchange || mobileSectionTab === 'register') ? (
                     <div className={sidePanelClass}>
-                        <SectionHeader title={t('currency.postOrderTitle')} accent="amber" titleClassName={exchTy.sectionTitle} />
+                        <SectionHeader
+                            title={t('currency.postOrderTitle')}
+                            subtitle={t('currency.postOrderHint', { minDiamonds: CURRENCY_EXCHANGE_MIN_DIAMONDS })}
+                            accent="amber"
+                            titleClassName={exchTy.sectionTitle}
+                        />
 
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-stretch">
                             <div className="flex min-w-0 flex-[0.88] flex-col gap-2 sm:max-w-[46%]">
@@ -1232,13 +1255,22 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                             <p className={`mb-1 ${exchTy.metaLabel}`}>
                                                 {t('currency.feePercent')}
                                             </p>
-                                            <CurrencyAmountDisplay
-                                                amount={orderRegistrationFee}
-                                                currency={orderFromCurrency}
-                                                iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
-                                                amountClassName={`${exchTy.amountSm} text-rose-300/90`}
-                                                className="justify-center"
-                                            />
+                                            <div className="flex flex-col items-center gap-0.5">
+                                                <CurrencyAmountDisplay
+                                                    amount={orderRegistrationFees.goldFee}
+                                                    currency="gold"
+                                                    iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                    amountClassName={`${exchTy.amountSm} text-rose-300/90`}
+                                                    className="justify-center"
+                                                />
+                                                <CurrencyAmountDisplay
+                                                    amount={orderRegistrationFees.diamondFee}
+                                                    currency="diamonds"
+                                                    iconClassName={mobileExchange ? 'h-4 w-4' : 'h-5 w-5'}
+                                                    amountClassName={`${exchTy.amountSm} text-rose-300/90`}
+                                                    className="justify-center"
+                                                />
+                                            </div>
                                         </div>
                                     </div>
                                     <div className="text-center">
@@ -1268,6 +1300,9 @@ const ExchangeCurrencyTab: React.FC<ExchangeCurrencyTabProps> = ({
                                 >
                                     {t('currency.postOrder')}
                                 </Button>
+                                <p className={`${exchTy.metaLabel} text-center text-rose-300/80`}>
+                                    {t('currency.postOrderFeeHint', { minDiamonds: CURRENCY_EXCHANGE_MIN_DIAMONDS })}
+                                </p>
                             </div>
                         </div>
                     </div>

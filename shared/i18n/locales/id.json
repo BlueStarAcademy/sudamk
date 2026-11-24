@@ -5194,6 +5194,7 @@
       "offerAmount": "Permintaan penukaran mata uang",
       "requestAmount": "Jumlah pertukaran yang diinginkan",
       "postOrderHint": "Setelah registrasi, barang yang disediakan akan langsung dipotong. Saat pengguna lain menyelesaikan permintaan, Anda bisa menerimanya di tab penyelesaian.",
+      "postOrderFeeHint": "Biaya listing: 10% emas + 10% berlian (min {{minDiamonds}} berlian). Biaya tidak dikembalikan.",
       "postOrder": "Daftarkan permintaan penukaran mata uang",
       "myOpenOrders": "permintaan penukaran mata uang saya",
       "cancelOrder": "pembatalan",

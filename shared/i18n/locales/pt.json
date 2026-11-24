@@ -5194,6 +5194,7 @@
       "offerAmount": "Solicitação de câmbio",
       "requestAmount": "Valor de troca desejado",
       "postOrderHint": "No ato do cadastro, os bens fornecidos serão descontados imediatamente. Quando outro usuário concluir uma solicitação, você poderá recebê-la na guia de liquidação.",
+      "postOrderFeeHint": "Taxa de listagem: 10% ouro + 10% diamantes (mín. {{minDiamonds}} diamantes). Taxas não reembolsáveis.",
       "postOrder": "Registre uma solicitação de câmbio",
       "myOpenOrders": "minha solicitação de câmbio",
       "cancelOrder": "cancelamento",

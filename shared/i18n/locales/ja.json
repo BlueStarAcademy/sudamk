@@ -5194,6 +5194,7 @@
       "offerAmount": "両替リクエスト",
       "requestAmount": "希望両替金",
       "postOrderHint": "登録時に提供商品がすぐに差し引かれます。 他のユーザーが要求を締結すると、[決済]タブで受け取ることができます。",
+      "postOrderFeeHint": "登録手数料: ゴールド10% + ダイヤ10%（最低 {{minDiamonds}}ダイヤ）。手数料は返金されません。",
       "postOrder": "両替リクエスト登録",
       "myOpenOrders": "私の両替リクエスト",
       "cancelOrder": "キャンセル",

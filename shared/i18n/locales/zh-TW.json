@@ -5194,6 +5194,7 @@
       "offerAmount": "貨幣兌換請求",
       "requestAmount": "期望兌換金額",
       "postOrderHint": "註冊後，所提供的商品將立即扣除。 當其他使用者完成請求時，您可以在結算標籤中收到該請求。",
+      "postOrderFeeHint": "上架手續費：金幣10% + 鑽石10%（最少 {{minDiamonds}} 鑽石）。手續費不予退還。",
       "postOrder": "登記貨幣兌換請求",
       "myOpenOrders": "我的貨幣兌換請求",
       "cancelOrder": "消除",

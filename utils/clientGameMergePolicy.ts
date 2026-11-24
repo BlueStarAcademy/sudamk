@@ -8,6 +8,7 @@ import {
     isLegacyChessGoLayout,
     isStandardChessGoOpeningLayout,
     normalizeChessGoSession,
+    shouldPreferExistingChessPiecesOverIncoming,
     shouldPreserveChessGoMidgameState,
 } from '../shared/utils/chessGoRules.js';
 import {
@@ -1106,30 +1107,28 @@ function mergeChessSessionFieldsOnMerge(
     if (incoming.chessCaptureScore == null && existing?.chessCaptureScore) {
         merged = { ...merged, chessCaptureScore: existing.chessCaptureScore };
     }
-    {
-        const mhAdvanced =
-            existing != null &&
-            (merged.moveHistory?.length ?? 0) > (existing.moveHistory?.length ?? 0);
-        const turnChanged =
-            existing != null &&
-            merged.currentPlayer != null &&
-            existing.currentPlayer != null &&
-            merged.currentPlayer !== existing.currentPlayer;
-        if (packet.chessPieceMovedThisTurn == null && existing?.chessPieceMovedThisTurn != null) {
-            // 턴/수순이 진행됐는데 슬림 패킷이 필드를 빼면 {...existing,...incoming} 스프레드로
-            // true가 고착되어 기물 이동·착수가 막힌다.
-            if (!mhAdvanced && !turnChanged) {
-                merged = { ...merged, chessPieceMovedThisTurn: existing.chessPieceMovedThisTurn };
-            } else {
-                merged = { ...merged, chessPieceMovedThisTurn: false };
-            }
-        } else if (
-            (mhAdvanced || turnChanged) &&
-            packet.chessPieceMovedThisTurn == null &&
-            merged.chessPieceMovedThisTurn === true
-        ) {
+    const mhAdvanced =
+        existing != null &&
+        (merged.moveHistory?.length ?? 0) > (existing.moveHistory?.length ?? 0);
+    const turnChanged =
+        existing != null &&
+        merged.currentPlayer != null &&
+        existing.currentPlayer != null &&
+        merged.currentPlayer !== existing.currentPlayer;
+    if (packet.chessPieceMovedThisTurn == null && existing?.chessPieceMovedThisTurn != null) {
+        // 턴/수순이 진행됐는데 슬림 패킷이 필드를 빼면 {...existing,...incoming} 스프레드로
+        // true가 고착되어 기물 이동·착수가 막힌다.
+        if (!mhAdvanced && !turnChanged) {
+            merged = { ...merged, chessPieceMovedThisTurn: existing.chessPieceMovedThisTurn };
+        } else {
             merged = { ...merged, chessPieceMovedThisTurn: false };
         }
+    } else if (
+        (mhAdvanced || turnChanged) &&
+        packet.chessPieceMovedThisTurn == null &&
+        merged.chessPieceMovedThisTurn === true
+    ) {
+        merged = { ...merged, chessPieceMovedThisTurn: false };
     }
     if (packet.lastChessMove === undefined && existing?.lastChessMove) {
         merged = { ...merged, lastChessMove: existing.lastChessMove };
@@ -1145,6 +1144,8 @@ function mergeChessSessionFieldsOnMerge(
     const existingPiecesMoved = hasChessPiecesMovedFromStandardOpening(existing?.chessPieces);
     const incomingPiecesMoved = hasChessPiecesMovedFromStandardOpening(merged.chessPieces);
     const existingPreserveMidgame = existing ? shouldPreserveChessGoMidgameState(existing) : false;
+    const keepLocalMovedFlagThisTurn =
+        !mhAdvanced && !turnChanged && existing?.chessPieceMovedThisTurn === true;
     if (
         (existingPiecesMoved || existingPreserveMidgame) &&
         (!merged.chessPieces?.length || !incomingPiecesMoved)
@@ -1152,8 +1153,30 @@ function mergeChessSessionFieldsOnMerge(
         merged = {
             ...merged,
             chessPieces: existing!.chessPieces,
-            chessPieceMovedThisTurn: merged.chessPieceMovedThisTurn ?? existing!.chessPieceMovedThisTurn,
+            // 같은 턴에서는 로컬 moved=true를 지키되, 턴이 넘어간 뒤에는 false를 유지한다.
+            chessPieceMovedThisTurn: keepLocalMovedFlagThisTurn
+                ? true
+                : (merged.chessPieceMovedThisTurn ?? false),
             chessCaptureScore: existing!.chessCaptureScore ?? merged.chessCaptureScore,
+            lastChessMove: existing!.lastChessMove ?? merged.lastChessMove,
+        };
+    } else if (
+        existing &&
+        shouldPreferExistingChessPiecesOverIncoming(existing, {
+            chessPieces: merged.chessPieces,
+            lastChessMove: merged.lastChessMove,
+            chessPieceMovedThisTurn: merged.chessPieceMovedThisTurn,
+        })
+    ) {
+        // 기물 이동 직후 빠른 착수: 동일 MH의 낡은 기물 좌표 GAME_UPDATE가 낙관 반영을 덮어 판이 꼬이는 것을 막음
+        merged = {
+            ...merged,
+            chessPieces: existing.chessPieces,
+            lastChessMove: existing.lastChessMove ?? merged.lastChessMove,
+            chessPieceMovedThisTurn: keepLocalMovedFlagThisTurn
+                ? true
+                : (merged.chessPieceMovedThisTurn ?? existing.chessPieceMovedThisTurn),
+            chessCaptureScore: existing.chessCaptureScore ?? merged.chessCaptureScore,
         };
     }
     const existingStandard =
