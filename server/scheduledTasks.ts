@@ -2122,7 +2122,8 @@ export async function processDailyQuestReset(): Promise<void> {
     const updatedUsersMap = new Map<string, types.User>();
 
     for (const user of allUsers) {
-        let updatedUser = await resetAndGenerateQuests(user);
+        // 자정 일괄: 일일 퀘스트 목록만 갱신. 출석(+1)은 실제 로그인/접속 시에만 인정.
+        let updatedUser = await resetAndGenerateQuests(user, { grantAttendance: false });
 
         const hadDailyEntry = user.championshipDungeonDailyEntry != null;
         clearChampionshipDungeonDailyEntryRecords(updatedUser);

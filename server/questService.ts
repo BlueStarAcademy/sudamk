@@ -165,3 +165,20 @@ export const updateQuestProgress = (
         }
     }
 };
+
+/** 일일 「출석하기」 진행도 — 오늘 실제 출석 인정 여부 판단용 */
+export function getDailyAttendanceProgress(user: types.User): number {
+    const quest = user.quests?.daily?.quests?.find((q) => q.title === '출석하기');
+    return Math.max(0, Math.floor(Number(quest?.progress) || 0));
+}
+
+/**
+ * 실제 유저 접속/로그인 시에만 출석 퀘스트(+1)를 올린다.
+ * 이미 오늘 일일 출석이 반영됐으면 false (중복 방지).
+ */
+export function grantAttendanceQuestProgressIfNeeded(user: types.User, amount: number = 1): boolean {
+    if (!user.quests?.daily?.quests?.some((q) => q.title === '출석하기')) return false;
+    if (getDailyAttendanceProgress(user) > 0) return false;
+    updateQuestProgress(user, 'login', undefined, amount);
+    return getDailyAttendanceProgress(user) > 0;
+}

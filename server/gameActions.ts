@@ -44,7 +44,7 @@ import { handleTrainingGroundAction } from './actions/trainingGroundActions.js';
 import { handleGuildAction } from './actions/guildActions.js';
 import { broadcast, broadcastToGameParticipants } from './socket.js';
 import { applyPveItemActionClientSync } from './pveItemSync.js';
-import { updateQuestProgress } from './questService.js';
+import { grantAttendanceQuestProgressIfNeeded, updateQuestProgress } from './questService.js';
 import { getCurrentPairTurnSeat, isPairAiSeat, isPairClassicGame } from '../shared/utils/pairGameTurn.js';
 import { resolveArenaSessionPolicy } from '../shared/utils/liveSessionArenaKind.js';
 import { isAiLobbyManualClockPause } from './modes/shared.js';
@@ -241,10 +241,22 @@ const normalizeLegacyQuestTexts = (user: User): boolean => {
     return changed;
 };
 
-export const resetAndGenerateQuests = async (user: User): Promise<User> => {
+export type ResetAndGenerateQuestsOptions = {
+    /**
+     * true(기본): 실제 유저 세션에서 오늘 출석(+1)을 인정.
+     * false: 자정 일괄 리셋 등 오프라인 배치 — 일일 목록만 갱신하고 출석은 올리지 않음.
+     */
+    grantAttendance?: boolean;
+};
+
+export const resetAndGenerateQuests = async (
+    user: User,
+    options?: ResetAndGenerateQuestsOptions,
+): Promise<User> => {
     const now = Date.now();
     const updatedUser = deepClone(user);
     let modified = false;
+    const grantAttendance = options?.grantAttendance !== false;
 
     // Ensure the quests object and its properties exist for older users.
     if (!updatedUser.quests || typeof updatedUser.quests.daily === 'undefined' || typeof updatedUser.quests.weekly === 'undefined' || typeof updatedUser.quests.monthly === 'undefined') {
@@ -324,25 +336,20 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
             ...q, id: `q-d-${i}-${now}`, progress: 0, isClaimed: false,
         }));
         updatedUser.quests.daily.quests = newQuests;
-        // Daily login quest progress
-        updateQuestProgress(updatedUser, 'login', undefined, 1);
-        
-        // Check if user has already completed conditions for other quests
-        // 채팅창에 인사하기: volatileState에서 최근 채팅 메시지 확인
+        modified = true;
+
+        // 채팅창에 인사하기: 오늘 실제 인사 채팅이 있으면 반영 (출석과 무관)
         const { volatileState } = await import('./state.js');
         const GREETINGS = ['안녕', '하이', '헬로', 'hi', 'hello', '반가', '잘 부탁', '잘부탁'];
         const todayStartKST = getStartOfDayKST(now);
-        
-        // 채팅 인사 퀘스트 체크: 오늘 날짜에 인사 메시지가 있는지 확인
         const userLastChatTime = volatileState.userLastChatMessage[user.id] || 0;
         if (userLastChatTime >= todayStartKST) {
-            // 오늘 채팅을 보냈으므로, 채팅 내용 확인
             const allChannels = ['global', 'strategic', 'playful'] as const;
             let hasGreetingToday = false;
             for (const channel of allChannels) {
                 const chats = volatileState.waitingRoomChats[channel] || [];
-                const todayChats = chats.filter((chat: any) => 
-                    chat.user?.id === user.id && 
+                const todayChats = chats.filter((chat: any) =>
+                    chat.user?.id === user.id &&
                     chat.timestamp >= todayStartKST &&
                     chat.text &&
                     GREETINGS.some(g => chat.text.toLowerCase().includes(g))
@@ -356,8 +363,6 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
                 updateQuestProgress(updatedUser, 'chat_greeting', undefined, 1);
             }
         }
-        
-        modified = true;
     }
 
     // Weekly Quests
@@ -374,7 +379,7 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
         updatedUser.quests.weekly.quests = newQuests;
         modified = true;
     }
-    
+
     // Monthly Quests
     if (isDifferentMonthKST(updatedUser.quests.monthly?.lastReset, now)) {
         updatedUser.quests.monthly = {
@@ -383,10 +388,16 @@ export const resetAndGenerateQuests = async (user: User): Promise<User> => {
             claimedMilestones: [false, false, false, false, false],
             lastReset: now,
         };
-         const newQuests: Quest[] = MONTHLY_QUESTS.map((q, i) => ({
+        const newQuests: Quest[] = MONTHLY_QUESTS.map((q, i) => ({
             ...q, id: `q-m-${i}-${now}`, progress: 0, isClaimed: false,
         }));
         updatedUser.quests.monthly.quests = newQuests;
+        modified = true;
+    }
+
+    // 출석하기: 주간/월간 목록 갱신 이후에 반영해야 기간 전환일 첫 출석이 유지됨.
+    // 자정 오프라인 일괄 리셋(grantAttendance=false)에서는 올리지 않음.
+    if (grantAttendance && grantAttendanceQuestProgressIfNeeded(updatedUser)) {
         modified = true;
     }
 

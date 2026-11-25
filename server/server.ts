@@ -1710,7 +1710,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
                                 // 최신 저장을 덮어써 레벨·재료가 롤백될 수 있다.
                                 let probe = user;
                                 if (isMidnightForReset) {
-                                    probe = await resetAndGenerateQuests(probe);
+                                    probe = await resetAndGenerateQuests(probe, { grantAttendance: false });
                                 }
                                 probe = await regenerateActionPoints(probe);
                                 probe = processSinglePlayerMissions(probe);
@@ -1730,7 +1730,7 @@ export function createApp(serverRef: ServerRef, dbInitializedRef?: DbInitialized
 
                                 let toSave = fresh;
                                 if (isMidnightForReset) {
-                                    toSave = await resetAndGenerateQuests(toSave);
+                                    toSave = await resetAndGenerateQuests(toSave, { grantAttendance: false });
                                 }
                                 toSave = await regenerateActionPoints(toSave);
                                 toSave = processSinglePlayerMissions(toSave);
